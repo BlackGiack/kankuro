@@ -42,7 +42,6 @@ A FIFO (First-In-First-Out) notification system. When an agent stops to wait for
 /internal/
   /driver/             # Interface implementations for different CLIs
   /ui/                 # Bubble Tea TUI components
-  /pipe/               # Sanitization and routing logic
   /config/             # YAML/JSON persistence for ID Cards
   /session/            # Sub-process management
 
@@ -55,7 +54,7 @@ Every CLI tool integrated into KANKURO must implement this interface to ensure t
 ```go
 type AgentDriver interface {
     // Lifecycle
-    Spawn(config AgentConfig) (*os.Process, error)
+    Spawn(config AgentConfig) (*SessionHandle, error)
     Kill() error
 
     // Configuration
@@ -64,7 +63,7 @@ type AgentDriver interface {
 
     // I/O
     SendInput(data string) error
-    CaptureOutput() (chan string, error) // Stream output
+    CaptureOutput() (chan []byte, error) // Stream raw PTY output chunks
     
     GetStatus() SessionStatus
 }
@@ -79,7 +78,7 @@ type AgentDriver interface {
 
 * **Dashboard TUI:** Grid layout showing **ID Cards**; Sidebar showing **Active Sessions**.
 * **ID Card CRUD:** Create, edit, and save agent configurations.
-* **Session Wrapping:** Launching and detaching from interactive CLI sub-processes.
+* **Session Wrapping:** Launching and detaching from interactive CLI sub-processes with raw PTY attach.
 * **Skill/MCP Registry:** User-editable list of agentic capabilities following the Anthropic open standard.
 
 ### 🔗 Phase 1: Connectivity (v1)
@@ -104,8 +103,11 @@ type AgentDriver interface {
 
 * **Interactions:**
 * `Enter` on a Card: Launch/Edit.
-* `Click/Select` on Session: Enter the "Wrapped Terminal" for direct interaction.
-* `Ctrl+K`: Detach from terminal and return to Kankuro Dashboard.
+* `Click/Select` on Session: Attach to the session PTY for direct interaction.
+* `Ctrl+K`: Detach from the attached PTY and return to Kankuro Dashboard without killing the session.
+* `Tab`: Switch dashboard focus between ID cards and sessions.
+* `x`: Kill the selected running session from the sessions list.
+* `Delete`: Remove the selected terminated session from the sessions list.
 
 
 * **Visual Cues:** Agents awaiting input will "pulse" or show a notification badge in the sidebar.
@@ -114,8 +116,9 @@ type AgentDriver interface {
 
 ## 5. Implementation Notes
 
-* **Terminal Handling:** Use `creack/pty` or similar Go libraries to handle pseudo-terminal allocation for interactive CLIs.
+* **Terminal Handling:** Use `creack/pty` or similar Go libraries to handle pseudo-terminal allocation, attach replay, and live terminal resizing for interactive CLIs.
 * **TUI Framework:** Built using [Bubble Tea](https://github.com/charmbracelet/bubbletea) for a modern, responsive terminal experience.
+* **Attach Mode:** Bubble Tea should temporarily release terminal control during session attach, then restore the dashboard on detach.
 * **Piping Logic:** Implement a `SanitizedWriter` that implements `io.Writer` to filter out escape sequences and UI artifacts during session-to-session transfers.
 
 ---
