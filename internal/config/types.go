@@ -16,6 +16,7 @@ type IDCard struct {
 	SkillIDs          []string          `yaml:"skill_ids"`
 	MCPIDs            []string          `yaml:"mcp_ids"`
 	Env               map[string]string `yaml:"env"`
+	FaceStyle         string            `yaml:"face_style"`
 	CreatedAt         time.Time         `yaml:"created_at"`
 	UpdatedAt         time.Time         `yaml:"updated_at"`
 }

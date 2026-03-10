@@ -12,6 +12,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"kankuro/internal/ascii"
+	"kankuro/internal/ascii/characters"
 	"kankuro/internal/config"
 	"kankuro/internal/session"
 )
@@ -129,8 +131,8 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 	sessionsList.SetFilteringEnabled(false)
 	sessionsList.Styles.Title = titleStyle
 
-	cardInputs := make([]textinput.Model, 4)
-	placeholders := []string{"name", "driver command (e.g. claude)", "model", "working_dir"}
+	cardInputs := make([]textinput.Model, 5)
+	placeholders := []string{"name", "driver command (e.g. claude)", "model", "working_dir", "face_style (neutral/happy/focused/thinking)"}
 	for i := range cardInputs {
 		cardInputs[i] = textinput.New()
 		cardInputs[i].Placeholder = placeholders[i]
@@ -240,6 +242,7 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.cardInputs[1].SetValue(selected.Driver)
 			a.cardInputs[2].SetValue(selected.Model)
 			a.cardInputs[3].SetValue(selected.WorkingDir)
+			a.cardInputs[4].SetValue(selected.FaceStyle)
 			a.editingCardID = selected.ID
 			a.mode = viewCardForm
 			return a, nil
@@ -320,6 +323,7 @@ func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Driver:     strings.TrimSpace(a.cardInputs[1].Value()),
 				Model:      strings.TrimSpace(a.cardInputs[2].Value()),
 				WorkingDir: strings.TrimSpace(a.cardInputs[3].Value()),
+				FaceStyle:  strings.TrimSpace(a.cardInputs[4].Value()),
 			}
 			var err error
 			if a.editingCardID == "" {
@@ -416,7 +420,8 @@ func (a *App) View() string {
 			"Name: " + a.cardInputs[0].View() + "\n" +
 			"Driver: " + a.cardInputs[1].View() + "\n" +
 			"Model: " + a.cardInputs[2].View() + "\n" +
-			"Working Dir: " + a.cardInputs[3].View() + "\n\n" +
+			"Working Dir: " + a.cardInputs[3].View() + "\n" +
+			"Face Style: " + a.cardInputs[4].View() + "\n\n" +
 			"Enter=save Tab=next Esc=cancel"
 	case viewSkillForm:
 		return errLine + titleStyle.Render("Add Skill") + "\n\n" +
@@ -520,11 +525,23 @@ func (a *App) cycleFocus(inputs []textinput.Model) {
 	inputs[next].Focus()
 }
 
+func renderAgentCard(card config.IDCard) string {
+	style := card.FaceStyle
+	if style == "" {
+		style = "neutral"
+	}
+	face := characters.NewFace(ascii.WithStyle(style))
+	w, _ := face.Bounds()
+	canvas := ascii.NewCanvas(w, 1)
+	face.Render(canvas, 0, 0)
+	return canvas.String()
+}
+
 func toCardItems(cards []config.IDCard) []list.Item {
 	items := make([]list.Item, 0, len(cards))
 	for _, c := range cards {
 		items = append(items, item{
-			title:  c.Name,
+			title:  c.Name + " " + renderAgentCard(c),
 			desc:   fmt.Sprintf("%s | %s", c.Driver, c.Model),
 			id:     c.ID,
 			status: session.StatusRunning, // default for cards
@@ -541,13 +558,6 @@ func (a *App) upsertCardLocal(card config.IDCard) {
 		}
 	}
 	a.cards = append(a.cards, card)
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func (a *App) toggleDashboardPane() {
