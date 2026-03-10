@@ -114,6 +114,66 @@ func TestSessionAttachReplaysScrollbackAndTracksPromptWithoutNewline(t *testing.
 	}
 }
 
+func TestSessionIdleWordDetection(t *testing.T) {
+	sm := NewManager()
+	card := config.IDCard{
+		ID:         "card-idle",
+		Name:       "idle",
+		Driver:     "cat",
+		WorkingDir: t.TempDir(),
+	}
+
+	sid, err := sm.Launch(card)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+
+	handle, err := sm.Attach(sid)
+	if err != nil {
+		t.Fatalf("attach: %v", err)
+	}
+	defer handle.Close()
+
+	// Send non-word animation characters
+	if _, err := handle.Input.Write([]byte("...")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	// Should still be running
+	running := false
+	for _, s := range sm.List() {
+		if s.ID == sid && s.Status == StatusRunning {
+			running = true
+		}
+	}
+	if !running {
+		t.Fatalf("expected session to be running after non-word output")
+	}
+
+	// Manually advance the "last word" time to simulate 16s silence in the test
+	sm.mu.Lock()
+	sm.sessions[sid].LastWordAt = time.Now().Add(-16 * time.Second)
+	sm.mu.Unlock()
+
+	// Wait for the watcher ticker (2s)
+	time.Sleep(2500 * time.Millisecond)
+
+	waiting := false
+	for _, s := range sm.List() {
+		if s.ID == sid && s.Status == StatusWaiting {
+			waiting = true
+		}
+	}
+	if !waiting {
+		t.Fatalf("expected session to become waiting after 15s of word silence")
+	}
+
+	if err := sm.Kill(sid); err != nil {
+		t.Fatalf("kill: %v", err)
+	}
+}
+
 func TestRemoveOnlyDeletesTerminatedSessions(t *testing.T) {
 	sm := NewManager()
 	card := config.IDCard{

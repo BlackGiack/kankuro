@@ -7,10 +7,16 @@ import (
 
 func TestIsPromptLike(t *testing.T) {
 	now := time.Now()
+	// Test immediate prompt detection
 	if !IsPromptLike("Continue?", now, now) {
 		t.Fatalf("expected prompt-like line")
 	}
-	if IsPromptLike("done", now.Add(-20*time.Second), now) {
-		t.Fatalf("old output should not be prompt-like")
+	// Test idle word-silence detection (waiting after 15s)
+	if !IsPromptLike("done", now.Add(-20*time.Second), now) {
+		t.Fatalf("old output SHOULD be prompt-like (waiting) due to word silence")
+	}
+	// Test that it's NOT prompt-like if recent words were seen and no prompt char
+	if IsPromptLike("processing", now.Add(-5*time.Second), now) {
+		t.Fatalf("recent output without prompt char should not be prompt-like")
 	}
 }

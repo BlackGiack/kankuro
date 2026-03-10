@@ -45,7 +45,6 @@ type AgentDriver interface {
 	SetMcps(mcps []config.MCPServer) error
 
 	SendInput(data string) error
-	CaptureOutput() (chan []byte, error)
 
 	GetStatus() SessionStatus
 }
@@ -54,11 +53,10 @@ type GenericCLIDriver struct {
 	mu     sync.RWMutex
 	status SessionStatus
 
-	cmd    *exec.Cmd
-	pty    *os.File
-	output chan []byte
-	done   chan struct{}
-	once   sync.Once
+	cmd  *exec.Cmd
+	pty  *os.File
+	done chan struct{}
+	once sync.Once
 }
 
 // NewGenericCLIDriver returns the default PTY-backed CLI driver implementation.
@@ -94,7 +92,6 @@ func (d *GenericCLIDriver) Spawn(config AgentConfig) (*SessionHandle, error) {
 	done := make(chan struct{})
 	d.cmd = cmd
 	d.pty = f
-	d.output = output
 	d.done = done
 	d.status = StatusRunning
 
@@ -173,16 +170,6 @@ func (d *GenericCLIDriver) SendInput(data string) error {
 	return err
 }
 
-// CaptureOutput returns the driver's byte-stream output channel.
-func (d *GenericCLIDriver) CaptureOutput() (chan []byte, error) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	if d.output == nil {
-		return nil, errors.New("no active output stream")
-	}
-	return d.output, nil
-}
-
 // GetStatus reports the current process lifecycle state.
 func (d *GenericCLIDriver) GetStatus() SessionStatus {
 	d.mu.RLock()
@@ -243,14 +230,15 @@ func SanitizeWorkingDir(path string) (string, error) {
 	return abs, nil
 }
 
-// IsPromptLike applies a simple heuristic for "waiting for input" prompts.
-func IsPromptLike(last string, lastOutput time.Time, now time.Time) bool {
-	if now.Sub(lastOutput) > 15*time.Second {
-		return false
+// IsPromptLike applies a heuristic for "waiting for input" prompts.
+// It returns true if the last line ends with a prompt-like character,
+// or if no "words" (alphanumeric characters) have been received for more than 15 seconds.
+func IsPromptLike(last string, lastWordAt time.Time, now time.Time) bool {
+	if last != "" {
+		s := last[len(last)-1]
+		if s == ':' || s == '?' || s == '>' {
+			return true
+		}
 	}
-	if last == "" {
-		return false
-	}
-	s := last[len(last)-1]
-	return s == ':' || s == '?' || s == '>'
+	return now.Sub(lastWordAt) > 15*time.Second
 }

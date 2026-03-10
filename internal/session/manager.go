@@ -24,24 +24,24 @@ const (
 )
 
 type Session struct {
-	ID           string
-	CardID       string
-	Name         string
-	PID          int
-	WorkingDir   string
-	StartedAt    time.Time
-	LastOutputAt time.Time
-	LastOutput   string
-	Status       Status
-	Pinged       bool
-	ExitCode     int
-	Driver       driver.AgentDriver
-	Input        io.Writer
-	Output       <-chan []byte
-	Done         <-chan struct{}
-	Scrollback   []byte
-	PendingLine  []byte
-	Subscribers  map[chan []byte]struct{}
+	ID          string
+	CardID      string
+	Name        string
+	PID         int
+	WorkingDir  string
+	StartedAt   time.Time
+	LastWordAt  time.Time
+	LastOutput  string
+	Status      Status
+	Pinged      bool
+	ExitCode    int
+	Driver      driver.AgentDriver
+	Input       io.Writer
+	Output      <-chan []byte
+	Done        <-chan struct{}
+	Scrollback  []byte
+	PendingLine []byte
+	Subscribers map[chan []byte]struct{}
 }
 
 type AttachHandle struct {
@@ -55,7 +55,10 @@ type AttachHandle struct {
 
 const scrollbackLimit = 256 * 1024
 
-var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
+var (
+	ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
+	wordRE = regexp.MustCompile(`[a-zA-Z0-9]`)
+)
 
 type Snapshot struct {
 	ID         string
@@ -64,6 +67,7 @@ type Snapshot struct {
 	PID        int
 	WorkingDir string
 	StartedAt  time.Time
+	LastWordAt time.Time
 	Status     Status
 	Pinged     bool
 }
@@ -117,19 +121,19 @@ func (m *Manager) Launch(card config.IDCard) (string, error) {
 		pid = h.Cmd.Process.Pid
 	}
 	s := &Session{
-		ID:           sid,
-		CardID:       card.ID,
-		Name:         card.Name,
-		PID:          pid,
-		WorkingDir:   wd,
-		StartedAt:    now,
-		LastOutputAt: now,
-		Status:       StatusRunning,
-		Driver:       d,
-		Input:        h.PTY,
-		Output:       h.Output,
-		Done:         h.Done,
-		Subscribers:  make(map[chan []byte]struct{}),
+		ID:          sid,
+		CardID:      card.ID,
+		Name:        card.Name,
+		PID:         pid,
+		WorkingDir:  wd,
+		StartedAt:   now,
+		LastWordAt:  now,
+		Status:      StatusRunning,
+		Driver:      d,
+		Input:       h.PTY,
+		Output:      h.Output,
+		Done:        h.Done,
+		Subscribers: make(map[chan []byte]struct{}),
 	}
 	m.mu.Lock()
 	m.sessions[sid] = s
@@ -185,7 +189,7 @@ func (m *Manager) watch(sessionID string, d driver.AgentDriver) {
 			m.mu.Unlock()
 			return
 		}
-		if driver.IsPromptLike(s.LastOutput, s.LastOutputAt, time.Now().UTC()) {
+		if driver.IsPromptLike(s.LastOutput, s.LastWordAt, time.Now().UTC()) {
 			s.Status = StatusWaiting
 			s.Pinged = true
 		} else {
@@ -276,6 +280,7 @@ func (m *Manager) List() []Snapshot {
 			PID:        s.PID,
 			WorkingDir: s.WorkingDir,
 			StartedAt:  s.StartedAt,
+			LastWordAt: s.LastWordAt,
 			Status:     s.Status,
 			Pinged:     s.Pinged,
 		})
@@ -336,6 +341,10 @@ func broadcast(chunk []byte, subscribers map[chan []byte]struct{}) {
 func updateSessionOutputState(s *Session, chunk []byte, now time.Time) {
 	s.PendingLine = append(s.PendingLine, chunk...)
 
+	if wordRE.Match(chunk) {
+		s.LastWordAt = now
+	}
+
 	for {
 		idx := bytes.IndexByte(s.PendingLine, '\n')
 		if idx == -1 {
@@ -347,15 +356,13 @@ func updateSessionOutputState(s *Session, chunk []byte, now time.Time) {
 			continue
 		}
 		s.LastOutput = line
-		s.LastOutputAt = now
-		s.Pinged = driver.IsPromptLike(line, now, now)
+		s.Pinged = driver.IsPromptLike(line, s.LastWordAt, now)
 	}
 
 	sanitized := sanitizeLine(s.PendingLine)
 	if sanitized != "" {
 		s.LastOutput = sanitized
-		s.LastOutputAt = now
-		s.Pinged = driver.IsPromptLike(sanitized, now, now)
+		s.Pinged = driver.IsPromptLike(sanitized, s.LastWordAt, now)
 	}
 }
 
