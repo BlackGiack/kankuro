@@ -26,6 +26,7 @@ const (
 	viewCardForm
 	viewSkillForm
 	viewMCPForm
+	viewDeleteConfirm
 )
 
 const (
@@ -42,7 +43,7 @@ type item struct {
 
 func (i item) Title() string {
 	if i.status == session.StatusWaiting {
-		return lipgloss.NewStyle().Foreground(hotPink).Bold(true).Render("󰚩 " + i.title)
+		return lipgloss.NewStyle().Foreground(hotPink).Bold(true).Render(i.title)
 	}
 	return i.title
 }
@@ -83,6 +84,7 @@ type App struct {
 
 	editingCardID   string
 	activeSessionID string
+	pendingDeleteID string
 	focusedPane     dashboardPane
 
 	help help.Model
@@ -131,8 +133,8 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 	sessionsList.SetFilteringEnabled(false)
 	sessionsList.Styles.Title = titleStyle
 
-	cardInputs := make([]textinput.Model, 5)
-	placeholders := []string{"name", "driver command (e.g. claude)", "model", "working_dir", "face_style (neutral/happy/focused/thinking)"}
+	cardInputs := make([]textinput.Model, 6)
+	placeholders := []string{"name", "driver command (e.g. claude)", "model", "working_dir", "face_style (neutral/happy/focused/thinking)", "use tmp workspace (y/n)"}
 	for i := range cardInputs {
 		cardInputs[i] = textinput.New()
 		cardInputs[i].Placeholder = placeholders[i]
@@ -210,6 +212,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.updateSkillForm(msg)
 	case viewMCPForm:
 		return a.updateMCPForm(msg)
+	case viewDeleteConfirm:
+		return a.updateDeleteConfirm(msg)
 	default:
 		return a, nil
 	}
@@ -243,6 +247,11 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.cardInputs[2].SetValue(selected.Model)
 			a.cardInputs[3].SetValue(selected.WorkingDir)
 			a.cardInputs[4].SetValue(selected.FaceStyle)
+			tmpVal := "n"
+			if selected.UseTmpWorkspace {
+				tmpVal = "y"
+			}
+			a.cardInputs[5].SetValue(tmpVal)
 			a.editingCardID = selected.ID
 			a.mode = viewCardForm
 			return a, nil
@@ -259,7 +268,7 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		case "enter":
 			if a.focusedPane == paneSessions {
-				return a, a.attachSelectedSession()
+				return a, a.activateSelectedSession()
 			}
 			selected, ok := a.selectedCard()
 			if !ok {
@@ -274,7 +283,7 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.mode = viewDashboard
 			return a, a.attachSession(id)
 		case "a":
-			return a, a.attachSelectedSession()
+			return a, a.activateSelectedSession()
 		case "x":
 			if a.focusedPane != paneSessions {
 				return a, nil
@@ -288,10 +297,12 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.focusedPane != paneSessions {
 				return a, nil
 			}
-			if err := a.removeSelectedSession(); err != nil {
-				a.err = err
+			sel := a.sessionsList.Index()
+			if sel < 0 || sel >= len(a.sessions) {
+				return a, nil
 			}
-			a.refreshSessionList()
+			a.pendingDeleteID = a.sessions[sel].ID
+			a.mode = viewDeleteConfirm
 			return a, nil
 		}
 	}
@@ -318,12 +329,13 @@ func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		case "enter":
 			card := config.IDCard{
-				ID:         a.editingCardID,
-				Name:       strings.TrimSpace(a.cardInputs[0].Value()),
-				Driver:     strings.TrimSpace(a.cardInputs[1].Value()),
-				Model:      strings.TrimSpace(a.cardInputs[2].Value()),
-				WorkingDir: strings.TrimSpace(a.cardInputs[3].Value()),
-				FaceStyle:  strings.TrimSpace(a.cardInputs[4].Value()),
+				ID:              a.editingCardID,
+				Name:            strings.TrimSpace(a.cardInputs[0].Value()),
+				Driver:          strings.TrimSpace(a.cardInputs[1].Value()),
+				Model:           strings.TrimSpace(a.cardInputs[2].Value()),
+				WorkingDir:      strings.TrimSpace(a.cardInputs[3].Value()),
+				FaceStyle:       strings.TrimSpace(a.cardInputs[4].Value()),
+				UseTmpWorkspace: strings.ToLower(strings.TrimSpace(a.cardInputs[5].Value())) == "y",
 			}
 			var err error
 			if a.editingCardID == "" {
@@ -403,6 +415,27 @@ func (a *App) updateMCPForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, tea.Batch(cmds...)
 }
 
+func (a *App) updateDeleteConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "y", "Y":
+			if err := a.session.Remove(a.pendingDeleteID); err != nil {
+				a.err = err
+			}
+			a.pendingDeleteID = ""
+			a.mode = viewDashboard
+			a.refreshSessionList()
+			return a, nil
+		case "n", "N", "esc":
+			a.pendingDeleteID = ""
+			a.mode = viewDashboard
+			return a, nil
+		}
+	}
+	return a, nil
+}
+
 // View renders the active screen for the Bubble Tea program.
 func (a *App) View() string {
 	errLine := ""
@@ -411,6 +444,11 @@ func (a *App) View() string {
 	}
 
 	switch a.mode {
+	case viewDeleteConfirm:
+		return errLine + titleStyle.Render("Delete Session?") + "\n\n" +
+			fmt.Sprintf("Are you sure you want to delete session %s?\n", a.pendingDeleteID) +
+			"This will also delete its temporary workspace if it exists.\n\n" +
+			"y=Confirm  n=Cancel"
 	case viewCardForm:
 		title := "New ID Card"
 		if a.editingCardID != "" {
@@ -421,7 +459,8 @@ func (a *App) View() string {
 			"Driver: " + a.cardInputs[1].View() + "\n" +
 			"Model: " + a.cardInputs[2].View() + "\n" +
 			"Working Dir: " + a.cardInputs[3].View() + "\n" +
-			"Face Style: " + a.cardInputs[4].View() + "\n\n" +
+			"Face Style: " + a.cardInputs[4].View() + "\n" +
+			"Use Tmp Workspace: " + a.cardInputs[5].View() + "\n\n" +
 			"Enter=save Tab=next Esc=cancel"
 	case viewSkillForm:
 		return errLine + titleStyle.Render("Add Skill") + "\n\n" +
@@ -477,8 +516,21 @@ func (a *App) refreshSessionList() {
 	sort.Slice(a.sessions, func(i, j int) bool { return a.sessions[i].StartedAt.After(a.sessions[j].StartedAt) })
 	items := make([]list.Item, 0, len(a.sessions))
 	for _, s := range a.sessions {
+		faceStyle := "neutral"
+		for _, c := range a.cards {
+			if c.ID == s.CardID {
+				faceStyle = c.FaceStyle
+				break
+			}
+		}
+
+		if s.Status == session.StatusWaiting {
+			faceStyle = "neutral"
+		}
+
+		face := renderAgentCard(config.IDCard{FaceStyle: faceStyle})
 		items = append(items, item{
-			title:  s.Name,
+			title:  s.Name + " " + face,
 			desc:   fmt.Sprintf("%s pid=%d", s.Status, s.PID),
 			id:     s.ID,
 			status: s.Status,
@@ -568,7 +620,7 @@ func (a *App) toggleDashboardPane() {
 	a.focusedPane = paneCards
 }
 
-func (a *App) attachSelectedSession() tea.Cmd {
+func (a *App) activateSelectedSession() tea.Cmd {
 	if len(a.sessions) == 0 {
 		return nil
 	}
@@ -576,7 +628,32 @@ func (a *App) attachSelectedSession() tea.Cmd {
 	if sel < 0 || sel >= len(a.sessions) {
 		return nil
 	}
-	a.activeSessionID = a.sessions[sel].ID
+	s := a.sessions[sel]
+
+	if s.Status == session.StatusTerminated {
+		var card config.IDCard
+		found := false
+		for _, c := range a.cards {
+			if c.ID == s.CardID {
+				card = c
+				found = true
+				break
+			}
+		}
+		if !found {
+			a.err = fmt.Errorf("cannot relaunch: original ID card not found")
+			return nil
+		}
+		if err := a.session.Relaunch(s.ID, card); err != nil {
+			a.err = fmt.Errorf("relaunch failed: %w", err)
+			return nil
+		}
+		// Refresh locally to reflect status change immediately
+		a.sessions = a.session.List()
+		a.refreshSessionList()
+	}
+
+	a.activeSessionID = s.ID
 	a.mode = viewDashboard
 	return a.attachSession(a.activeSessionID)
 }
@@ -590,15 +667,4 @@ func (a *App) killSelectedSession() error {
 		return nil
 	}
 	return a.session.Kill(a.sessions[sel].ID)
-}
-
-func (a *App) removeSelectedSession() error {
-	if len(a.sessions) == 0 {
-		return nil
-	}
-	sel := a.sessionsList.Index()
-	if sel < 0 || sel >= len(a.sessions) {
-		return nil
-	}
-	return a.session.Remove(a.sessions[sel].ID)
 }

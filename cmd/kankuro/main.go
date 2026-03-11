@@ -36,7 +36,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	sm := session.NewManager()
+	sm := session.NewManager(repo.Dir())
 	app, err := ui.New(repo, sm)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ui init error: %v\n", err)

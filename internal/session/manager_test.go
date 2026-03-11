@@ -10,7 +10,7 @@ import (
 )
 
 func TestSessionLaunchAttachKill(t *testing.T) {
-	sm := NewManager()
+	sm := NewManager(t.TempDir())
 	card := config.IDCard{
 		ID:         "card-1",
 		Name:       "echo",
@@ -64,7 +64,7 @@ func TestSessionLaunchAttachKill(t *testing.T) {
 }
 
 func TestSessionAttachReplaysScrollbackAndTracksPromptWithoutNewline(t *testing.T) {
-	sm := NewManager()
+	sm := NewManager(t.TempDir())
 	card := config.IDCard{
 		ID:         "card-2",
 		Name:       "prompt",
@@ -115,7 +115,7 @@ func TestSessionAttachReplaysScrollbackAndTracksPromptWithoutNewline(t *testing.
 }
 
 func TestSessionIdleWordDetection(t *testing.T) {
-	sm := NewManager()
+	sm := NewManager(t.TempDir())
 	card := config.IDCard{
 		ID:         "card-idle",
 		Name:       "idle",
@@ -175,7 +175,7 @@ func TestSessionIdleWordDetection(t *testing.T) {
 }
 
 func TestSessionPendingLineCapped(t *testing.T) {
-	sm := NewManager()
+	sm := NewManager(t.TempDir())
 	card := config.IDCard{
 		ID:         "card-pending",
 		Name:       "pending",
@@ -223,7 +223,7 @@ func TestSessionPendingLineCapped(t *testing.T) {
 }
 
 func TestRemoveOnlyDeletesTerminatedSessions(t *testing.T) {
-	sm := NewManager()
+	sm := NewManager(t.TempDir())
 	card := config.IDCard{
 		ID:         "card-3",
 		Name:       "remove",

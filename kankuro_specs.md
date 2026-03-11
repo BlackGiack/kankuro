@@ -17,14 +17,18 @@ A saved configuration template for an agent. It encapsulates:
 * **CLI Tool:** The underlying binary (e.g., `claude`, `gemini`).
 * **Model:** Specific LLM selection.
 * **System Instruction:** Default behavior overrides.
+* **Temporary Workspace:** Option to run sessions in an isolated directory.
 * **Capabilities:** Assigned **Skills** and **MCPs** (Model Context Protocol).
+* **Face Style:** Visual identity used in the dashboard.
 
 ### 1.2 The Session
 
-An active instance of an ID Card.
+An active or persisted instance of an ID Card.
 
-* **Lifecycle:** Sessions are **sub-processes** of KANKURO. If the main process dies, the sessions die.
-* **Persistence:** Sessions run in a specific directory (`$PWD` or absolute path).
+* **Lifecycle:** Sessions are tracked as **sub-processes**. Metadata is persisted to disk, allowing terminated sessions to be **relaunched** later.
+* **Persistence:** 
+    * **Standard:** Runs in a specific directory (`$PWD` or absolute path).
+    * **Temporary:** Clones the original workspace into a disposable folder (via `KANKURO_TMP_DIR` or `~/.config/kankuro/tmp/`). Changes made by the agent are isolated from the original source but persist across session relaunches.
 * **Detachment:** Users can "detach" from a session terminal using a global hotkey (e.g., `Ctrl+K`) to return to the dashboard without stopping the agent.
 
 ### 1.3 The Inbox (Ping Stack)
@@ -42,9 +46,8 @@ A FIFO (First-In-First-Out) notification system. When an agent stops to wait for
 /internal/
   /driver/             # Interface implementations for different CLIs
   /ui/                 # Bubble Tea TUI components
-  /config/             # YAML/JSON persistence for ID Cards
-  /session/            # Sub-process management
-
+  /config/             # YAML persistence for ID Cards
+  /session/            # Sub-process management and JSON persistence
 ```
 
 ### 2.2 The `AgentDriver` Interface
@@ -67,7 +70,6 @@ type AgentDriver interface {
     
     GetStatus() SessionStatus
 }
-
 ```
 
 ---
@@ -76,8 +78,10 @@ type AgentDriver interface {
 
 ### 📦 Phase 0: The MVP (v0)
 
-* **Dashboard TUI:** Grid layout showing **ID Cards**; Sidebar showing **Active Sessions**.
-* **ID Card CRUD:** Create, edit, and save agent configurations.
+* **Dashboard TUI:** Grid layout showing **ID Cards**; Sidebar showing **Active/Persisted Sessions**.
+* **ID Card CRUD:** Create, edit, and save agent configurations with ASCII face styles.
+* **Session Persistence:** Save session state to disk to allow relaunching after app restarts.
+* **Temporary Workspaces:** Isolated "sandbox" execution for agents to prevent source code corruption.
 * **Session Wrapping:** Launching and detaching from interactive CLI sub-processes with raw PTY attach.
 * **Skill/MCP Registry:** User-editable list of agentic capabilities following the Anthropic open standard.
 
@@ -97,20 +101,20 @@ type AgentDriver interface {
 
 ## 4. UI/UX Design
 
-* **Main Screen:** * **Center:** A collection of "Agent Identity Cards."
-* **Right Sidebar:** A scrollable list of active sessions with status indicators (Running, Waiting/Ping, Terminated).
-
+* **Main Screen:** 
+    * **Center:** A collection of "Agent Identity Cards" with assigned ASCII faces.
+    * **Right Sidebar:** A scrollable list of sessions showing status (Running, Waiting, Terminated) and the agent's identity face.
 
 * **Interactions:**
-* `Enter` on a Card: Launch/Edit.
-* `Click/Select` on Session: Attach to the session PTY for direct interaction.
-* `Ctrl+K`: Detach from the attached PTY and return to Kankuro Dashboard without killing the session.
-* `Tab`: Switch dashboard focus between ID cards and sessions.
-* `x`: Kill the selected running session from the sessions list.
-* `Delete`: Remove the selected terminated session from the sessions list.
+    * `Enter` on a Card: Launch a new session.
+    * `Enter` on a Session: Attach if running, **Relaunch** if terminated.
+    * `Ctrl+K`: Detach from the attached PTY and return to Kankuro Dashboard.
+    * `Tab`: Switch dashboard focus between ID cards and sessions.
+    * `x`: Kill the selected running session.
+    * `Backspace/Delete`: Trigger a **confirmation dialog** to remove a terminated session (and its temporary workspace).
 
-
-* **Visual Cues:** Agents awaiting input will "pulse" or show a notification badge in the sidebar.
+* **Visual Cues:** 
+    * Agents awaiting input will show a **neutral face** and use a **hot-pink pulse** style in the sidebar.
 
 ---
 
@@ -119,6 +123,7 @@ type AgentDriver interface {
 * **Terminal Handling:** Use `creack/pty` or similar Go libraries to handle pseudo-terminal allocation, attach replay, and live terminal resizing for interactive CLIs.
 * **TUI Framework:** Built using [Bubble Tea](https://github.com/charmbracelet/bubbletea) for a modern, responsive terminal experience.
 * **Attach Mode:** Bubble Tea should temporarily release terminal control during session attach, then restore the dashboard on detach.
-* **Piping Logic:** Implement a `SanitizedWriter` that implements `io.Writer` to filter out escape sequences and UI artifacts during session-to-session transfers.
+* **Storage:** ID Cards are stored in YAML; Sessions are stored in JSON within the user's config directory.
+* **Workspace Isolation:** Temporary workspaces are created using standard system copy tools to ensure attribute preservation.
 
 ---

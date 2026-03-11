@@ -12,6 +12,7 @@ type IDCard struct {
 	Driver            string            `yaml:"driver"`
 	Model             string            `yaml:"model"`
 	WorkingDir        string            `yaml:"working_dir"`
+	UseTmpWorkspace   bool              `yaml:"use_tmp_workspace"`
 	SystemInstruction string            `yaml:"system_instruction"`
 	SkillIDs          []string          `yaml:"skill_ids"`
 	MCPIDs            []string          `yaml:"mcp_ids"`

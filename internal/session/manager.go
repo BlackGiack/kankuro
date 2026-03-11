@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sync"
 	"time"
@@ -24,24 +26,26 @@ const (
 )
 
 type Session struct {
-	ID          string
-	CardID      string
-	Name        string
-	PID         int
-	WorkingDir  string
-	StartedAt   time.Time
-	LastWordAt  time.Time
-	LastOutput  string
-	Status      Status
-	Pinged      bool
-	ExitCode    int
-	Driver      driver.AgentDriver
-	Input       io.Writer
-	Output      <-chan []byte
-	Done        <-chan struct{}
-	Scrollback  []byte
-	PendingLine []byte
-	Subscribers map[chan []byte]struct{}
+	ID              string
+	CardID          string
+	Name            string
+	PID             int
+	WorkingDir      string
+	OriginalDir     string
+	UseTmpWorkspace bool
+	StartedAt       time.Time
+	LastWordAt      time.Time
+	LastOutput      string
+	Status          Status
+	Pinged          bool
+	ExitCode        int
+	Driver          driver.AgentDriver
+	Input           io.Writer
+	Output          <-chan []byte
+	Done            <-chan struct{}
+	Scrollback      []byte
+	PendingLine     []byte
+	Subscribers     map[chan []byte]struct{}
 }
 
 type AttachHandle struct {
@@ -75,77 +79,175 @@ type Snapshot struct {
 	Pinged     bool
 }
 
-// Remove deletes a terminated session from the registry.
-func (m *Manager) Remove(id string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+type Manager struct {
+	mu        sync.RWMutex
+	sessions  map[string]*Session
+	configDir string
+}
+
+// NewManager creates a session registry and loads persisted sessions.
+func NewManager(configDir string) *Manager {
+	m := &Manager{
+		sessions:  make(map[string]*Session),
+		configDir: configDir,
+	}
+
+	sessionsDir := filepath.Join(configDir, "sessions")
+	loaded, _ := loadSessions(sessionsDir) // ignore error, just start empty
+
+	for _, data := range loaded {
+		m.sessions[data.ID] = &Session{
+			ID:              data.ID,
+			CardID:          data.CardID,
+			Name:            data.Name,
+			PID:             data.PID,
+			WorkingDir:      data.WorkingDir,
+			OriginalDir:     data.OriginalDir,
+			UseTmpWorkspace: data.UseTmpWorkspace,
+			StartedAt:       data.StartedAt,
+			LastWordAt:      data.LastWordAt,
+			Status:          StatusTerminated, // All loaded sessions are terminated
+			Subscribers:     make(map[chan []byte]struct{}),
+		}
+	}
+
+	return m
+}
+
+// Launch starts a new session process from an ID card.
+func (m *Manager) Launch(card config.IDCard) (string, error) {
+	sid := uuid.NewString()
+	return sid, m.startSession(sid, card, true)
+}
+
+// Relaunch restarts a terminated session using its existing workspace (if tmp).
+func (m *Manager) Relaunch(id string, card config.IDCard) error {
+	m.mu.RLock()
 	s, ok := m.sessions[id]
+	m.mu.RUnlock()
 	if !ok {
 		return fmt.Errorf("session not found: %s", id)
 	}
 	if s.Status != StatusTerminated {
-		return fmt.Errorf("session still running: %s", id)
+		return fmt.Errorf("session is already running")
 	}
-	delete(m.sessions, id)
-	return nil
+	return m.startSession(id, card, false)
 }
 
-type Manager struct {
-	mu       sync.RWMutex
-	sessions map[string]*Session
-}
-
-// NewManager creates an empty in-memory session registry.
-func NewManager() *Manager {
-	return &Manager{sessions: map[string]*Session{}}
-}
-
-// Launch starts a new session process from an ID card and begins status tracking.
-func (m *Manager) Launch(card config.IDCard) (string, error) {
+func (m *Manager) startSession(sid string, card config.IDCard, isNew bool) error {
 	wd, err := driver.SanitizeWorkingDir(card.WorkingDir)
 	if err != nil {
-		return "", err
+		return err
 	}
+
+	finalWD := wd
+	if card.UseTmpWorkspace {
+		tmpRoot := os.Getenv("KANKURO_TMP_DIR")
+		if tmpRoot == "" {
+			tmpRoot = filepath.Join(m.configDir, "tmp")
+		}
+		sessionRoot := filepath.Join(tmpRoot, sid)
+		targetDir := filepath.Join(sessionRoot, filepath.Base(wd))
+
+		if isNew {
+			if err := os.MkdirAll(sessionRoot, 0755); err != nil {
+				return fmt.Errorf("create tmp session dir: %w", err)
+			}
+			// Copy original to target
+			// Using cp -r for simplicity and preserving attributes
+			cmd := exec.Command("cp", "-r", wd, targetDir)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				return fmt.Errorf("copy workspace: %s: %w", string(out), err)
+			}
+		} else {
+			// Verify it exists
+			if _, err := os.Stat(targetDir); err != nil {
+				return fmt.Errorf("tmp workspace missing: %w", err)
+			}
+		}
+		finalWD = targetDir
+	}
+
 	d := driver.NewCLIDriver(card.Driver)
 	h, err := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,
 		Model:             card.Model,
-		WorkingDir:        wd,
+		WorkingDir:        finalWD,
 		SystemInstruction: card.SystemInstruction,
 		Env:               card.Env,
 	})
 	if err != nil {
-		return "", err
+		return err
 	}
-	sid := uuid.NewString()
+
 	now := time.Now().UTC()
 	pid := 0
 	if h.Cmd != nil && h.Cmd.Process != nil {
 		pid = h.Cmd.Process.Pid
 	}
-	s := &Session{
-		ID:          sid,
-		CardID:      card.ID,
-		Name:        card.Name,
-		PID:         pid,
-		WorkingDir:  wd,
-		StartedAt:   now,
-		LastWordAt:  now,
-		Status:      StatusRunning,
-		Driver:      d,
-		Input:       h.PTY,
-		Output:      h.Output,
-		Done:        h.Done,
-		Subscribers: make(map[chan []byte]struct{}),
-	}
+
 	m.mu.Lock()
-	m.sessions[sid] = s
-	m.mu.Unlock()
+	defer m.mu.Unlock()
+
+	// Reuse existing session object if relaunching, or create new
+	s, exists := m.sessions[sid]
+	if !exists {
+		s = &Session{
+			ID:          sid,
+			Subscribers: make(map[chan []byte]struct{}),
+		}
+		m.sessions[sid] = s
+	}
+
+	// Update fields
+	s.CardID = card.ID
+	s.Name = card.Name
+	s.PID = pid
+	s.WorkingDir = finalWD
+	s.OriginalDir = wd
+	s.UseTmpWorkspace = card.UseTmpWorkspace
+	s.StartedAt = now
+	s.LastWordAt = now
+	s.Status = StatusRunning
+	s.Driver = d
+	s.Input = h.PTY
+	s.Output = h.Output
+	s.Done = h.Done
+	// Keep existing scrollback if relaunching?
+	// Probably better to clear or append a separator.
+	// For now, let's keep it to allow context continuity, or clear if it's confusing.
+	// Prompt says "relaunch ... meaning the same process as starting a new session".
+	// Usually a new process means new output.
+	if isNew {
+		s.Scrollback = nil
+	} else {
+		s.Scrollback = append(s.Scrollback, []byte(fmt.Sprintf("\n\n--- Relaunched at %s ---\n\n", now.Format(time.RFC3339)))...)
+	}
 
 	go m.trackOutput(sid, h.Output)
 	go m.watch(sid, d)
 
-	return sid, nil
+	// Persist initial state
+	m.persistSessionLocked(s)
+
+	return nil
+}
+
+func (m *Manager) persistSessionLocked(s *Session) {
+	data := &SessionData{
+		ID:              s.ID,
+		CardID:          s.CardID,
+		Name:            s.Name,
+		PID:             s.PID,
+		WorkingDir:      s.WorkingDir,
+		OriginalDir:     s.OriginalDir,
+		UseTmpWorkspace: s.UseTmpWorkspace,
+		StartedAt:       s.StartedAt,
+		LastWordAt:      s.LastWordAt,
+		Status:          s.Status,
+	}
+	sessionsDir := filepath.Join(m.configDir, "sessions")
+	_ = saveSession(sessionsDir, data)
 }
 
 func (m *Manager) trackOutput(sessionID string, output <-chan []byte) {
@@ -177,7 +279,8 @@ func (m *Manager) trackOutput(sessionID string, output <-chan []byte) {
 func (m *Manager) watch(sessionID string, d driver.AgentDriver) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
-	for range ticker.C {
+	for {
+		<-ticker.C
 		status := d.GetStatus()
 		m.mu.Lock()
 		s, ok := m.sessions[sessionID]
@@ -188,6 +291,7 @@ func (m *Manager) watch(sessionID string, d driver.AgentDriver) {
 		if status == driver.StatusTerminated {
 			s.Status = StatusTerminated
 			s.Pinged = false
+			m.persistSessionLocked(s) // Persist termination
 			m.closeSubscribersLocked(sessionID)
 			m.mu.Unlock()
 			return
@@ -247,13 +351,46 @@ func (m *Manager) Kill(id string) error {
 	if !ok {
 		return fmt.Errorf("session not found: %s", id)
 	}
-	if err := s.Driver.Kill(); err != nil {
-		return err
+	if s.Driver != nil {
+		if err := s.Driver.Kill(); err != nil {
+			return err
+		}
 	}
 	m.mu.Lock()
 	s.Status = StatusTerminated
 	s.Pinged = false
+	m.persistSessionLocked(s)
 	m.mu.Unlock()
+	return nil
+}
+
+// Remove deletes a terminated session from the registry.
+func (m *Manager) Remove(id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, ok := m.sessions[id]
+	if !ok {
+		return fmt.Errorf("session not found: %s", id)
+	}
+	if s.Status != StatusTerminated {
+		return fmt.Errorf("session still running: %s", id)
+	}
+	
+	// Delete persistence file
+	sessionsDir := filepath.Join(m.configDir, "sessions")
+	_ = deleteSession(sessionsDir, id)
+	
+	// Delete tmp workspace if it exists
+	if s.UseTmpWorkspace {
+		tmpRoot := os.Getenv("KANKURO_TMP_DIR")
+		if tmpRoot == "" {
+			tmpRoot = filepath.Join(m.configDir, "tmp")
+		}
+		sessionRoot := filepath.Join(tmpRoot, id)
+		_ = os.RemoveAll(sessionRoot)
+	}
+	
+	delete(m.sessions, id)
 	return nil
 }
 
