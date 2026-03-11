@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -24,6 +25,8 @@ type attachExec struct {
 	stdin     io.Reader
 	stdout    io.Writer
 	stderr    io.Writer
+	stop      chan struct{}
+	stopOnce  sync.Once
 }
 
 var errDetach = fmt.Errorf("detach")
@@ -50,6 +53,8 @@ func (e *attachExec) SetStdout(w io.Writer) { e.stdout = w }
 func (e *attachExec) SetStderr(w io.Writer) { e.stderr = w }
 
 func (e *attachExec) Run() error {
+	e.stop = make(chan struct{})
+	defer e.stopOutput()
 	defer e.handle.Close()
 
 	if _, err := fmt.Fprintf(e.stdout, "\r\n[Attached to session %s. Ctrl+K detaches.]\r\n", e.sessionID); err != nil {
@@ -88,17 +93,31 @@ func (e *attachExec) Run() error {
 	defer signal.Stop(resizeCh)
 
 	writeErr := make(chan error, 1)
+	sendErr := func(err error) {
+		select {
+		case writeErr <- err:
+		default:
+		}
+	}
 	go func() {
-		for chunk := range e.handle.Output {
-			if len(chunk) == 0 {
-				continue
-			}
-			if _, err := e.stdout.Write(chunk); err != nil {
-				writeErr <- err
+		for {
+			select {
+			case <-e.stop:
 				return
+			case chunk, ok := <-e.handle.Output:
+				if !ok {
+					sendErr(nil)
+					return
+				}
+				if len(chunk) == 0 {
+					continue
+				}
+				if _, err := e.stdout.Write(chunk); err != nil {
+					sendErr(err)
+					return
+				}
 			}
 		}
-		writeErr <- nil
 	}()
 
 	buf := make([]byte, 256)
@@ -158,6 +177,7 @@ func (e *attachExec) forwardInput(buf []byte) error {
 				return err
 			}
 		}
+		e.stopOutput()
 		return errDetach
 	}
 	if len(buf) > 0 {
@@ -165,6 +185,15 @@ func (e *attachExec) forwardInput(buf []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (e *attachExec) stopOutput() {
+	if e.stop == nil {
+		return
+	}
+	e.stopOnce.Do(func() {
+		close(e.stop)
+	})
 }
 
 func syncPTYSize(termFile, ptyFile *os.File) error {

@@ -53,7 +53,10 @@ type AttachHandle struct {
 	Close      func()
 }
 
-const scrollbackLimit = 256 * 1024
+const (
+	scrollbackLimit  = 256 * 1024
+	pendingLineLimit = 8 * 1024
+)
 
 var (
 	ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
@@ -340,6 +343,9 @@ func broadcast(chunk []byte, subscribers map[chan []byte]struct{}) {
 
 func updateSessionOutputState(s *Session, chunk []byte, now time.Time) {
 	s.PendingLine = append(s.PendingLine, chunk...)
+	if len(s.PendingLine) > pendingLineLimit {
+		s.PendingLine = append([]byte(nil), s.PendingLine[len(s.PendingLine)-pendingLineLimit:]...)
+	}
 
 	if wordRE.Match(chunk) {
 		s.LastWordAt = now

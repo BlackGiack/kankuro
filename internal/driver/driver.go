@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -81,7 +82,7 @@ func (d *GenericCLIDriver) Spawn(config AgentConfig) (*SessionHandle, error) {
 
 	cmd := exec.Command(config.Driver)
 	cmd.Dir = config.WorkingDir
-	cmd.Env = mergeEnv(config.Env)
+	cmd.Env = mergeEnvWithPwd(config.Env, config.WorkingDir)
 
 	f, err := pty.Start(cmd)
 	if err != nil {
@@ -203,12 +204,26 @@ func (d *GenericCLIDriver) closeDone() {
 	})
 }
 
-func mergeEnv(extra map[string]string) []string {
+func mergeEnvWithPwd(extra map[string]string, pwd string) []string {
 	base := os.Environ()
 	for k, v := range extra {
 		base = append(base, fmt.Sprintf("%s=%s", k, v))
 	}
-	return base
+	return upsertEnv(base, "PWD", pwd)
+}
+
+func upsertEnv(env []string, key string, value string) []string {
+	if key == "" {
+		return env
+	}
+	prefix := key + "="
+	for i, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			env[i] = prefix + value
+			return env
+		}
+	}
+	return append(env, prefix+value)
 }
 
 // SanitizeWorkingDir resolves and validates the session working directory.

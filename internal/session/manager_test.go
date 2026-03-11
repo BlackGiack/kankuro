@@ -174,6 +174,54 @@ func TestSessionIdleWordDetection(t *testing.T) {
 	}
 }
 
+func TestSessionPendingLineCapped(t *testing.T) {
+	sm := NewManager()
+	card := config.IDCard{
+		ID:         "card-pending",
+		Name:       "pending",
+		Driver:     "cat",
+		WorkingDir: t.TempDir(),
+	}
+
+	sid, err := sm.Launch(card)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+
+	handle, err := sm.Attach(sid)
+	if err != nil {
+		t.Fatalf("attach: %v", err)
+	}
+	defer handle.Close()
+
+	payload := bytes.Repeat([]byte("a"), pendingLineLimit*2)
+	if _, err := handle.Input.Write(payload); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		sm.mu.RLock()
+		got := len(sm.sessions[sid].PendingLine)
+		sm.mu.RUnlock()
+		if got > 0 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	sm.mu.RLock()
+	got := len(sm.sessions[sid].PendingLine)
+	sm.mu.RUnlock()
+	if got > pendingLineLimit {
+		t.Fatalf("expected pending line <= %d, got %d", pendingLineLimit, got)
+	}
+
+	if err := sm.Kill(sid); err != nil {
+		t.Fatalf("kill: %v", err)
+	}
+}
+
 func TestRemoveOnlyDeletesTerminatedSessions(t *testing.T) {
 	sm := NewManager()
 	card := config.IDCard{

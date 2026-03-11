@@ -1,0 +1,13 @@
+# Commands
+- `rg -n "package (driver|session)|type .*Session|pty|stdin|stdout|Attach|Detach|CaptureOutput|SendInput|io.Copy|bufio|chan|goroutine|select" internal/driver internal/session internal/ui`
+- `sed -n '1,220p' internal/driver/driver.go`
+- `sed -n '220,520p' internal/driver/driver.go`
+- `sed -n '1,260p' internal/session/manager.go`
+- `sed -n '260,620p' internal/session/manager.go`
+- `sed -n '1,240p' internal/ui/attach.go`
+- `sed -n '1,220p' internal/session/manager_test.go`
+- `go test ./internal/session`
+- `go build ./cmd/kankuro`
+- `go test ./internal/driver`
+- `rg -n "WorkingDir|workspace" internal/config internal/ui cmd`
+- `cat /home/giack/.config/kankuro/id_cards.yaml`
