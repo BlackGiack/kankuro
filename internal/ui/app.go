@@ -32,13 +32,26 @@ const (
 )
 
 type item struct {
-	title string
-	desc  string
-	id    string
+	title  string
+	desc   string
+	id     string
+	status session.Status
 }
 
-func (i item) Title() string       { return i.title }
-func (i item) Description() string { return i.desc }
+func (i item) Title() string {
+	if i.status == session.StatusWaiting {
+		return lipgloss.NewStyle().Foreground(hotPink).Bold(true).Render("󰚩 " + i.title)
+	}
+	return i.title
+}
+
+func (i item) Description() string {
+	if i.status == session.StatusWaiting {
+		return lipgloss.NewStyle().Foreground(hotPink).Render(i.desc)
+	}
+	return i.desc
+}
+
 func (i item) FilterValue() string { return i.title }
 
 type tickMsg time.Time
@@ -92,15 +105,29 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 		return nil, err
 	}
 
-	cardsList := list.New(toCardItems(cards), list.NewDefaultDelegate(), 0, 0)
+	delegate := list.NewDefaultDelegate()
+	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(purple)
+	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(gray)
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
+		Foreground(hotPink).
+		BorderForeground(purple)
+	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
+		Foreground(darkPurple).
+		BorderForeground(purple)
+	delegate.Styles.DimmedTitle = delegate.Styles.DimmedTitle.Foreground(darkPurple)
+	delegate.Styles.DimmedDesc = delegate.Styles.DimmedDesc.Foreground(lipgloss.Color("236"))
+
+	cardsList := list.New(toCardItems(cards), delegate, 0, 0)
 	cardsList.Title = "ID Cards"
 	cardsList.SetShowStatusBar(false)
 	cardsList.SetFilteringEnabled(false)
+	cardsList.Styles.Title = titleStyle
 
-	sessionsList := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
+	sessionsList := list.New([]list.Item{}, delegate, 0, 0)
 	sessionsList.Title = "Active Sessions"
 	sessionsList.SetShowStatusBar(false)
 	sessionsList.SetFilteringEnabled(false)
+	sessionsList.Styles.Title = titleStyle
 
 	cardInputs := make([]textinput.Model, 4)
 	placeholders := []string{"name", "driver command (e.g. claude)", "model", "working_dir"}
@@ -374,10 +401,9 @@ func (a *App) updateMCPForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the active screen for the Bubble Tea program.
 func (a *App) View() string {
-	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
 	errLine := ""
 	if a.err != nil {
-		errLine = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render(a.err.Error()) + "\n"
+		errLine = errorStyle.Render(a.err.Error()) + "\n"
 	}
 
 	switch a.mode {
@@ -402,13 +428,19 @@ func (a *App) View() string {
 			"Command: " + a.mcpInputs[1].View() + "\n\n" +
 			"Enter=save Tab=next Esc=cancel"
 	default:
-		leftStyle := lipgloss.NewStyle().Width(max(40, a.width-34))
-		rightStyle := lipgloss.NewStyle().Width(32)
+		leftStyle := lipgloss.NewStyle().Width(max(40, a.width-34)).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(normalBorderColor)
+		rightStyle := lipgloss.NewStyle().Width(32).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(normalBorderColor)
+
 		if a.focusedPane == paneCards {
-			leftStyle = leftStyle.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("12"))
+			leftStyle = leftStyle.BorderForeground(focusedBorderColor)
 		} else {
-			rightStyle = rightStyle.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("12"))
+			rightStyle = rightStyle.BorderForeground(focusedBorderColor)
 		}
+
 		left := a.cardsList.View()
 		right := a.sessionsList.View()
 		body := lipgloss.JoinHorizontal(lipgloss.Top,
@@ -440,7 +472,12 @@ func (a *App) refreshSessionList() {
 	sort.Slice(a.sessions, func(i, j int) bool { return a.sessions[i].StartedAt.After(a.sessions[j].StartedAt) })
 	items := make([]list.Item, 0, len(a.sessions))
 	for _, s := range a.sessions {
-		items = append(items, item{title: s.Name, desc: fmt.Sprintf("%s pid=%d", s.Status, s.PID), id: s.ID})
+		items = append(items, item{
+			title:  s.Name,
+			desc:   fmt.Sprintf("%s pid=%d", s.Status, s.PID),
+			id:     s.ID,
+			status: s.Status,
+		})
 	}
 	a.sessionsList.SetItems(items)
 	if len(items) == 0 {
@@ -486,7 +523,12 @@ func (a *App) cycleFocus(inputs []textinput.Model) {
 func toCardItems(cards []config.IDCard) []list.Item {
 	items := make([]list.Item, 0, len(cards))
 	for _, c := range cards {
-		items = append(items, item{title: c.Name, desc: fmt.Sprintf("%s | %s", c.Driver, c.Model), id: c.ID})
+		items = append(items, item{
+			title:  c.Name,
+			desc:   fmt.Sprintf("%s | %s", c.Driver, c.Model),
+			id:     c.ID,
+			status: session.StatusRunning, // default for cards
+		})
 	}
 	return items
 }

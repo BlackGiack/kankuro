@@ -15,6 +15,8 @@ import (
 	"golang.org/x/sys/unix"
 
 	"kankuro/internal/session"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 const detachKey = 11
@@ -57,7 +59,9 @@ func (e *attachExec) Run() error {
 	defer e.stopOutput()
 	defer e.handle.Close()
 
-	if _, err := fmt.Fprintf(e.stdout, "\r\n[Attached to session %s. Ctrl+K detaches.]\r\n", e.sessionID); err != nil {
+	msg := fmt.Sprintf("\r\n[Attached to session %s. Ctrl+K detaches.]\r\n", e.sessionID)
+	styledMsg := lipgloss.NewStyle().Foreground(purple).Bold(true).Render(msg)
+	if _, err := fmt.Fprint(e.stdout, styledMsg); err != nil {
 		return err
 	}
 	if len(e.handle.Scrollback) > 0 {
