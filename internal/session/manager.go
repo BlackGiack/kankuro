@@ -68,15 +68,16 @@ var (
 )
 
 type Snapshot struct {
-	ID         string
-	CardID     string
-	Name       string
-	PID        int
-	WorkingDir string
-	StartedAt  time.Time
-	LastWordAt time.Time
-	Status     Status
-	Pinged     bool
+	ID              string
+	CardID          string
+	Name            string
+	PID             int
+	WorkingDir      string
+	UseTmpWorkspace bool
+	StartedAt       time.Time
+	LastWordAt      time.Time
+	Status          Status
+	Pinged          bool
 }
 
 type Manager struct {
@@ -423,15 +424,16 @@ func (m *Manager) List() []Snapshot {
 	out := make([]Snapshot, 0, len(m.sessions))
 	for _, s := range m.sessions {
 		out = append(out, Snapshot{
-			ID:         s.ID,
-			CardID:     s.CardID,
-			Name:       s.Name,
-			PID:        s.PID,
-			WorkingDir: s.WorkingDir,
-			StartedAt:  s.StartedAt,
-			LastWordAt: s.LastWordAt,
-			Status:     s.Status,
-			Pinged:     s.Pinged,
+			ID:              s.ID,
+			CardID:          s.CardID,
+			Name:            s.Name,
+			PID:             s.PID,
+			WorkingDir:      s.WorkingDir,
+			UseTmpWorkspace: s.UseTmpWorkspace,
+			StartedAt:       s.StartedAt,
+			LastWordAt:      s.LastWordAt,
+			Status:          s.Status,
+			Pinged:          s.Pinged,
 		})
 	}
 	return out

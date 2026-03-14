@@ -296,8 +296,16 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if sel < 0 || sel >= len(a.sessions) {
 				return a, nil
 			}
-			a.pendingDeleteID = a.sessions[sel].ID
-			a.mode = viewDeleteConfirm
+			s := a.sessions[sel]
+			if s.UseTmpWorkspace {
+				a.pendingDeleteID = s.ID
+				a.mode = viewDeleteConfirm
+				return a, nil
+			}
+			if err := a.session.Remove(s.ID); err != nil {
+				a.err = err
+			}
+			a.refreshSessionList()
 			return a, nil
 		}
 	}
