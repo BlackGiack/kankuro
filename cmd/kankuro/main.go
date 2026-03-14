@@ -35,6 +35,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, "config init error: %v\n", err)
 		os.Exit(1)
 	}
+	if err := repo.SyncSkillsFromSources(); err != nil {
+		fmt.Fprintf(os.Stderr, "skill sync error: %v\n", err)
+		os.Exit(1)
+	}
 
 	sm := session.NewManager(repo.Dir())
 	app, err := ui.New(repo, sm)

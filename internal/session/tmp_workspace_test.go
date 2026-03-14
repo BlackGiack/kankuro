@@ -17,7 +17,7 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	if err := os.MkdirAll(sourceDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Create a file in source
 	originalContent := []byte("original")
 	if err := os.WriteFile(filepath.Join(sourceDir, "data.txt"), originalContent, 0644); err != nil {
@@ -39,7 +39,7 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	}
 
 	// 1. Launch
-	sid, err := sm.Launch(card)
+	sid, err := sm.Launch(card, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -83,13 +83,13 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	}
 
 	// 5. Relaunch
-	if err := sm.Relaunch(sid, card); err != nil {
+	if err := sm.Relaunch(sid, card, nil); err != nil {
 		t.Fatalf("relaunch: %v", err)
 	}
 
 	time.Sleep(100 * time.Millisecond)
 	s2 := sm.sessions[sid]
-	
+
 	// Verify same working dir
 	if s2.WorkingDir != s.WorkingDir {
 		t.Fatalf("expected same working dir on relaunch, got %s vs %s", s2.WorkingDir, s.WorkingDir)

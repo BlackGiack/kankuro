@@ -24,7 +24,6 @@ type dashboardPane int
 const (
 	viewDashboard viewMode = iota
 	viewCardForm
-	viewSkillForm
 	viewMCPForm
 	viewDeleteConfirm
 )
@@ -79,8 +78,11 @@ type App struct {
 	sessionsList list.Model
 
 	cardInputs []textinput.Model
-	skillInput textinput.Model
 	mcpInputs  []textinput.Model
+
+	cardFocusIndex   int
+	skillCursor      int
+	selectedSkillIDs map[string]bool
 
 	editingCardID   string
 	activeSessionID string
@@ -142,10 +144,6 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 	}
 	cardInputs[0].Focus()
 
-	skillInput := textinput.New()
-	skillInput.Placeholder = "skill name"
-	skillInput.Width = 60
-
 	mcpInputs := make([]textinput.Model, 2)
 	mcpInputs[0] = textinput.New()
 	mcpInputs[0].Placeholder = "mcp name"
@@ -155,20 +153,20 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 	mcpInputs[1].Width = 60
 
 	app := &App{
-		repo:         repo,
-		session:      sm,
-		mode:         viewDashboard,
-		cards:        cards,
-		skills:       skills,
-		mcps:         mcps,
-		sessions:     sm.List(),
-		cardsList:    cardsList,
-		sessionsList: sessionsList,
-		cardInputs:   cardInputs,
-		skillInput:   skillInput,
-		mcpInputs:    mcpInputs,
-		focusedPane:  paneCards,
-		help:         help.New(),
+		repo:             repo,
+		session:          sm,
+		mode:             viewDashboard,
+		cards:            cards,
+		skills:           skills,
+		mcps:             mcps,
+		sessions:         sm.List(),
+		cardsList:        cardsList,
+		sessionsList:     sessionsList,
+		cardInputs:       cardInputs,
+		mcpInputs:        mcpInputs,
+		selectedSkillIDs: make(map[string]bool),
+		focusedPane:      paneCards,
+		help:             help.New(),
 	}
 	app.refreshLists()
 	return app, nil
@@ -208,8 +206,6 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.updateDashboard(msg)
 	case viewCardForm:
 		return a.updateCardForm(msg)
-	case viewSkillForm:
-		return a.updateSkillForm(msg)
 	case viewMCPForm:
 		return a.updateMCPForm(msg)
 	case viewDeleteConfirm:
@@ -252,13 +248,11 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 				tmpVal = "y"
 			}
 			a.cardInputs[5].SetValue(tmpVal)
+			a.setSelectedSkills(selected.SkillIDs)
 			a.editingCardID = selected.ID
+			a.cardFocusIndex = 0
+			a.setCardFocus(a.cardFocusIndex)
 			a.mode = viewCardForm
-			return a, nil
-		case "s":
-			a.skillInput.SetValue("")
-			a.skillInput.Focus()
-			a.mode = viewSkillForm
 			return a, nil
 		case "m":
 			a.mcpInputs[0].SetValue("")
@@ -274,7 +268,8 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !ok {
 				return a, nil
 			}
-			id, err := a.session.Launch(selected)
+			skills := a.skillsForCard(selected)
+			id, err := a.session.Launch(selected, skills)
 			if err != nil {
 				a.err = err
 				return a, nil
@@ -325,8 +320,27 @@ func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.mode = viewDashboard
 			return a, nil
 		case "tab":
-			a.cycleFocus(a.cardInputs)
+			a.cycleCardFocus()
 			return a, nil
+		case "up", "k":
+			if a.isSkillListFocused() {
+				if a.skillCursor > 0 {
+					a.skillCursor--
+				}
+				return a, nil
+			}
+		case "down", "j":
+			if a.isSkillListFocused() {
+				if a.skillCursor < len(a.skills)-1 {
+					a.skillCursor++
+				}
+				return a, nil
+			}
+		case " ":
+			if a.isSkillListFocused() {
+				a.toggleSelectedSkill()
+				return a, nil
+			}
 		case "enter":
 			card := config.IDCard{
 				ID:              a.editingCardID,
@@ -336,6 +350,7 @@ func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				WorkingDir:      strings.TrimSpace(a.cardInputs[3].Value()),
 				FaceStyle:       strings.TrimSpace(a.cardInputs[4].Value()),
 				UseTmpWorkspace: strings.ToLower(strings.TrimSpace(a.cardInputs[5].Value())) == "y",
+				SkillIDs:        a.selectedSkillIDsSlice(),
 			}
 			var err error
 			if a.editingCardID == "" {
@@ -359,29 +374,6 @@ func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.cardInputs[i], cmds[i] = a.cardInputs[i].Update(msg)
 	}
 	return a, tea.Batch(cmds...)
-}
-
-func (a *App) updateSkillForm(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
-			a.mode = viewDashboard
-			return a, nil
-		case "enter":
-			skill, err := a.repo.UpsertSkill(config.Skill{Name: strings.TrimSpace(a.skillInput.Value())})
-			if err != nil {
-				a.err = err
-				return a, nil
-			}
-			a.skills = append(a.skills, skill)
-			a.mode = viewDashboard
-			return a, nil
-		}
-	}
-	var cmd tea.Cmd
-	a.skillInput, cmd = a.skillInput.Update(msg)
-	return a, cmd
 }
 
 func (a *App) updateMCPForm(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -461,11 +453,8 @@ func (a *App) View() string {
 			"Working Dir: " + a.cardInputs[3].View() + "\n" +
 			"Face Style: " + a.cardInputs[4].View() + "\n" +
 			"Use Tmp Workspace: " + a.cardInputs[5].View() + "\n\n" +
+			"Skills (space=toggle, arrows=scroll):\n" + a.renderSkillList() + "\n\n" +
 			"Enter=save Tab=next Esc=cancel"
-	case viewSkillForm:
-		return errLine + titleStyle.Render("Add Skill") + "\n\n" +
-			"Name: " + a.skillInput.View() + "\n\n" +
-			"Enter=save Esc=cancel"
 	case viewMCPForm:
 		return errLine + titleStyle.Render("Add MCP") + "\n\n" +
 			"Name: " + a.mcpInputs[0].View() + "\n" +
@@ -492,7 +481,7 @@ func (a *App) View() string {
 			rightStyle.Render(right),
 		)
 		return errLine + titleStyle.Render("KANKURO Dashboard") + "\n" + body + "\n" +
-			"Tab=switch Enter=launch/attach x=kill Del=remove terminated n=new e=edit s=skill m=mcp q=quit"
+			"Tab=switch Enter=launch/attach x=kill Del=remove terminated n=new e=edit m=mcp q=quit"
 	}
 }
 
@@ -561,7 +550,95 @@ func (a *App) resetCardForm() {
 		a.cardInputs[i].Blur()
 	}
 	a.editingCardID = ""
-	a.cardInputs[0].Focus()
+	a.selectedSkillIDs = make(map[string]bool)
+	a.skillCursor = 0
+	a.cardFocusIndex = 0
+	a.setCardFocus(a.cardFocusIndex)
+}
+
+func (a *App) setSelectedSkills(ids []string) {
+	a.selectedSkillIDs = make(map[string]bool)
+	for _, id := range ids {
+		a.selectedSkillIDs[id] = true
+	}
+	a.skillCursor = 0
+}
+
+func (a *App) selectedSkillIDsSlice() []string {
+	ids := make([]string, 0, len(a.selectedSkillIDs))
+	for _, skill := range a.skills {
+		if a.selectedSkillIDs[skill.ID] {
+			ids = append(ids, skill.ID)
+		}
+	}
+	return ids
+}
+
+func (a *App) isSkillListFocused() bool {
+	return a.cardFocusIndex >= len(a.cardInputs)
+}
+
+func (a *App) setCardFocus(index int) {
+	a.cardFocusIndex = index
+	for i := range a.cardInputs {
+		if i == index {
+			a.cardInputs[i].Focus()
+		} else {
+			a.cardInputs[i].Blur()
+		}
+	}
+}
+
+func (a *App) cycleCardFocus() {
+	total := len(a.cardInputs) + 1
+	next := (a.cardFocusIndex + 1) % total
+	a.setCardFocus(next)
+}
+
+func (a *App) toggleSelectedSkill() {
+	if len(a.skills) == 0 || a.skillCursor < 0 || a.skillCursor >= len(a.skills) {
+		return
+	}
+	id := a.skills[a.skillCursor].ID
+	if a.selectedSkillIDs[id] {
+		delete(a.selectedSkillIDs, id)
+		return
+	}
+	a.selectedSkillIDs[id] = true
+}
+
+func (a *App) skillWindow(total int) (int, int) {
+	if total == 0 {
+		return 0, 0
+	}
+	height := a.skillListHeight()
+	if height >= total {
+		return 0, total
+	}
+	start := a.skillCursor - height/2
+	if start < 0 {
+		start = 0
+	}
+	end := start + height
+	if end > total {
+		end = total
+		start = end - height
+		if start < 0 {
+			start = 0
+		}
+	}
+	return start, end
+}
+
+func (a *App) skillListHeight() int {
+	if a.height <= 0 {
+		return 10
+	}
+	available := a.height - 12
+	if available < 3 {
+		return 3
+	}
+	return available
 }
 
 func (a *App) cycleFocus(inputs []textinput.Model) {
@@ -587,6 +664,70 @@ func renderAgentCard(card config.IDCard) string {
 	canvas := ascii.NewCanvas(w, 1)
 	face.Render(canvas, 0, 0)
 	return canvas.String()
+}
+
+func (a *App) skillsForCard(card config.IDCard) []config.Skill {
+	if len(card.SkillIDs) == 0 {
+		return nil
+	}
+	selected := make(map[string]struct{}, len(card.SkillIDs))
+	for _, id := range card.SkillIDs {
+		selected[id] = struct{}{}
+	}
+	out := make([]config.Skill, 0, len(card.SkillIDs))
+	for _, skill := range a.skills {
+		if _, ok := selected[skill.ID]; ok {
+			out = append(out, skill)
+		}
+	}
+	return out
+}
+
+func skillNameCounts(skills []config.Skill) map[string]int {
+	counts := make(map[string]int)
+	for _, skill := range skills {
+		counts[skill.Name]++
+	}
+	return counts
+}
+
+func skillLabel(skill config.Skill, counts map[string]int) string {
+	if counts[skill.Name] > 1 && skill.Source != "" {
+		return fmt.Sprintf("%s (%s)", skill.Name, skill.Source)
+	}
+	return skill.Name
+}
+
+func (a *App) renderSkillList() string {
+	if len(a.skills) == 0 {
+		return "(no skills found)"
+	}
+	counts := skillNameCounts(a.skills)
+	start, end := a.skillWindow(len(a.skills))
+	lines := make([]string, 0, end-start+2)
+	if start > 0 {
+		lines = append(lines, "  ...")
+	}
+	for i := start; i < end; i++ {
+		skill := a.skills[i]
+		prefix := "  "
+		if a.isSkillListFocused() && i == a.skillCursor {
+			prefix = "> "
+		}
+		mark := " "
+		if a.selectedSkillIDs[skill.ID] {
+			mark = "x"
+		}
+		line := fmt.Sprintf("%s[%s] %s", prefix, mark, skillLabel(skill, counts))
+		if a.isSkillListFocused() && i == a.skillCursor {
+			line = lipgloss.NewStyle().Foreground(hotPink).Render(line)
+		}
+		lines = append(lines, line)
+	}
+	if end < len(a.skills) {
+		lines = append(lines, "  ...")
+	}
+	return strings.Join(lines, "\n")
 }
 
 func toCardItems(cards []config.IDCard) []list.Item {
@@ -644,7 +785,8 @@ func (a *App) activateSelectedSession() tea.Cmd {
 			a.err = fmt.Errorf("cannot relaunch: original ID card not found")
 			return nil
 		}
-		if err := a.session.Relaunch(s.ID, card); err != nil {
+		skills := a.skillsForCard(card)
+		if err := a.session.Relaunch(s.ID, card, skills); err != nil {
 			a.err = fmt.Errorf("relaunch failed: %w", err)
 			return nil
 		}

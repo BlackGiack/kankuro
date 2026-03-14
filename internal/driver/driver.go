@@ -1,6 +1,8 @@
 package driver
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -42,7 +44,7 @@ type AgentDriver interface {
 	Spawn(config AgentConfig) (*SessionHandle, error)
 	Kill() error
 
-	SetSkills(skills []config.Skill) error
+	SetSkills(skills []config.Skill, workspaceRoot ...string) error
 	SetMcps(mcps []config.MCPServer) error
 
 	SendInput(data string) error
@@ -148,9 +150,51 @@ func (d *GenericCLIDriver) Kill() error {
 	return err
 }
 
-// SetSkills is a placeholder hook for provider-specific skill wiring.
-func (d *GenericCLIDriver) SetSkills(skills []config.Skill) error {
-	_ = skills
+// SetSkills ensures skill assets are present in the session workspace.
+func (d *GenericCLIDriver) SetSkills(skills []config.Skill, workspaceRoot ...string) error {
+	if len(skills) == 0 {
+		return nil
+	}
+	root := ""
+	if len(workspaceRoot) > 0 {
+		root = strings.TrimSpace(workspaceRoot[0])
+	}
+	if root == "" {
+		return errors.New("workspace root is required for skill sync")
+	}
+	skillsRoot := filepath.Join(root, ".agents", "skills")
+	if err := os.MkdirAll(skillsRoot, 0o755); err != nil {
+		return fmt.Errorf("create skills dir: %w", err)
+	}
+
+	nameCounts := make(map[string]int)
+	for _, skill := range skills {
+		nameCounts[skill.Name]++
+	}
+
+	for _, skill := range skills {
+		if skill.Source == "" || skill.Name == "" {
+			return errors.New("skill name and source are required")
+		}
+		destName := skill.Name
+		if nameCounts[skill.Name] > 1 {
+			destName = fmt.Sprintf("%s--%s", skill.Name, shortSkillHash(skill.Source))
+		}
+		destPath := filepath.Join(skillsRoot, destName)
+		info, err := os.Stat(destPath)
+		if err == nil {
+			if !info.IsDir() {
+				return fmt.Errorf("skill destination exists and is not a directory: %s", destPath)
+			}
+			continue
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("stat skill destination: %w", err)
+		}
+		if err := copySkillFolder(skill.Source, destPath); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -224,6 +268,26 @@ func upsertEnv(env []string, key string, value string) []string {
 		}
 	}
 	return append(env, prefix+value)
+}
+
+func shortSkillHash(path string) string {
+	sum := sha256.Sum256([]byte(path))
+	return hex.EncodeToString(sum[:])[:8]
+}
+
+func copySkillFolder(source, dest string) error {
+	info, err := os.Stat(source)
+	if err != nil {
+		return fmt.Errorf("stat skill source: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("skill source is not a directory: %s", source)
+	}
+	cmd := exec.Command("cp", "-r", source, dest)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("copy skill %s: %s: %w", source, strings.TrimSpace(string(out)), err)
+	}
+	return nil
 }
 
 // SanitizeWorkingDir resolves and validates the session working directory.

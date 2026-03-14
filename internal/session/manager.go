@@ -115,13 +115,13 @@ func NewManager(configDir string) *Manager {
 }
 
 // Launch starts a new session process from an ID card.
-func (m *Manager) Launch(card config.IDCard) (string, error) {
+func (m *Manager) Launch(card config.IDCard, skills []config.Skill) (string, error) {
 	sid := uuid.NewString()
-	return sid, m.startSession(sid, card, true)
+	return sid, m.startSession(sid, card, skills, true)
 }
 
 // Relaunch restarts a terminated session using its existing workspace (if tmp).
-func (m *Manager) Relaunch(id string, card config.IDCard) error {
+func (m *Manager) Relaunch(id string, card config.IDCard, skills []config.Skill) error {
 	m.mu.RLock()
 	s, ok := m.sessions[id]
 	m.mu.RUnlock()
@@ -131,10 +131,10 @@ func (m *Manager) Relaunch(id string, card config.IDCard) error {
 	if s.Status != StatusTerminated {
 		return fmt.Errorf("session is already running")
 	}
-	return m.startSession(id, card, false)
+	return m.startSession(id, card, skills, false)
 }
 
-func (m *Manager) startSession(sid string, card config.IDCard, isNew bool) error {
+func (m *Manager) startSession(sid string, card config.IDCard, skills []config.Skill, isNew bool) error {
 	wd, err := driver.SanitizeWorkingDir(card.WorkingDir)
 	if err != nil {
 		return err
@@ -166,9 +166,16 @@ func (m *Manager) startSession(sid string, card config.IDCard, isNew bool) error
 			}
 		}
 		finalWD = targetDir
+		skillsDir := filepath.Join(finalWD, ".agents", "skills")
+		if err := os.RemoveAll(skillsDir); err != nil {
+			return fmt.Errorf("clear tmp skills dir: %w", err)
+		}
 	}
 
 	d := driver.NewCLIDriver(card.Driver)
+	if err := d.SetSkills(skills, finalWD); err != nil {
+		return err
+	}
 	h, err := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,
 		Model:             card.Model,
@@ -375,11 +382,11 @@ func (m *Manager) Remove(id string) error {
 	if s.Status != StatusTerminated {
 		return fmt.Errorf("session still running: %s", id)
 	}
-	
+
 	// Delete persistence file
 	sessionsDir := filepath.Join(m.configDir, "sessions")
 	_ = deleteSession(sessionsDir, id)
-	
+
 	// Delete tmp workspace if it exists
 	if s.UseTmpWorkspace {
 		tmpRoot := os.Getenv("KANKURO_TMP_DIR")
@@ -389,7 +396,7 @@ func (m *Manager) Remove(id string) error {
 		sessionRoot := filepath.Join(tmpRoot, id)
 		_ = os.RemoveAll(sessionRoot)
 	}
-	
+
 	delete(m.sessions, id)
 	return nil
 }

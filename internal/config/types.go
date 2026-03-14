@@ -49,6 +49,11 @@ type skillsFile struct {
 	Skills        []Skill `yaml:"skills"`
 }
 
+type skillsSourcesFile struct {
+	SchemaVersion int      `yaml:"schema_version"`
+	Paths         []string `yaml:"paths"`
+}
+
 type mcpsFile struct {
 	SchemaVersion int         `yaml:"schema_version"`
 	MCPs          []MCPServer `yaml:"mcps"`

@@ -71,6 +71,7 @@ func TestRepositoryBootstrapsFiles(t *testing.T) {
 	paths := []string{
 		filepath.Join(repo.Dir(), "id_cards.yaml"),
 		filepath.Join(repo.Dir(), "skills.yaml"),
+		filepath.Join(repo.Dir(), "skills_sources.yaml"),
 		filepath.Join(repo.Dir(), "mcps.yaml"),
 	}
 	for _, p := range paths {

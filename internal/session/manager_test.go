@@ -18,7 +18,7 @@ func TestSessionLaunchAttachKill(t *testing.T) {
 		WorkingDir: t.TempDir(),
 	}
 
-	sid, err := sm.Launch(card)
+	sid, err := sm.Launch(card, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestSessionAttachReplaysScrollbackAndTracksPromptWithoutNewline(t *testing.
 		WorkingDir: t.TempDir(),
 	}
 
-	sid, err := sm.Launch(card)
+	sid, err := sm.Launch(card, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestSessionIdleWordDetection(t *testing.T) {
 		WorkingDir: t.TempDir(),
 	}
 
-	sid, err := sm.Launch(card)
+	sid, err := sm.Launch(card, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestSessionPendingLineCapped(t *testing.T) {
 		WorkingDir: t.TempDir(),
 	}
 
-	sid, err := sm.Launch(card)
+	sid, err := sm.Launch(card, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -231,7 +231,7 @@ func TestRemoveOnlyDeletesTerminatedSessions(t *testing.T) {
 		WorkingDir: t.TempDir(),
 	}
 
-	sid, err := sm.Launch(card)
+	sid, err := sm.Launch(card, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}

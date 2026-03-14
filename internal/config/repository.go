@@ -7,9 +7,10 @@ import (
 )
 
 const (
-	idCardsFilename = "id_cards.yaml"
-	skillsFilename  = "skills.yaml"
-	mcpsFilename    = "mcps.yaml"
+	idCardsFilename       = "id_cards.yaml"
+	skillsFilename        = "skills.yaml"
+	skillsSourcesFilename = "skills_sources.yaml"
+	mcpsFilename          = "mcps.yaml"
 )
 
 // Repository defines persistence operations for ID cards and capability registries.
@@ -19,6 +20,8 @@ type Repository interface {
 	UpdateIDCard(card IDCard) (IDCard, error)
 	DeleteIDCard(id string) error
 
+	ListSkillSources() ([]string, error)
+	SyncSkillsFromSources() error
 	ListSkills() ([]Skill, error)
 	UpsertSkill(skill Skill) (Skill, error)
 	DeleteSkill(id string) error
@@ -63,6 +66,9 @@ func (r *FileRepository) ensureFiles() error {
 		return err
 	}
 	if err := r.ensureYAML(filepath.Join(r.dir, skillsFilename), skillsFile{SchemaVersion: SchemaVersion, Skills: []Skill{}}); err != nil {
+		return err
+	}
+	if err := r.ensureYAML(filepath.Join(r.dir, skillsSourcesFilename), skillsSourcesFile{SchemaVersion: SchemaVersion, Paths: []string{}}); err != nil {
 		return err
 	}
 	if err := r.ensureYAML(filepath.Join(r.dir, mcpsFilename), mcpsFile{SchemaVersion: SchemaVersion, MCPs: []MCPServer{}}); err != nil {
