@@ -17,7 +17,7 @@ import (
 func main() {
 	var cfgDir string
 	var debug bool
-	flag.StringVar(&cfgDir, "config-dir", "", "override config directory")
+	flag.StringVar(&cfgDir, "config-dir", os.Getenv("KANKURO_CONFIG_DIR"), "override config directory")
 	flag.BoolVar(&debug, "debug", false, "write debug logs")
 	flag.Parse()
 

@@ -28,6 +28,7 @@ const (
 type AgentConfig struct {
 	Driver            string
 	Model             string
+	Args              []string
 	WorkingDir        string
 	SystemInstruction string
 	Env               map[string]string
@@ -46,6 +47,7 @@ type AgentDriver interface {
 
 	SetSkills(skills []config.Skill, workspaceRoot ...string) error
 	SetMcps(mcps []config.MCPServer) error
+	SetModel(model string) []string
 
 	SendInput(data string) error
 
@@ -82,7 +84,7 @@ func (d *GenericCLIDriver) Spawn(config AgentConfig) (*SessionHandle, error) {
 		return nil, errors.New("working directory is required")
 	}
 
-	cmd := exec.Command(config.Driver)
+	cmd := exec.Command(config.Driver, config.Args...)
 	cmd.Dir = config.WorkingDir
 	cmd.Env = mergeEnvWithPwd(config.Env, config.WorkingDir)
 
@@ -202,6 +204,14 @@ func (d *GenericCLIDriver) SetSkills(skills []config.Skill, workspaceRoot ...str
 func (d *GenericCLIDriver) SetMcps(mcps []config.MCPServer) error {
 	_ = mcps
 	return nil
+}
+
+// SetModel returns the command line arguments to configure the model.
+func (d *GenericCLIDriver) SetModel(model string) []string {
+	if model == "" {
+		return nil
+	}
+	return []string{"--model", model}
 }
 
 // SendInput writes raw input bytes into the active PTY session.

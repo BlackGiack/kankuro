@@ -176,9 +176,11 @@ func (m *Manager) startSession(sid string, card config.IDCard, skills []config.S
 	if err := d.SetSkills(skills, finalWD); err != nil {
 		return err
 	}
+	args := d.SetModel(card.Model)
 	h, err := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,
 		Model:             card.Model,
+		Args:              args,
 		WorkingDir:        finalWD,
 		SystemInstruction: card.SystemInstruction,
 		Env:               card.Env,

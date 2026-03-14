@@ -20,3 +20,11 @@ func TestIsPromptLike(t *testing.T) {
 		t.Fatalf("recent output without prompt char should not be prompt-like")
 	}
 }
+
+func TestSetModel(t *testing.T) {
+	d := NewGenericCLIDriver()
+	args := d.SetModel("opus")
+	if len(args) != 2 || args[0] != "--model" || args[1] != "opus" {
+		t.Fatalf("unexpected SetModel result: %v", args)
+	}
+}
