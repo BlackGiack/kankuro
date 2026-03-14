@@ -13,6 +13,7 @@ func (s *stubDriver) SetSkills(skills []config.Skill, workspaceRoot ...string) e
 	return nil
 }
 func (s *stubDriver) SetMcps(mcps []config.MCPServer) error { return nil }
+func (s *stubDriver) SetModel(model string) []string        { return nil }
 func (s *stubDriver) SendInput(data string) error           { return nil }
 func (s *stubDriver) GetStatus() SessionStatus              { return StatusRunning }
 

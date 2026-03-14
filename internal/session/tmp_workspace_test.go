@@ -125,3 +125,84 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 		t.Fatalf("restored working dir mismatch")
 	}
 }
+
+func TestSwitchAgentReplacesSkillsInTmpWorkspace(t *testing.T) {
+	tmpBase := t.TempDir()
+	configDir := filepath.Join(tmpBase, "config")
+	sourceDir := filepath.Join(tmpBase, "source")
+	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	skill1Dir := filepath.Join(tmpBase, "skill-one")
+	skill2Dir := filepath.Join(tmpBase, "skill-two")
+	if err := os.MkdirAll(skill1Dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(skill2Dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("one"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("two"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	os.Setenv("KANKURO_TMP_DIR", filepath.Join(tmpBase, "sessions_tmp"))
+	defer os.Unsetenv("KANKURO_TMP_DIR")
+
+	sm := NewManager(configDir)
+
+	card1 := config.IDCard{
+		ID:              "card-tmp-1",
+		Name:            "tmp-one",
+		Driver:          "cat",
+		WorkingDir:      sourceDir,
+		UseTmpWorkspace: true,
+	}
+	skills1 := []config.Skill{
+		{ID: "s1", Name: "alpha-skill", Source: skill1Dir},
+	}
+	sid, err := sm.Launch(card1, skills1)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	wd := sm.sessions[sid].WorkingDir
+	skill1Path := filepath.Join(wd, ".agents", "skills", "alpha-skill")
+	if _, err := os.Stat(skill1Path); err != nil {
+		t.Fatalf("expected skill1 present: %v", err)
+	}
+
+	if err := sm.Kill(sid); err != nil {
+		t.Fatalf("kill: %v", err)
+	}
+
+	card2 := config.IDCard{
+		ID:         "card-tmp-2",
+		Name:       "tmp-two",
+		Driver:     "cat",
+		WorkingDir: sourceDir,
+	}
+	skills2 := []config.Skill{
+		{ID: "s2", Name: "beta-skill", Source: skill2Dir},
+	}
+	if err := sm.SwitchAgent(sid, card2, skills2); err != nil {
+		t.Fatalf("switch: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	if _, err := os.Stat(skill1Path); err == nil || !os.IsNotExist(err) {
+		t.Fatalf("expected skill1 removed, got %v", err)
+	}
+	skill2Path := filepath.Join(wd, ".agents", "skills", "beta-skill")
+	if _, err := os.Stat(skill2Path); err != nil {
+		t.Fatalf("expected skill2 present: %v", err)
+	}
+
+	if err := sm.Kill(sid); err != nil {
+		t.Fatalf("kill after switch: %v", err)
+	}
+}

@@ -26,6 +26,7 @@ const (
 	viewCardForm
 	viewMCPForm
 	viewDeleteConfirm
+	viewSwitchAgent
 )
 
 const (
@@ -76,6 +77,7 @@ type App struct {
 
 	cardsList    list.Model
 	sessionsList list.Model
+	switchList   list.Model
 
 	cardInputs []textinput.Model
 	mcpInputs  []textinput.Model
@@ -87,6 +89,7 @@ type App struct {
 	editingCardID   string
 	activeSessionID string
 	pendingDeleteID string
+	switchSessionID string
 	focusedPane     dashboardPane
 
 	help help.Model
@@ -135,6 +138,12 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 	sessionsList.SetFilteringEnabled(false)
 	sessionsList.Styles.Title = titleStyle
 
+	switchList := list.New([]list.Item{}, delegate, 0, 0)
+	switchList.Title = "Switch Agent"
+	switchList.SetShowStatusBar(false)
+	switchList.SetFilteringEnabled(false)
+	switchList.Styles.Title = titleStyle
+
 	cardInputs := make([]textinput.Model, 6)
 	placeholders := []string{"name", "driver command (e.g. claude)", "model", "working_dir", "face_style (neutral/happy/focused/thinking)", "use tmp workspace (y/n)"}
 	for i := range cardInputs {
@@ -162,6 +171,7 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 		sessions:         sm.List(),
 		cardsList:        cardsList,
 		sessionsList:     sessionsList,
+		switchList:       switchList,
 		cardInputs:       cardInputs,
 		mcpInputs:        mcpInputs,
 		selectedSkillIDs: make(map[string]bool),
@@ -210,6 +220,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.updateMCPForm(msg)
 	case viewDeleteConfirm:
 		return a.updateDeleteConfirm(msg)
+	case viewSwitchAgent:
+		return a.updateSwitchAgent(msg)
 	default:
 		return a, nil
 	}
@@ -306,6 +318,28 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.err = err
 			}
 			a.refreshSessionList()
+			return a, nil
+		case "s":
+			if a.focusedPane != paneSessions {
+				return a, nil
+			}
+			sel := a.sessionsList.Index()
+			if sel < 0 || sel >= len(a.sessions) {
+				return a, nil
+			}
+			s := a.sessions[sel]
+			if s.Status != session.StatusTerminated {
+				a.err = fmt.Errorf("switch requires a terminated session")
+				return a, nil
+			}
+			if len(a.cards) == 0 {
+				a.err = fmt.Errorf("no ID cards available")
+				return a, nil
+			}
+			a.switchSessionID = s.ID
+			a.switchList.SetItems(toCardItems(a.cards))
+			a.switchList.Select(0)
+			a.mode = viewSwitchAgent
 			return a, nil
 		}
 	}
@@ -415,6 +449,38 @@ func (a *App) updateMCPForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, tea.Batch(cmds...)
 }
 
+func (a *App) updateSwitchAgent(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			a.switchSessionID = ""
+			a.mode = viewDashboard
+			return a, nil
+		case "enter":
+			card, ok := a.selectedSwitchCard()
+			if !ok {
+				return a, nil
+			}
+			skills := a.skillsForCard(card)
+			if err := a.session.SwitchAgent(a.switchSessionID, card, skills); err != nil {
+				a.err = fmt.Errorf("switch agent failed: %w", err)
+				return a, nil
+			}
+			a.sessions = a.session.List()
+			a.refreshSessionList()
+			id := a.switchSessionID
+			a.switchSessionID = ""
+			a.mode = viewDashboard
+			a.activeSessionID = id
+			return a, a.attachSession(id)
+		}
+	}
+	var cmd tea.Cmd
+	a.switchList, cmd = a.switchList.Update(msg)
+	return a, cmd
+}
+
 func (a *App) updateDeleteConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -468,6 +534,14 @@ func (a *App) View() string {
 			"Name: " + a.mcpInputs[0].View() + "\n" +
 			"Command: " + a.mcpInputs[1].View() + "\n\n" +
 			"Enter=save Tab=next Esc=cancel"
+	case viewSwitchAgent:
+		header := "Switch Agent"
+		if a.switchSessionID != "" {
+			header = fmt.Sprintf("Switch Agent (session %s)", a.switchSessionID)
+		}
+		return errLine + titleStyle.Render(header) + "\n\n" +
+			a.switchList.View() + "\n" +
+			"Enter=switch Esc=cancel"
 	default:
 		leftStyle := lipgloss.NewStyle().Width(max(40, a.width-34)).
 			BorderStyle(lipgloss.NormalBorder()).
@@ -489,13 +563,14 @@ func (a *App) View() string {
 			rightStyle.Render(right),
 		)
 		return errLine + titleStyle.Render("KANKURO Dashboard") + "\n" + body + "\n" +
-			"Tab=switch Enter=launch/attach x=kill Del=remove terminated n=new e=edit m=mcp q=quit"
+			"Tab=switch Enter=launch/attach x=kill Del=remove terminated s=switch n=new e=edit m=mcp q=quit"
 	}
 }
 
 func (a *App) resize() {
 	a.cardsList.SetSize(max(20, a.width-34), max(10, a.height-4))
 	a.sessionsList.SetSize(32, max(10, a.height-4))
+	a.switchList.SetSize(max(40, a.width-10), max(10, a.height-6))
 }
 
 func (a *App) refreshLists() {
@@ -541,6 +616,19 @@ func (a *App) refreshSessionList() {
 
 func (a *App) selectedCard() (config.IDCard, bool) {
 	it, ok := a.cardsList.SelectedItem().(item)
+	if !ok {
+		return config.IDCard{}, false
+	}
+	for _, c := range a.cards {
+		if c.ID == it.id {
+			return c, true
+		}
+	}
+	return config.IDCard{}, false
+}
+
+func (a *App) selectedSwitchCard() (config.IDCard, bool) {
+	it, ok := a.switchList.SelectedItem().(item)
 	if !ok {
 		return config.IDCard{}, false
 	}

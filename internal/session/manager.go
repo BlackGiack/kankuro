@@ -135,6 +135,83 @@ func (m *Manager) Relaunch(id string, card config.IDCard, skills []config.Skill)
 	return m.startSession(id, card, skills, false)
 }
 
+// SwitchAgent restarts a terminated session using its existing workspace, but with a new agent card.
+func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Skill) error {
+	m.mu.RLock()
+	s, ok := m.sessions[id]
+	m.mu.RUnlock()
+	if !ok {
+		return fmt.Errorf("session not found: %s", id)
+	}
+	if s.Status != StatusTerminated {
+		return fmt.Errorf("session must be terminated before switching agents")
+	}
+
+	finalWD := s.WorkingDir
+	if finalWD == "" {
+		return fmt.Errorf("session workspace is empty")
+	}
+	if _, err := os.Stat(finalWD); err != nil {
+		return fmt.Errorf("session workspace missing: %w", err)
+	}
+
+	if s.UseTmpWorkspace {
+		skillsDir := filepath.Join(finalWD, ".agents", "skills")
+		if err := os.RemoveAll(skillsDir); err != nil {
+			return fmt.Errorf("clear tmp skills dir: %w", err)
+		}
+	}
+
+	d := driver.NewCLIDriver(card.Driver)
+	if err := d.SetSkills(skills, finalWD); err != nil {
+		return err
+	}
+	args := d.SetModel(card.Model)
+	h, err := d.Spawn(driver.AgentConfig{
+		Driver:            card.Driver,
+		Model:             card.Model,
+		Args:              args,
+		WorkingDir:        finalWD,
+		SystemInstruction: card.SystemInstruction,
+		Env:               card.Env,
+	})
+	if err != nil {
+		return err
+	}
+
+	now := time.Now().UTC()
+	pid := 0
+	if h.Cmd != nil && h.Cmd.Process != nil {
+		pid = h.Cmd.Process.Pid
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, ok = m.sessions[id]
+	if !ok {
+		return fmt.Errorf("session not found: %s", id)
+	}
+
+	s.CardID = card.ID
+	s.Name = card.Name
+	s.PID = pid
+	s.StartedAt = now
+	s.LastWordAt = now
+	s.Status = StatusRunning
+	s.Pinged = false
+	s.Driver = d
+	s.Input = h.PTY
+	s.Output = h.Output
+	s.Done = h.Done
+	s.Scrollback = append(s.Scrollback, []byte(fmt.Sprintf("\n\n--- Switched agent to %s at %s ---\n\n", card.Name, now.Format(time.RFC3339)))...)
+
+	go m.trackOutput(id, h.Output)
+	go m.watch(id, d)
+
+	m.persistSessionLocked(s)
+	return nil
+}
+
 func (m *Manager) startSession(sid string, card config.IDCard, skills []config.Skill, isNew bool) error {
 	wd, err := driver.SanitizeWorkingDir(card.WorkingDir)
 	if err != nil {

@@ -114,6 +114,56 @@ func TestSessionAttachReplaysScrollbackAndTracksPromptWithoutNewline(t *testing.
 	}
 }
 
+func TestSessionSwitchAgent(t *testing.T) {
+	sm := NewManager(t.TempDir())
+	wd := t.TempDir()
+	card1 := config.IDCard{
+		ID:         "card-1",
+		Name:       "alpha",
+		Driver:     "cat",
+		WorkingDir: wd,
+	}
+
+	sid, err := sm.Launch(card1, nil)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	origWD := sm.sessions[sid].WorkingDir
+	if err := sm.Kill(sid); err != nil {
+		t.Fatalf("kill: %v", err)
+	}
+
+	card2 := config.IDCard{
+		ID:         "card-2",
+		Name:       "beta",
+		Driver:     "cat",
+		WorkingDir: wd,
+	}
+	if err := sm.SwitchAgent(sid, card2, nil); err != nil {
+		t.Fatalf("switch: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	s := sm.sessions[sid]
+	if s.CardID != card2.ID {
+		t.Fatalf("expected card id %s, got %s", card2.ID, s.CardID)
+	}
+	if s.Name != card2.Name {
+		t.Fatalf("expected name %s, got %s", card2.Name, s.Name)
+	}
+	if s.WorkingDir != origWD {
+		t.Fatalf("expected working dir %s, got %s", origWD, s.WorkingDir)
+	}
+	if s.Status == StatusTerminated {
+		t.Fatalf("expected running after switch, got %s", s.Status)
+	}
+	if err := sm.Kill(sid); err != nil {
+		t.Fatalf("kill after switch: %v", err)
+	}
+}
+
 func TestSessionIdleWordDetection(t *testing.T) {
 	sm := NewManager(t.TempDir())
 	card := config.IDCard{
