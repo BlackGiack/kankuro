@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/signal"
 	"sync"
@@ -19,7 +21,13 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-const detachKey = 11
+const (
+	detachKey = 11
+
+	inputBufferSize = 256
+	pollTimeout     = 100
+	eofSleep        = 10 * time.Millisecond
+)
 
 type attachExec struct {
 	sessionID string
@@ -31,7 +39,7 @@ type attachExec struct {
 	stopOnce  sync.Once
 }
 
-var errDetach = fmt.Errorf("detach")
+var errDetach = errors.New("detach")
 
 func (a *App) attachSession(id string) tea.Cmd {
 	handle, err := a.session.Attach(id)
@@ -59,6 +67,38 @@ func (e *attachExec) Run() error {
 	defer e.stopOutput()
 	defer e.handle.Close()
 
+	if err := e.printHeader(); err != nil {
+		return err
+	}
+
+	stdinFile, ok := e.stdin.(*os.File)
+	if !ok || stdinFile == nil {
+		return errors.New("attach requires terminal stdin")
+	}
+
+	oldState, err := cterm.MakeRaw(stdinFile.Fd())
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = cterm.Restore(stdinFile.Fd(), oldState)
+	}()
+
+	if errSync := syncPTYSize(stdinFile, e.handle.PTY); errSync != nil {
+		return errSync
+	}
+
+	resizeCh := make(chan os.Signal, 1)
+	signal.Notify(resizeCh, syscall.SIGWINCH)
+	defer signal.Stop(resizeCh)
+
+	writeErr := make(chan error, 1)
+	go e.pumpOutput(writeErr)
+
+	return e.pumpInput(stdinFile, resizeCh, writeErr)
+}
+
+func (e *attachExec) printHeader() error {
 	msg := fmt.Sprintf("\r\n[Attached to session %s. Ctrl+K detaches.]\r\n", e.sessionID)
 	styledMsg := lipgloss.NewStyle().Foreground(purple).Bold(true).Render(msg)
 	if _, err := fmt.Fprint(e.stdout, styledMsg); err != nil {
@@ -74,58 +114,45 @@ func (e *attachExec) Run() error {
 			}
 		}
 	}
+	return nil
+}
 
-	stdinFile, _ := e.stdin.(*os.File)
-	if stdinFile == nil {
-		return fmt.Errorf("attach requires terminal stdin")
-	}
-
-	oldState, err := cterm.MakeRaw(stdinFile.Fd())
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = cterm.Restore(stdinFile.Fd(), oldState)
-	}()
-
-	if err := syncPTYSize(stdinFile, e.handle.PTY); err != nil {
-		return err
-	}
-
-	resizeCh := make(chan os.Signal, 1)
-	signal.Notify(resizeCh, syscall.SIGWINCH)
-	defer signal.Stop(resizeCh)
-
-	writeErr := make(chan error, 1)
+func (e *attachExec) pumpOutput(writeErr chan<- error) {
 	sendErr := func(err error) {
 		select {
 		case writeErr <- err:
 		default:
 		}
 	}
-	go func() {
-		for {
-			select {
-			case <-e.stop:
+	for {
+		select {
+		case <-e.stop:
+			return
+		case chunk, ok := <-e.handle.Output:
+			if !ok {
+				sendErr(nil)
 				return
-			case chunk, ok := <-e.handle.Output:
-				if !ok {
-					sendErr(nil)
-					return
-				}
-				if len(chunk) == 0 {
-					continue
-				}
-				if _, err := e.stdout.Write(chunk); err != nil {
-					sendErr(err)
-					return
-				}
+			}
+			if len(chunk) == 0 {
+				continue
+			}
+			if _, err := e.stdout.Write(chunk); err != nil {
+				sendErr(err)
+				return
 			}
 		}
-	}()
+	}
+}
 
-	buf := make([]byte, 256)
-	fd := int(stdinFile.Fd())
+//nolint:gocognit // Complex event loop
+func (e *attachExec) pumpInput(stdinFile *os.File, resizeCh <-chan os.Signal, writeErr <-chan error) error {
+	buf := make([]byte, inputBufferSize)
+	fdUint := stdinFile.Fd()
+	if fdUint > math.MaxInt32 {
+		return fmt.Errorf("file descriptor %d out of range", fdUint)
+	}
+	fd := int32(fdUint)
+
 	for {
 		select {
 		case err := <-writeErr:
@@ -139,10 +166,10 @@ func (e *attachExec) Run() error {
 		default:
 		}
 
-		poll := []unix.PollFd{{Fd: int32(fd), Events: unix.POLLIN}}
-		n, err := unix.Poll(poll, 100)
+		poll := []unix.PollFd{{Fd: fd, Events: unix.POLLIN}}
+		n, err := unix.Poll(poll, pollTimeout)
 		if err != nil {
-			if err == unix.EINTR {
+			if errors.Is(err, unix.EINTR) {
 				continue
 			}
 			return err
@@ -152,8 +179,8 @@ func (e *attachExec) Run() error {
 		}
 		readN, err := stdinFile.Read(buf)
 		if err != nil {
-			if err == io.EOF {
-				time.Sleep(10 * time.Millisecond)
+			if errors.Is(err, io.EOF) {
+				time.Sleep(eofSleep)
 				continue
 			}
 			return err
@@ -161,11 +188,11 @@ func (e *attachExec) Run() error {
 		if readN == 0 {
 			continue
 		}
-		if err := e.forwardInput(buf[:readN]); err != nil {
-			if err == errDetach {
+		if errForward := e.forwardInput(buf[:readN]); errForward != nil {
+			if errors.Is(errForward, errDetach) {
 				return nil
 			}
-			return err
+			return errForward
 		}
 	}
 }

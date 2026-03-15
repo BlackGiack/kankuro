@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	idCardsFilename       = "id_cards.yaml"
-	skillsFilename        = "skills.yaml"
-	skillsSourcesFilename = "skills_sources.yaml"
-	mcpsFilename          = "mcps.yaml"
+	IDCardsFilename       = "id_cards.yaml"
+	SkillsFilename        = "skills.yaml"
+	SkillsSourcesFilename = "skills_sources.yaml"
+	MCPsFilename          = "mcps.yaml"
 )
 
 // Repository defines persistence operations for ID cards and capability registries.
@@ -47,11 +47,11 @@ func NewFileRepository(dir string) (*FileRepository, error) {
 		}
 		dir = filepath.Join(cfg, "kankuro")
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("create config dir: %w", err)
 	}
 	r := &FileRepository{dir: dir}
-	if err := r.ensureFiles(); err != nil {
+	if err := r.EnsureFiles(); err != nil {
 		return nil, err
 	}
 	return r, nil
@@ -60,18 +60,29 @@ func NewFileRepository(dir string) (*FileRepository, error) {
 // Dir returns the effective repository directory path.
 func (r *FileRepository) Dir() string { return r.dir }
 
-// ensureFiles guarantees that all expected config files exist.
-func (r *FileRepository) ensureFiles() error {
-	if err := r.ensureYAML(filepath.Join(r.dir, idCardsFilename), idCardsFile{SchemaVersion: SchemaVersion, IDCards: []IDCard{}}); err != nil {
+// EnsureFiles guarantees that all expected config files exist.
+func (r *FileRepository) EnsureFiles() error {
+	idCardsPath := filepath.Join(r.dir, IDCardsFilename)
+	idCardsDefault := IDCardsFile{SchemaVersion: SchemaVersion, IDCards: []IDCard{}}
+	if err := r.EnsureYAML(idCardsPath, idCardsDefault); err != nil {
 		return err
 	}
-	if err := r.ensureYAML(filepath.Join(r.dir, skillsFilename), skillsFile{SchemaVersion: SchemaVersion, Skills: []Skill{}}); err != nil {
+
+	skillsPath := filepath.Join(r.dir, SkillsFilename)
+	skillsDefault := SkillsFile{SchemaVersion: SchemaVersion, Skills: []Skill{}}
+	if err := r.EnsureYAML(skillsPath, skillsDefault); err != nil {
 		return err
 	}
-	if err := r.ensureYAML(filepath.Join(r.dir, skillsSourcesFilename), skillsSourcesFile{SchemaVersion: SchemaVersion, Paths: []string{}}); err != nil {
+
+	sourcesPath := filepath.Join(r.dir, SkillsSourcesFilename)
+	sourcesDefault := SkillsSourcesFile{SchemaVersion: SchemaVersion, Paths: []string{}}
+	if err := r.EnsureYAML(sourcesPath, sourcesDefault); err != nil {
 		return err
 	}
-	if err := r.ensureYAML(filepath.Join(r.dir, mcpsFilename), mcpsFile{SchemaVersion: SchemaVersion, MCPs: []MCPServer{}}); err != nil {
+
+	mcpsPath := filepath.Join(r.dir, MCPsFilename)
+	mcpsDefault := MCPsFile{SchemaVersion: SchemaVersion, MCPs: []MCPServer{}}
+	if err := r.EnsureYAML(mcpsPath, mcpsDefault); err != nil {
 		return err
 	}
 	return nil

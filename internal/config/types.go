@@ -2,27 +2,29 @@ package config
 
 // TODO: Split this file declaring each type in the file it's used
 
-import "time"
+import (
+	"time"
+)
 
 const SchemaVersion = 1
 
 type IDCard struct {
-	ID                string            `yaml:"id"`
-	Name              string            `yaml:"name"`
-	Driver            string            `yaml:"driver"`
-	Model             string            `yaml:"model"`
-	WorkingDir        string            `yaml:"working_dir"`
-	UseTmpWorkspace   bool              `yaml:"use_tmp_workspace"`
-	SystemInstruction string            `yaml:"system_instruction"`
-	SkillIDs          []string          `yaml:"skill_ids"`
-	MCPIDs            []string          `yaml:"mcp_ids"`
-	Env               map[string]string `yaml:"env"`
-	FaceStyle         string            `yaml:"face_style"`
-	AgentsMD          string            `yaml:"agents_md"`
-	AgentsMDPath      string            `yaml:"agents_md_path"`
-	AgentsMDPreferPath bool             `yaml:"agents_md_prefer_path"`
-	CreatedAt         time.Time         `yaml:"created_at"`
-	UpdatedAt         time.Time         `yaml:"updated_at"`
+	ID                 string            `yaml:"id"`
+	Name               string            `yaml:"name"`
+	Driver             string            `yaml:"driver"`
+	Model              string            `yaml:"model"`
+	WorkingDir         string            `yaml:"working_dir"`
+	UseTmpWorkspace    bool              `yaml:"use_tmp_workspace"`
+	SystemInstruction  string            `yaml:"system_instruction"`
+	SkillIDs           []string          `yaml:"skill_ids"`
+	MCPIDs             []string          `yaml:"mcp_ids"`
+	Env                map[string]string `yaml:"env"`
+	FaceStyle          string            `yaml:"face_style"`
+	AgentsMD           string            `yaml:"agents_md"`
+	AgentsMDPath       string            `yaml:"agents_md_path"`
+	AgentsMDPreferPath bool              `yaml:"agents_md_prefer_path"`
+	CreatedAt          time.Time         `yaml:"created_at"`
+	UpdatedAt          time.Time         `yaml:"updated_at"`
 }
 
 type Skill struct {
@@ -42,22 +44,22 @@ type MCPServer struct {
 	Description string            `yaml:"description"`
 }
 
-type idCardsFile struct {
+type IDCardsFile struct {
 	SchemaVersion int      `yaml:"schema_version"`
 	IDCards       []IDCard `yaml:"id_cards"`
 }
 
-type skillsFile struct {
+type SkillsFile struct {
 	SchemaVersion int     `yaml:"schema_version"`
 	Skills        []Skill `yaml:"skills"`
 }
 
-type skillsSourcesFile struct {
+type SkillsSourcesFile struct {
 	SchemaVersion int      `yaml:"schema_version"`
 	Paths         []string `yaml:"paths"`
 }
 
-type mcpsFile struct {
+type MCPsFile struct {
 	SchemaVersion int         `yaml:"schema_version"`
 	MCPs          []MCPServer `yaml:"mcps"`
 }

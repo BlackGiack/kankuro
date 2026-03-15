@@ -1,12 +1,13 @@
-package characters
+package characters_test
 
 import (
 	"kankuro/internal/ascii"
+	"kankuro/internal/ascii/characters"
 	"testing"
 )
 
 func TestFaceDefaultStyle(t *testing.T) {
-	face := NewFace()
+	face := characters.NewFace()
 	width, height := face.Bounds()
 	if width != 5 {
 		t.Errorf("expected width 5, got %d", width)
@@ -17,7 +18,7 @@ func TestFaceDefaultStyle(t *testing.T) {
 }
 
 func TestFaceNeutralStyle(t *testing.T) {
-	face := NewFace(ascii.WithStyle("neutral"))
+	face := characters.NewFace(ascii.WithStyle("neutral"))
 	canvas := ascii.NewCanvas(5, 1)
 	face.Render(canvas, 0, 0)
 	expected := "(o.o)"
@@ -27,7 +28,7 @@ func TestFaceNeutralStyle(t *testing.T) {
 }
 
 func TestFaceHappyStyle(t *testing.T) {
-	face := NewFace(ascii.WithStyle("happy"))
+	face := characters.NewFace(ascii.WithStyle("happy"))
 	canvas := ascii.NewCanvas(5, 1)
 	face.Render(canvas, 0, 0)
 	expected := "(^-^)"
@@ -37,7 +38,7 @@ func TestFaceHappyStyle(t *testing.T) {
 }
 
 func TestFaceFocusedStyle(t *testing.T) {
-	face := NewFace(ascii.WithStyle("focused"))
+	face := characters.NewFace(ascii.WithStyle("focused"))
 	canvas := ascii.NewCanvas(5, 1)
 	face.Render(canvas, 0, 0)
 	expected := "[-.-]"
@@ -47,7 +48,7 @@ func TestFaceFocusedStyle(t *testing.T) {
 }
 
 func TestFaceThinkingStyle(t *testing.T) {
-	face := NewFace(ascii.WithStyle("thinking"))
+	face := characters.NewFace(ascii.WithStyle("thinking"))
 	canvas := ascii.NewCanvas(5, 1)
 	face.Render(canvas, 0, 0)
 	expected := "(?_?)"
@@ -57,7 +58,7 @@ func TestFaceThinkingStyle(t *testing.T) {
 }
 
 func TestFaceCustomWidth(t *testing.T) {
-	face := NewFace(ascii.WithWidth(7))
+	face := characters.NewFace(ascii.WithWidth(7))
 	width, _ := face.Bounds()
 	if width != 7 {
 		t.Errorf("expected width 7, got %d", width)

@@ -1,12 +1,12 @@
-package session
+package session_test
 
 import (
+	"kankuro/internal/config"
+	"kankuro/internal/session"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
-
-	"kankuro/internal/config"
 )
 
 func TestTmpWorkspaceLifecycle(t *testing.T) {
@@ -14,21 +14,20 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	tmpBase := t.TempDir()
 	configDir := filepath.Join(tmpBase, "config")
 	sourceDir := filepath.Join(tmpBase, "source")
-	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a file in source
 	originalContent := []byte("original")
-	if err := os.WriteFile(filepath.Join(sourceDir, "data.txt"), originalContent, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(sourceDir, "data.txt"), originalContent, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Set env var for tmp dir location
-	os.Setenv("KANKURO_TMP_DIR", filepath.Join(tmpBase, "sessions_tmp"))
-	defer os.Unsetenv("KANKURO_TMP_DIR")
+	t.Setenv("KANKURO_TMP_DIR", filepath.Join(tmpBase, "sessions_tmp"))
 
-	sm := NewManager(configDir)
+	sm := session.NewManager(configDir)
 
 	card := config.IDCard{
 		ID:              "card-tmp",
@@ -47,16 +46,19 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	// Wait for start
 	time.Sleep(100 * time.Millisecond)
 
-	s := sm.sessions[sid]
+	s, ok := sm.GetSession(sid)
+	if !ok {
+		t.Fatalf("session not found")
+	}
 	if s.WorkingDir == sourceDir {
 		t.Fatalf("expected working dir to be different from source, got %s", s.WorkingDir)
 	}
 
 	// Check file copy
 	copiedFile := filepath.Join(s.WorkingDir, "data.txt")
-	content, err := os.ReadFile(copiedFile)
-	if err != nil {
-		t.Fatalf("read copied file: %v", err)
+	content, errRead := os.ReadFile(copiedFile)
+	if errRead != nil {
+		t.Fatalf("read copied file: %v", errRead)
 	}
 	if string(content) != "original" {
 		t.Fatalf("expected content 'original', got '%s'", string(content))
@@ -64,31 +66,34 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 
 	// 2. Modify file in session dir
 	newContent := []byte("modified")
-	if err := os.WriteFile(copiedFile, newContent, 0644); err != nil {
-		t.Fatal(err)
+	if errWrite := os.WriteFile(copiedFile, newContent, 0o644); errWrite != nil {
+		t.Fatal(errWrite)
 	}
 
 	// 3. Kill session
-	if err := sm.Kill(sid); err != nil {
-		t.Fatal(err)
+	if errKill := sm.Kill(sid); errKill != nil {
+		t.Fatal(errKill)
 	}
 
 	// 4. Verify original unchanged
-	origContent, err := os.ReadFile(filepath.Join(sourceDir, "data.txt"))
-	if err != nil {
-		t.Fatal(err)
+	origContent, errOrig := os.ReadFile(filepath.Join(sourceDir, "data.txt"))
+	if errOrig != nil {
+		t.Fatal(errOrig)
 	}
 	if string(origContent) != "original" {
 		t.Fatalf("original file was modified!")
 	}
 
 	// 5. Relaunch
-	if err := sm.Relaunch(sid, card, nil); err != nil {
-		t.Fatalf("relaunch: %v", err)
+	if errRelaunch := sm.Relaunch(sid, card, nil); errRelaunch != nil {
+		t.Fatalf("relaunch: %v", errRelaunch)
 	}
 
 	time.Sleep(100 * time.Millisecond)
-	s2 := sm.sessions[sid]
+	s2, ok2 := sm.GetSession(sid)
+	if !ok2 {
+		t.Fatalf("session not found after relaunch")
+	}
 
 	// Verify same working dir
 	if s2.WorkingDir != s.WorkingDir {
@@ -96,9 +101,9 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	}
 
 	// Verify modification persists
-	content2, err := os.ReadFile(filepath.Join(s2.WorkingDir, "data.txt"))
-	if err != nil {
-		t.Fatal(err)
+	content2, errRead2 := os.ReadFile(filepath.Join(s2.WorkingDir, "data.txt"))
+	if errRead2 != nil {
+		t.Fatal(errRead2)
 	}
 	if string(content2) != "modified" {
 		t.Fatalf("expected content 'modified' after relaunch, got '%s'", string(content2))
@@ -106,20 +111,13 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 
 	// 6. Persistence check
 	// Create new manager (simulate restart)
-	sm2 := NewManager(configDir)
-	restoredSession, ok := sm2.sessions[sid]
-	if !ok {
+	sm2 := session.NewManager(configDir)
+	restoredSession, okRestored := sm2.GetSession(sid)
+	if !okRestored {
 		t.Fatalf("session not restored from disk")
 	}
-	if restoredSession.Status != StatusTerminated {
-		// Wait, Kill sets status to Terminated and persists.
-		// Relaunch sets to Running.
-		// But we didn't Kill after Relaunch.
-		// The Manager.Launch/Relaunch persists initial state.
-		// But status updates are persisted on termination.
-		// If we just check disk, it might show Running if we didn't kill it cleanly?
-		// But NewManager sets status to Terminated for loaded sessions.
-		t.Fatalf("expected restored status Terminated (forced by NewManager), got %s", restoredSession.Status)
+	if restoredSession.Status != session.StatusTerminated {
+		t.Fatalf("expected restored status Terminated, got %s", restoredSession.Status)
 	}
 	if restoredSession.WorkingDir != s.WorkingDir {
 		t.Fatalf("restored working dir mismatch")
@@ -130,29 +128,28 @@ func TestSwitchAgentReplacesSkillsInTmpWorkspace(t *testing.T) {
 	tmpBase := t.TempDir()
 	configDir := filepath.Join(tmpBase, "config")
 	sourceDir := filepath.Join(tmpBase, "source")
-	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	skill1Dir := filepath.Join(tmpBase, "skill-one")
 	skill2Dir := filepath.Join(tmpBase, "skill-two")
-	if err := os.MkdirAll(skill1Dir, 0755); err != nil {
+	if err := os.MkdirAll(skill1Dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(skill2Dir, 0755); err != nil {
+	if err := os.MkdirAll(skill2Dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("one"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("one"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("two"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("two"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	os.Setenv("KANKURO_TMP_DIR", filepath.Join(tmpBase, "sessions_tmp"))
-	defer os.Unsetenv("KANKURO_TMP_DIR")
+	t.Setenv("KANKURO_TMP_DIR", filepath.Join(tmpBase, "sessions_tmp"))
 
-	sm := NewManager(configDir)
+	sm := session.NewManager(configDir)
 
 	card1 := config.IDCard{
 		ID:              "card-tmp-1",
@@ -170,14 +167,18 @@ func TestSwitchAgentReplacesSkillsInTmpWorkspace(t *testing.T) {
 	}
 	time.Sleep(100 * time.Millisecond)
 
-	wd := sm.sessions[sid].WorkingDir
+	s, ok := sm.GetSession(sid)
+	if !ok {
+		t.Fatalf("session not found")
+	}
+	wd := s.WorkingDir
 	skill1Path := filepath.Join(wd, ".agents", "skills", "alpha-skill")
-	if _, err := os.Stat(skill1Path); err != nil {
-		t.Fatalf("expected skill1 present: %v", err)
+	if _, errStat := os.Stat(skill1Path); errStat != nil {
+		t.Fatalf("expected skill1 present: %v", errStat)
 	}
 
-	if err := sm.Kill(sid); err != nil {
-		t.Fatalf("kill: %v", err)
+	if errKill := sm.Kill(sid); errKill != nil {
+		t.Fatalf("kill: %v", errKill)
 	}
 
 	card2 := config.IDCard{
@@ -189,20 +190,20 @@ func TestSwitchAgentReplacesSkillsInTmpWorkspace(t *testing.T) {
 	skills2 := []config.Skill{
 		{ID: "s2", Name: "beta-skill", Source: skill2Dir},
 	}
-	if err := sm.SwitchAgent(sid, card2, skills2); err != nil {
-		t.Fatalf("switch: %v", err)
+	if errSwitch := sm.SwitchAgent(sid, card2, skills2); errSwitch != nil {
+		t.Fatalf("switch: %v", errSwitch)
 	}
 	time.Sleep(100 * time.Millisecond)
 
-	if _, err := os.Stat(skill1Path); err == nil || !os.IsNotExist(err) {
-		t.Fatalf("expected skill1 removed, got %v", err)
+	if _, errStat := os.Stat(skill1Path); errStat == nil || !os.IsNotExist(errStat) {
+		t.Fatalf("expected skill1 removed, got %v", errStat)
 	}
 	skill2Path := filepath.Join(wd, ".agents", "skills", "beta-skill")
-	if _, err := os.Stat(skill2Path); err != nil {
-		t.Fatalf("expected skill2 present: %v", err)
+	if _, errStat2 := os.Stat(skill2Path); errStat2 != nil {
+		t.Fatalf("expected skill2 present: %v", errStat2)
 	}
 
-	if err := sm.Kill(sid); err != nil {
-		t.Fatalf("kill after switch: %v", err)
+	if errKillAfter := sm.Kill(sid); errKillAfter != nil {
+		t.Fatalf("kill after switch: %v", errKillAfter)
 	}
 }

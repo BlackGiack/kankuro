@@ -12,7 +12,7 @@ import (
 
 // ListMCPs returns the MCP server registry sorted by name.
 func (r *FileRepository) ListMCPs() ([]MCPServer, error) {
-	f, err := r.loadMCPsFile()
+	f, err := r.LoadMCPsFile()
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +31,7 @@ func (r *FileRepository) UpsertMCP(mcp MCPServer) (MCPServer, error) {
 	if mcp.ID == "" {
 		mcp.ID = uuid.NewString()
 	}
-	f, err := r.loadMCPsFile()
+	f, err := r.LoadMCPsFile()
 	if err != nil {
 		return MCPServer{}, err
 	}
@@ -46,7 +46,7 @@ func (r *FileRepository) UpsertMCP(mcp MCPServer) (MCPServer, error) {
 	if !updated {
 		f.MCPs = append(f.MCPs, mcp)
 	}
-	if err := r.writeMCPsFile(f); err != nil {
+	if err = r.WriteMCPsFile(f); err != nil {
 		return MCPServer{}, err
 	}
 	return mcp, nil
@@ -63,7 +63,7 @@ func (r *FileRepository) DeleteMCP(id string) error {
 			return fmt.Errorf("mcp %s is referenced by id card %s", id, card.ID)
 		}
 	}
-	f, err := r.loadMCPsFile()
+	f, err := r.LoadMCPsFile()
 	if err != nil {
 		return err
 	}
@@ -72,15 +72,15 @@ func (r *FileRepository) DeleteMCP(id string) error {
 	if len(f.MCPs) == orig {
 		return fmt.Errorf("mcp not found: %s", id)
 	}
-	return r.writeMCPsFile(f)
+	return r.WriteMCPsFile(f)
 }
 
-// loadMCPsFile reads and normalizes the MCP-registry YAML payload.
-func (r *FileRepository) loadMCPsFile() (mcpsFile, error) {
-	path := filepath.Join(r.dir, mcpsFilename)
-	f := mcpsFile{}
-	if err := readYAML(path, &f); err != nil {
-		return mcpsFile{}, err
+// LoadMCPsFile reads and normalizes the MCP-registry YAML payload.
+func (r *FileRepository) LoadMCPsFile() (MCPsFile, error) {
+	path := filepath.Join(r.dir, MCPsFilename)
+	f := MCPsFile{}
+	if err := ReadYAML(path, &f); err != nil {
+		return MCPsFile{}, err
 	}
 	if f.SchemaVersion == 0 {
 		f.SchemaVersion = SchemaVersion
@@ -91,8 +91,8 @@ func (r *FileRepository) loadMCPsFile() (mcpsFile, error) {
 	return f, nil
 }
 
-// writeMCPsFile writes MCP data using the current schema version.
-func (r *FileRepository) writeMCPsFile(f mcpsFile) error {
+// WriteMCPsFile writes MCP data using the current schema version.
+func (r *FileRepository) WriteMCPsFile(f MCPsFile) error {
 	f.SchemaVersion = SchemaVersion
-	return r.writeAtomic(filepath.Join(r.dir, mcpsFilename), f)
+	return r.WriteAtomic(filepath.Join(r.dir, MCPsFilename), f)
 }

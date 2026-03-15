@@ -1,13 +1,14 @@
-package config
+package config_test
 
 import (
+	"kankuro/internal/config"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestSyncSkillsFromSources(t *testing.T) {
-	repo, err := NewFileRepository(t.TempDir())
+	repo, err := config.NewFileRepository(t.TempDir())
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
@@ -16,38 +17,38 @@ func TestSyncSkillsFromSources(t *testing.T) {
 	skillA := filepath.Join(sourceRoot, "alpha")
 	skillB := filepath.Join(sourceRoot, "beta")
 	skillHidden := filepath.Join(sourceRoot, ".hidden")
-	if err := os.MkdirAll(skillA, 0o755); err != nil {
-		t.Fatalf("mkdir alpha: %v", err)
+	if errDir := os.MkdirAll(skillA, 0o755); errDir != nil {
+		t.Fatalf("mkdir alpha: %v", errDir)
 	}
-	if err := os.MkdirAll(skillB, 0o755); err != nil {
-		t.Fatalf("mkdir beta: %v", err)
+	if errDir := os.MkdirAll(skillB, 0o755); errDir != nil {
+		t.Fatalf("mkdir beta: %v", errDir)
 	}
-	if err := os.MkdirAll(skillHidden, 0o755); err != nil {
-		t.Fatalf("mkdir hidden: %v", err)
+	if errDir := os.MkdirAll(skillHidden, 0o755); errDir != nil {
+		t.Fatalf("mkdir hidden: %v", errDir)
 	}
 
-	if err := repo.writeAtomic(filepath.Join(repo.Dir(), skillsSourcesFilename), skillsSourcesFile{
-		SchemaVersion: SchemaVersion,
+	if errAtomic := repo.WriteAtomic(filepath.Join(repo.Dir(), config.SkillsSourcesFilename), config.SkillsSourcesFile{
+		SchemaVersion: config.SchemaVersion,
 		Paths:         []string{sourceRoot},
-	}); err != nil {
-		t.Fatalf("write skills_sources: %v", err)
+	}); errAtomic != nil {
+		t.Fatalf("write skills_sources: %v", errAtomic)
 	}
 
-	if err := repo.SyncSkillsFromSources(); err != nil {
-		t.Fatalf("sync skills: %v", err)
+	if errSync := repo.SyncSkillsFromSources(); errSync != nil {
+		t.Fatalf("sync skills: %v", errSync)
 	}
 
-	skills, err := repo.ListSkills()
-	if err != nil {
-		t.Fatalf("list skills: %v", err)
+	skills, errList := repo.ListSkills()
+	if errList != nil {
+		t.Fatalf("list skills: %v", errList)
 	}
 	if len(skills) != 2 {
 		t.Fatalf("expected 2 skills, got %d", len(skills))
 	}
 
 	expected := map[string]string{
-		"alpha": skillIDFromSource(skillA),
-		"beta":  skillIDFromSource(skillB),
+		"alpha": config.SkillIDFromSource(skillA),
+		"beta":  config.SkillIDFromSource(skillB),
 	}
 	for _, skill := range skills {
 		if wantID, ok := expected[skill.Name]; ok {

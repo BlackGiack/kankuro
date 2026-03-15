@@ -1,27 +1,28 @@
-package config
+package config_test
 
 import (
+	"kankuro/internal/config"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestCreateAndListIDCard(t *testing.T) {
-	repo, err := NewFileRepository(t.TempDir())
+	repo, err := config.NewFileRepository(t.TempDir())
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 
-	skill, err := repo.UpsertSkill(Skill{Name: "analysis"})
+	skill, err := repo.UpsertSkill(config.Skill{Name: "analysis"})
 	if err != nil {
 		t.Fatalf("upsert skill: %v", err)
 	}
-	mcp, err := repo.UpsertMCP(MCPServer{Name: "local", Command: "mcpd"})
+	mcp, err := repo.UpsertMCP(config.MCPServer{Name: "local", Command: "mcpd"})
 	if err != nil {
 		t.Fatalf("upsert mcp: %v", err)
 	}
 
-	_, err = repo.CreateIDCard(IDCard{
+	_, err = repo.CreateIDCard(config.IDCard{
 		Name:       "Claude",
 		Driver:     "cat",
 		Model:      "opus",
@@ -50,12 +51,12 @@ func TestCreateAndListIDCard(t *testing.T) {
 }
 
 func TestCreateIDCardRejectsUnknownRefs(t *testing.T) {
-	repo, err := NewFileRepository(t.TempDir())
+	repo, err := config.NewFileRepository(t.TempDir())
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 
-	_, err = repo.CreateIDCard(IDCard{
+	_, err = repo.CreateIDCard(config.IDCard{
 		Name:       "Bad",
 		Driver:     "cat",
 		WorkingDir: t.TempDir(),
@@ -68,7 +69,7 @@ func TestCreateIDCardRejectsUnknownRefs(t *testing.T) {
 
 func TestRepositoryBootstrapsFiles(t *testing.T) {
 	dir := t.TempDir()
-	repo, err := NewFileRepository(dir)
+	repo, err := config.NewFileRepository(dir)
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
@@ -79,8 +80,8 @@ func TestRepositoryBootstrapsFiles(t *testing.T) {
 		filepath.Join(repo.Dir(), "mcps.yaml"),
 	}
 	for _, p := range paths {
-		if _, err := os.Stat(p); err != nil {
-			t.Fatalf("stat %s: %v", p, err)
+		if _, errStat := os.Stat(p); errStat != nil {
+			t.Fatalf("stat %s: %v", p, errStat)
 		}
 	}
 }

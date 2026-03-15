@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-// validateCard enforces required fields and checks skill/MCP references.
-func (r *FileRepository) validateCard(card IDCard) error {
+// ValidateCard enforces required fields and checks skill/MCP references.
+func (r *FileRepository) ValidateCard(card IDCard) error {
 	if card.Name == "" {
 		return errors.New("id card name is required")
 	}

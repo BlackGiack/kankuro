@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,9 +12,9 @@ import (
 
 // ListSkillSources returns the configured root folders for skill discovery.
 func (r *FileRepository) ListSkillSources() ([]string, error) {
-	path := filepath.Join(r.dir, skillsSourcesFilename)
-	f := skillsSourcesFile{}
-	if err := readYAML(path, &f); err != nil {
+	path := filepath.Join(r.dir, SkillsSourcesFilename)
+	f := SkillsSourcesFile{}
+	if err := ReadYAML(path, &f); err != nil {
 		return nil, err
 	}
 	if f.SchemaVersion == 0 {
@@ -33,13 +34,13 @@ func (r *FileRepository) SyncSkillsFromSources() error {
 	}
 	skills := make([]Skill, 0)
 	for _, source := range sources {
-		expanded, err := expandPath(source)
-		if err != nil {
-			return fmt.Errorf("expand skill source %q: %w", source, err)
+		expanded, errExp := expandPath(source)
+		if errExp != nil {
+			return fmt.Errorf("expand skill source %q: %w", source, errExp)
 		}
-		entries, err := os.ReadDir(expanded)
-		if err != nil {
-			return fmt.Errorf("read skill source %q: %w", expanded, err)
+		entries, errRead := os.ReadDir(expanded)
+		if errRead != nil {
+			return fmt.Errorf("read skill source %q: %w", expanded, errRead)
 		}
 		for _, entry := range entries {
 			if !entry.IsDir() {
@@ -50,19 +51,19 @@ func (r *FileRepository) SyncSkillsFromSources() error {
 			}
 			fullPath := filepath.Join(expanded, entry.Name())
 			skills = append(skills, Skill{
-				ID:     skillIDFromSource(fullPath),
+				ID:     SkillIDFromSource(fullPath),
 				Name:   entry.Name(),
 				Source: fullPath,
 			})
 		}
 	}
-	return r.writeSkillsFile(skillsFile{SchemaVersion: SchemaVersion, Skills: skills})
+	return r.WriteSkillsFile(SkillsFile{SchemaVersion: SchemaVersion, Skills: skills})
 }
 
 func expandPath(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return "", fmt.Errorf("path is empty")
+		return "", errors.New("path is empty")
 	}
 	value = os.ExpandEnv(value)
 	if strings.HasPrefix(value, "~") {
@@ -77,7 +78,7 @@ func expandPath(value string) (string, error) {
 	return filepath.Abs(value)
 }
 
-func skillIDFromSource(path string) string {
+func SkillIDFromSource(path string) string {
 	sum := sha256.Sum256([]byte(path))
 	return hex.EncodeToString(sum[:])
 }

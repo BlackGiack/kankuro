@@ -4,8 +4,11 @@ import (
 	"kankuro/internal/ascii"
 )
 
+const defaultFaceWidth = 5
+
 type Face struct {
 	ascii.BaseShape
+
 	style     string
 	useColors bool
 }
@@ -20,12 +23,12 @@ func NewFace(opts ...ascii.Option) ascii.Shape {
 		style:     config.GetString("style", "neutral"),
 		useColors: config.GetBool("useColor", false),
 	}
-	shape.BaseShape.Width = config.GetInt("width", 5)
+	shape.BaseShape.Width = config.GetInt("width", defaultFaceWidth)
 	shape.BaseShape.Height = config.GetInt("height", 1)
 	return shape
 }
 
-func (f *Face) Bounds() (width, height int) {
+func (f *Face) Bounds() (int, int) {
 	return f.BaseShape.Bounds()
 }
 

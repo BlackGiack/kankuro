@@ -2,8 +2,11 @@ package session
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,6 +26,11 @@ const (
 	StatusRunning    = driver.StatusRunning
 	StatusWaiting    = driver.StatusWaiting
 	StatusTerminated = driver.StatusTerminated
+
+	scrollbackLimit  = 256 * 1024
+	pendingLineLimit = 8 * 1024
+	outputChanSize   = 128
+	watchInterval    = 2 * time.Second
 )
 
 type Session struct {
@@ -56,11 +64,6 @@ type AttachHandle struct {
 	Done       <-chan struct{}
 	Close      func()
 }
-
-const (
-	scrollbackLimit  = 256 * 1024
-	pendingLineLimit = 8 * 1024
-)
 
 var (
 	ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
@@ -96,23 +99,49 @@ func NewManager(configDir string) *Manager {
 	sessionsDir := filepath.Join(configDir, "sessions")
 	loaded, _ := loadSessions(sessionsDir) // ignore error, just start empty
 
-	for _, data := range loaded {
-		m.sessions[data.ID] = &Session{
-			ID:              data.ID,
-			CardID:          data.CardID,
-			Name:            data.Name,
-			PID:             data.PID,
-			WorkingDir:      data.WorkingDir,
-			OriginalDir:     data.OriginalDir,
-			UseTmpWorkspace: data.UseTmpWorkspace,
-			StartedAt:       data.StartedAt,
-			LastWordAt:      data.LastWordAt,
+	for _, d := range loaded {
+		m.sessions[d.ID] = &Session{
+			ID:              d.ID,
+			CardID:          d.CardID,
+			Name:            d.Name,
+			PID:             d.PID,
+			WorkingDir:      d.WorkingDir,
+			OriginalDir:     d.OriginalDir,
+			UseTmpWorkspace: d.UseTmpWorkspace,
+			StartedAt:       d.StartedAt,
+			LastWordAt:      d.LastWordAt,
 			Status:          StatusTerminated, // All loaded sessions are terminated
 			Subscribers:     make(map[chan []byte]struct{}),
 		}
 	}
 
 	return m
+}
+
+// Sessions returns a thread-safe snapshot of all sessions.
+func (m *Manager) Sessions() map[string]*Session {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make(map[string]*Session, len(m.sessions))
+	maps.Copy(out, m.sessions)
+	return out
+}
+
+// GetSession returns a session by ID.
+func (m *Manager) GetSession(id string) (*Session, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	s, ok := m.sessions[id]
+	return s, ok
+}
+
+// SetLastWordAt is used for testing word silence detection.
+func (m *Manager) SetLastWordAt(id string, t time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if s, ok := m.sessions[id]; ok {
+		s.LastWordAt = t
+	}
 }
 
 // Launch starts a new session process from an ID card.
@@ -130,7 +159,7 @@ func (m *Manager) Relaunch(id string, card config.IDCard, skills []config.Skill)
 		return fmt.Errorf("session not found: %s", id)
 	}
 	if s.Status != StatusTerminated {
-		return fmt.Errorf("session is already running")
+		return errors.New("session is already running")
 	}
 	return m.startSession(id, card, skills, false)
 }
@@ -144,33 +173,33 @@ func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Ski
 		return fmt.Errorf("session not found: %s", id)
 	}
 	if s.Status != StatusTerminated {
-		return fmt.Errorf("session must be terminated before switching agents")
+		return errors.New("session must be terminated before switching agents")
 	}
 
 	finalWD := s.WorkingDir
 	if finalWD == "" {
-		return fmt.Errorf("session workspace is empty")
+		return errors.New("session workspace is empty")
 	}
-	if _, err := os.Stat(finalWD); err != nil {
-		return fmt.Errorf("session workspace missing: %w", err)
+	if _, errStat := os.Stat(finalWD); errStat != nil {
+		return fmt.Errorf("session workspace missing: %w", errStat)
 	}
 
 	if s.UseTmpWorkspace {
 		skillsDir := filepath.Join(finalWD, ".agents", "skills")
-		if err := os.RemoveAll(skillsDir); err != nil {
-			return fmt.Errorf("clear tmp skills dir: %w", err)
+		if errRemove := os.RemoveAll(skillsDir); errRemove != nil {
+			return fmt.Errorf("clear tmp skills dir: %w", errRemove)
 		}
-		if err := syncAgentsMD(finalWD, card, false); err != nil {
-			return err
+		if errSync := syncAgentsMD(finalWD, card, false); errSync != nil {
+			return errSync
 		}
 	}
 
 	d := driver.NewCLIDriver(card.Driver)
-	if err := d.SetSkills(skills, finalWD); err != nil {
-		return err
+	if errSkills := d.SetSkills(skills, finalWD); errSkills != nil {
+		return errSkills
 	}
 	args := d.SetModel(card.Model)
-	h, err := d.Spawn(driver.AgentConfig{
+	h, errSpawn := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,
 		Model:             card.Model,
 		Args:              args,
@@ -178,8 +207,8 @@ func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Ski
 		SystemInstruction: card.SystemInstruction,
 		Env:               card.Env,
 	})
-	if err != nil {
-		return err
+	if errSpawn != nil {
+		return errSpawn
 	}
 
 	now := time.Now().UTC()
@@ -206,7 +235,8 @@ func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Ski
 	s.Input = h.PTY
 	s.Output = h.Output
 	s.Done = h.Done
-	s.Scrollback = append(s.Scrollback, []byte(fmt.Sprintf("\n\n--- Switched agent to %s at %s ---\n\n", card.Name, now.Format(time.RFC3339)))...)
+	s.Scrollback = fmt.Appendf(s.Scrollback, "\n\n--- Switched agent to %s at %s ---\n\n",
+		card.Name, now.Format(time.RFC3339))
 
 	go m.trackOutput(id, h.Output)
 	go m.watch(id, d)
@@ -218,9 +248,9 @@ func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Ski
 func syncAgentsMD(finalWD string, card config.IDCard, appendIfExist bool) error {
 	agentsMD := card.AgentsMD
 	if card.AgentsMDPreferPath && card.AgentsMDPath != "" {
-		data, err := os.ReadFile(card.AgentsMDPath)
-		if err != nil {
-			return fmt.Errorf("read agents md path %s: %w", card.AgentsMDPath, err)
+		data, errRead := os.ReadFile(card.AgentsMDPath)
+		if errRead != nil {
+			return fmt.Errorf("read agents md path %s: %w", card.AgentsMDPath, errRead)
 		}
 		agentsMD = string(data)
 	}
@@ -232,21 +262,26 @@ func syncAgentsMD(finalWD string, card config.IDCard, appendIfExist bool) error 
 	path := filepath.Join(finalWD, "AGENTS.md")
 
 	if !appendIfExist {
-		if err := os.WriteFile(path, []byte(agentsMD), 0644); err != nil {
-			return fmt.Errorf("write AGENTS.md: %w", err)
+		// G703: Path traversal via taint analysis.
+		// Path constructed using filepath.Join with trusted parts or verified paths.
+		//nolint:gosec // Path is controlled by session logic
+		if errWrite := os.WriteFile(path, []byte(agentsMD), 0o600); errWrite != nil {
+			return fmt.Errorf("write AGENTS.md: %w", errWrite)
 		}
 		return nil
 	}
 
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return fmt.Errorf("open AGENTS.md: %w", err)
+	// G703: Path traversal via taint analysis.
+	//nolint:gosec // Path is controlled by session logic
+	f, errOpen := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if errOpen != nil {
+		return fmt.Errorf("open AGENTS.md: %w", errOpen)
 	}
 	defer f.Close()
 
-	stat, err := f.Stat()
-	if err != nil {
-		return fmt.Errorf("stat AGENTS.md: %w", err)
+	stat, errStat := f.Stat()
+	if errStat != nil {
+		return fmt.Errorf("stat AGENTS.md: %w", errStat)
 	}
 
 	content := agentsMD
@@ -254,59 +289,71 @@ func syncAgentsMD(finalWD string, card config.IDCard, appendIfExist bool) error 
 		content = "\n\n" + agentsMD
 	}
 
-	if _, err := f.WriteString(content); err != nil {
-		return fmt.Errorf("write AGENTS.md: %w", err)
+	if _, errWrite := f.WriteString(content); errWrite != nil {
+		return fmt.Errorf("write AGENTS.md: %w", errWrite)
 	}
 	return nil
 }
 
-func (m *Manager) startSession(sid string, card config.IDCard, skills []config.Skill, isNew bool) error {
-	wd, err := driver.SanitizeWorkingDir(card.WorkingDir)
-	if err != nil {
-		return err
+func (m *Manager) prepareWorkspace(sid string, card config.IDCard, wd string, isNew bool) (string, error) {
+	if !card.UseTmpWorkspace {
+		return wd, nil
 	}
 
-	finalWD := wd
-	if card.UseTmpWorkspace {
-		tmpRoot := os.Getenv("KANKURO_TMP_DIR")
-		if tmpRoot == "" {
-			tmpRoot = filepath.Join(m.configDir, "tmp")
-		}
-		sessionRoot := filepath.Join(tmpRoot, sid)
-		targetDir := filepath.Join(sessionRoot, filepath.Base(wd))
+	tmpRoot := os.Getenv("KANKURO_TMP_DIR")
+	if tmpRoot == "" {
+		tmpRoot = filepath.Join(m.configDir, "tmp")
+	}
+	sessionRoot := filepath.Join(tmpRoot, sid)
+	targetDir := filepath.Join(sessionRoot, filepath.Base(wd))
 
-		if isNew {
-			if err := os.MkdirAll(sessionRoot, 0755); err != nil {
-				return fmt.Errorf("create tmp session dir: %w", err)
-			}
-			// Copy original to target
-			// Using cp -r for simplicity and preserving attributes
-			cmd := exec.Command("cp", "-r", wd, targetDir)
-			if out, err := cmd.CombinedOutput(); err != nil {
-				return fmt.Errorf("copy workspace: %s: %w", string(out), err)
-			}
-		} else {
-			// Verify it exists
-			if _, err := os.Stat(targetDir); err != nil {
-				return fmt.Errorf("tmp workspace missing: %w", err)
-			}
+	if isNew {
+		// G703: Path traversal via taint analysis.
+		if err := os.MkdirAll(sessionRoot, 0o700); err != nil { //nolint:gosec // sessionRoot is derived from managed ID
+			return "", fmt.Errorf("create tmp session dir: %w", err)
 		}
-		finalWD = targetDir
-		skillsDir := filepath.Join(finalWD, ".agents", "skills")
-		if err := os.RemoveAll(skillsDir); err != nil {
-			return fmt.Errorf("clear tmp skills dir: %w", err)
+		// G702: Command injection via taint analysis.
+		// Used for local copy with verified paths.
+		cmd := exec.CommandContext(context.Background(), "cp", "-r", wd, targetDir) //nolint:gosec // cp is safe here
+		if out, errCopy := cmd.CombinedOutput(); errCopy != nil {
+			return "", fmt.Errorf("copy workspace: %s: %w", string(out), errCopy)
 		}
-		if err := syncAgentsMD(finalWD, card, isNew); err != nil {
-			return err
+	} else {
+		// G703: Path traversal via taint analysis.
+		if _, errStat := os.Stat(targetDir); errStat != nil { //nolint:gosec // targetDir is derived from managed ID
+			return "", fmt.Errorf("tmp workspace missing: %w", errStat)
 		}
+	}
+
+	skillsDir := filepath.Join(targetDir, ".agents", "skills")
+	// G703: Path traversal via taint analysis.
+	// This is intentional as the path is derived from managed IDs.
+	if errRemove := os.RemoveAll(skillsDir); errRemove != nil { //nolint:gosec // skillsDir is derived from managed path
+		return "", fmt.Errorf("clear tmp skills dir: %w", errRemove)
+	}
+	if errSync := syncAgentsMD(targetDir, card, isNew); errSync != nil {
+		return "", errSync
+	}
+	return targetDir, nil
+}
+
+func (m *Manager) startSession(sid string, card config.IDCard, skills []config.Skill, isNew bool) error {
+	wd, errWD := driver.SanitizeWorkingDir(card.WorkingDir)
+	if errWD != nil {
+		return errWD
+	}
+
+	finalWD, errPrep := m.prepareWorkspace(sid, card, wd, isNew)
+	if errPrep != nil {
+		return errPrep
 	}
 
 	d := driver.NewCLIDriver(card.Driver)
-	if err := d.SetSkills(skills, finalWD); err != nil {
-		return err
+	if errSkills := d.SetSkills(skills, finalWD); errSkills != nil {
+		return errSkills
 	}
 	args := d.SetModel(card.Model)
-	h, err := d.Spawn(driver.AgentConfig{
+	h, errSpawn := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,
 		Model:             card.Model,
 		Args:              args,
@@ -314,8 +361,8 @@ func (m *Manager) startSession(sid string, card config.IDCard, skills []config.S
 		SystemInstruction: card.SystemInstruction,
 		Env:               card.Env,
 	})
-	if err != nil {
-		return err
+	if errSpawn != nil {
+		return errSpawn
 	}
 
 	now := time.Now().UTC()
@@ -327,7 +374,6 @@ func (m *Manager) startSession(sid string, card config.IDCard, skills []config.S
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Reuse existing session object if relaunching, or create new
 	s, exists := m.sessions[sid]
 	if !exists {
 		s = &Session{
@@ -337,7 +383,6 @@ func (m *Manager) startSession(sid string, card config.IDCard, skills []config.S
 		m.sessions[sid] = s
 	}
 
-	// Update fields
 	s.CardID = card.ID
 	s.Name = card.Name
 	s.PID = pid
@@ -351,28 +396,22 @@ func (m *Manager) startSession(sid string, card config.IDCard, skills []config.S
 	s.Input = h.PTY
 	s.Output = h.Output
 	s.Done = h.Done
-	// Keep existing scrollback if relaunching?
-	// Probably better to clear or append a separator.
-	// For now, let's keep it to allow context continuity, or clear if it's confusing.
-	// Prompt says "relaunch ... meaning the same process as starting a new session".
-	// Usually a new process means new output.
 	if isNew {
 		s.Scrollback = nil
 	} else {
-		s.Scrollback = append(s.Scrollback, []byte(fmt.Sprintf("\n\n--- Relaunched at %s ---\n\n", now.Format(time.RFC3339)))...)
+		s.Scrollback = fmt.Appendf(s.Scrollback, "\n\n--- Relaunched at %s ---\n\n",
+			now.Format(time.RFC3339))
 	}
 
 	go m.trackOutput(sid, h.Output)
 	go m.watch(sid, d)
 
-	// Persist initial state
 	m.persistSessionLocked(s)
-
 	return nil
 }
 
 func (m *Manager) persistSessionLocked(s *Session) {
-	data := &SessionData{
+	d := &Data{
 		ID:              s.ID,
 		CardID:          s.CardID,
 		Name:            s.Name,
@@ -385,7 +424,7 @@ func (m *Manager) persistSessionLocked(s *Session) {
 		Status:          s.Status,
 	}
 	sessionsDir := filepath.Join(m.configDir, "sessions")
-	_ = saveSession(sessionsDir, data)
+	_ = saveSession(sessionsDir, d)
 }
 
 func (m *Manager) trackOutput(sessionID string, output <-chan []byte) {
@@ -415,7 +454,7 @@ func (m *Manager) trackOutput(sessionID string, output <-chan []byte) {
 }
 
 func (m *Manager) watch(sessionID string, d driver.AgentDriver) {
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(watchInterval)
 	defer ticker.Stop()
 	for {
 		<-ticker.C
@@ -429,7 +468,7 @@ func (m *Manager) watch(sessionID string, d driver.AgentDriver) {
 		if status == driver.StatusTerminated {
 			s.Status = StatusTerminated
 			s.Pinged = false
-			m.persistSessionLocked(s) // Persist termination
+			m.persistSessionLocked(s)
 			m.closeSubscribersLocked(sessionID)
 			m.mu.Unlock()
 			return
@@ -456,7 +495,7 @@ func (m *Manager) Attach(id string) (*AttachHandle, error) {
 	if s.Status == StatusTerminated {
 		return nil, fmt.Errorf("session terminated: %s", id)
 	}
-	ch := make(chan []byte, 128)
+	ch := make(chan []byte, outputChanSize)
 	s.Subscribers[ch] = struct{}{}
 	ptyFile, _ := s.Input.(*os.File)
 	return &AttachHandle{
@@ -514,18 +553,17 @@ func (m *Manager) Remove(id string) error {
 		return fmt.Errorf("session still running: %s", id)
 	}
 
-	// Delete persistence file
 	sessionsDir := filepath.Join(m.configDir, "sessions")
 	_ = deleteSession(sessionsDir, id)
 
-	// Delete tmp workspace if it exists
 	if s.UseTmpWorkspace {
 		tmpRoot := os.Getenv("KANKURO_TMP_DIR")
 		if tmpRoot == "" {
 			tmpRoot = filepath.Join(m.configDir, "tmp")
 		}
 		sessionRoot := filepath.Join(tmpRoot, id)
-		_ = os.RemoveAll(sessionRoot)
+		// G703: Path traversal via taint analysis.
+		_ = os.RemoveAll(sessionRoot) //nolint:gosec // sessionRoot is derived from managed ID
 	}
 
 	delete(m.sessions, id)
@@ -574,7 +612,7 @@ func (m *Manager) removeSubscriber(sessionID string, ch chan []byte) {
 	if !ok {
 		return
 	}
-	if _, ok := s.Subscribers[ch]; ok {
+	if _, okSub := s.Subscribers[ch]; okSub {
 		delete(s.Subscribers, ch)
 		close(ch)
 	}

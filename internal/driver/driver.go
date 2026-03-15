@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -23,6 +24,11 @@ const (
 	StatusRunning    SessionStatus = "running"
 	StatusWaiting    SessionStatus = "waiting"
 	StatusTerminated SessionStatus = "terminated"
+
+	outputChanSize = 128
+	readBufferSize = 4096
+	promptTimeout  = 15 * time.Second
+	copyTimeout    = 30 * time.Second
 )
 
 type AgentConfig struct {
@@ -84,7 +90,12 @@ func (d *GenericCLIDriver) Spawn(config AgentConfig) (*SessionHandle, error) {
 		return nil, errors.New("working directory is required")
 	}
 
-	cmd := exec.Command(config.Driver, config.Args...)
+	// G204: Subprocess launched with a potential tainted input or cmd arguments.
+	// This is intentional as the driver is designed to run user-defined commands.
+	// We use CommandContext with Background for the main process as its lifecycle
+	// is managed via Kill() and watchProcess.
+	//nolint:gosec // user-defined command execution
+	cmd := exec.CommandContext(context.Background(), config.Driver, config.Args...)
 	cmd.Dir = config.WorkingDir
 	cmd.Env = mergeEnvWithPwd(config.Env, config.WorkingDir)
 
@@ -93,7 +104,7 @@ func (d *GenericCLIDriver) Spawn(config AgentConfig) (*SessionHandle, error) {
 		return nil, fmt.Errorf("start PTY process: %w", err)
 	}
 
-	output := make(chan []byte, 128)
+	output := make(chan []byte, outputChanSize)
 	done := make(chan struct{})
 	d.cmd = cmd
 	d.pty = f
@@ -107,7 +118,7 @@ func (d *GenericCLIDriver) Spawn(config AgentConfig) (*SessionHandle, error) {
 }
 
 func (d *GenericCLIDriver) streamOutput(f *os.File, out chan []byte) {
-	buf := make([]byte, 4096)
+	buf := make([]byte, readBufferSize)
 	for {
 		n, err := f.Read(buf)
 		if n > 0 {
@@ -165,7 +176,7 @@ func (d *GenericCLIDriver) SetSkills(skills []config.Skill, workspaceRoot ...str
 		return errors.New("workspace root is required for skill sync")
 	}
 	skillsRoot := filepath.Join(root, ".agents", "skills")
-	if err := os.MkdirAll(skillsRoot, 0o755); err != nil {
+	if err := os.MkdirAll(skillsRoot, 0o700); err != nil {
 		return fmt.Errorf("create skills dir: %w", err)
 	}
 
@@ -183,18 +194,18 @@ func (d *GenericCLIDriver) SetSkills(skills []config.Skill, workspaceRoot ...str
 			destName = fmt.Sprintf("%s--%s", skill.Name, shortSkillHash(skill.Source))
 		}
 		destPath := filepath.Join(skillsRoot, destName)
-		info, err := os.Stat(destPath)
-		if err == nil {
+		info, errStat := os.Stat(destPath)
+		if errStat == nil {
 			if !info.IsDir() {
 				return fmt.Errorf("skill destination exists and is not a directory: %s", destPath)
 			}
 			continue
 		}
-		if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("stat skill destination: %w", err)
+		if !errors.Is(errStat, os.ErrNotExist) {
+			return fmt.Errorf("stat skill destination: %w", errStat)
 		}
-		if err := copySkillFolder(skill.Source, destPath); err != nil {
-			return err
+		if errCopy := copySkillFolder(skill.Source, destPath); errCopy != nil {
+			return errCopy
 		}
 	}
 	return nil
@@ -293,9 +304,13 @@ func copySkillFolder(source, dest string) error {
 	if !info.IsDir() {
 		return fmt.Errorf("skill source is not a directory: %s", source)
 	}
-	cmd := exec.Command("cp", "-r", source, dest)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("copy skill %s: %s: %w", source, strings.TrimSpace(string(out)), err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), copyTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "cp", "-r", source, dest)
+	if out, errOutput := cmd.CombinedOutput(); errOutput != nil {
+		return fmt.Errorf("copy skill %s: %s: %w", source, strings.TrimSpace(string(out)), errOutput)
 	}
 	return nil
 }
@@ -309,9 +324,9 @@ func SanitizeWorkingDir(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	st, err := os.Stat(abs)
-	if err != nil {
-		return "", err
+	st, errStat := os.Stat(abs)
+	if errStat != nil {
+		return "", errStat
 	}
 	if !st.IsDir() {
 		return "", fmt.Errorf("not a directory: %s", abs)
@@ -329,5 +344,5 @@ func IsPromptLike(last string, lastWordAt time.Time, now time.Time) bool {
 			return true
 		}
 	}
-	return now.Sub(lastWordAt) > 15*time.Second
+	return now.Sub(lastWordAt) > promptTimeout
 }

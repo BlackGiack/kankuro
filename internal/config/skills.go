@@ -12,7 +12,7 @@ import (
 
 // ListSkills returns the skill registry sorted by name.
 func (r *FileRepository) ListSkills() ([]Skill, error) {
-	f, err := r.loadSkillsFile()
+	f, err := r.LoadSkillsFile()
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func (r *FileRepository) UpsertSkill(skill Skill) (Skill, error) {
 	if skill.ID == "" {
 		skill.ID = uuid.NewString()
 	}
-	f, err := r.loadSkillsFile()
+	f, err := r.LoadSkillsFile()
 	if err != nil {
 		return Skill{}, err
 	}
@@ -43,7 +43,7 @@ func (r *FileRepository) UpsertSkill(skill Skill) (Skill, error) {
 	if !updated {
 		f.Skills = append(f.Skills, skill)
 	}
-	if err := r.writeSkillsFile(f); err != nil {
+	if err = r.WriteSkillsFile(f); err != nil {
 		return Skill{}, err
 	}
 	return skill, nil
@@ -60,7 +60,7 @@ func (r *FileRepository) DeleteSkill(id string) error {
 			return fmt.Errorf("skill %s is referenced by id card %s", id, card.ID)
 		}
 	}
-	f, err := r.loadSkillsFile()
+	f, err := r.LoadSkillsFile()
 	if err != nil {
 		return err
 	}
@@ -69,15 +69,15 @@ func (r *FileRepository) DeleteSkill(id string) error {
 	if len(f.Skills) == orig {
 		return fmt.Errorf("skill not found: %s", id)
 	}
-	return r.writeSkillsFile(f)
+	return r.WriteSkillsFile(f)
 }
 
-// loadSkillsFile reads and normalizes the skill-registry YAML payload.
-func (r *FileRepository) loadSkillsFile() (skillsFile, error) {
-	path := filepath.Join(r.dir, skillsFilename)
-	f := skillsFile{}
-	if err := readYAML(path, &f); err != nil {
-		return skillsFile{}, err
+// LoadSkillsFile reads and normalizes the skill-registry YAML payload.
+func (r *FileRepository) LoadSkillsFile() (SkillsFile, error) {
+	path := filepath.Join(r.dir, SkillsFilename)
+	f := SkillsFile{}
+	if err := ReadYAML(path, &f); err != nil {
+		return SkillsFile{}, err
 	}
 	if f.SchemaVersion == 0 {
 		f.SchemaVersion = SchemaVersion
@@ -88,8 +88,8 @@ func (r *FileRepository) loadSkillsFile() (skillsFile, error) {
 	return f, nil
 }
 
-// writeSkillsFile writes skills data using the current schema version.
-func (r *FileRepository) writeSkillsFile(f skillsFile) error {
+// WriteSkillsFile writes skills data using the current schema version.
+func (r *FileRepository) WriteSkillsFile(f SkillsFile) error {
 	f.SchemaVersion = SchemaVersion
-	return r.writeAtomic(filepath.Join(r.dir, skillsFilename), f)
+	return r.WriteAtomic(filepath.Join(r.dir, SkillsFilename), f)
 }

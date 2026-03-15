@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type SessionData struct {
+type Data struct {
 	ID              string    `json:"id"`
 	CardID          string    `json:"card_id"`
 	Name            string    `json:"name"`
@@ -20,19 +20,19 @@ type SessionData struct {
 	Status          Status    `json:"status"`
 }
 
-func loadSessions(dir string) ([]*SessionData, error) {
+func loadSessions(dir string) ([]*Data, error) {
 	matches, err := filepath.Glob(filepath.Join(dir, "*.json"))
 	if err != nil {
 		return nil, err
 	}
-	var out []*SessionData
+	var out []*Data
 	for _, path := range matches {
-		data, err := os.ReadFile(path)
-		if err != nil {
+		fileData, errRead := os.ReadFile(path)
+		if errRead != nil {
 			continue // skip corrupted
 		}
-		var s SessionData
-		if err := json.Unmarshal(data, &s); err != nil {
+		var s Data
+		if errUnmarshal := json.Unmarshal(fileData, &s); errUnmarshal != nil {
 			continue
 		}
 		out = append(out, &s)
@@ -40,8 +40,8 @@ func loadSessions(dir string) ([]*SessionData, error) {
 	return out, nil
 }
 
-func saveSession(dir string, s *SessionData) error {
-	if err := os.MkdirAll(dir, 0755); err != nil {
+func saveSession(dir string, s *Data) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
 	path := filepath.Join(dir, s.ID+".json")
@@ -49,7 +49,7 @@ func saveSession(dir string, s *SessionData) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0644)
+	return os.WriteFile(path, data, 0o600)
 }
 
 func deleteSession(dir string, id string) error {

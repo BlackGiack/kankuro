@@ -1,34 +1,42 @@
-package driver
+package driver_test
 
 import (
+	"errors"
 	"kankuro/internal/config"
+	"kankuro/internal/driver"
 	"testing"
 )
 
+var errStubSpawn = errors.New("stub spawn")
+
 type stubDriver struct{}
 
-func (s *stubDriver) Spawn(config AgentConfig) (*SessionHandle, error) { return nil, nil }
-func (s *stubDriver) Kill() error                                      { return nil }
-func (s *stubDriver) SetSkills(skills []config.Skill, workspaceRoot ...string) error {
+func (s *stubDriver) Spawn(_ driver.AgentConfig) (*driver.SessionHandle, error) {
+	return nil, errStubSpawn
+}
+func (s *stubDriver) Kill() error { return nil }
+func (s *stubDriver) SetSkills(_ []config.Skill, _ ...string) error {
 	return nil
 }
-func (s *stubDriver) SetMcps(mcps []config.MCPServer) error { return nil }
-func (s *stubDriver) SetModel(model string) []string        { return nil }
-func (s *stubDriver) SendInput(data string) error           { return nil }
-func (s *stubDriver) GetStatus() SessionStatus              { return StatusRunning }
+func (s *stubDriver) SetMcps(_ []config.MCPServer) error { return nil }
+func (s *stubDriver) SetModel(_ string) []string         { return nil }
+func (s *stubDriver) SendInput(_ string) error           { return nil }
+func (s *stubDriver) GetStatus() driver.SessionStatus    { return driver.StatusRunning }
 
 func TestNewCLIDriverFallsBackToGeneric(t *testing.T) {
-	driverConstructors = map[string]func() AgentDriver{}
-	d := NewCLIDriver("unknown")
-	if _, ok := d.(*GenericCLIDriver); !ok {
+	//nolint:reassign // This is a test resetting the global registry.
+	driver.DriverConstructors = map[string]func() driver.AgentDriver{}
+	d := driver.NewCLIDriver("unknown")
+	if _, ok := d.(*driver.GenericCLIDriver); !ok {
 		t.Fatalf("expected generic fallback")
 	}
 }
 
 func TestNewCLIDriverUsesRegisteredConstructor(t *testing.T) {
-	driverConstructors = map[string]func() AgentDriver{}
-	RegisterDriver("special", func() AgentDriver { return &stubDriver{} })
-	d := NewCLIDriver("special")
+	//nolint:reassign // This is a test resetting the global registry.
+	driver.DriverConstructors = map[string]func() driver.AgentDriver{}
+	driver.RegisterDriver("special", func() driver.AgentDriver { return &stubDriver{} })
+	d := driver.NewCLIDriver("special")
 	if _, ok := d.(*stubDriver); !ok {
 		t.Fatalf("expected registered constructor")
 	}

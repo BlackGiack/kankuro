@@ -1,42 +1,48 @@
 package ascii
 
 type Config struct {
-	values map[string]interface{}
+	values map[string]any
 }
 
 func NewConfig() *Config {
 	return &Config{
-		values: make(map[string]interface{}),
+		values: make(map[string]any),
 	}
 }
 
-func (c *Config) Set(key string, value interface{}) {
+func (c *Config) Set(key string, value any) {
 	c.values[key] = value
 }
 
 func (c *Config) GetString(key string, defaultValue string) string {
-	if val, ok := c.values[key]; ok {
-		if str, ok := val.(string); ok {
-			return str
-		}
+	val, ok := c.values[key]
+	if !ok {
+		return defaultValue
+	}
+	if str, okType := val.(string); okType {
+		return str
 	}
 	return defaultValue
 }
 
 func (c *Config) GetInt(key string, defaultValue int) int {
-	if val, ok := c.values[key]; ok {
-		if i, ok := val.(int); ok {
-			return i
-		}
+	val, ok := c.values[key]
+	if !ok {
+		return defaultValue
+	}
+	if i, okType := val.(int); okType {
+		return i
 	}
 	return defaultValue
 }
 
 func (c *Config) GetBool(key string, defaultValue bool) bool {
-	if val, ok := c.values[key]; ok {
-		if b, ok := val.(bool); ok {
-			return b
-		}
+	val, ok := c.values[key]
+	if !ok {
+		return defaultValue
+	}
+	if b, okType := val.(bool); okType {
+		return b
 	}
 	return defaultValue
 }

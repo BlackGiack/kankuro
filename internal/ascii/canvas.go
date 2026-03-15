@@ -1,5 +1,7 @@
 package ascii
 
+import "strings"
+
 type Canvas struct {
 	width  int
 	height int
@@ -69,7 +71,7 @@ func (c *Canvas) DrawLine(x1, y1, x2, y2 int, r rune) {
 		if x1 == x2 && y1 == y2 {
 			break
 		}
-		e2 := 2 * err
+		e2 := 2 * err //nolint:mnd // Bresenham's algorithm requires this constant.
 		if e2 > -dy {
 			err -= dy
 			x1 += sx
@@ -103,14 +105,14 @@ func (c *Canvas) DrawText(x, y int, text string) {
 }
 
 func (c *Canvas) String() string {
-	var result string
-	for y := 0; y < c.height; y++ {
-		result += string(c.cells[y])
+	var sb strings.Builder
+	for y := range c.height {
+		sb.WriteString(string(c.cells[y]))
 		if y < c.height-1 {
-			result += "\n"
+			sb.WriteByte('\n')
 		}
 	}
-	return result
+	return sb.String()
 }
 
 type Rect struct {

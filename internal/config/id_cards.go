@@ -13,7 +13,7 @@ import (
 
 // ListIDCards returns all ID cards sorted by name.
 func (r *FileRepository) ListIDCards() ([]IDCard, error) {
-	f, err := r.loadIDCardsFile()
+	f, err := r.LoadIDCardsFile()
 	if err != nil {
 		return nil, err
 	}
@@ -30,11 +30,11 @@ func (r *FileRepository) CreateIDCard(card IDCard) (IDCard, error) {
 	card.CreatedAt = now
 	card.UpdatedAt = now
 
-	f, err := r.loadIDCardsFile()
+	f, err := r.LoadIDCardsFile()
 	if err != nil {
 		return IDCard{}, err
 	}
-	if err := r.validateCard(card); err != nil {
+	if err = r.ValidateCard(card); err != nil {
 		return IDCard{}, err
 	}
 	for _, existing := range f.IDCards {
@@ -43,7 +43,7 @@ func (r *FileRepository) CreateIDCard(card IDCard) (IDCard, error) {
 		}
 	}
 	f.IDCards = append(f.IDCards, card)
-	if err := r.writeIDCardsFile(f); err != nil {
+	if err = r.WriteIDCardsFile(f); err != nil {
 		return IDCard{}, err
 	}
 	return card, nil
@@ -54,11 +54,11 @@ func (r *FileRepository) UpdateIDCard(card IDCard) (IDCard, error) {
 	if card.ID == "" {
 		return IDCard{}, errors.New("id is required")
 	}
-	f, err := r.loadIDCardsFile()
+	f, err := r.LoadIDCardsFile()
 	if err != nil {
 		return IDCard{}, err
 	}
-	if err := r.validateCard(card); err != nil {
+	if err = r.ValidateCard(card); err != nil {
 		return IDCard{}, err
 	}
 	idx := -1
@@ -74,7 +74,7 @@ func (r *FileRepository) UpdateIDCard(card IDCard) (IDCard, error) {
 	}
 	card.UpdatedAt = time.Now().UTC()
 	f.IDCards[idx] = card
-	if err := r.writeIDCardsFile(f); err != nil {
+	if err = r.WriteIDCardsFile(f); err != nil {
 		return IDCard{}, err
 	}
 	return card, nil
@@ -82,7 +82,7 @@ func (r *FileRepository) UpdateIDCard(card IDCard) (IDCard, error) {
 
 // DeleteIDCard removes one ID card by identifier.
 func (r *FileRepository) DeleteIDCard(id string) error {
-	f, err := r.loadIDCardsFile()
+	f, err := r.LoadIDCardsFile()
 	if err != nil {
 		return err
 	}
@@ -91,15 +91,15 @@ func (r *FileRepository) DeleteIDCard(id string) error {
 	if len(f.IDCards) == orig {
 		return fmt.Errorf("id card not found: %s", id)
 	}
-	return r.writeIDCardsFile(f)
+	return r.WriteIDCardsFile(f)
 }
 
-// loadIDCardsFile reads and normalizes the ID-card YAML payload.
-func (r *FileRepository) loadIDCardsFile() (idCardsFile, error) {
-	path := filepath.Join(r.dir, idCardsFilename)
-	f := idCardsFile{}
-	if err := readYAML(path, &f); err != nil {
-		return idCardsFile{}, err
+// LoadIDCardsFile reads and normalizes the ID-card YAML payload.
+func (r *FileRepository) LoadIDCardsFile() (IDCardsFile, error) {
+	path := filepath.Join(r.dir, IDCardsFilename)
+	f := IDCardsFile{}
+	if err := ReadYAML(path, &f); err != nil {
+		return IDCardsFile{}, err
 	}
 	if f.SchemaVersion == 0 {
 		f.SchemaVersion = SchemaVersion
@@ -110,8 +110,8 @@ func (r *FileRepository) loadIDCardsFile() (idCardsFile, error) {
 	return f, nil
 }
 
-// writeIDCardsFile writes ID-card data using the current schema version.
-func (r *FileRepository) writeIDCardsFile(f idCardsFile) error {
+// WriteIDCardsFile writes ID-card data using the current schema version.
+func (r *FileRepository) WriteIDCardsFile(f IDCardsFile) error {
 	f.SchemaVersion = SchemaVersion
-	return r.writeAtomic(filepath.Join(r.dir, idCardsFilename), f)
+	return r.WriteAtomic(filepath.Join(r.dir, IDCardsFilename), f)
 }
