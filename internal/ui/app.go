@@ -37,28 +37,43 @@ const (
 	paneSessions
 )
 
-type item struct {
-	title  string
-	desc   string
-	id     string
-	status session.Status
+type sessionListItem struct {
+	title         string
+	desc          string
+	sessionDetail string
+	id            string
+	status        session.Status
 }
 
-func (i item) Title() string {
+func (i sessionListItem) Title() string {
 	if i.status == session.StatusWaiting {
 		return lipgloss.NewStyle().Foreground(hotPink).Bold(true).Render(i.title)
 	}
 	return i.title
 }
 
-func (i item) Description() string {
+func (i sessionListItem) Description() string {
+	baseDesc := i.desc
 	if i.status == session.StatusWaiting {
-		return lipgloss.NewStyle().Foreground(hotPink).Render(i.desc)
+		baseDesc = lipgloss.NewStyle().Foreground(hotPink).Render(i.desc)
 	}
-	return i.desc
+	if i.sessionDetail != "" {
+		return baseDesc + "\n" + i.sessionDetail
+	}
+	return baseDesc
 }
 
-func (i item) FilterValue() string { return i.title }
+func (i sessionListItem) FilterValue() string { return i.title }
+
+type cardItem struct {
+	card   config.IDCard
+	skills []config.Skill
+	status session.Status
+}
+
+func (i cardItem) Title() string       { return "" }
+func (i cardItem) Description() string { return renderCardItem(i.card, i.skills) }
+func (i cardItem) FilterValue() string { return i.card.Name }
 
 type tickMsg time.Time
 
@@ -123,31 +138,34 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 		return nil, err
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(purple)
-	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(gray)
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
+	sessionsDelegate := list.NewDefaultDelegate()
+	sessionsDelegate.SetHeight(4)
+	sessionsDelegate.Styles.NormalTitle = sessionsDelegate.Styles.NormalTitle.Foreground(purple)
+	sessionsDelegate.Styles.NormalDesc = sessionsDelegate.Styles.NormalDesc.Foreground(gray)
+	sessionsDelegate.Styles.SelectedTitle = sessionsDelegate.Styles.SelectedTitle.
 		Foreground(hotPink).
 		BorderForeground(purple)
-	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
+	sessionsDelegate.Styles.SelectedDesc = sessionsDelegate.Styles.SelectedDesc.
 		Foreground(darkPurple).
 		BorderForeground(purple)
-	delegate.Styles.DimmedTitle = delegate.Styles.DimmedTitle.Foreground(darkPurple)
-	delegate.Styles.DimmedDesc = delegate.Styles.DimmedDesc.Foreground(lipgloss.Color("236"))
+	sessionsDelegate.Styles.DimmedTitle = sessionsDelegate.Styles.DimmedTitle.Foreground(darkPurple)
+	sessionsDelegate.Styles.DimmedDesc = sessionsDelegate.Styles.DimmedDesc.Foreground(lipgloss.Color("236"))
 
-	cardsList := list.New(toCardItems(cards), delegate, 0, 0)
+	cardsDelegate := newCardDelegate()
+
+	cardsList := list.New(toCardItems(cards, skills), cardsDelegate, 0, 0)
 	cardsList.Title = "ID Cards"
 	cardsList.SetShowStatusBar(false)
 	cardsList.SetFilteringEnabled(false)
 	cardsList.Styles.Title = titleStyle
 
-	sessionsList := list.New([]list.Item{}, delegate, 0, 0)
+	sessionsList := list.New([]list.Item{}, sessionsDelegate, 0, 0)
 	sessionsList.Title = "Active Sessions"
 	sessionsList.SetShowStatusBar(false)
 	sessionsList.SetFilteringEnabled(false)
 	sessionsList.Styles.Title = titleStyle
 
-	switchList := list.New([]list.Item{}, delegate, 0, 0)
+	switchList := list.New([]list.Item{}, cardsDelegate, 0, 0)
 	switchList.Title = "Switch Agent"
 	switchList.SetShowStatusBar(false)
 	switchList.SetFilteringEnabled(false)
@@ -400,7 +418,7 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, nil
 			}
 			a.switchSessionID = s.ID
-			a.switchList.SetItems(toCardItems(a.cards))
+			a.switchList.SetItems(toCardItems(a.cards, a.skills))
 			a.switchList.Select(0)
 			a.mode = viewSwitchAgent
 			return a, nil
@@ -661,6 +679,22 @@ func (a *App) View() string {
 	}
 }
 
+func newCardDelegate() list.DefaultDelegate {
+	d := list.NewDefaultDelegate()
+	d.SetHeight(7)
+	d.Styles.NormalTitle = d.Styles.NormalTitle.Foreground(purple)
+	d.Styles.NormalDesc = d.Styles.NormalDesc.Foreground(gray)
+	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
+		Foreground(hotPink).
+		BorderForeground(purple)
+	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
+		Foreground(darkPurple).
+		BorderForeground(purple)
+	d.Styles.DimmedTitle = d.Styles.DimmedTitle.Foreground(darkPurple)
+	d.Styles.DimmedDesc = d.Styles.DimmedDesc.Foreground(lipgloss.Color("236"))
+	return d
+}
+
 func (a *App) resize() {
 	a.cardsList.SetSize(max(20, a.width-34), max(10, a.height-4))
 	a.sessionsList.SetSize(32, max(10, a.height-4))
@@ -673,7 +707,7 @@ func (a *App) refreshLists() {
 }
 
 func (a *App) refreshCardList() {
-	items := toCardItems(a.cards)
+	items := toCardItems(a.cards, a.skills)
 	a.cardsList.SetItems(items)
 }
 
@@ -695,11 +729,22 @@ func (a *App) refreshSessionList() {
 		}
 
 		face := renderAgentCard(config.IDCard{FaceStyle: faceStyle})
-		items = append(items, item{
-			title:  s.Name + " " + face,
-			desc:   fmt.Sprintf("%s pid=%d", s.Status, s.PID),
-			id:     s.ID,
-			status: s.Status,
+		sessionDetail := ""
+		if s.UseTmpWorkspace {
+			sessionDetail = "ID: " + s.ID
+		} else {
+			wsPath := s.WorkingDir
+			if len(wsPath) > 25 {
+				wsPath = "..." + wsPath[len(wsPath)-22:]
+			}
+			sessionDetail = "WS: " + wsPath
+		}
+		items = append(items, sessionListItem{
+			title:         s.Name + " " + face,
+			desc:          fmt.Sprintf("%s pid=%d", s.Status, s.PID),
+			sessionDetail: sessionDetail,
+			id:            s.ID,
+			status:        s.Status,
 		})
 	}
 	a.sessionsList.SetItems(items)
@@ -709,29 +754,19 @@ func (a *App) refreshSessionList() {
 }
 
 func (a *App) selectedCard() (config.IDCard, bool) {
-	it, ok := a.cardsList.SelectedItem().(item)
+	it, ok := a.cardsList.SelectedItem().(cardItem)
 	if !ok {
 		return config.IDCard{}, false
 	}
-	for _, c := range a.cards {
-		if c.ID == it.id {
-			return c, true
-		}
-	}
-	return config.IDCard{}, false
+	return it.card, true
 }
 
 func (a *App) selectedSwitchCard() (config.IDCard, bool) {
-	it, ok := a.switchList.SelectedItem().(item)
+	it, ok := a.switchList.SelectedItem().(cardItem)
 	if !ok {
 		return config.IDCard{}, false
 	}
-	for _, c := range a.cards {
-		if c.ID == it.id {
-			return c, true
-		}
-	}
-	return config.IDCard{}, false
+	return it.card, true
 }
 
 func (a *App) resetCardForm() {
@@ -891,6 +926,72 @@ func (a *App) cycleFocus(inputs []textinput.Model) {
 	inputs[next].Focus()
 }
 
+func renderCardItem(card config.IDCard, skills []config.Skill) string {
+	skillNames := make([]string, 0, len(card.SkillIDs))
+	selected := make(map[string]struct{})
+	for _, id := range card.SkillIDs {
+		selected[id] = struct{}{}
+	}
+	for _, skill := range skills {
+		if _, ok := selected[skill.ID]; ok {
+			skillNames = append(skillNames, skill.Name)
+		}
+	}
+
+	skillsLine := ""
+	if len(skillNames) == 0 {
+		skillsLine = "(none)"
+	} else if len(skillNames) > 3 {
+		skillsLine = strings.Join(skillNames[:3], ", ") + "..."
+	} else {
+		skillsLine = strings.Join(skillNames, ", ")
+	}
+
+	style := card.FaceStyle
+	if style == "" {
+		style = "neutral"
+	}
+	face := characters.NewFace(ascii.WithStyle(style))
+	w, _ := face.Bounds()
+	canvas := ascii.NewCanvas(w, 1)
+	face.Render(canvas, 0, 0)
+	faceStr := canvas.String()
+
+	infoLines := []string{
+		truncate(card.Name, 28),
+		truncate(fmt.Sprintf("%s | %s", card.Driver, card.Model), 28),
+		truncate(skillsLine, 28),
+	}
+
+	infoBox := lipgloss.NewStyle().
+		Width(30).
+		Height(3).
+		Render(strings.Join(infoLines, "\n"))
+
+	faceBox := lipgloss.NewStyle().
+		Width(7).
+		Height(3).
+		Align(lipgloss.Center, lipgloss.Center).
+		Border(lipgloss.NormalBorder(), false, false, false, true).
+		BorderForeground(purple).
+		Render(faceStr)
+
+	content := lipgloss.JoinHorizontal(lipgloss.Top, infoBox, faceBox)
+
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(purple).
+		Width(40).
+		Render(content)
+}
+
+func truncate(s string, w int) string {
+	if len(s) > w {
+		return s[:w-3] + "..."
+	}
+	return s
+}
+
 func renderAgentCard(card config.IDCard) string {
 	style := card.FaceStyle
 	if style == "" {
@@ -967,14 +1068,23 @@ func (a *App) renderSkillList() string {
 	return strings.Join(lines, "\n")
 }
 
-func toCardItems(cards []config.IDCard) []list.Item {
+func toCardItems(cards []config.IDCard, allSkills []config.Skill) []list.Item {
 	items := make([]list.Item, 0, len(cards))
 	for _, c := range cards {
-		items = append(items, item{
-			title:  c.Name + " " + renderAgentCard(c),
-			desc:   fmt.Sprintf("%s | %s", c.Driver, c.Model),
-			id:     c.ID,
-			status: session.StatusRunning, // default for cards
+		skillList := make([]config.Skill, 0, len(c.SkillIDs))
+		selected := make(map[string]struct{})
+		for _, id := range c.SkillIDs {
+			selected[id] = struct{}{}
+		}
+		for _, skill := range allSkills {
+			if _, ok := selected[skill.ID]; ok {
+				skillList = append(skillList, skill)
+			}
+		}
+		items = append(items, cardItem{
+			card:   c,
+			skills: skillList,
+			status: session.StatusRunning,
 		})
 	}
 	return items
