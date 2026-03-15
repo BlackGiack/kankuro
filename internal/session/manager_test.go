@@ -2,6 +2,8 @@ package session
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -303,5 +305,97 @@ func TestRemoveOnlyDeletesTerminatedSessions(t *testing.T) {
 		if s.ID == sid {
 			t.Fatalf("expected session to be removed")
 		}
+	}
+}
+
+func TestSessionAgentsMD(t *testing.T) {
+	sm := NewManager(t.TempDir())
+	wd := t.TempDir()
+
+	// Pre-create AGENTS.md in original workspace
+	originalContent := "# Original Content"
+	if err := os.WriteFile(filepath.Join(wd, "AGENTS.md"), []byte(originalContent), 0644); err != nil {
+		t.Fatalf("write original agents.md: %v", err)
+	}
+
+	card := config.IDCard{
+		ID:              "card-agents-md",
+		Name:            "agents-md",
+		Driver:          "cat",
+		WorkingDir:      wd,
+		UseTmpWorkspace: true,
+		AgentsMD:        "# First Content",
+	}
+
+	sid, err := sm.Launch(card, nil)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	finalWD := sm.sessions[sid].WorkingDir
+	content, err := os.ReadFile(filepath.Join(finalWD, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read AGENTS.md: %v", err)
+	}
+	// Should be appended because it's a new session and it existed in original wd
+	expectedFirst := "# Original Content\n\n# First Content"
+	if string(content) != expectedFirst {
+		t.Fatalf("expected %q, got %q", expectedFirst, string(content))
+	}
+
+	if err := sm.Kill(sid); err != nil {
+		t.Fatalf("kill: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	// Switch agent with different content -> should REPLACE
+	card.AgentsMD = "# Second Content"
+	if err := sm.SwitchAgent(sid, card, nil); err != nil {
+		t.Fatalf("switch agent: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	content, err = os.ReadFile(filepath.Join(finalWD, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read AGENTS.md after switch: %v", err)
+	}
+	expectedSecond := "# Second Content"
+	if string(content) != expectedSecond {
+		t.Fatalf("expected %q, got %q", expectedSecond, string(content))
+	}
+
+	if err := sm.Kill(sid); err != nil {
+		t.Fatalf("kill after switch: %v", err)
+	}
+
+	// Test path option
+	tmpFile := filepath.Join(t.TempDir(), "external_agents.md")
+	expectedPathContent := "# Content from file"
+	if err := os.WriteFile(tmpFile, []byte(expectedPathContent), 0644); err != nil {
+		t.Fatalf("write tmp file: %v", err)
+	}
+
+	card.AgentsMDPreferPath = true
+	card.AgentsMDPath = tmpFile
+	card.WorkingDir = t.TempDir() // Fresh WD without AGENTS.md
+	sid2, err := sm.Launch(card, nil)
+	if err != nil {
+		t.Fatalf("launch with path: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	finalWD2 := sm.sessions[sid2].WorkingDir
+	content, err = os.ReadFile(filepath.Join(finalWD2, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read AGENTS.md from path: %v", err)
+	}
+	// Should NOT append here because we didn't pre-create AGENTS.md in a fresh WD for sid2
+	if string(content) != expectedPathContent {
+		t.Fatalf("expected %q, got %q", expectedPathContent, string(content))
+	}
+
+	if err := sm.Kill(sid2); err != nil {
+		t.Fatalf("kill: %v", err)
 	}
 }

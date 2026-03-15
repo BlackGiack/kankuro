@@ -28,6 +28,7 @@ func TestCreateAndListIDCard(t *testing.T) {
 		WorkingDir: t.TempDir(),
 		SkillIDs:   []string{skill.ID},
 		MCPIDs:     []string{mcp.ID},
+		AgentsMD:   "# Custom AgentsMD\nHello world",
 	})
 	if err != nil {
 		t.Fatalf("create card: %v", err)
@@ -42,6 +43,9 @@ func TestCreateAndListIDCard(t *testing.T) {
 	}
 	if cards[0].Name != "Claude" {
 		t.Fatalf("unexpected card name: %s", cards[0].Name)
+	}
+	if cards[0].AgentsMD != "# Custom AgentsMD\nHello world" {
+		t.Fatalf("unexpected AgentsMD: %s", cards[0].AgentsMD)
 	}
 }
 

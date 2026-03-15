@@ -160,6 +160,9 @@ func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Ski
 		if err := os.RemoveAll(skillsDir); err != nil {
 			return fmt.Errorf("clear tmp skills dir: %w", err)
 		}
+		if err := syncAgentsMD(finalWD, card, false); err != nil {
+			return err
+		}
 	}
 
 	d := driver.NewCLIDriver(card.Driver)
@@ -212,6 +215,51 @@ func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Ski
 	return nil
 }
 
+func syncAgentsMD(finalWD string, card config.IDCard, appendIfExist bool) error {
+	agentsMD := card.AgentsMD
+	if card.AgentsMDPreferPath && card.AgentsMDPath != "" {
+		data, err := os.ReadFile(card.AgentsMDPath)
+		if err != nil {
+			return fmt.Errorf("read agents md path %s: %w", card.AgentsMDPath, err)
+		}
+		agentsMD = string(data)
+	}
+
+	if agentsMD == "" {
+		return nil
+	}
+
+	path := filepath.Join(finalWD, "AGENTS.md")
+
+	if !appendIfExist {
+		if err := os.WriteFile(path, []byte(agentsMD), 0644); err != nil {
+			return fmt.Errorf("write AGENTS.md: %w", err)
+		}
+		return nil
+	}
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("open AGENTS.md: %w", err)
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("stat AGENTS.md: %w", err)
+	}
+
+	content := agentsMD
+	if stat.Size() > 0 {
+		content = "\n\n" + agentsMD
+	}
+
+	if _, err := f.WriteString(content); err != nil {
+		return fmt.Errorf("write AGENTS.md: %w", err)
+	}
+	return nil
+}
+
 func (m *Manager) startSession(sid string, card config.IDCard, skills []config.Skill, isNew bool) error {
 	wd, err := driver.SanitizeWorkingDir(card.WorkingDir)
 	if err != nil {
@@ -247,6 +295,9 @@ func (m *Manager) startSession(sid string, card config.IDCard, skills []config.S
 		skillsDir := filepath.Join(finalWD, ".agents", "skills")
 		if err := os.RemoveAll(skillsDir); err != nil {
 			return fmt.Errorf("clear tmp skills dir: %w", err)
+		}
+		if err := syncAgentsMD(finalWD, card, isNew); err != nil {
+			return err
 		}
 	}
 

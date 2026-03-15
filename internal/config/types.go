@@ -18,6 +18,9 @@ type IDCard struct {
 	MCPIDs            []string          `yaml:"mcp_ids"`
 	Env               map[string]string `yaml:"env"`
 	FaceStyle         string            `yaml:"face_style"`
+	AgentsMD          string            `yaml:"agents_md"`
+	AgentsMDPath      string            `yaml:"agents_md_path"`
+	AgentsMDPreferPath bool             `yaml:"agents_md_prefer_path"`
 	CreatedAt         time.Time         `yaml:"created_at"`
 	UpdatedAt         time.Time         `yaml:"updated_at"`
 }

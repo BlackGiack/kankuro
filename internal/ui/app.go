@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -27,6 +28,8 @@ const (
 	viewMCPForm
 	viewDeleteConfirm
 	viewSwitchAgent
+	viewAgentsEditor
+	viewAgentsPathInput
 )
 
 const (
@@ -81,6 +84,12 @@ type App struct {
 
 	cardInputs []textinput.Model
 	mcpInputs  []textinput.Model
+
+	agentsEditor textarea.Model
+	agentsMD     string
+	agentsMDPath string
+	agentsMDPreferPath bool
+	agentsPathInput textinput.Model
 
 	cardFocusIndex   int
 	skillCursor      int
@@ -161,6 +170,15 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 	mcpInputs[1].Placeholder = "mcp command"
 	mcpInputs[1].Width = 60
 
+	agentsEditor := textarea.New()
+	agentsEditor.Placeholder = "Enter AGENTS.md content here..."
+	agentsEditor.SetWidth(80)
+	agentsEditor.SetHeight(20)
+
+	agentsPathInput := textinput.New()
+	agentsPathInput.Placeholder = "Path to AGENTS.md file..."
+	agentsPathInput.Width = 60
+
 	app := &App{
 		repo:             repo,
 		session:          sm,
@@ -174,6 +192,8 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 		switchList:       switchList,
 		cardInputs:       cardInputs,
 		mcpInputs:        mcpInputs,
+		agentsEditor:     agentsEditor,
+		agentsPathInput:  agentsPathInput,
 		selectedSkillIDs: make(map[string]bool),
 		focusedPane:      paneCards,
 		help:             help.New(),
@@ -222,9 +242,49 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.updateDeleteConfirm(msg)
 	case viewSwitchAgent:
 		return a.updateSwitchAgent(msg)
+	case viewAgentsEditor:
+		return a.updateAgentsEditor(msg)
+	case viewAgentsPathInput:
+		return a.updateAgentsPathInput(msg)
 	default:
 		return a, nil
 	}
+}
+
+func (a *App) updateAgentsEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			a.mode = viewCardForm
+			return a, nil
+		case "ctrl+s":
+			a.agentsMD = a.agentsEditor.Value()
+			a.mode = viewCardForm
+			return a, nil
+		}
+	}
+	var cmd tea.Cmd
+	a.agentsEditor, cmd = a.agentsEditor.Update(msg)
+	return a, cmd
+}
+
+func (a *App) updateAgentsPathInput(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			a.mode = viewCardForm
+			return a, nil
+		case "enter":
+			a.agentsMDPath = strings.TrimSpace(a.agentsPathInput.Value())
+			a.mode = viewCardForm
+			return a, nil
+		}
+	}
+	var cmd tea.Cmd
+	a.agentsPathInput, cmd = a.agentsPathInput.Update(msg)
+	return a, cmd
 }
 
 func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -239,7 +299,6 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		case "n":
 			a.resetCardForm()
-			a.editingCardID = ""
 			a.mode = viewCardForm
 			return a, nil
 		case "e":
@@ -262,6 +321,10 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.cardInputs[5].SetValue(tmpVal)
 			a.setSelectedSkills(selected.SkillIDs)
 			a.editingCardID = selected.ID
+			a.agentsMD = selected.AgentsMD
+			a.agentsMDPath = selected.AgentsMDPath
+			a.agentsMDPreferPath = selected.AgentsMDPreferPath
+			a.agentsPathInput.SetValue(selected.AgentsMDPath)
 			a.cardFocusIndex = 0
 			a.setCardFocus(a.cardFocusIndex)
 			a.mode = viewCardForm
@@ -371,6 +434,10 @@ func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return a, nil
 			}
+			if a.isAgentsMDFocused() {
+				a.agentsMDPreferPath = false
+				return a, nil
+			}
 		case "down", "j":
 			if a.isSkillListFocused() {
 				if a.skillCursor < len(a.skills)-1 {
@@ -378,9 +445,24 @@ func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return a, nil
 			}
+			if a.isAgentsMDFocused() {
+				a.agentsMDPreferPath = true
+				return a, nil
+			}
 		case " ":
 			if a.isSkillListFocused() {
 				a.toggleSelectedSkill()
+				return a, nil
+			}
+			if a.isAgentsMDFocused() {
+				if a.agentsMDPreferPath {
+					a.agentsPathInput.Focus()
+					a.mode = viewAgentsPathInput
+				} else {
+					a.agentsEditor.SetValue(a.agentsMD)
+					a.agentsEditor.Focus()
+					a.mode = viewAgentsEditor
+				}
 				return a, nil
 			}
 		case "enter":
@@ -392,6 +474,9 @@ func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				WorkingDir:      strings.TrimSpace(a.cardInputs[3].Value()),
 				FaceStyle:       strings.TrimSpace(a.cardInputs[4].Value()),
 				UseTmpWorkspace: strings.ToLower(strings.TrimSpace(a.cardInputs[5].Value())) == "y",
+				AgentsMD:        a.agentsMD,
+				AgentsMDPath:    a.agentsMDPath,
+				AgentsMDPreferPath: a.agentsMDPreferPath,
 				SkillIDs:        a.selectedSkillIDsSlice(),
 			}
 			var err error
@@ -527,8 +612,17 @@ func (a *App) View() string {
 			"Working Dir: " + a.cardInputs[3].View() + "\n" +
 			"Face Style: " + a.cardInputs[4].View() + "\n" +
 			"Use Tmp Workspace: " + a.cardInputs[5].View() + "\n\n" +
+			"AGENTS.md:\n" + a.renderAgentsMDRow() + "\n\n" +
 			"Skills (space=toggle, arrows=scroll):\n" + a.renderSkillList() + "\n\n" +
 			"Enter=save Tab=next Esc=cancel"
+	case viewAgentsEditor:
+		return errLine + titleStyle.Render("Editing AGENTS.md") + "\n\n" +
+			a.agentsEditor.View() + "\n\n" +
+			"Ctrl+s=save Esc=cancel"
+	case viewAgentsPathInput:
+		return errLine + titleStyle.Render("Enter AGENTS.md Path") + "\n\n" +
+			a.agentsPathInput.View() + "\n\n" +
+			"Enter=save Esc=cancel"
 	case viewMCPForm:
 		return errLine + titleStyle.Render("Add MCP") + "\n\n" +
 			"Name: " + a.mcpInputs[0].View() + "\n" +
@@ -646,6 +740,10 @@ func (a *App) resetCardForm() {
 		a.cardInputs[i].Blur()
 	}
 	a.editingCardID = ""
+	a.agentsMD = ""
+	a.agentsMDPath = ""
+	a.agentsMDPreferPath = false
+	a.agentsPathInput.SetValue("")
 	a.selectedSkillIDs = make(map[string]bool)
 	a.skillCursor = 0
 	a.cardFocusIndex = 0
@@ -670,8 +768,51 @@ func (a *App) selectedSkillIDsSlice() []string {
 	return ids
 }
 
+func (a *App) isAgentsMDFocused() bool {
+	return a.cardFocusIndex == len(a.cardInputs)
+}
+
 func (a *App) isSkillListFocused() bool {
-	return a.cardFocusIndex >= len(a.cardInputs)
+	return a.cardFocusIndex == len(a.cardInputs)+1
+}
+
+func (a *App) renderAgentsMDRow() string {
+	contentSummary := "empty"
+	if a.agentsMD != "" {
+		lines := strings.Split(a.agentsMD, "\n")
+		contentSummary = lines[0]
+		if len(lines) > 1 || len(contentSummary) > 30 {
+			if len(contentSummary) > 30 {
+				contentSummary = contentSummary[:27] + "..."
+			} else {
+				contentSummary += "..."
+			}
+		}
+	}
+
+	pathSummary := "empty"
+	if a.agentsMDPath != "" {
+		pathSummary = a.agentsMDPath
+		if len(pathSummary) > 30 {
+			pathSummary = "..." + pathSummary[len(pathSummary)-27:]
+		}
+	}
+
+	contentOption := "[ Content: " + contentSummary + " ]"
+	pathOption := "[ Path: " + pathSummary + " ]"
+
+	if a.isAgentsMDFocused() {
+		prefix := "> "
+		if a.agentsMDPreferPath {
+			return lipgloss.NewStyle().Foreground(hotPink).Bold(true).Render(prefix + "  " + contentOption + "\n" + prefix + "x " + pathOption)
+		}
+		return lipgloss.NewStyle().Foreground(hotPink).Bold(true).Render(prefix + "x " + contentOption + "\n" + prefix + "  " + pathOption)
+	}
+
+	if a.agentsMDPreferPath {
+		return lipgloss.NewStyle().Foreground(gray).Render("    " + contentOption + "\n  x " + pathOption)
+	}
+	return lipgloss.NewStyle().Foreground(gray).Render("  x " + contentOption + "\n    " + pathOption)
 }
 
 func (a *App) setCardFocus(index int) {
@@ -686,7 +827,7 @@ func (a *App) setCardFocus(index int) {
 }
 
 func (a *App) cycleCardFocus() {
-	total := len(a.cardInputs) + 1
+	total := len(a.cardInputs) + 2 // +1 for AgentsMD, +1 for Skills
 	next := (a.cardFocusIndex + 1) % total
 	a.setCardFocus(next)
 }
@@ -730,7 +871,7 @@ func (a *App) skillListHeight() int {
 	if a.height <= 0 {
 		return 10
 	}
-	available := a.height - 12
+	available := a.height - 18
 	if available < 3 {
 		return 3
 	}
