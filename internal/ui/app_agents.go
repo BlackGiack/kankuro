@@ -4,11 +4,13 @@ import tea "github.com/charmbracelet/bubbletea"
 
 func (a *App) updateAgentsEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		if keyMsg.String() == keyEsc {
+		switch keyMsg.String() {
+		case "ctrl+c":
+			return a, tea.Quit
+		case keyEsc:
 			a.mode = viewCardForm
 			return a, nil
-		}
-		if keyMsg.String() == "ctrl+s" {
+		case "ctrl+s":
 			a.agentsMD = a.agentsEditor.Value()
 			a.mode = viewCardForm
 			return a, nil
@@ -21,11 +23,13 @@ func (a *App) updateAgentsEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (a *App) updateAgentsPathInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		if keyMsg.String() == keyEsc {
+		switch keyMsg.String() {
+		case "ctrl+c":
+			return a, tea.Quit
+		case keyEsc:
 			a.mode = viewCardForm
 			return a, nil
-		}
-		if keyMsg.String() == keyEnter {
+		case keyEnter:
 			a.agentsMDPath = a.agentsPathInput.Value()
 			a.mode = viewCardForm
 			return a, nil

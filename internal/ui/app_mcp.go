@@ -11,6 +11,8 @@ import (
 func (a *App) updateMCPForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
+		case "ctrl+c":
+			return a, tea.Quit
 		case keyEsc:
 			a.mode = viewDashboard
 			return a, nil

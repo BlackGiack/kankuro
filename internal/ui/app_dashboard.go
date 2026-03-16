@@ -15,6 +15,8 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch keyMsg.String() {
 		case "q", "ctrl+c":
 			return a, tea.Quit
+		case keyEsc:
+			return a, nil
 		case keyTab, "shift+tab", "left", "right":
 			a.toggleDashboardPane()
 			return a, nil
