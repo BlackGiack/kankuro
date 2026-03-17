@@ -57,16 +57,28 @@ func (a *App) renderAgentsMDRow() string {
 
 func (a *App) renderSkillList() string {
 	if len(a.skills) == 0 {
-		return "(no skills found)"
+		text := "(no skills found)"
+		if a.isSkillListFocused() {
+			return lipgloss.NewStyle().Foreground(hotPink).Bold(true).Render("> " + text)
+		}
+		return text
+	}
+	var header string
+	if a.skillSearchQuery != "" {
+		header = lipgloss.NewStyle().Foreground(gray).Render("Search: "+a.skillSearchQuery) + "\n"
+	}
+	filtered := a.filteredSkills()
+	if len(filtered) == 0 {
+		return header + "(no matching skills)"
 	}
 	counts := skillNameCounts(a.skills)
-	start, end := a.skillWindow(len(a.skills))
+	start, end := a.skillWindow(len(filtered))
 	lines := make([]string, 0, end-start+skillWindowBuffer)
 	if start > 0 {
 		lines = append(lines, "  ...")
 	}
 	for i := start; i < end; i++ {
-		skill := a.skills[i]
+		skill := filtered[i]
 		prefix := "  "
 		if a.isSkillListFocused() && i == a.skillCursor {
 			prefix = "> "
@@ -81,10 +93,10 @@ func (a *App) renderSkillList() string {
 		}
 		lines = append(lines, line)
 	}
-	if end < len(a.skills) {
+	if end < len(filtered) {
 		lines = append(lines, "  ...")
 	}
-	return strings.Join(lines, "\n")
+	return header + strings.Join(lines, "\n")
 }
 
 func skillNameCounts(skills []config.Skill) map[string]int {

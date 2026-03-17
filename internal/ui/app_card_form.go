@@ -8,41 +8,61 @@ import (
 	"kankuro/internal/config"
 )
 
+const printableCharMin = 33
+const printableCharMax = 126
+
+func (a *App) filteredSkills() []config.Skill {
+	if a.skillSearchQuery == "" {
+		return a.skills
+	}
+	query := strings.ToLower(a.skillSearchQuery)
+	var filtered []config.Skill
+	for _, skill := range a.skills {
+		if strings.Contains(strings.ToLower(skill.Name), query) ||
+			strings.Contains(strings.ToLower(skill.Description), query) {
+			filtered = append(filtered, skill)
+		}
+	}
+	return filtered
+}
+
+func (a *App) handleCardFormEscape() {
+	if a.isSkillListFocused() && a.skillSearchQuery != "" {
+		a.skillSearchQuery = ""
+		a.skillCursor = 0
+		return
+	}
+	a.mode = viewDashboard
+}
+
+func (a *App) handleSkillListSearchInput(keyMsg tea.KeyMsg) bool {
+	if !a.isSkillListFocused() {
+		return false
+	}
+	if keyMsg.String() == keyBackspace && len(a.skillSearchQuery) > 0 {
+		a.skillSearchQuery = a.skillSearchQuery[:len(a.skillSearchQuery)-1]
+		a.skillCursor = 0
+		return true
+	}
+	if len(keyMsg.Runes) > 0 {
+		ch := keyMsg.Runes[0]
+		if ch >= printableCharMin && ch <= printableCharMax {
+			a.skillSearchQuery += string(ch)
+			a.skillCursor = 0
+			return true
+		}
+	}
+	return false
+}
+
 func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if a.cardFocusIndex < len(a.cardInputs) && !a.cardInputs[a.cardFocusIndex].Focused() {
 		a.setCardFocus(a.cardFocusIndex)
 	}
 
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.String() {
-		case keyCtrlC:
-			return a, tea.Quit
-		case keyEsc:
-			a.mode = viewDashboard
-			return a, nil
-		case keyTab:
-			a.cycleCardFocus()
-			return a, nil
-		case "up", "k":
-			return a.handleCardFormNav(false)
-		case "down", "j":
-			return a.handleCardFormNav(true)
-		case " ":
-			return a.handleCardFormToggle()
-		case keyEnter:
-			return a.handleCardFormSubmit()
-		case "ctrl+e":
-			if a.isSkillListFocused() {
-				sources, err := a.repo.ListSkillSources()
-				if err != nil {
-					a.err = err
-					return a, nil
-				}
-				a.skillSources = sources
-				a.skillSourceCursor = 0
-				a.mode = viewSkillSources
-				return a, nil
-			}
+		if cmd, handled := a.handleCardFormKeyMsg(keyMsg); handled {
+			return a, cmd
 		}
 	}
 	cmds := make([]tea.Cmd, len(a.cardInputs))
@@ -52,28 +72,70 @@ func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, tea.Batch(cmds...)
 }
 
-func (a *App) handleCardFormNav(down bool) (tea.Model, tea.Cmd) {
+func (a *App) handleCardFormKeyMsg(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
+	switch keyMsg.String() {
+	case keyCtrlC:
+		return tea.Quit, true
+	case keyEsc:
+		a.handleCardFormEscape()
+		return nil, true
+	case keyTab:
+		a.skillSearchQuery = ""
+		a.cycleCardFocus()
+		return nil, true
+	case "up", "k":
+		a.handleCardFormNav(false)
+		return nil, true
+	case "down", "j":
+		a.handleCardFormNav(true)
+		return nil, true
+	case " ":
+		if a.isSkillListFocused() {
+			a.handleCardFormToggle()
+			return nil, true
+		}
+	case keyEnter:
+		a.handleCardFormSubmit()
+		return nil, true
+	case "ctrl+e":
+		if a.isSkillListFocused() {
+			a.openSkillSources()
+			return nil, true
+		}
+	}
+	return nil, a.handleSkillListSearchInput(keyMsg)
+}
+
+func (a *App) openSkillSources() {
+	sources, err := a.repo.ListSkillSources()
+	if err != nil {
+		a.err = err
+		return
+	}
+	a.skillSources = sources
+	a.skillSourceCursor = 0
+	a.mode = viewSkillSources
+}
+
+func (a *App) handleCardFormNav(down bool) {
 	if a.isSkillListFocused() {
+		filtered := a.filteredSkills()
 		if down {
-			if a.skillCursor < len(a.skills)-1 {
+			if a.skillCursor < len(filtered)-1 {
 				a.skillCursor++
 			}
 		} else if a.skillCursor > 0 {
 			a.skillCursor--
 		}
-		return a, nil
 	}
 	if a.isAgentsMDFocused() {
 		a.agentsMDPreferPath = down
-		return a, nil
 	}
-	return a, nil
 }
 
-func (a *App) handleCardFormToggle() (tea.Model, tea.Cmd) {
+func (a *App) handleCardFormToggle() {
 	if a.isSkillListFocused() {
 		a.toggleSelectedSkill()
-		return a, nil
 	}
 	if a.isAgentsMDFocused() {
 		if a.agentsMDPreferPath {
@@ -84,12 +146,10 @@ func (a *App) handleCardFormToggle() (tea.Model, tea.Cmd) {
 			a.agentsEditor.Focus()
 			a.mode = viewAgentsEditor
 		}
-		return a, nil
 	}
-	return a, nil
 }
 
-func (a *App) handleCardFormSubmit() (tea.Model, tea.Cmd) {
+func (a *App) handleCardFormSubmit() {
 	card := config.IDCard{
 		ID:                 a.editingCardID,
 		Name:               strings.TrimSpace(a.cardInputs[0].Value()),
@@ -111,13 +171,11 @@ func (a *App) handleCardFormSubmit() (tea.Model, tea.Cmd) {
 	}
 	if err != nil {
 		a.err = err
-		return a, nil
 	}
 	a.upsertCardLocal(card)
 	a.refreshCardList()
 	a.editingCardID = ""
 	a.mode = viewDashboard
-	return a, nil
 }
 
 func (a *App) resetCardForm() {
@@ -132,6 +190,7 @@ func (a *App) resetCardForm() {
 	a.agentsPathInput.SetValue("")
 	a.selectedSkillIDs = make(map[string]bool)
 	a.skillCursor = 0
+	a.skillSearchQuery = ""
 	a.cardFocusIndex = 0
 	a.setCardFocus(a.cardFocusIndex)
 }
@@ -180,10 +239,11 @@ func (a *App) cycleCardFocus() {
 }
 
 func (a *App) toggleSelectedSkill() {
-	if len(a.skills) == 0 || a.skillCursor < 0 || a.skillCursor >= len(a.skills) {
+	filtered := a.filteredSkills()
+	if len(filtered) == 0 || a.skillCursor < 0 || a.skillCursor >= len(filtered) {
 		return
 	}
-	id := a.skills[a.skillCursor].ID
+	id := filtered[a.skillCursor].ID
 	if a.selectedSkillIDs[id] {
 		delete(a.selectedSkillIDs, id)
 		return

@@ -32,7 +32,7 @@ func (a *App) View() string {
 			"Face Style: " + a.cardInputs[4].View() + "\n" +
 			"Use Tmp Workspace: " + a.cardInputs[5].View() + "\n\n" +
 			"AGENTS.md:\n" + a.renderAgentsMDRow() + "\n\n" +
-			"Skills (space=toggle, arrows=scroll, ctrl+e=sources):\n" + a.renderSkillList() + "\n\n" +
+			"Skills (type=search, space=toggle, ctrl+e=sources):\n" + a.renderSkillList() + "\n\n" +
 			"Enter=save Tab=next Esc=cancel"
 	case viewSkillSources:
 		return errLine + titleStyle.Render("Manage Skill Sources") + "\n\n" +

@@ -56,10 +56,11 @@ const (
 
 	truncateLength = 28
 
-	keyEsc   = "esc"
-	keyEnter = "enter"
-	keyTab   = "tab"
-	keyCtrlC = "ctrl+c"
+	keyEsc       = "esc"
+	keyEnter     = "enter"
+	keyTab       = "tab"
+	keyCtrlC     = "ctrl+c"
+	keyBackspace = "backspace"
 
 	faceNeutral = "neutral"
 
@@ -116,6 +117,7 @@ type App struct {
 	cardFocusIndex   int
 	skillCursor      int
 	selectedSkillIDs map[string]bool
+	skillSearchQuery string
 
 	editingCardID   string
 	activeSessionID string
