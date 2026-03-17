@@ -9,7 +9,7 @@ import (
 func (a *App) updateSwitchAgent(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
-		case "q", "ctrl+c":
+		case "q", keyCtrlC:
 			return a, tea.Quit
 		case keyEsc:
 			a.switchSessionID = ""
@@ -42,7 +42,7 @@ func (a *App) updateSwitchAgent(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a *App) updateDeleteConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
-		case "q", "ctrl+c":
+		case "q", keyCtrlC:
 			return a, tea.Quit
 		case "y", "Y":
 			if err := a.session.Remove(a.pendingDeleteID); err != nil {

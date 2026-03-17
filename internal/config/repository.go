@@ -21,6 +21,7 @@ type Repository interface {
 	DeleteIDCard(id string) error
 
 	ListSkillSources() ([]string, error)
+	SaveSkillSources(paths []string) error
 	SyncSkillsFromSources() error
 	ListSkills() ([]Skill, error)
 	UpsertSkill(skill Skill) (Skill, error)

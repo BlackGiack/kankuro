@@ -22,6 +22,8 @@ const (
 	viewSwitchAgent
 	viewAgentsEditor
 	viewAgentsPathInput
+	viewSkillSources
+	viewSkillSourceForm
 )
 
 const (
@@ -57,6 +59,7 @@ const (
 	keyEsc   = "esc"
 	keyEnter = "enter"
 	keyTab   = "tab"
+	keyCtrlC = "ctrl+c"
 
 	faceNeutral = "neutral"
 
@@ -104,6 +107,11 @@ type App struct {
 	agentsMDPath       string
 	agentsMDPreferPath bool
 	agentsPathInput    textinput.Model
+
+	skillSources            []string
+	skillSourceCursor       int
+	skillSourceInput        textinput.Model
+	editingSkillSourceIndex int
 
 	cardFocusIndex   int
 	skillCursor      int

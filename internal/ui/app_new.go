@@ -117,6 +117,10 @@ func (a *App) initInputs() {
 	a.agentsPathInput = textinput.New()
 	a.agentsPathInput.Placeholder = "Path to AGENTS.md file..."
 	a.agentsPathInput.Width = inputWidthDefault
+
+	a.skillSourceInput = textinput.New()
+	a.skillSourceInput.Placeholder = "Path to skill source directory..."
+	a.skillSourceInput.Width = inputWidthDefault
 }
 
 // Init starts periodic refresh and textinput blink commands.

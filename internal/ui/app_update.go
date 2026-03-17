@@ -46,6 +46,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.updateAgentsEditor(msg)
 	case viewAgentsPathInput:
 		return a.updateAgentsPathInput(msg)
+	case viewSkillSources:
+		return a.updateSkillSources(msg)
+	case viewSkillSourceForm:
+		return a.updateSkillSourceForm(msg)
 	case viewDashboard:
 		return a.updateDashboard(msg)
 	default:

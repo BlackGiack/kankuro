@@ -82,3 +82,20 @@ func SkillIDFromSource(path string) string {
 	sum := sha256.Sum256([]byte(path))
 	return hex.EncodeToString(sum[:])
 }
+
+// SaveSkillSources writes the list of skill sources to disk.
+func (r *FileRepository) SaveSkillSources(paths []string) error {
+	if paths == nil {
+		paths = []string{}
+	}
+	return r.WriteSkillSourcesFile(SkillsSourcesFile{
+		SchemaVersion: SchemaVersion,
+		Paths:         paths,
+	})
+}
+
+// WriteSkillSourcesFile writes skill sources data using the current schema version.
+func (r *FileRepository) WriteSkillSourcesFile(f SkillsSourcesFile) error {
+	f.SchemaVersion = SchemaVersion
+	return r.WriteAtomic(filepath.Join(r.dir, SkillsSourcesFilename), f)
+}

@@ -15,7 +15,7 @@ func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
-		case "ctrl+c":
+		case keyCtrlC:
 			return a, tea.Quit
 		case keyEsc:
 			a.mode = viewDashboard
@@ -31,6 +31,18 @@ func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a.handleCardFormToggle()
 		case keyEnter:
 			return a.handleCardFormSubmit()
+		case "ctrl+e":
+			if a.isSkillListFocused() {
+				sources, err := a.repo.ListSkillSources()
+				if err != nil {
+					a.err = err
+					return a, nil
+				}
+				a.skillSources = sources
+				a.skillSourceCursor = 0
+				a.mode = viewSkillSources
+				return a, nil
+			}
 		}
 	}
 	cmds := make([]tea.Cmd, len(a.cardInputs))

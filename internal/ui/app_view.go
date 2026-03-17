@@ -32,8 +32,20 @@ func (a *App) View() string {
 			"Face Style: " + a.cardInputs[4].View() + "\n" +
 			"Use Tmp Workspace: " + a.cardInputs[5].View() + "\n\n" +
 			"AGENTS.md:\n" + a.renderAgentsMDRow() + "\n\n" +
-			"Skills (space=toggle, arrows=scroll):\n" + a.renderSkillList() + "\n\n" +
+			"Skills (space=toggle, arrows=scroll, ctrl+e=sources):\n" + a.renderSkillList() + "\n\n" +
 			"Enter=save Tab=next Esc=cancel"
+	case viewSkillSources:
+		return errLine + titleStyle.Render("Manage Skill Sources") + "\n\n" +
+			"Defined sources:\n" + a.renderSkillSourcesList() + "\n\n" +
+			"Enter/Space=edit n=new d=delete Esc=back"
+	case viewSkillSourceForm:
+		title := "New Skill Source"
+		if a.editingSkillSourceIndex != -1 {
+			title = "Edit Skill Source"
+		}
+		return errLine + titleStyle.Render(title) + "\n\n" +
+			"Path: " + a.skillSourceInput.View() + "\n\n" +
+			"Enter=save Esc=cancel"
 	case viewAgentsEditor:
 		return errLine + titleStyle.Render("Editing AGENTS.md") + "\n\n" +
 			a.agentsEditor.View() + "\n\n" +
