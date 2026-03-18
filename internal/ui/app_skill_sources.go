@@ -15,11 +15,11 @@ func (a *App) updateSkillSources(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch keyMsg.String() {
-	case "up", "k":
+	case "up":
 		if a.skillSourceCursor > 0 {
 			a.skillSourceCursor--
 		}
-	case "down", "j":
+	case "down":
 		if a.skillSourceCursor < len(a.skillSources) { // +1 for "New"
 			a.skillSourceCursor++
 		}

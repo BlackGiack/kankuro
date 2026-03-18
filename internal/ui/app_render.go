@@ -14,8 +14,7 @@ import (
 func (a *App) renderAgentsMDRow() string {
 	contentSummary := "empty"
 	if a.agentsMD != "" {
-		lines := strings.Split(a.agentsMD, `
-`)
+		lines := strings.Split(a.agentsMD, `\n`)
 		contentSummary = lines[0]
 		if len(lines) > 1 || len(contentSummary) > contentSummaryLimit {
 			if len(contentSummary) > contentSummaryLimit {

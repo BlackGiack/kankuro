@@ -30,10 +30,11 @@ An active or persisted instance of an ID Card.
     * **Standard:** Runs in a specific directory (`$PWD` or absolute path).
     * **Temporary:** Clones the original workspace into a disposable folder (via `KANKURO_TMP_DIR` or `~/.config/kankuro/tmp/`). Changes made by the agent are isolated from the original source but persist across session relaunches.
 * **Detachment:** Users can "detach" from a session terminal using a global hotkey (e.g., `Ctrl+K`) to return to the dashboard without stopping the agent.
+* **Switch:** Users can switch ID cards keeping the same session.
 
-### 1.3 The Inbox (Ping Stack)
+### 1.3 The Waiting status
 
-A FIFO (First-In-First-Out) notification system. When an agent stops to wait for user input, it "pings" KANKURO. These pings accumulate in a persistent notification stack for the user to address.
+KANKURO detects when the agents are stopped either because they are done or because they are waiting for an input. When this happens it lets the user know by highlighting the session and replacing the base face with the neutral one.
 
 ---
 
@@ -48,6 +49,7 @@ A FIFO (First-In-First-Out) notification system. When an agent stops to wait for
   /ui/                 # Bubble Tea TUI components
   /config/             # YAML persistence for ID Cards
   /session/            # Sub-process management and JSON persistence
+  /ascii/              # Ascii art package
 ```
 
 ### 2.2 The `AgentDriver` Interface
@@ -63,10 +65,10 @@ type AgentDriver interface {
     // Configuration
     SetSkills(skills []Skill) error // Anthropic Open Standard
     SetMcps(mcps []McpServer) error // Model Context Protocol
+    SetModel(model string) []string
 
     // I/O
-    SendInput(data string) error
-    CaptureOutput() (chan []byte, error) // Stream raw PTY output chunks
+    SendInput(data string) error // Not implemented, in prevision of automations
     
     GetStatus() SessionStatus
 }

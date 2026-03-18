@@ -83,14 +83,14 @@ func (a *App) handleCardFormKeyMsg(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		a.skillSearchQuery = ""
 		a.cycleCardFocus()
 		return nil, true
-	case "up", "k":
+	case "up":
 		a.handleCardFormNav(false)
 		return nil, true
-	case "down", "j":
+	case "down":
 		a.handleCardFormNav(true)
 		return nil, true
 	case " ":
-		if a.isSkillListFocused() {
+		if a.isSkillListFocused() || a.isAgentsMDFocused() {
 			a.handleCardFormToggle()
 			return nil, true
 		}
