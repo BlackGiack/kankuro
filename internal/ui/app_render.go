@@ -152,15 +152,11 @@ func renderCardItem(card config.IDCard, skills []config.Skill, selected bool) st
 	}
 	skillsLine := lipgloss.JoinHorizontal(lipgloss.Top, pills...)
 
-	style := card.FaceStyle
-	if style == "" {
-		style = faceNeutral
-	}
-	face := characters.NewFace(ascii.WithStyle(style))
-	w, h := face.Bounds()
-	canvas := ascii.NewCanvas(faceBoxWidth, faceBoxHeight)
-	face.Render(canvas, (faceBoxWidth-w)/2, (faceBoxHeight-h)/2) //nolint:mnd // Centering logic.
-	faceStr := canvas.String()
+	puppet := characters.NewPuppet()
+	w, h := puppet.Bounds()
+	canvas := ascii.NewCanvas(w, h)
+	puppet.Render(canvas, 0, 0)
+	puppetStr := canvas.String()
 
 	driverLine := fmt.Sprintf("%s | %s", card.Driver, card.Model)
 
@@ -191,9 +187,12 @@ func renderCardItem(card config.IDCard, skills []config.Skill, selected bool) st
 	faceBox := faceBoxStyle.
 		Width(faceBoxWidth).
 		Height(faceBoxHeight).
+		Align(lipgloss.Center, lipgloss.Center).
+		Border(lipgloss.NormalBorder(), false, false, false, true).
+		BorderForeground(purple).
 		Background(faceBg).
 		Foreground(white).
-		Render(faceStr)
+		Render(puppetStr)
 
 	content := lipgloss.JoinHorizontal(lipgloss.Top, infoBox, faceBox)
 
