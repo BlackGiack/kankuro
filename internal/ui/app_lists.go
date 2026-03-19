@@ -14,17 +14,28 @@ import (
 func newCardDelegate() list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
 	d.SetHeight(cardDelegateHeight)
-	d.Styles.NormalTitle = d.Styles.NormalTitle.Foreground(purple)
+	d.Styles.NormalTitle = d.Styles.NormalTitle.Foreground(primaryColor)
 	d.Styles.NormalDesc = d.Styles.NormalDesc.Foreground(gray)
-	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
-		Foreground(hotPink).
-		BorderForeground(purple)
-	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
-		Foreground(darkPurple).
-		BorderForeground(purple)
-	d.Styles.DimmedTitle = d.Styles.DimmedTitle.Foreground(darkPurple)
-	d.Styles.DimmedDesc = d.Styles.DimmedDesc.Foreground(lipgloss.Color("236"))
+
+	// Reset selected styles to avoid double borders/backgrounds
+	d.Styles.SelectedTitle = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, false, false, false)
+	d.Styles.SelectedDesc = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, false, false, false)
+
+	d.Styles.DimmedTitle = d.Styles.DimmedTitle.Foreground(gray)
+	d.Styles.DimmedDesc = d.Styles.DimmedDesc.Foreground(gray)
 	return d
+}
+
+func (a *App) updateCardSelection() {
+	items := a.cardsList.Items()
+	cursor := a.cardsList.Cursor()
+	for i := range items {
+		if c, ok := items[i].(cardItem); ok {
+			c.selected = (i == cursor)
+			items[i] = c
+		}
+	}
+	a.cardsList.SetItems(items)
 }
 
 func (a *App) resize() {
@@ -47,6 +58,7 @@ func (a *App) refreshLists() {
 func (a *App) refreshCardList() {
 	items := toCardItems(a.cards, a.skills)
 	a.cardsList.SetItems(items)
+	a.updateCardSelection()
 }
 
 func (a *App) refreshSessionList() {

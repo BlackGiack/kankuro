@@ -65,7 +65,7 @@ const (
 	faceNeutral = "neutral"
 
 	sessionsDelegateHeight = 4
-	cardDelegateHeight     = 7
+	cardDelegateHeight     = 8
 
 	pathTruncateLimit = 25
 	pathTruncateKeep  = 22
@@ -76,13 +76,14 @@ const (
 	cardInputTotalOffset = 2
 	skillWindowBuffer    = 2
 
-	maxSkillsSummary = 3
+	pillTextLimit = 10
+	headerPadding = 2
 
 	infoBoxWidth  = 30
-	infoBoxHeight = 3
-	faceBoxWidth  = 7
-	faceBoxHeight = 3
-	cardItemWidth = 40
+	infoBoxHeight = 4
+	faceBoxWidth  = 11
+	faceBoxHeight = 5
+	cardItemWidth = 42
 )
 
 type App struct {

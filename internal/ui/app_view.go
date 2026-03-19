@@ -68,28 +68,70 @@ func (a *App) View() string {
 			a.switchList.View() + "\n" +
 			"Enter=switch Esc=cancel"
 	case viewDashboard:
-		leftStyle := lipgloss.NewStyle().Width(max(switchListMinWidth, a.width-cardsListPadding)).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(normalBorderColor)
-		rightStyle := lipgloss.NewStyle().Width(sessionListWidth).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(normalBorderColor)
-
-		if a.focusedPane == paneCards {
-			leftStyle = leftStyle.BorderForeground(focusedBorderColor)
-		} else {
-			rightStyle = rightStyle.BorderForeground(focusedBorderColor)
-		}
-
-		left := a.cardsList.View()
-		right := a.sessionsList.View()
-		body := lipgloss.JoinHorizontal(lipgloss.Top,
-			leftStyle.Render(left),
-			rightStyle.Render(right),
-		)
-		return errLine + titleStyle.Render("KANKURO Dashboard") + "\n" + body + "\n" +
-			"Tab=switch Enter=launch/attach x=kill Del=remove terminated s=switch n=new e=edit m=mcp q=quit"
+		return errLine + a.renderDashboard()
 	default:
 		return "Unknown view"
 	}
+}
+
+func (a *App) renderDashboard() string {
+	const borderWidth = 2
+
+	leftStyle := lipgloss.NewStyle().Width(max(switchListMinWidth, a.width-cardsListPadding)).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(normalBorderColor)
+	rightStyle := lipgloss.NewStyle().Width(sessionListWidth).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(normalBorderColor)
+
+	if a.focusedPane == paneCards {
+		leftStyle = leftStyle.BorderForeground(focusedBorderColor)
+	} else {
+		rightStyle = rightStyle.BorderForeground(focusedBorderColor)
+	}
+
+	left := a.cardsList.View()
+	var right string
+	if len(a.sessions) == 0 {
+		crowASCII := `
+      ,   ,
+     / \_/ \
+    ( o . o )
+     \  ^  /
+      |||||
+
+   The puppets
+   are resting
+`
+		right = lipgloss.NewStyle().
+			Width(sessionListWidth-borderWidth).
+			Height(a.sessionsList.Height()).
+			Align(lipgloss.Center, lipgloss.Center).
+			Foreground(gray).
+			Render(crowASCII)
+	} else {
+		right = a.sessionsList.View()
+	}
+
+	body := lipgloss.JoinHorizontal(lipgloss.Top,
+		leftStyle.Render(left),
+		rightStyle.Render(right),
+	)
+
+	header := lipgloss.NewStyle().
+		Foreground(white).
+		Background(primaryColor).
+		Padding(0, headerPadding).
+		MarginBottom(1).
+		Bold(true).
+		Render("K A N K U R O")
+
+	footer := lipgloss.JoinHorizontal(lipgloss.Top,
+		lipgloss.NewStyle().Foreground(gray).Render("[Nav] Tab "),
+		lipgloss.NewStyle().Foreground(gray).Render(" [Card] Enter=Launch n=New e=Edit m=MCP "),
+		lipgloss.NewStyle().Foreground(gray).Render(" [Session] Enter=Attach x=Kill Del=Remove "),
+		lipgloss.NewStyle().Foreground(gray).Render(" [Global] q=Quit"),
+	)
+
+	return header + "\n" + body + "\n" + footer
 }

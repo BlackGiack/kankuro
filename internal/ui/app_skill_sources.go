@@ -122,7 +122,7 @@ func (a *App) renderSkillSourcesList() string {
 		}
 		line := fmt.Sprintf("%s%s", prefix, src)
 		if i == a.skillSourceCursor {
-			line = lipgloss.NewStyle().Foreground(hotPink).Render(line)
+			line = lipgloss.NewStyle().Foreground(highlightColor).Render(line)
 		}
 		lines = append(lines, line)
 	}
@@ -134,7 +134,7 @@ func (a *App) renderSkillSourcesList() string {
 	}
 	line := fmt.Sprintf("%s[ New Source ]", prefix)
 	if a.skillSourceCursor == len(a.skillSources) {
-		line = lipgloss.NewStyle().Foreground(hotPink).Render(line)
+		line = lipgloss.NewStyle().Foreground(highlightColor).Render(line)
 	}
 	lines = append(lines, line)
 

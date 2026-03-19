@@ -17,7 +17,7 @@ type sessionListItem struct {
 
 func (i sessionListItem) Title() string {
 	if i.status == session.StatusWaiting {
-		return lipgloss.NewStyle().Foreground(hotPink).Bold(true).Render(i.title)
+		return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(i.title)
 	}
 	return i.title
 }
@@ -25,7 +25,7 @@ func (i sessionListItem) Title() string {
 func (i sessionListItem) Description() string {
 	baseDesc := i.desc
 	if i.status == session.StatusWaiting {
-		baseDesc = lipgloss.NewStyle().Foreground(hotPink).Render(i.desc)
+		baseDesc = lipgloss.NewStyle().Foreground(highlightColor).Render(i.desc)
 	}
 	if i.sessionDetail != "" {
 		return baseDesc + "\n" + i.sessionDetail
@@ -36,11 +36,12 @@ func (i sessionListItem) Description() string {
 func (i sessionListItem) FilterValue() string { return i.title }
 
 type cardItem struct {
-	card   config.IDCard
-	skills []config.Skill
-	status session.Status
+	card     config.IDCard
+	skills   []config.Skill
+	status   session.Status
+	selected bool
 }
 
 func (i cardItem) Title() string       { return "" }
-func (i cardItem) Description() string { return renderCardItem(i.card, i.skills) }
+func (i cardItem) Description() string { return renderCardItem(i.card, i.skills, i.selected) }
 func (i cardItem) FilterValue() string { return i.card.Name }

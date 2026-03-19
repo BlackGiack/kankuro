@@ -100,7 +100,7 @@ func (e *attachExec) Run() error {
 
 func (e *attachExec) printHeader() error {
 	msg := fmt.Sprintf("\r\n[Attached to session %s. Ctrl+K detaches.]\r\n", e.sessionID)
-	styledMsg := lipgloss.NewStyle().Foreground(purple).Bold(true).Render(msg)
+	styledMsg := lipgloss.NewStyle().Foreground(primaryColor).Bold(true).Render(msg)
 	if _, err := fmt.Fprint(e.stdout, styledMsg); err != nil {
 		return err
 	}

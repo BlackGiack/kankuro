@@ -39,11 +39,11 @@ func (a *App) renderAgentsMDRow() string {
 	if a.isAgentsMDFocused() {
 		prefix := "> "
 		if a.agentsMDPreferPath {
-			return lipgloss.NewStyle().Foreground(hotPink).Bold(true).Render(
+			return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(
 				prefix + "  " + contentOption + "\n" + prefix + "x " + pathOption,
 			)
 		}
-		return lipgloss.NewStyle().Foreground(hotPink).Bold(true).Render(
+		return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(
 			prefix + "x " + contentOption + "\n" + prefix + "  " + pathOption,
 		)
 	}
@@ -58,7 +58,7 @@ func (a *App) renderSkillList() string {
 	if len(a.skills) == 0 {
 		text := "(no skills found)"
 		if a.isSkillListFocused() {
-			return lipgloss.NewStyle().Foreground(hotPink).Bold(true).Render("> " + text)
+			return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render("> " + text)
 		}
 		return text
 	}
@@ -88,7 +88,7 @@ func (a *App) renderSkillList() string {
 		}
 		line := fmt.Sprintf("%s[%s] %s", prefix, mark, skillLabel(skill, counts))
 		if a.isSkillListFocused() && i == a.skillCursor {
-			line = lipgloss.NewStyle().Foreground(hotPink).Render(line)
+			line = lipgloss.NewStyle().Foreground(highlightColor).Render(line)
 		}
 		lines = append(lines, line)
 	}
@@ -113,42 +113,69 @@ func skillLabel(skill config.Skill, counts map[string]int) string {
 	return skill.Name
 }
 
-func renderCardItem(card config.IDCard, skills []config.Skill) string {
+func renderCardItem(card config.IDCard, skills []config.Skill, selected bool) string {
 	skillNames := make([]string, 0, len(card.SkillIDs))
-	selected := make(map[string]struct{})
+	selectedSkills := make(map[string]struct{})
 	for _, id := range card.SkillIDs {
-		selected[id] = struct{}{}
+		selectedSkills[id] = struct{}{}
 	}
 	for _, skill := range skills {
-		if _, ok := selected[skill.ID]; ok {
+		if _, ok := selectedSkills[skill.ID]; ok {
 			skillNames = append(skillNames, skill.Name)
 		}
 	}
 
-	var skillsLine string
-	switch {
-	case len(skillNames) == 0:
-		skillsLine = "(none)"
-	case len(skillNames) > maxSkillsSummary:
-		skillsLine = strings.Join(skillNames[:maxSkillsSummary], ", ") + "..."
-	default:
-		skillsLine = strings.Join(skillNames, ", ")
+	pillBg := highlightColor
+	if selected {
+		pillBg = white
 	}
+	pillFg := white
+	if selected {
+		pillFg = primaryColor
+	}
+
+	var pills []string
+	if len(skillNames) > 0 {
+		for _, s := range skillNames {
+			if len(s) > pillTextLimit {
+				s = s[:pillTextLimit-1] + "."
+			}
+			pills = append(pills, lipgloss.NewStyle().
+				Foreground(pillFg).
+				Background(pillBg).
+				Padding(0, 1).
+				MarginRight(1).
+				Render(s))
+		}
+	} else {
+		pills = append(pills, lipgloss.NewStyle().Foreground(gray).Render("(no skills)"))
+	}
+	skillsLine := lipgloss.JoinHorizontal(lipgloss.Top, pills...)
 
 	style := card.FaceStyle
 	if style == "" {
 		style = faceNeutral
 	}
 	face := characters.NewFace(ascii.WithStyle(style))
-	w, _ := face.Bounds()
-	canvas := ascii.NewCanvas(w, 1)
-	face.Render(canvas, 0, 0)
+	w, h := face.Bounds()
+	canvas := ascii.NewCanvas(faceBoxWidth, faceBoxHeight)
+	face.Render(canvas, (faceBoxWidth-w)/2, (faceBoxHeight-h)/2) //nolint:mnd // Centering logic.
 	faceStr := canvas.String()
 
+	driverLine := fmt.Sprintf("%s | %s", card.Driver, card.Model)
+
+	titleStyleLocal := titleStyle
+	descStyleLocal := lipgloss.NewStyle().Foreground(gray)
+
+	if selected {
+		titleStyleLocal = titleStyleLocal.Foreground(highlightColor)
+	}
+
 	infoLines := []string{
-		truncate(card.Name, truncateLength),
-		truncate(fmt.Sprintf("%s | %s", card.Driver, card.Model), truncateLength),
-		truncate(skillsLine, truncateLength),
+		titleStyleLocal.Render(truncate(card.Name, truncateLength)),
+		descStyleLocal.Render(truncate(driverLine, truncateLength)),
+		"",
+		skillsLine,
 	}
 
 	infoBox := lipgloss.NewStyle().
@@ -156,19 +183,28 @@ func renderCardItem(card config.IDCard, skills []config.Skill) string {
 		Height(infoBoxHeight).
 		Render(strings.Join(infoLines, "\n"))
 
-	faceBox := lipgloss.NewStyle().
+	faceBg := deepCharcoal
+	if selected {
+		faceBg = primaryColor
+	}
+
+	faceBox := faceBoxStyle.
 		Width(faceBoxWidth).
 		Height(faceBoxHeight).
-		Align(lipgloss.Center, lipgloss.Center).
-		Border(lipgloss.NormalBorder(), false, false, false, true).
-		BorderForeground(purple).
+		Background(faceBg).
+		Foreground(white).
 		Render(faceStr)
 
 	content := lipgloss.JoinHorizontal(lipgloss.Top, infoBox, faceBox)
 
+	borderColor := normalBorderColor
+	if selected {
+		borderColor = primaryColor
+	}
+
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(purple).
+		BorderForeground(borderColor).
 		Width(cardItemWidth).
 		Render(content)
 }

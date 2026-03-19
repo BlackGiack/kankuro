@@ -59,6 +59,7 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	a.cardsList, cmd = a.cardsList.Update(msg)
+	a.updateCardSelection()
 	return a, cmd
 }
 

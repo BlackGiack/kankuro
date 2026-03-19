@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
@@ -52,16 +51,18 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 func (a *App) initLists() {
 	sessionsDelegate := list.NewDefaultDelegate()
 	sessionsDelegate.SetHeight(sessionsDelegateHeight)
-	sessionsDelegate.Styles.NormalTitle = sessionsDelegate.Styles.NormalTitle.Foreground(purple)
+	sessionsDelegate.Styles.NormalTitle = sessionsDelegate.Styles.NormalTitle.Foreground(primaryColor)
 	sessionsDelegate.Styles.NormalDesc = sessionsDelegate.Styles.NormalDesc.Foreground(gray)
 	sessionsDelegate.Styles.SelectedTitle = sessionsDelegate.Styles.SelectedTitle.
-		Foreground(hotPink).
-		BorderForeground(purple)
+		Foreground(highlightColor).
+		BorderForeground(primaryColor).
+		UnsetBackground()
 	sessionsDelegate.Styles.SelectedDesc = sessionsDelegate.Styles.SelectedDesc.
-		Foreground(darkPurple).
-		BorderForeground(purple)
-	sessionsDelegate.Styles.DimmedTitle = sessionsDelegate.Styles.DimmedTitle.Foreground(darkPurple)
-	sessionsDelegate.Styles.DimmedDesc = sessionsDelegate.Styles.DimmedDesc.Foreground(lipgloss.Color("236"))
+		Foreground(highlightColor).
+		BorderForeground(primaryColor).
+		UnsetBackground()
+	sessionsDelegate.Styles.DimmedTitle = sessionsDelegate.Styles.DimmedTitle.Foreground(gray)
+	sessionsDelegate.Styles.DimmedDesc = sessionsDelegate.Styles.DimmedDesc.Foreground(gray)
 
 	cardsDelegate := newCardDelegate()
 
