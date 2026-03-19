@@ -126,17 +126,10 @@ func renderCardItem(card config.IDCard, skills []config.Skill, selected bool) st
 	}
 
 	pillBg := highlightColor
-	if selected {
-		pillBg = white
-	}
 	pillFg := white
-	if selected {
-		pillFg = primaryColor
-	}
-
 	var pills []string
 	if len(skillNames) > 0 {
-		for _, s := range skillNames {
+		for _, s := range skillNames[:maxPillsShown] {
 			if len(s) > pillTextLimit {
 				s = s[:pillTextLimit-1] + "."
 			}
@@ -189,7 +182,6 @@ func renderCardItem(card config.IDCard, skills []config.Skill, selected bool) st
 		Height(faceBoxHeight).
 		Align(lipgloss.Center, lipgloss.Center).
 		Border(lipgloss.NormalBorder(), false, false, false, true).
-		BorderForeground(purple).
 		Background(faceBg).
 		Foreground(white).
 		Render(puppetStr)

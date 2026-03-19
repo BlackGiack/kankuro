@@ -76,6 +76,7 @@ const (
 	cardInputTotalOffset = 2
 	skillWindowBuffer    = 2
 
+	maxPillsShown = 4
 	pillTextLimit = 10
 	headerPadding = 2
 

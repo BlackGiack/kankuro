@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/lipgloss"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
@@ -17,9 +16,15 @@ func newCardDelegate() list.DefaultDelegate {
 	d.Styles.NormalTitle = d.Styles.NormalTitle.Foreground(primaryColor)
 	d.Styles.NormalDesc = d.Styles.NormalDesc.Foreground(gray)
 
-	// Reset selected styles to avoid double borders/backgrounds
-	d.Styles.SelectedTitle = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, false, false, false)
-	d.Styles.SelectedDesc = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, false, false, false)
+	// Keep same base styles for selected entries but adjust border/foreground to avoid double borders/backgrounds
+	d.Styles.SelectedTitle = d.Styles.NormalTitle.
+		Foreground(highlightColor).
+		BorderForeground(primaryColor).
+		UnsetBackground()
+	d.Styles.SelectedDesc = d.Styles.NormalDesc.
+		Foreground(highlightColor).
+		BorderForeground(primaryColor).
+		UnsetBackground()
 
 	d.Styles.DimmedTitle = d.Styles.DimmedTitle.Foreground(gray)
 	d.Styles.DimmedDesc = d.Styles.DimmedDesc.Foreground(gray)

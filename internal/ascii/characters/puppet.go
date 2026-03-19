@@ -39,6 +39,6 @@ func (p *Puppet) Render(canvas *ascii.Canvas, x, y int) {
 	// Four lines, each 7 characters wide
 	canvas.DrawText(x, y+0, "  ___  ")
 	canvas.DrawText(x, y+1, " (o o) ")
-	canvas.DrawText(x, y+2, "/|_=_|\\")
-	canvas.DrawText(x, y+3, " /   \\ ")
+	canvas.DrawText(x, y+2, "/|_=_|\\") //nolint:mnd // This is drawing
+	canvas.DrawText(x, y+3, " /   \\ ") //nolint:mnd // This is drawing
 }
