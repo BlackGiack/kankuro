@@ -1,3 +1,4 @@
+// Package characters contains ascii puppet shapes used by Kankuro.
 package characters
 
 import (
