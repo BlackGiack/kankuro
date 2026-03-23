@@ -25,9 +25,13 @@ const (
 	viewAgentsPathInput
 	viewSkillSources
 	viewSkillSourceForm
+	viewPersonaSources
+	viewPersonaSourceForm
 )
 
-func puppetStyles() []string { return []string{"default", "kankuro", "cat", "strawhat"} }
+func puppetStyles() []string {
+	return []string{"default", "kankuro", "cat", "strawhat", "darth", "totoro"}
+}
 
 const (
 	paneCards dashboardPane = iota
@@ -64,6 +68,8 @@ const (
 	keyTab       = "tab"
 	keyCtrlC     = "ctrl+c"
 	keyBackspace = "backspace"
+	keyUp        = "up"
+	keyDown      = "down"
 
 	faceNeutral = "neutral"
 
@@ -78,14 +84,17 @@ const (
 
 	cardInputTotalOffset = 3
 	// Focus indices for non-text inputs in the card form.
-	cardPuppetIndex    = 5
-	cardUseTmpIndex    = 6
-	cardAgentsMDIndex  = 7
-	cardSkillListIndex = 8
-	skillWindowBuffer  = 2
+	cardPuppetIndex      = 5
+	cardUseTmpIndex      = 6
+	cardAgentsMDIndex    = 7
+	cardSkillListIndex   = 8
+	cardPersonaListIndex = 9
+	skillWindowBuffer    = 2
 
 	// default puppet style.
 	defaultPuppet = "kankuro"
+
+	skillListHeightDivisor = 2
 
 	maxPillsShown = 4
 	pillTextLimit = 10
@@ -106,6 +115,7 @@ type App struct {
 
 	cards    []config.IDCard
 	skills   []config.Skill
+	personas []config.Persona
 	mcps     []config.MCPServer
 	sessions []session.Snapshot
 
@@ -127,10 +137,18 @@ type App struct {
 	skillSourceInput        textinput.Model
 	editingSkillSourceIndex int
 
-	cardFocusIndex   int
-	skillCursor      int
-	selectedSkillIDs map[string]bool
-	skillSearchQuery string
+	personaSources            []string
+	personaSourceCursor       int
+	personaSourceInput        textinput.Model
+	editingPersonaSourceIndex int
+
+	cardFocusIndex     int
+	skillCursor        int
+	selectedSkillIDs   map[string]bool
+	skillSearchQuery   string
+	personaCursor      int
+	selectedPersonaIDs map[string]bool
+	personaSearchQuery string
 
 	editingCardID   string
 	activeSessionID string

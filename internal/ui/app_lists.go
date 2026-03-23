@@ -61,7 +61,7 @@ func (a *App) refreshLists() {
 }
 
 func (a *App) refreshCardList() {
-	items := toCardItems(a.cards, a.skills)
+	items := toCardItems(a.cards, a.skills, a.personas)
 	a.cardsList.SetItems(items)
 	a.updateCardSelection()
 }
@@ -153,23 +153,53 @@ func (a *App) skillsForCard(card config.IDCard) []config.Skill {
 	return out
 }
 
-func toCardItems(cards []config.IDCard, allSkills []config.Skill) []list.Item {
+func (a *App) personasForCard(card config.IDCard) []config.Persona {
+	if len(card.PersonaIDs) == 0 {
+		return nil
+	}
+	selected := make(map[string]struct{}, len(card.PersonaIDs))
+	for _, id := range card.PersonaIDs {
+		selected[id] = struct{}{}
+	}
+	out := make([]config.Persona, 0, len(card.PersonaIDs))
+	for _, p := range a.personas {
+		if _, ok := selected[p.ID]; ok {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func toCardItems(cards []config.IDCard, allSkills []config.Skill, allPersonas []config.Persona) []list.Item {
 	items := make([]list.Item, 0, len(cards))
 	for _, c := range cards {
 		skillList := make([]config.Skill, 0, len(c.SkillIDs))
-		selected := make(map[string]struct{})
+		selectedSkills := make(map[string]struct{})
 		for _, id := range c.SkillIDs {
-			selected[id] = struct{}{}
+			selectedSkills[id] = struct{}{}
 		}
 		for _, skill := range allSkills {
-			if _, ok := selected[skill.ID]; ok {
+			if _, ok := selectedSkills[skill.ID]; ok {
 				skillList = append(skillList, skill)
 			}
 		}
+
+		personaList := make([]config.Persona, 0, len(c.PersonaIDs))
+		selectedPersonas := make(map[string]struct{})
+		for _, id := range c.PersonaIDs {
+			selectedPersonas[id] = struct{}{}
+		}
+		for _, p := range allPersonas {
+			if _, ok := selectedPersonas[p.ID]; ok {
+				personaList = append(personaList, p)
+			}
+		}
+
 		items = append(items, cardItem{
-			card:   c,
-			skills: skillList,
-			status: session.StatusRunning,
+			card:     c,
+			skills:   skillList,
+			personas: personaList,
+			status:   session.StatusRunning,
 		})
 	}
 	return items

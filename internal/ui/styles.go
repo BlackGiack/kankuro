@@ -13,9 +13,10 @@ var (
 	gray         = lipgloss.Color("240")
 
 	// Semantic Colors.
-	primaryColor   = richPurple
-	secondaryColor = crimsonRed
-	highlightColor = tealCyan
+	primaryColor     = richPurple
+	secondaryColor   = crimsonRed
+	highlightColor   = tealCyan
+	personaPillColor = crimsonRed
 
 	// Text Styles.
 	titleStyle = lipgloss.NewStyle().

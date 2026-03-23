@@ -38,7 +38,7 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	}
 
 	// 1. Launch
-	sid, err := sm.Launch(card, nil)
+	sid, err := sm.Launch(card, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	}
 
 	// 5. Relaunch
-	if errRelaunch := sm.Relaunch(sid, card, nil); errRelaunch != nil {
+	if errRelaunch := sm.Relaunch(sid, card, nil, nil); errRelaunch != nil {
 		t.Fatalf("relaunch: %v", errRelaunch)
 	}
 
@@ -161,7 +161,7 @@ func TestSwitchAgentReplacesSkillsInTmpWorkspace(t *testing.T) {
 	skills1 := []config.Skill{
 		{ID: "s1", Name: "alpha-skill", Source: skill1Dir},
 	}
-	sid, err := sm.Launch(card1, skills1)
+	sid, err := sm.Launch(card1, skills1, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestSwitchAgentReplacesSkillsInTmpWorkspace(t *testing.T) {
 	skills2 := []config.Skill{
 		{ID: "s2", Name: "beta-skill", Source: skill2Dir},
 	}
-	if errSwitch := sm.SwitchAgent(sid, card2, skills2); errSwitch != nil {
+	if errSwitch := sm.SwitchAgent(sid, card2, skills2, nil); errSwitch != nil {
 		t.Fatalf("switch: %v", errSwitch)
 	}
 	time.Sleep(100 * time.Millisecond)

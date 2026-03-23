@@ -17,7 +17,7 @@ func TestSessionAttach(t *testing.T) {
 		WorkingDir: t.TempDir(),
 	}
 
-	sid, err := sm.Launch(card, nil)
+	sid, err := sm.Launch(card, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestSessionAttachReplaysScrollbackAndTracksPromptWithoutNewline(t *testing.
 		WorkingDir: t.TempDir(),
 	}
 
-	sid, err := sm.Launch(card, nil)
+	sid, err := sm.Launch(card, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}

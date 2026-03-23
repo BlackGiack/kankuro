@@ -24,6 +24,10 @@ func (r *FileRepository) ValidateCard(card IDCard) error {
 	if err != nil {
 		return err
 	}
+	personas, err := r.ListPersonas()
+	if err != nil {
+		return err
+	}
 	skillIDs := map[string]struct{}{}
 	for _, s := range skills {
 		skillIDs[s.ID] = struct{}{}
@@ -32,9 +36,18 @@ func (r *FileRepository) ValidateCard(card IDCard) error {
 	for _, m := range mcpList {
 		mcpIDs[m.ID] = struct{}{}
 	}
+	personaIDs := map[string]struct{}{}
+	for _, p := range personas {
+		personaIDs[p.ID] = struct{}{}
+	}
 	for _, id := range card.SkillIDs {
 		if _, ok := skillIDs[id]; !ok {
 			return fmt.Errorf("skill reference not found: %s", id)
+		}
+	}
+	for _, id := range card.PersonaIDs {
+		if _, ok := personaIDs[id]; !ok {
+			return fmt.Errorf("persona reference not found: %s", id)
 		}
 	}
 	for _, id := range card.MCPIDs {

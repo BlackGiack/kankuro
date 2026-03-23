@@ -18,10 +18,17 @@ func (s *stubDriver) Kill() error { return nil }
 func (s *stubDriver) SetSkills(_ []config.Skill, _ ...string) error {
 	return nil
 }
-func (s *stubDriver) SetMcps(_ []config.MCPServer) error { return nil }
-func (s *stubDriver) SetModel(_ string) []string         { return nil }
-func (s *stubDriver) SendInput(_ string) error           { return nil }
-func (s *stubDriver) GetStatus() driver.SessionStatus    { return driver.StatusRunning }
+
+func (s *stubDriver) SetPersonas(_ []config.Persona, _ ...string) error {
+	return nil
+}
+
+func (s *stubDriver) SetMcps(_ []config.MCPServer) error {
+	return nil
+}
+func (s *stubDriver) SetModel(_ string) []string      { return nil }
+func (s *stubDriver) SendInput(_ string) error        { return nil }
+func (s *stubDriver) GetStatus() driver.SessionStatus { return driver.StatusRunning }
 
 func TestNewCLIDriverFallsBackToGeneric(t *testing.T) {
 	//nolint:reassign // This is a test resetting the global registry.

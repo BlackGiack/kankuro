@@ -1,3 +1,4 @@
+//nolint:dupl // similar to personas
 package config
 
 import (

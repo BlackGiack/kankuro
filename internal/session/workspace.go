@@ -10,9 +10,16 @@ import (
 	"kankuro/internal/config"
 )
 
-func (m *Manager) prepareWorkspace(sid string, card config.IDCard, wd string, isNew bool) (string, error) {
+func (m *Manager) prepareWorkspace(
+	sid string,
+	card config.IDCard,
+	wd string,
+	_ []config.Skill,
+	personas []config.Persona,
+	isNew bool,
+) (string, error) {
 	if !card.UseTmpWorkspace {
-		if errSync := syncAgentsMD(wd, card, isNew); errSync != nil {
+		if errSync := syncAgentsMD(wd, card, personas, isNew); errSync != nil {
 			return "", errSync
 		}
 		return wd, nil
@@ -48,13 +55,20 @@ func (m *Manager) prepareWorkspace(sid string, card config.IDCard, wd string, is
 	if errRemove := os.RemoveAll(skillsDir); errRemove != nil { //nolint:gosec // skillsDir is derived from managed path
 		return "", fmt.Errorf("clear tmp skills dir: %w", errRemove)
 	}
-	if errSync := syncAgentsMD(targetDir, card, isNew); errSync != nil {
+
+	personasDir := filepath.Join(targetDir, ".agents", "agents")
+	// G703: Path traversal via taint analysis.
+	if errRemove := os.RemoveAll(personasDir); errRemove != nil { //nolint:gosec // personasDir is derived from managed path
+		return "", fmt.Errorf("clear tmp personas dir: %w", errRemove)
+	}
+
+	if errSync := syncAgentsMD(targetDir, card, personas, isNew); errSync != nil {
 		return "", errSync
 	}
 	return targetDir, nil
 }
 
-func syncAgentsMD(finalWD string, card config.IDCard, appendIfExist bool) error {
+func syncAgentsMD(finalWD string, card config.IDCard, personas []config.Persona, appendIfExist bool) error {
 	agentsMD := card.AgentsMD
 	if card.AgentsMDPreferPath && card.AgentsMDPath != "" {
 		data, errRead := os.ReadFile(card.AgentsMDPath)
@@ -62,6 +76,27 @@ func syncAgentsMD(finalWD string, card config.IDCard, appendIfExist bool) error 
 			return fmt.Errorf("read agents md path %s: %w", card.AgentsMDPath, errRead)
 		}
 		agentsMD = string(data)
+	}
+
+	if len(personas) == 1 {
+		p := personas[0]
+		ext := filepath.Ext(p.Source)
+		// Logic matches SetPersonas for destination filename
+		destName := p.Name + ext
+		// Wait, I don't have nameCounts here.
+		// But syncAgentsMD is called with the resolved personas.
+		// If there are duplicate names in the original selection, SetPersonas will disambiguate.
+		// However, here we only care if len(personas) == 1, so there's no ambiguity by definition within this set.
+		relPath := filepath.Join(".agents", "agents", destName)
+		personaInstruction := fmt.Sprintf(
+			"Read the file %s and embody the persona described during this session,",
+			relPath,
+		)
+		if agentsMD != "" {
+			agentsMD += "\n\n" + personaInstruction
+		} else {
+			agentsMD = personaInstruction
+		}
 	}
 
 	if agentsMD == "" {

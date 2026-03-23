@@ -21,6 +21,10 @@ func TestCreateAndListIDCard(t *testing.T) {
 	if err != nil {
 		t.Fatalf("upsert mcp: %v", err)
 	}
+	persona, err := repo.UpsertPersona(config.Persona{Name: "senior-go", Source: "/tmp/go.md"})
+	if err != nil {
+		t.Fatalf("upsert persona: %v", err)
+	}
 
 	_, err = repo.CreateIDCard(config.IDCard{
 		Name:       "Claude",
@@ -29,6 +33,7 @@ func TestCreateAndListIDCard(t *testing.T) {
 		WorkingDir: t.TempDir(),
 		SkillIDs:   []string{skill.ID},
 		MCPIDs:     []string{mcp.ID},
+		PersonaIDs: []string{persona.ID},
 		AgentsMD:   "# Custom AgentsMD\nHello world",
 	})
 	if err != nil {
@@ -77,6 +82,8 @@ func TestRepositoryBootstrapsFiles(t *testing.T) {
 		filepath.Join(repo.Dir(), "id_cards.yaml"),
 		filepath.Join(repo.Dir(), "skills.yaml"),
 		filepath.Join(repo.Dir(), "skills_sources.yaml"),
+		filepath.Join(repo.Dir(), "personas.yaml"),
+		filepath.Join(repo.Dir(), "persona_sources.yaml"),
 		filepath.Join(repo.Dir(), "mcps.yaml"),
 	}
 	for _, p := range paths {

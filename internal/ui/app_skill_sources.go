@@ -1,3 +1,4 @@
+//nolint:dupl // similar to persona sources
 package ui
 
 import (
@@ -15,11 +16,11 @@ func (a *App) updateSkillSources(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch keyMsg.String() {
-	case "up":
+	case keyUp:
 		if a.skillSourceCursor > 0 {
 			a.skillSourceCursor--
 		}
-	case "down":
+	case keyDown:
 		if a.skillSourceCursor < len(a.skillSources) { // +1 for "New"
 			a.skillSourceCursor++
 		}
@@ -27,7 +28,7 @@ func (a *App) updateSkillSources(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.handleSkillSourceNew()
 	case " ", keyEnter:
 		return a.handleSkillSourceSelect()
-	case "d", "backspace":
+	case "d", keyBackspace:
 		return a.handleSkillSourceDelete()
 	case keyEsc:
 		a.mode = viewCardForm

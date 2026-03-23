@@ -88,6 +88,7 @@ func (a *App) handleDashboardEdit() (tea.Model, tea.Cmd) {
 	}
 	a.cardInputs[5].SetValue(tmpVal)
 	a.setSelectedSkills(selected.SkillIDs)
+	a.setSelectedPersonas(selected.PersonaIDs)
 	a.editingCardID = selected.ID
 	a.agentsMD = selected.AgentsMD
 	a.agentsMDPath = selected.AgentsMDPath
@@ -108,7 +109,8 @@ func (a *App) handleDashboardEnter() (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 	skills := a.skillsForCard(selected)
-	id, err := a.session.Launch(selected, skills)
+	personas := a.personasForCard(selected)
+	id, err := a.session.Launch(selected, skills, personas)
 	if err != nil {
 		a.err = err
 		return a, nil
@@ -157,7 +159,7 @@ func (a *App) handleDashboardSwitch() (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 	a.switchSessionID = s.ID
-	a.switchList.SetItems(toCardItems(a.cards, a.skills))
+	a.switchList.SetItems(toCardItems(a.cards, a.skills, a.personas))
 	a.switchList.Select(0)
 	// mark selected for visual feedback
 	a.updateSwitchSelection()
@@ -198,7 +200,8 @@ func (a *App) activateSelectedSession() tea.Cmd {
 			return nil
 		}
 		skills := a.skillsForCard(card)
-		if err := a.session.Relaunch(s.ID, card, skills); err != nil {
+		personas := a.personasForCard(card)
+		if err := a.session.Relaunch(s.ID, card, skills, personas); err != nil {
 			a.err = fmt.Errorf("relaunch failed: %w", err)
 			return nil
 		}

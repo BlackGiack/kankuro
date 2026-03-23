@@ -27,18 +27,24 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	personas, err := repo.ListPersonas()
+	if err != nil {
+		return nil, err
+	}
 
 	app := &App{
-		repo:             repo,
-		session:          sm,
-		mode:             viewDashboard,
-		cards:            cards,
-		skills:           skills,
-		mcps:             mcps,
-		sessions:         sm.List(),
-		selectedSkillIDs: make(map[string]bool),
-		focusedPane:      paneCards,
-		help:             help.New(),
+		repo:               repo,
+		session:            sm,
+		mode:               viewDashboard,
+		cards:              cards,
+		skills:             skills,
+		personas:           personas,
+		mcps:               mcps,
+		sessions:           sm.List(),
+		selectedSkillIDs:   make(map[string]bool),
+		selectedPersonaIDs: make(map[string]bool),
+		focusedPane:        paneCards,
+		help:               help.New(),
 	}
 
 	app.initLists()
@@ -66,7 +72,7 @@ func (a *App) initLists() {
 
 	cardsDelegate := newCardDelegate()
 
-	a.cardsList = list.New(toCardItems(a.cards, a.skills), cardsDelegate, 0, 0)
+	a.cardsList = list.New(toCardItems(a.cards, a.skills, a.personas), cardsDelegate, 0, 0)
 	a.cardsList.Title = "ID Cards"
 	a.cardsList.SetShowStatusBar(false)
 	a.cardsList.SetFilteringEnabled(false)
@@ -130,6 +136,10 @@ func (a *App) initInputs() {
 	a.skillSourceInput = textinput.New()
 	a.skillSourceInput.Placeholder = "Path to skill source directory..."
 	a.skillSourceInput.Width = inputWidthDefault
+
+	a.personaSourceInput = textinput.New()
+	a.personaSourceInput.Placeholder = "Path to persona source directory..."
+	a.personaSourceInput.Width = inputWidthDefault
 }
 
 // Init starts periodic refresh and textinput blink commands.

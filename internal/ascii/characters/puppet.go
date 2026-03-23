@@ -18,6 +18,10 @@ func NewPuppet(opts ...ascii.Option) ascii.Shape {
 		return NewPuppetStrawhat(opts...)
 	case "kankuro":
 		return NewPuppetKankuro(opts...)
+	case "darth":
+		return NewPuppetDarth(opts...)
+	case "totoro":
+		return NewPuppetTotoro(opts...)
 	default:
 		return NewBasePuppet(opts...)
 	}

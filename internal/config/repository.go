@@ -7,10 +7,12 @@ import (
 )
 
 const (
-	IDCardsFilename       = "id_cards.yaml"
-	SkillsFilename        = "skills.yaml"
-	SkillsSourcesFilename = "skills_sources.yaml"
-	MCPsFilename          = "mcps.yaml"
+	IDCardsFilename        = "id_cards.yaml"
+	SkillsFilename         = "skills.yaml"
+	SkillsSourcesFilename  = "skills_sources.yaml"
+	PersonasFilename       = "personas.yaml"
+	PersonaSourcesFilename = "persona_sources.yaml"
+	MCPsFilename           = "mcps.yaml"
 )
 
 // Repository defines persistence operations for ID cards and capability registries.
@@ -26,6 +28,13 @@ type Repository interface {
 	ListSkills() ([]Skill, error)
 	UpsertSkill(skill Skill) (Skill, error)
 	DeleteSkill(id string) error
+
+	ListPersonaSources() ([]string, error)
+	SavePersonaSources(paths []string) error
+	SyncPersonasFromSources() error
+	ListPersonas() ([]Persona, error)
+	UpsertPersona(persona Persona) (Persona, error)
+	DeletePersona(id string) error
 
 	ListMCPs() ([]MCPServer, error)
 	UpsertMCP(mcp MCPServer) (MCPServer, error)
@@ -78,6 +87,18 @@ func (r *FileRepository) EnsureFiles() error {
 	sourcesPath := filepath.Join(r.dir, SkillsSourcesFilename)
 	sourcesDefault := SkillsSourcesFile{SchemaVersion: SchemaVersion, Paths: []string{}}
 	if err := r.EnsureYAML(sourcesPath, sourcesDefault); err != nil {
+		return err
+	}
+
+	personasPath := filepath.Join(r.dir, PersonasFilename)
+	personasDefault := PersonasFile{SchemaVersion: SchemaVersion, Personas: []Persona{}}
+	if err := r.EnsureYAML(personasPath, personasDefault); err != nil {
+		return err
+	}
+
+	personaSourcesPath := filepath.Join(r.dir, PersonaSourcesFilename)
+	personaSourcesDefault := PersonaSourcesFile{SchemaVersion: SchemaVersion, Paths: []string{}}
+	if err := r.EnsureYAML(personaSourcesPath, personaSourcesDefault); err != nil {
 		return err
 	}
 

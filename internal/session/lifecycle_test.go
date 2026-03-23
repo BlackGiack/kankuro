@@ -17,7 +17,7 @@ func TestSessionLaunchAndKill(t *testing.T) {
 		WorkingDir: t.TempDir(),
 	}
 
-	sid, err := sm.Launch(card, nil)
+	sid, err := sm.Launch(card, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestSessionSwitchAgent(t *testing.T) {
 		WorkingDir: wd,
 	}
 
-	sid, err := sm.Launch(card1, nil)
+	sid, err := sm.Launch(card1, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestSessionSwitchAgent(t *testing.T) {
 		Driver:     "cat",
 		WorkingDir: wd,
 	}
-	if errSwitch := sm.SwitchAgent(sid, card2, nil); errSwitch != nil {
+	if errSwitch := sm.SwitchAgent(sid, card2, nil, nil); errSwitch != nil {
 		t.Fatalf("switch: %v", errSwitch)
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -111,7 +111,7 @@ func TestRemoveOnlyDeletesTerminatedSessions(t *testing.T) {
 		WorkingDir: t.TempDir(),
 	}
 
-	sid, err := sm.Launch(card, nil)
+	sid, err := sm.Launch(card, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}

@@ -52,6 +52,7 @@ type AgentDriver interface {
 	Kill() error
 
 	SetSkills(skills []config.Skill, workspaceRoot ...string) error
+	SetPersonas(personas []config.Persona, workspaceRoot ...string) error
 	SetMcps(mcps []config.MCPServer) error
 	SetModel(model string) []string
 
@@ -211,6 +212,52 @@ func (d *GenericCLIDriver) SetSkills(skills []config.Skill, workspaceRoot ...str
 	return nil
 }
 
+// SetPersonas ensures persona assets are present in the session workspace.
+func (d *GenericCLIDriver) SetPersonas(personas []config.Persona, workspaceRoot ...string) error {
+	if len(personas) == 0 {
+		return nil
+	}
+	root := ""
+	if len(workspaceRoot) > 0 {
+		root = strings.TrimSpace(workspaceRoot[0])
+	}
+	if root == "" {
+		return errors.New("workspace root is required for persona sync")
+	}
+	personasRoot := filepath.Join(root, ".agents", "agents")
+	if err := os.MkdirAll(personasRoot, 0o700); err != nil {
+		return fmt.Errorf("create personas dir: %w", err)
+	}
+
+	nameCounts := make(map[string]int)
+	for _, persona := range personas {
+		nameCounts[persona.Name]++
+	}
+
+	for _, persona := range personas {
+		if persona.Source == "" || persona.Name == "" {
+			return errors.New("persona name and source are required")
+		}
+		ext := filepath.Ext(persona.Source)
+		destName := persona.Name + ext
+		if nameCounts[persona.Name] > 1 {
+			destName = fmt.Sprintf("%s--%s%s", persona.Name, shortSkillHash(persona.Source), ext)
+		}
+		destPath := filepath.Join(personasRoot, destName)
+		_, errStat := os.Stat(destPath)
+		if errStat == nil {
+			continue
+		}
+		if !errors.Is(errStat, os.ErrNotExist) {
+			return fmt.Errorf("stat persona destination: %w", errStat)
+		}
+		if errCopy := copyPersonaFile(persona.Source, destPath); errCopy != nil {
+			return errCopy
+		}
+	}
+	return nil
+}
+
 // SetMcps is a placeholder hook for provider-specific MCP wiring.
 func (d *GenericCLIDriver) SetMcps(mcps []config.MCPServer) error {
 	_ = mcps
@@ -311,6 +358,25 @@ func copySkillFolder(source, dest string) error {
 	cmd := exec.CommandContext(ctx, "cp", "-r", source, dest)
 	if out, errOutput := cmd.CombinedOutput(); errOutput != nil {
 		return fmt.Errorf("copy skill %s: %s: %w", source, strings.TrimSpace(string(out)), errOutput)
+	}
+	return nil
+}
+
+func copyPersonaFile(source, dest string) error {
+	info, err := os.Stat(source)
+	if err != nil {
+		return fmt.Errorf("stat persona source: %w", err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("persona source is a directory: %s", source)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), copyTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "cp", source, dest)
+	if out, errOutput := cmd.CombinedOutput(); errOutput != nil {
+		return fmt.Errorf("copy persona %s: %s: %w", source, strings.TrimSpace(string(out)), errOutput)
 	}
 	return nil
 }

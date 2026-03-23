@@ -10,6 +10,9 @@ import (
 )
 
 // View renders the active screen for the Bubble Tea program.
+// TODO: This function is quite long and could be refactored into smaller render functions for each view mode.
+//
+//nolint:funlen // This is the main view function that delegates to sub-renderers based on the current mode.
 func (a *App) View() string {
 	errLine := ""
 	if a.err != nil {
@@ -42,7 +45,8 @@ func (a *App) View() string {
 			puppetLine + "\n" +
 			"Use Tmp Workspace: " + a.cardInputs[5].View() + "\n\n" +
 			"AGENTS.md:\n" + a.renderAgentsMDRow() + "\n\n" +
-			"Skills (type=search, space=toggle, ctrl+e=sources):\n" + a.renderSkillList() + "\n\n" +
+			a.renderSkillList() + "\n\n" +
+			a.renderPersonaList() + "\n\n" +
 			"Enter=save Tab=next Esc=cancel"
 	case viewSkillSources:
 		return errLine + titleStyle.Render("Manage Skill Sources") + "\n\n" +
@@ -69,6 +73,18 @@ func (a *App) View() string {
 			"Use Left/Right to change puppet, Enter=confirm, Esc=cancel\n\n" +
 			"Selected: " + selected + preview
 		return errLine + lines
+	case viewPersonaSources:
+		return errLine + titleStyle.Render("Manage Persona Sources") + "\n\n" +
+			"Defined sources:\n" + a.renderPersonaSourcesList() + "\n\n" +
+			"Enter/Space=edit n=new d=delete Esc=back"
+	case viewPersonaSourceForm:
+		title := "New Persona Source"
+		if a.editingPersonaSourceIndex != -1 {
+			title = "Edit Persona Source"
+		}
+		return errLine + titleStyle.Render(title) + "\n\n" +
+			"Path: " + a.personaSourceInput.View() + "\n\n" +
+			"Enter=save Esc=cancel"
 	case viewAgentsEditor:
 		return errLine + titleStyle.Render("Editing AGENTS.md") + "\n\n" +
 			a.agentsEditor.View() + "\n\n" +

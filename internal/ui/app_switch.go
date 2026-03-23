@@ -21,7 +21,8 @@ func (a *App) updateSwitchAgent(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, nil
 			}
 			skills := a.skillsForCard(card)
-			if err := a.session.SwitchAgent(a.switchSessionID, card, skills); err != nil {
+			personas := a.personasForCard(card)
+			if err := a.session.SwitchAgent(a.switchSessionID, card, skills, personas); err != nil {
 				a.err = fmt.Errorf("switch agent failed: %w", err)
 				return a, nil
 			}

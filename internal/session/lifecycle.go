@@ -14,13 +14,13 @@ import (
 )
 
 // Launch starts a new session process from an ID card.
-func (m *Manager) Launch(card config.IDCard, skills []config.Skill) (string, error) {
+func (m *Manager) Launch(card config.IDCard, skills []config.Skill, personas []config.Persona) (string, error) {
 	sid := uuid.NewString()
-	return sid, m.startSession(sid, card, skills, true)
+	return sid, m.startSession(sid, card, skills, personas, true)
 }
 
 // Relaunch restarts a terminated session using its existing workspace (if tmp).
-func (m *Manager) Relaunch(id string, card config.IDCard, skills []config.Skill) error {
+func (m *Manager) Relaunch(id string, card config.IDCard, skills []config.Skill, personas []config.Persona) error {
 	m.mu.RLock()
 	s, ok := m.sessions[id]
 	m.mu.RUnlock()
@@ -30,11 +30,11 @@ func (m *Manager) Relaunch(id string, card config.IDCard, skills []config.Skill)
 	if s.Status != StatusTerminated {
 		return errors.New("session is already running")
 	}
-	return m.startSession(id, card, skills, false)
+	return m.startSession(id, card, skills, personas, false)
 }
 
 // SwitchAgent restarts a terminated session using its existing workspace, but with a new agent card.
-func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Skill) error {
+func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Skill, personas []config.Persona) error {
 	m.mu.RLock()
 	s, ok := m.sessions[id]
 	m.mu.RUnlock()
@@ -58,7 +58,11 @@ func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Ski
 		if errRemove := os.RemoveAll(skillsDir); errRemove != nil {
 			return fmt.Errorf("clear tmp skills dir: %w", errRemove)
 		}
-		if errSync := syncAgentsMD(finalWD, card, false); errSync != nil {
+		personasDir := filepath.Join(finalWD, ".agents", "agents")
+		if errRemove := os.RemoveAll(personasDir); errRemove != nil {
+			return fmt.Errorf("clear tmp personas dir: %w", errRemove)
+		}
+		if errSync := syncAgentsMD(finalWD, card, personas, false); errSync != nil {
 			return errSync
 		}
 	}
@@ -66,6 +70,9 @@ func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Ski
 	d := driver.NewCLIDriver(card.Driver)
 	if errSkills := d.SetSkills(skills, finalWD); errSkills != nil {
 		return errSkills
+	}
+	if errPersonas := d.SetPersonas(personas, finalWD); errPersonas != nil {
+		return errPersonas
 	}
 	args := d.SetModel(card.Model)
 	h, errSpawn := d.Spawn(driver.AgentConfig{
@@ -93,17 +100,7 @@ func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Ski
 		return fmt.Errorf("session not found: %s", id)
 	}
 
-	s.CardID = card.ID
-	s.Name = card.Name
-	s.PID = pid
-	s.StartedAt = now
-	s.LastWordAt = now
-	s.Status = StatusRunning
-	s.Pinged = false
-	s.Driver = d
-	s.Input = h.PTY
-	s.Output = h.Output
-	s.Done = h.Done
+	m.activateSessionLocked(s, card, d, h, pid, now)
 	s.Scrollback = fmt.Appendf(s.Scrollback, "\n\n--- Switched agent to %s at %s ---\n\n",
 		card.Name, now.Format(time.RFC3339))
 
@@ -114,13 +111,19 @@ func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Ski
 	return nil
 }
 
-func (m *Manager) startSession(sid string, card config.IDCard, skills []config.Skill, isNew bool) error {
+func (m *Manager) startSession(
+	sid string,
+	card config.IDCard,
+	skills []config.Skill,
+	personas []config.Persona,
+	isNew bool,
+) error {
 	wd, errWD := driver.SanitizeWorkingDir(card.WorkingDir)
 	if errWD != nil {
 		return errWD
 	}
 
-	finalWD, errPrep := m.prepareWorkspace(sid, card, wd, isNew)
+	finalWD, errPrep := m.prepareWorkspace(sid, card, wd, skills, personas, isNew)
 	if errPrep != nil {
 		return errPrep
 	}
@@ -128,6 +131,9 @@ func (m *Manager) startSession(sid string, card config.IDCard, skills []config.S
 	d := driver.NewCLIDriver(card.Driver)
 	if errSkills := d.SetSkills(skills, finalWD); errSkills != nil {
 		return errSkills
+	}
+	if errPersonas := d.SetPersonas(personas, finalWD); errPersonas != nil {
+		return errPersonas
 	}
 	args := d.SetModel(card.Model)
 	h, errSpawn := d.Spawn(driver.AgentConfig{
@@ -160,19 +166,10 @@ func (m *Manager) startSession(sid string, card config.IDCard, skills []config.S
 		m.sessions[sid] = s
 	}
 
-	s.CardID = card.ID
-	s.Name = card.Name
-	s.PID = pid
+	m.activateSessionLocked(s, card, d, h, pid, now)
 	s.WorkingDir = finalWD
 	s.OriginalDir = wd
 	s.UseTmpWorkspace = card.UseTmpWorkspace
-	s.StartedAt = now
-	s.LastWordAt = now
-	s.Status = StatusRunning
-	s.Driver = d
-	s.Input = h.PTY
-	s.Output = h.Output
-	s.Done = h.Done
 	if isNew {
 		s.Scrollback = nil
 	} else {
@@ -185,6 +182,27 @@ func (m *Manager) startSession(sid string, card config.IDCard, skills []config.S
 
 	m.persistSessionLocked(s)
 	return nil
+}
+
+func (m *Manager) activateSessionLocked(
+	s *Session,
+	card config.IDCard,
+	d driver.AgentDriver,
+	h *driver.SessionHandle,
+	pid int,
+	now time.Time,
+) {
+	s.CardID = card.ID
+	s.Name = card.Name
+	s.PID = pid
+	s.StartedAt = now
+	s.LastWordAt = now
+	s.Status = StatusRunning
+	s.Pinged = false
+	s.Driver = d
+	s.Input = h.PTY
+	s.Output = h.Output
+	s.Done = h.Done
 }
 
 func (m *Manager) persistSessionLocked(s *Session) {

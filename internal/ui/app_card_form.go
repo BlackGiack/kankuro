@@ -26,10 +26,29 @@ func (a *App) filteredSkills() []config.Skill {
 	return filtered
 }
 
+func (a *App) filteredPersonas() []config.Persona {
+	if a.personaSearchQuery == "" {
+		return a.personas
+	}
+	query := strings.ToLower(a.personaSearchQuery)
+	var filtered []config.Persona
+	for _, p := range a.personas {
+		if strings.Contains(strings.ToLower(p.Name), query) {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
+}
+
 func (a *App) handleCardFormEscape() {
 	if a.isSkillListFocused() && a.skillSearchQuery != "" {
 		a.skillSearchQuery = ""
 		a.skillCursor = 0
+		return
+	}
+	if a.isPersonaListFocused() && a.personaSearchQuery != "" {
+		a.personaSearchQuery = ""
+		a.personaCursor = 0
 		return
 	}
 	a.mode = viewDashboard
@@ -49,6 +68,26 @@ func (a *App) handleSkillListSearchInput(keyMsg tea.KeyMsg) bool {
 		if ch >= printableCharMin && ch <= printableCharMax {
 			a.skillSearchQuery += string(ch)
 			a.skillCursor = 0
+			return true
+		}
+	}
+	return false
+}
+
+func (a *App) handlePersonaListSearchInput(keyMsg tea.KeyMsg) bool {
+	if !a.isPersonaListFocused() {
+		return false
+	}
+	if keyMsg.String() == keyBackspace && len(a.personaSearchQuery) > 0 {
+		a.personaSearchQuery = a.personaSearchQuery[:len(a.personaSearchQuery)-1]
+		a.personaCursor = 0
+		return true
+	}
+	if len(keyMsg.Runes) > 0 {
+		ch := keyMsg.Runes[0]
+		if ch >= printableCharMin && ch <= printableCharMax {
+			a.personaSearchQuery += string(ch)
+			a.personaCursor = 0
 			return true
 		}
 	}
@@ -81,6 +120,7 @@ func (a *App) handleCardFormKeyMsg(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		return nil, true
 	case keyTab:
 		a.skillSearchQuery = ""
+		a.personaSearchQuery = ""
 		a.cycleCardFocus()
 		return nil, true
 	case "up":
@@ -104,7 +144,7 @@ func (a *App) handleCardFormKeyMsg(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 			a.mode = viewPuppetSelector
 			return nil, true
 		}
-		if a.isSkillListFocused() || a.isAgentsMDFocused() {
+		if a.isSkillListFocused() || a.isPersonaListFocused() || a.isAgentsMDFocused() {
 			a.handleCardFormToggle()
 			return nil, true
 		}
@@ -116,8 +156,18 @@ func (a *App) handleCardFormKeyMsg(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 			a.openSkillSources()
 			return nil, true
 		}
+		if a.isPersonaListFocused() {
+			a.openPersonaSources()
+			return nil, true
+		}
 	}
-	return nil, a.handleSkillListSearchInput(keyMsg)
+	if a.isSkillListFocused() {
+		return nil, a.handleSkillListSearchInput(keyMsg)
+	}
+	if a.isPersonaListFocused() {
+		return nil, a.handlePersonaListSearchInput(keyMsg)
+	}
+	return nil, false
 }
 
 func (a *App) openSkillSources() {
@@ -131,6 +181,17 @@ func (a *App) openSkillSources() {
 	a.mode = viewSkillSources
 }
 
+func (a *App) openPersonaSources() {
+	sources, err := a.repo.ListPersonaSources()
+	if err != nil {
+		a.err = err
+		return
+	}
+	a.personaSources = sources
+	a.personaSourceCursor = 0
+	a.mode = viewPersonaSources
+}
+
 func (a *App) handleCardFormNav(down bool) {
 	if a.isSkillListFocused() {
 		filtered := a.filteredSkills()
@@ -142,6 +203,16 @@ func (a *App) handleCardFormNav(down bool) {
 			a.skillCursor--
 		}
 	}
+	if a.isPersonaListFocused() {
+		filtered := a.filteredPersonas()
+		if down {
+			if a.personaCursor < len(filtered)-1 {
+				a.personaCursor++
+			}
+		} else if a.personaCursor > 0 {
+			a.personaCursor--
+		}
+	}
 	if a.isAgentsMDFocused() {
 		a.agentsMDPreferPath = down
 	}
@@ -150,6 +221,9 @@ func (a *App) handleCardFormNav(down bool) {
 func (a *App) handleCardFormToggle() {
 	if a.isSkillListFocused() {
 		a.toggleSelectedSkill()
+	}
+	if a.isPersonaListFocused() {
+		a.toggleSelectedPersona()
 	}
 	if a.isAgentsMDFocused() {
 		if a.agentsMDPreferPath {
@@ -177,6 +251,7 @@ func (a *App) handleCardFormSubmit() {
 		AgentsMDPath:       a.agentsMDPath,
 		AgentsMDPreferPath: a.agentsMDPreferPath,
 		SkillIDs:           a.selectedSkillIDsSlice(),
+		PersonaIDs:         a.selectedPersonaIDsSlice(),
 	}
 	var err error
 	if a.editingCardID == "" {
@@ -209,6 +284,9 @@ func (a *App) resetCardForm() {
 	// default puppet for new cards
 	a.cardPuppet = defaultPuppet
 	a.puppetSelectorIndex = 1
+	a.selectedPersonaIDs = make(map[string]bool)
+	a.personaCursor = 0
+	a.personaSearchQuery = ""
 	a.cardFocusIndex = 0
 	a.setCardFocus(a.cardFocusIndex)
 }
@@ -219,6 +297,14 @@ func (a *App) setSelectedSkills(ids []string) {
 		a.selectedSkillIDs[id] = true
 	}
 	a.skillCursor = 0
+}
+
+func (a *App) setSelectedPersonas(ids []string) {
+	a.selectedPersonaIDs = make(map[string]bool)
+	for _, id := range ids {
+		a.selectedPersonaIDs[id] = true
+	}
+	a.personaCursor = 0
 }
 
 func (a *App) selectedSkillIDsSlice() []string {
@@ -241,12 +327,26 @@ func (a *App) isPuppetFocused() bool {
 	return a.cardFocusIndex == cardPuppetIndex
 }
 
+func (a *App) selectedPersonaIDsSlice() []string {
+	ids := make([]string, 0, len(a.selectedPersonaIDs))
+	for _, persona := range a.personas {
+		if a.selectedPersonaIDs[persona.ID] {
+			ids = append(ids, persona.ID)
+		}
+	}
+	return ids
+}
+
 func (a *App) isAgentsMDFocused() bool {
 	return a.cardFocusIndex == cardAgentsMDIndex
 }
 
 func (a *App) isSkillListFocused() bool {
 	return a.cardFocusIndex == cardSkillListIndex
+}
+
+func (a *App) isPersonaListFocused() bool {
+	return a.cardFocusIndex == cardPersonaListIndex
 }
 
 // setCardFocus sets focus for text inputs mapping logical focus index to input indices.
@@ -273,7 +373,7 @@ func (a *App) setCardFocus(index int) {
 }
 
 func (a *App) cycleCardFocus() {
-	total := len(a.cardInputs) + cardInputTotalOffset
+	total := len(a.cardInputs) + cardInputTotalOffset + 1
 	next := (a.cardFocusIndex + 1) % total
 	a.setCardFocus(next)
 }
@@ -324,6 +424,19 @@ func (a *App) updatePuppetSelector(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, nil
 }
 
+func (a *App) toggleSelectedPersona() {
+	filtered := a.filteredPersonas()
+	if len(filtered) == 0 || a.personaCursor < 0 || a.personaCursor >= len(filtered) {
+		return
+	}
+	id := filtered[a.personaCursor].ID
+	if a.selectedPersonaIDs[id] {
+		delete(a.selectedPersonaIDs, id)
+		return
+	}
+	a.selectedPersonaIDs[id] = true
+}
+
 func (a *App) skillWindow(total int) (int, int) {
 	if total == 0 {
 		return 0, 0
@@ -341,10 +454,31 @@ func (a *App) skillWindow(total int) (int, int) {
 	return start, end
 }
 
+func (a *App) personaWindow(total int) (int, int) {
+	if total == 0 {
+		return 0, 0
+	}
+	height := a.personaListHeight()
+	if height >= total {
+		return 0, total
+	}
+	start := max(0, a.personaCursor-height/2)
+	end := start + height
+	if end > total {
+		end = total
+		start = max(0, end-height)
+	}
+	return start, end
+}
+
 func (a *App) skillListHeight() int {
 	if a.height <= 0 {
-		return defaultSkillListHeight
+		return defaultSkillListHeight / skillListHeightDivisor
 	}
 	available := a.height - skillListHeightOffset
-	return max(minSkillListHeight, available)
+	return max(minSkillListHeight, available/skillListHeightDivisor)
+}
+
+func (a *App) personaListHeight() int {
+	return a.skillListHeight()
 }

@@ -17,6 +17,7 @@ type IDCard struct {
 	UseTmpWorkspace    bool              `yaml:"use_tmp_workspace"`
 	SystemInstruction  string            `yaml:"system_instruction"`
 	SkillIDs           []string          `yaml:"skill_ids"`
+	PersonaIDs         []string          `yaml:"persona_ids"`
 	MCPIDs             []string          `yaml:"mcp_ids"`
 	Env                map[string]string `yaml:"env"`
 	FaceStyle          string            `yaml:"face_style"`
@@ -34,6 +35,12 @@ type Skill struct {
 	Description string `yaml:"description"`
 	Version     string `yaml:"version"`
 	Source      string `yaml:"source"`
+}
+
+type Persona struct {
+	ID     string `yaml:"id"`
+	Name   string `yaml:"name"`
+	Source string `yaml:"source"`
 }
 
 type MCPServer struct {
@@ -56,6 +63,16 @@ type SkillsFile struct {
 }
 
 type SkillsSourcesFile struct {
+	SchemaVersion int      `yaml:"schema_version"`
+	Paths         []string `yaml:"paths"`
+}
+
+type PersonasFile struct {
+	SchemaVersion int       `yaml:"schema_version"`
+	Personas      []Persona `yaml:"personas"`
+}
+
+type PersonaSourcesFile struct {
 	SchemaVersion int      `yaml:"schema_version"`
 	Paths         []string `yaml:"paths"`
 }

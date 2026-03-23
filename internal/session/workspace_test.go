@@ -28,7 +28,7 @@ func TestSessionAgentsMD(t *testing.T) {
 		AgentsMD:        "# First Content",
 	}
 
-	sid, err := sm.Launch(card, nil)
+	sid, err := sm.Launch(card, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestSessionAgentsMD(t *testing.T) {
 
 	// Switch agent with different content -> should REPLACE
 	card.AgentsMD = "# Second Content"
-	if errSwitch := sm.SwitchAgent(sid, card, nil); errSwitch != nil {
+	if errSwitch := sm.SwitchAgent(sid, card, nil, nil); errSwitch != nil {
 		t.Fatalf("switch agent: %v", errSwitch)
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -84,7 +84,7 @@ func TestSessionAgentsMD(t *testing.T) {
 	card.AgentsMDPreferPath = true
 	card.AgentsMDPath = tmpFile
 	card.WorkingDir = t.TempDir() // Fresh WD without AGENTS.md
-	sid2, errLaunch := sm.Launch(card, nil)
+	sid2, errLaunch := sm.Launch(card, nil, nil)
 	if errLaunch != nil {
 		t.Fatalf("launch with path: %v", errLaunch)
 	}

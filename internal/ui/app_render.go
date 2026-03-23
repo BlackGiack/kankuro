@@ -62,10 +62,12 @@ func (a *App) renderSkillList() string {
 		}
 		return text
 	}
-	var header string
+	header := lipgloss.NewStyle().Foreground(gray).Render("Skills (ctrl+e=sources)")
 	if a.skillSearchQuery != "" {
-		header = lipgloss.NewStyle().Foreground(gray).Render("Search: "+a.skillSearchQuery) + "\n"
+		header += lipgloss.NewStyle().Foreground(gray).Render(" | Search: " + a.skillSearchQuery)
 	}
+	header += "\n"
+
 	filtered := a.filteredSkills()
 	if len(filtered) == 0 {
 		return header + "(no matching skills)"
@@ -98,6 +100,51 @@ func (a *App) renderSkillList() string {
 	return header + strings.Join(lines, "\n")
 }
 
+func (a *App) renderPersonaList() string {
+	if len(a.personas) == 0 {
+		text := "(no personas found)"
+		if a.isPersonaListFocused() {
+			return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render("> " + text)
+		}
+		return text
+	}
+	header := lipgloss.NewStyle().Foreground(gray).Render("Personas (ctrl+e=sources)")
+	if a.personaSearchQuery != "" {
+		header += lipgloss.NewStyle().Foreground(gray).Render(" | Search: " + a.personaSearchQuery)
+	}
+	header += "\n"
+
+	filtered := a.filteredPersonas()
+	if len(filtered) == 0 {
+		return header + "(no matching personas)"
+	}
+	start, end := a.personaWindow(len(filtered))
+	lines := make([]string, 0, end-start+skillWindowBuffer)
+	if start > 0 {
+		lines = append(lines, "  ...")
+	}
+	for i := start; i < end; i++ {
+		p := filtered[i]
+		prefix := "  "
+		if a.isPersonaListFocused() && i == a.personaCursor {
+			prefix = "> "
+		}
+		mark := " "
+		if a.selectedPersonaIDs[p.ID] {
+			mark = "x"
+		}
+		line := fmt.Sprintf("%s[%s] %s", prefix, mark, p.Name)
+		if a.isPersonaListFocused() && i == a.personaCursor {
+			line = lipgloss.NewStyle().Foreground(highlightColor).Render(line)
+		}
+		lines = append(lines, line)
+	}
+	if end < len(filtered) {
+		lines = append(lines, "  ...")
+	}
+	return header + strings.Join(lines, "\n")
+}
+
 func skillNameCounts(skills []config.Skill) map[string]int {
 	counts := make(map[string]int)
 	for _, skill := range skills {
@@ -113,36 +160,26 @@ func skillLabel(skill config.Skill, counts map[string]int) string {
 	return skill.Name
 }
 
-func renderCardItem(card config.IDCard, skills []config.Skill, selected bool) string {
-	skillNames := make([]string, 0, len(card.SkillIDs))
-	selectedSkills := make(map[string]struct{})
-	for _, id := range card.SkillIDs {
-		selectedSkills[id] = struct{}{}
-	}
-	for _, skill := range skills {
-		if _, ok := selectedSkills[skill.ID]; ok {
-			skillNames = append(skillNames, skill.Name)
-		}
-	}
-
-	pillBg := highlightColor
-	pillFg := white
-	var pills []string
-	if len(skillNames) > 0 {
-		for _, s := range skillNames[:maxPillsShown] {
-			if len(s) > pillTextLimit {
-				s = s[:pillTextLimit-1] + "."
+func renderCardItem(card config.IDCard, skills []config.Skill, personas []config.Persona, selected bool) string {
+	skillNames := getSelectedNames(card.SkillIDs, func(id string) (string, bool) {
+		for _, s := range skills {
+			if s.ID == id {
+				return s.Name, true
 			}
-			pills = append(pills, lipgloss.NewStyle().
-				Foreground(pillFg).
-				Background(pillBg).
-				Padding(0, 1).
-				MarginRight(1).
-				Render(s))
 		}
-	} else {
-		pills = append(pills, lipgloss.NewStyle().Foreground(gray).Render("(no skills)"))
-	}
+		return "", false
+	})
+
+	personaNames := getSelectedNames(card.PersonaIDs, func(id string) (string, bool) {
+		for _, p := range personas {
+			if p.ID == id {
+				return p.Name, true
+			}
+		}
+		return "", false
+	})
+
+	pills := renderPills(skillNames, personaNames)
 	skillsLine := lipgloss.JoinHorizontal(lipgloss.Top, pills...)
 
 	style := card.Puppet
@@ -207,6 +244,52 @@ func renderCardItem(card config.IDCard, skills []config.Skill, selected bool) st
 func truncate(s string, w int) string {
 	if len(s) > w {
 		return s[:w-3] + "..."
+	}
+	return s
+}
+
+func getSelectedNames(ids []string, resolver func(string) (string, bool)) []string {
+	var names []string
+	for _, id := range ids {
+		if name, ok := resolver(id); ok {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+func renderPills(skillNames, personaNames []string) []string {
+	var pills []string
+	if len(skillNames) == 0 && len(personaNames) == 0 {
+		return []string{lipgloss.NewStyle().Foreground(gray).Render("(no capabilities)")}
+	}
+
+	for _, s := range skillNames {
+		if len(pills) >= maxPillsShown {
+			break
+		}
+		pills = append(pills, pillStyle(highlightColor).Render(truncatePill(s)))
+	}
+	for _, s := range personaNames {
+		if len(pills) >= maxPillsShown {
+			break
+		}
+		pills = append(pills, pillStyle(personaPillColor).Render(truncatePill(s)))
+	}
+	return pills
+}
+
+func pillStyle(bg lipgloss.Color) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(white).
+		Background(bg).
+		Padding(0, 1).
+		MarginRight(1)
+}
+
+func truncatePill(s string) string {
+	if len(s) > pillTextLimit {
+		return s[:pillTextLimit-1] + "."
 	}
 	return s
 }
