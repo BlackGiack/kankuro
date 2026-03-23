@@ -90,6 +90,20 @@ func (a *App) handleCardFormKeyMsg(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		a.handleCardFormNav(true)
 		return nil, true
 	case " ":
+		if a.isPuppetFocused() {
+			// open puppet selector
+			a.puppetSelectorPrev = a.cardPuppet
+			// set selector index to current puppet
+			a.puppetSelectorIndex = 0
+			for i, p := range puppetStyles() {
+				if p == a.cardPuppet {
+					a.puppetSelectorIndex = i
+					break
+				}
+			}
+			a.mode = viewPuppetSelector
+			return nil, true
+		}
 		if a.isSkillListFocused() || a.isAgentsMDFocused() {
 			a.handleCardFormToggle()
 			return nil, true
@@ -157,6 +171,7 @@ func (a *App) handleCardFormSubmit() {
 		Model:              strings.TrimSpace(a.cardInputs[2].Value()),
 		WorkingDir:         strings.TrimSpace(a.cardInputs[3].Value()),
 		FaceStyle:          strings.TrimSpace(a.cardInputs[4].Value()),
+		Puppet:             a.cardPuppet,
 		UseTmpWorkspace:    strings.ToLower(strings.TrimSpace(a.cardInputs[5].Value())) == "y",
 		AgentsMD:           a.agentsMD,
 		AgentsMDPath:       a.agentsMDPath,
@@ -191,6 +206,9 @@ func (a *App) resetCardForm() {
 	a.selectedSkillIDs = make(map[string]bool)
 	a.skillCursor = 0
 	a.skillSearchQuery = ""
+	// default puppet for new cards
+	a.cardPuppet = defaultPuppet
+	a.puppetSelectorIndex = 1
 	a.cardFocusIndex = 0
 	a.setCardFocus(a.cardFocusIndex)
 }
@@ -213,18 +231,40 @@ func (a *App) selectedSkillIDsSlice() []string {
 	return ids
 }
 
+// Focus index mapping:
+// 0..4 -> cardInputs[0..4]
+// 5 -> puppet (non-input)
+// 6 -> cardInputs[5] (use tmp workspace)
+// 7 -> agents MD
+// 8 -> skill list.
+func (a *App) isPuppetFocused() bool {
+	return a.cardFocusIndex == cardPuppetIndex
+}
+
 func (a *App) isAgentsMDFocused() bool {
-	return a.cardFocusIndex == len(a.cardInputs)
+	return a.cardFocusIndex == cardAgentsMDIndex
 }
 
 func (a *App) isSkillListFocused() bool {
-	return a.cardFocusIndex == len(a.cardInputs)+1
+	return a.cardFocusIndex == cardSkillListIndex
 }
 
+// setCardFocus sets focus for text inputs mapping logical focus index to input indices.
 func (a *App) setCardFocus(index int) {
 	a.cardFocusIndex = index
+	// determine which textinput should be focused (if any)
+	var mapped int
+	switch {
+	case index < cardInputCount-1:
+		mapped = index
+	case index == cardPuppetIndex:
+		mapped = -1 // puppet, no text input
+	default:
+		// indices >= cardUseTmpIndex map to cardInputs[index-1]
+		mapped = index - 1
+	}
 	for i := range a.cardInputs {
-		if i == index {
+		if i == mapped {
 			a.cardInputs[i].Focus()
 		} else {
 			a.cardInputs[i].Blur()
@@ -249,6 +289,39 @@ func (a *App) toggleSelectedSkill() {
 		return
 	}
 	a.selectedSkillIDs[id] = true
+}
+
+// updatePuppetSelector handles key events while in the puppet-selection subview.
+func (a *App) updatePuppetSelector(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch keyMsg.String() {
+		case "left":
+			if a.puppetSelectorIndex > 0 {
+				a.puppetSelectorIndex--
+			} else {
+				a.puppetSelectorIndex = len(puppetStyles()) - 1
+			}
+			return a, nil
+		case "right":
+			if a.puppetSelectorIndex < len(puppetStyles())-1 {
+				a.puppetSelectorIndex++
+			} else {
+				a.puppetSelectorIndex = 0
+			}
+			return a, nil
+		case keyEnter:
+			// commit selection
+			a.cardPuppet = puppetStyles()[a.puppetSelectorIndex]
+			a.mode = viewCardForm
+			return a, nil
+		case keyEsc:
+			// cancel
+			a.cardPuppet = a.puppetSelectorPrev
+			a.mode = viewCardForm
+			return a, nil
+		}
+	}
+	return a, nil
 }
 
 func (a *App) skillWindow(total int) (int, int) {

@@ -101,6 +101,14 @@ func (a *App) initInputs() {
 		a.cardInputs[i].Width = inputWidthDefault
 	}
 	a.cardInputs[0].Focus()
+	// default puppet value
+	a.cardPuppet = defaultPuppet
+	for i, p := range puppetStyles() {
+		if p == a.cardPuppet {
+			a.puppetSelectorIndex = i
+			break
+		}
+	}
 
 	a.mcpInputs = make([]textinput.Model, mcpInputCount)
 	a.mcpInputs[0] = textinput.New()

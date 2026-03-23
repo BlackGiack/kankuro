@@ -36,6 +36,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch a.mode {
 	case viewCardForm:
 		return a.updateCardForm(msg)
+	case viewPuppetSelector:
+		return a.updatePuppetSelector(msg)
 	case viewMCPForm:
 		return a.updateMCPForm(msg)
 	case viewDeleteConfirm:

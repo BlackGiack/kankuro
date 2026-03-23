@@ -4,6 +4,9 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"kankuro/internal/ascii"
+	"kankuro/internal/ascii/characters"
 )
 
 // View renders the active screen for the Bubble Tea program.
@@ -24,12 +27,19 @@ func (a *App) View() string {
 		if a.editingCardID != "" {
 			title = "Edit ID Card"
 		}
+		// Render puppet row with focus indicator (no preview)
+		puppetLine := "Puppet: " + a.cardPuppet
+		if a.isPuppetFocused() {
+			puppetLine = "> " + puppetLine
+			puppetLine = lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(puppetLine)
+		}
 		return errLine + titleStyle.Render(title) + "\n\n" +
 			"Name: " + a.cardInputs[0].View() + "\n" +
 			"Driver: " + a.cardInputs[1].View() + "\n" +
 			"Model: " + a.cardInputs[2].View() + "\n" +
 			"Working Dir: " + a.cardInputs[3].View() + "\n" +
 			"Face Style: " + a.cardInputs[4].View() + "\n" +
+			puppetLine + "\n" +
 			"Use Tmp Workspace: " + a.cardInputs[5].View() + "\n\n" +
 			"AGENTS.md:\n" + a.renderAgentsMDRow() + "\n\n" +
 			"Skills (type=search, space=toggle, ctrl+e=sources):\n" + a.renderSkillList() + "\n\n" +
@@ -46,6 +56,19 @@ func (a *App) View() string {
 		return errLine + titleStyle.Render(title) + "\n\n" +
 			"Path: " + a.skillSourceInput.View() + "\n\n" +
 			"Enter=save Esc=cancel"
+	case viewPuppetSelector:
+		// render puppet selector
+		title := "Select Puppet"
+		selected := puppetStyles()[a.puppetSelectorIndex]
+		p := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", selected) })
+		w, h := p.Bounds()
+		canvas := ascii.NewCanvas(w, h)
+		p.Render(canvas, 0, 0)
+		preview := "\n" + canvas.String() + "\n"
+		lines := titleStyle.Render(title) + "\n\n" +
+			"Use Left/Right to change puppet, Enter=confirm, Esc=cancel\n\n" +
+			"Selected: " + selected + preview
+		return errLine + lines
 	case viewAgentsEditor:
 		return errLine + titleStyle.Render("Editing AGENTS.md") + "\n\n" +
 			a.agentsEditor.View() + "\n\n" +

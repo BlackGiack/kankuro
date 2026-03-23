@@ -36,6 +36,8 @@ func (a *App) updateSwitchAgent(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	a.switchList, cmd = a.switchList.Update(msg)
+	// update visual selection marker
+	a.updateSwitchSelection()
 	return a, cmd
 }
 

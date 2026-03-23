@@ -17,6 +17,7 @@ type dashboardPane int
 const (
 	viewDashboard viewMode = iota
 	viewCardForm
+	viewPuppetSelector
 	viewMCPForm
 	viewDeleteConfirm
 	viewSwitchAgent
@@ -25,6 +26,8 @@ const (
 	viewSkillSources
 	viewSkillSourceForm
 )
+
+func puppetStyles() []string { return []string{"default", "kankuro", "cat", "strawhat"} }
 
 const (
 	paneCards dashboardPane = iota
@@ -73,8 +76,16 @@ const (
 	contentSummaryLimit = 30
 	contentSummaryKeep  = 27
 
-	cardInputTotalOffset = 2
-	skillWindowBuffer    = 2
+	cardInputTotalOffset = 3
+	// Focus indices for non-text inputs in the card form.
+	cardPuppetIndex    = 5
+	cardUseTmpIndex    = 6
+	cardAgentsMDIndex  = 7
+	cardSkillListIndex = 8
+	skillWindowBuffer  = 2
+
+	// default puppet style.
+	defaultPuppet = "kankuro"
 
 	maxPillsShown = 4
 	pillTextLimit = 10
@@ -126,6 +137,11 @@ type App struct {
 	pendingDeleteID string
 	switchSessionID string
 	focusedPane     dashboardPane
+
+	// Puppet selection state for the card form
+	cardPuppet          string
+	puppetSelectorIndex int
+	puppetSelectorPrev  string
 
 	help help.Model
 

@@ -145,7 +145,11 @@ func renderCardItem(card config.IDCard, skills []config.Skill, selected bool) st
 	}
 	skillsLine := lipgloss.JoinHorizontal(lipgloss.Top, pills...)
 
-	puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", "kankuro") })
+	style := card.Puppet
+	if style == "" {
+		style = defaultPuppet
+	}
+	puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", style) })
 	w, h := puppet.Bounds()
 	canvas := ascii.NewCanvas(w, h)
 	puppet.Render(canvas, 0, 0)

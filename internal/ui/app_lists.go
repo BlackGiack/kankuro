@@ -66,6 +66,18 @@ func (a *App) refreshCardList() {
 	a.updateCardSelection()
 }
 
+func (a *App) updateSwitchSelection() {
+	items := a.switchList.Items()
+	cursor := a.switchList.Cursor()
+	for i := range items {
+		if c, ok := items[i].(cardItem); ok {
+			c.selected = (i == cursor)
+			items[i] = c
+		}
+	}
+	a.switchList.SetItems(items)
+}
+
 func (a *App) refreshSessionList() {
 	a.sessions = a.session.List()
 	sort.Slice(a.sessions, func(i, j int) bool { return a.sessions[i].StartedAt.After(a.sessions[j].StartedAt) })

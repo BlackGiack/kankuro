@@ -76,6 +76,12 @@ func (a *App) handleDashboardEdit() (tea.Model, tea.Cmd) {
 	a.cardInputs[2].SetValue(selected.Model)
 	a.cardInputs[3].SetValue(selected.WorkingDir)
 	a.cardInputs[4].SetValue(selected.FaceStyle)
+	// puppet field
+	if selected.Puppet != "" {
+		a.cardPuppet = selected.Puppet
+	} else {
+		a.cardPuppet = defaultPuppet
+	}
 	tmpVal := "n"
 	if selected.UseTmpWorkspace {
 		tmpVal = "y"
@@ -153,6 +159,8 @@ func (a *App) handleDashboardSwitch() (tea.Model, tea.Cmd) {
 	a.switchSessionID = s.ID
 	a.switchList.SetItems(toCardItems(a.cards, a.skills))
 	a.switchList.Select(0)
+	// mark selected for visual feedback
+	a.updateSwitchSelection()
 	a.mode = viewSwitchAgent
 	return a, nil
 }
