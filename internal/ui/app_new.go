@@ -43,6 +43,7 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 		sessions:           sm.List(),
 		selectedSkillIDs:   make(map[string]bool),
 		selectedPersonaIDs: make(map[string]bool),
+		selectedMCPIDs:     make(map[string]bool),
 		focusedPane:        paneCards,
 		help:               help.New(),
 	}
@@ -120,9 +121,30 @@ func (a *App) initInputs() {
 	a.mcpInputs[0] = textinput.New()
 	a.mcpInputs[0].Placeholder = "mcp name"
 	a.mcpInputs[0].Width = inputWidthDefault
+
 	a.mcpInputs[1] = textinput.New()
-	a.mcpInputs[1].Placeholder = "mcp command"
+	a.mcpInputs[1].Placeholder = "mcp command (local only)"
 	a.mcpInputs[1].Width = inputWidthDefault
+
+	a.mcpInputs[2] = textinput.New()
+	a.mcpInputs[2].Placeholder = "args (comma separated, local only)"
+	a.mcpInputs[2].Width = inputWidthDefault
+
+	a.mcpInputs[3] = textinput.New()
+	a.mcpInputs[3].Placeholder = "cwd (local only)"
+	a.mcpInputs[3].Width = inputWidthDefault
+
+	a.mcpInputs[4] = textinput.New()
+	a.mcpInputs[4].Placeholder = "url (remote only)"
+	a.mcpInputs[4].Width = inputWidthDefault
+
+	a.mcpInputs[5] = textinput.New()
+	a.mcpInputs[5].Placeholder = "env (KEY=VALUE, local only)"
+	a.mcpInputs[5].Width = inputWidthDefault
+
+	a.mcpInputs[6] = textinput.New()
+	a.mcpInputs[6].Placeholder = "headers (KEY=VALUE, remote only)"
+	a.mcpInputs[6].Width = inputWidthDefault
 
 	a.agentsEditor = textarea.New()
 	a.agentsEditor.Placeholder = "Enter AGENTS.md content here..."

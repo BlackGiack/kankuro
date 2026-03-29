@@ -1,7 +1,11 @@
 package driver_test
 
 import (
+	"encoding/json"
+	"kankuro/internal/config"
 	"kankuro/internal/driver"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -27,5 +31,66 @@ func TestSetModel(t *testing.T) {
 	args := d.SetModel("opus")
 	if len(args) != 2 || args[0] != "--model" || args[1] != "opus" {
 		t.Fatalf("unexpected SetModel result: %v", args)
+	}
+}
+
+func TestSelectMCPs(t *testing.T) {
+	d := driver.NewGenericCLIDriver()
+	wd := t.TempDir()
+
+	mcps := []config.MCPServer{
+		{
+			Name:    "local-mcp",
+			Command: "node",
+			Args:    []string{"server.js"},
+			Env:     map[string]string{"API_KEY": "123"},
+			CWD:     "/some/path",
+		},
+		{
+			Name:    "remote-mcp",
+			URL:     "http://remote",
+			Headers: map[string]string{"Auth": "Bearer token"},
+		},
+	}
+
+	if err := d.SelectMCPs(mcps, wd); err != nil {
+		t.Fatalf("failed to select mcps: %v", err)
+	}
+
+	configPath := filepath.Join(wd, ".kankuro", "mcp-servers.json")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("failed to read mcp config: %v", err)
+	}
+
+	// Verify it's valid JSON and contains what we expect
+	var cfg struct {
+		MCPServers map[string]struct {
+			Command string            `json:"command"`
+			Args    []string          `json:"args"`
+			Env     map[string]string `json:"env"`
+			CWD     string            `json:"cwd"`
+			URL     string            `json:"url"`
+			Headers map[string]string `json:"headers"`
+		} `json:"mcpServers"`
+	}
+	if err = json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("failed to unmarshal mcp config: %v", err)
+	}
+
+	if len(cfg.MCPServers) != 2 {
+		t.Fatalf("expected 2 mcp servers, got %d", len(cfg.MCPServers))
+	}
+
+	if local, ok := cfg.MCPServers["local-mcp"]; !ok {
+		t.Fatalf("local-mcp missing")
+	} else if local.Command != "node" || local.Args[0] != "server.js" || local.Env["API_KEY"] != "123" || local.CWD != "/some/path" {
+		t.Fatalf("local-mcp fields mismatch: %+v", local)
+	}
+
+	if remote, ok := cfg.MCPServers["remote-mcp"]; !ok {
+		t.Fatalf("remote-mcp missing")
+	} else if remote.URL != "http://remote" || remote.Headers["Auth"] != "Bearer token" {
+		t.Fatalf("remote-mcp fields mismatch: %+v", remote)
 	}
 }

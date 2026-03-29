@@ -63,7 +63,7 @@ type AgentDriver interface {
 
 	SetSkills(skills []config.Skill, workspaceRoot ...string) error
 	SetPersonas(personas []config.Persona, workspaceRoot ...string) error
-	SetMcps(mcps []config.MCPServer) error
+	SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error
 	SetModel(model string) []string
 
 	SendInput(data string) error
@@ -101,18 +101,29 @@ type AgentDriver interface {
 
 ## 4. UI/UX Design
 
-* **Main Screen:** 
+* **Main Screen (Dashboard):** 
     * **Center:** A collection of "Agent Identity Cards" with assigned ASCII puppets.
     * **Right Sidebar:** A scrollable list of sessions showing status (Running, Waiting, Terminated) and the agent's identity face.
 
-* **Interactions:**
+* **Dashboard Interactions:**
     * `Enter` on a Card: Launch a new session.
     * `Enter` on a Session: Attach if running, **Relaunch** if terminated.
     * `Ctrl+K`: Detach from the attached PTY and return to Kankuro Dashboard.
     * `Tab`: Switch dashboard focus between ID cards and sessions.
+    * `e`: Edit the selected ID Card.
+    * `n`: Create a new ID Card.
     * `x`: Kill the selected running session.
-    * `s`: Switch agent on the selected terminated session 
-    * `Backspace/Delete`: Trigger a **confirmation dialog** to remove a terminated session (and its temporary workspace).
+    * `s`: Switch agent on the selected terminated session.
+    * `m`: Open the MCP registry form to add a new server.
+    * `Backspace/Delete` (on Session): Trigger a **confirmation dialog** to remove a terminated session (and its temporary workspace).
+
+* **Agent Card Editor Interactions:**
+    * `Tab`: Cycle focus between fields (Name, Driver, Model, CWD, Face, Tmp, AgentsMD, Skills, Personas, MCPs).
+    * `Space` (on Lists): Toggle selection of the highlighted Skill, Persona, or MCP.
+    * `ctrl+e` (on Lists): Open the specialized form to add a new Skill Source, Persona Source, or MCP Server.
+    * `Delete/Del` (on MCP List): Remove the highlighted MCP from the global registry (only if not referenced by any ID Card).
+    * `Enter`: Save the ID Card and return to the Dashboard.
+    * `Esc`: Cancel changes and return to the Dashboard.
 
 * **Visual Cues:** 
     * Agents awaiting input will show a **neutral face** and use a **hot-pink pulse** style in the sidebar.

@@ -5,6 +5,7 @@ import (
 	"kankuro/internal/session"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -28,7 +29,7 @@ func TestSessionAgentsMD(t *testing.T) {
 		AgentsMD:        "# First Content",
 	}
 
-	sid, err := sm.Launch(card, nil, nil)
+	sid, err := sm.Launch(card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -56,7 +57,7 @@ func TestSessionAgentsMD(t *testing.T) {
 
 	// Switch agent with different content -> should REPLACE
 	card.AgentsMD = "# Second Content"
-	if errSwitch := sm.SwitchAgent(sid, card, nil, nil); errSwitch != nil {
+	if errSwitch := sm.SwitchAgent(sid, card, nil, nil, nil); errSwitch != nil {
 		t.Fatalf("switch agent: %v", errSwitch)
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -84,7 +85,7 @@ func TestSessionAgentsMD(t *testing.T) {
 	card.AgentsMDPreferPath = true
 	card.AgentsMDPath = tmpFile
 	card.WorkingDir = t.TempDir() // Fresh WD without AGENTS.md
-	sid2, errLaunch := sm.Launch(card, nil, nil)
+	sid2, errLaunch := sm.Launch(card, nil, nil, nil)
 	if errLaunch != nil {
 		t.Fatalf("launch with path: %v", errLaunch)
 	}
@@ -106,5 +107,56 @@ func TestSessionAgentsMD(t *testing.T) {
 
 	if errKill2 := sm.Kill(sid2); errKill2 != nil {
 		t.Fatalf("kill: %v", errKill2)
+	}
+}
+
+func TestSessionMCPs(t *testing.T) {
+	sm := session.NewManager(t.TempDir())
+	wd := t.TempDir()
+
+	mcps := []config.MCPServer{
+		{Name: "mcp1", Command: "node", Args: []string{"server.js"}},
+		{Name: "mcp2", URL: "http://remote"},
+	}
+
+	card := config.IDCard{
+		ID:              "card-mcp",
+		Name:            "mcp-test",
+		Driver:          "cat",
+		WorkingDir:      wd,
+		UseTmpWorkspace: true,
+	}
+
+	sid, err := sm.Launch(card, nil, nil, mcps)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	s, ok := sm.GetSession(sid)
+	if !ok {
+		t.Fatalf("session not found")
+	}
+	finalWD := s.WorkingDir
+
+	// Verify .kankuro/mcp-servers.json
+	configPath := filepath.Join(finalWD, ".kankuro", "mcp-servers.json")
+	if _, err = os.Stat(configPath); err != nil {
+		t.Fatalf("mcp-servers.json missing: %v", err)
+	}
+
+	// Verify AGENTS.md
+	agentsPath := filepath.Join(finalWD, "AGENTS.md")
+	content, errRead := os.ReadFile(agentsPath)
+	if errRead != nil {
+		t.Fatalf("read AGENTS.md: %v", errRead)
+	}
+	expectedLine := `Available mcp: ["mcp1","mcp2"]`
+	if !strings.Contains(string(content), expectedLine) {
+		t.Fatalf("expected AGENTS.md to contain %q, got %q", expectedLine, string(content))
+	}
+
+	if errKill := sm.Kill(sid); errKill != nil {
+		t.Fatalf("kill: %v", errKill)
 	}
 }

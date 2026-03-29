@@ -27,8 +27,11 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "e":
 			return a.handleDashboardEdit()
 		case "m":
-			a.mcpInputs[0].SetValue("")
-			a.mcpInputs[1].SetValue("")
+			// open mcp form
+			a.mcpFormPrevMode = viewDashboard
+			for i := range a.mcpInputs {
+				a.mcpInputs[i].SetValue("")
+			}
 			a.mcpInputs[0].Focus()
 			a.mode = viewMCPForm
 			return a, nil
@@ -88,6 +91,7 @@ func (a *App) handleDashboardEdit() (tea.Model, tea.Cmd) {
 	a.cardInputs[5].SetValue(tmpVal)
 	a.setSelectedSkills(selected.SkillIDs)
 	a.setSelectedPersonas(selected.PersonaIDs)
+	a.setSelectedMCPs(selected.MCPIDs)
 	a.editingCardID = selected.ID
 	a.agentsMD = selected.AgentsMD
 	a.agentsMDPath = selected.AgentsMDPath
@@ -109,7 +113,9 @@ func (a *App) handleDashboardEnter() (tea.Model, tea.Cmd) {
 	}
 	skills := a.skillsForCard(selected)
 	personas := a.personasForCard(selected)
-	id, err := a.session.Launch(selected, skills, personas)
+	mcps := a.mcpsForCard(selected)
+	skills = a.injectMCPCliSkill(selected, skills)
+	id, err := a.session.Launch(selected, skills, personas, mcps)
 	if err != nil {
 		a.err = err
 		return a, nil
@@ -198,7 +204,9 @@ func (a *App) activateSelectedSession() tea.Cmd {
 		}
 		skills := a.skillsForCard(card)
 		personas := a.personasForCard(card)
-		if err := a.session.Relaunch(s.ID, card, skills, personas); err != nil {
+		mcps := a.mcpsForCard(card)
+		skills = a.injectMCPCliSkill(card, skills)
+		if err := a.session.Relaunch(s.ID, card, skills, personas, mcps); err != nil {
 			a.err = fmt.Errorf("relaunch failed: %w", err)
 			return nil
 		}

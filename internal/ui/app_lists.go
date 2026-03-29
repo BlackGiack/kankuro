@@ -154,6 +154,40 @@ func (a *App) personasForCard(card config.IDCard) []config.Persona {
 	return out
 }
 
+func (a *App) mcpsForCard(card config.IDCard) []config.MCPServer {
+	if len(card.MCPIDs) == 0 {
+		return nil
+	}
+	selected := make(map[string]struct{}, len(card.MCPIDs))
+	for _, id := range card.MCPIDs {
+		selected[id] = struct{}{}
+	}
+	out := make([]config.MCPServer, 0, len(card.MCPIDs))
+	for _, mcp := range a.mcps {
+		if _, ok := selected[mcp.ID]; ok {
+			out = append(out, mcp)
+		}
+	}
+	return out
+}
+
+func (a *App) injectMCPCliSkill(card config.IDCard, skills []config.Skill) []config.Skill {
+	if len(card.MCPIDs) == 0 {
+		return skills
+	}
+	for _, s := range skills {
+		if s.Name == "mcp-cli" {
+			return skills
+		}
+	}
+	for _, s := range a.skills {
+		if s.Name == "mcp-cli" {
+			return append(skills, s)
+		}
+	}
+	return skills
+}
+
 func toCardItems(cards []config.IDCard, allSkills []config.Skill, allPersonas []config.Persona) []list.Item {
 	items := make([]list.Item, 0, len(cards))
 	for _, c := range cards {

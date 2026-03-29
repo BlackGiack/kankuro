@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -16,10 +17,11 @@ func (m *Manager) prepareWorkspace(
 	wd string,
 	_ []config.Skill,
 	personas []config.Persona,
+	mcps []config.MCPServer,
 	isNew bool,
 ) (string, error) {
 	if !card.UseTmpWorkspace {
-		if errSync := syncAgentsMD(wd, card, personas, isNew); errSync != nil {
+		if errSync := syncAgentsMD(wd, card, personas, mcps, isNew); errSync != nil {
 			return "", errSync
 		}
 		return wd, nil
@@ -62,76 +64,90 @@ func (m *Manager) prepareWorkspace(
 		return "", fmt.Errorf("clear tmp personas dir: %w", errRemove)
 	}
 
-	if errSync := syncAgentsMD(targetDir, card, personas, isNew); errSync != nil {
+	if errSync := syncAgentsMD(targetDir, card, personas, mcps, isNew); errSync != nil {
 		return "", errSync
 	}
 	return targetDir, nil
 }
 
-func syncAgentsMD(finalWD string, card config.IDCard, personas []config.Persona, appendIfExist bool) error {
-	agentsMD := card.AgentsMD
-	if card.AgentsMDPreferPath && card.AgentsMDPath != "" {
-		data, errRead := os.ReadFile(card.AgentsMDPath)
-		if errRead != nil {
-			return fmt.Errorf("read agents md path %s: %w", card.AgentsMDPath, errRead)
-		}
-		agentsMD = string(data)
+func syncAgentsMD(finalWD string, card config.IDCard, personas []config.Persona, mcps []config.MCPServer, appendIfExist bool) error {
+	agentsMD, err := resolveAgentsMDContent(card)
+	if err != nil {
+		return err
 	}
 
 	if len(personas) == 1 {
-		p := personas[0]
-		ext := filepath.Ext(p.Source)
-		// Logic matches SetPersonas for destination filename
-		destName := p.Name + ext
-		// Wait, I don't have nameCounts here.
-		// But syncAgentsMD is called with the resolved personas.
-		// If there are duplicate names in the original selection, SetPersonas will disambiguate.
-		// However, here we only care if len(personas) == 1, so there's no ambiguity by definition within this set.
-		relPath := filepath.Join(".agents", "agents", destName)
-		personaInstruction := fmt.Sprintf(
-			"Read the file %s and embody the persona described during this session,",
-			relPath,
-		)
-		if agentsMD != "" {
-			agentsMD += "\n\n" + personaInstruction
-		} else {
-			agentsMD = personaInstruction
-		}
+		agentsMD = appendPersonaInstruction(agentsMD, personas[0])
+	}
+
+	if len(mcps) > 0 {
+		agentsMD = appendMCPInstruction(agentsMD, mcps)
 	}
 
 	if agentsMD == "" {
 		return nil
 	}
 
-	path := filepath.Join(finalWD, "AGENTS.md")
+	return writeAgentsMD(finalWD, agentsMD, appendIfExist)
+}
+
+func resolveAgentsMDContent(card config.IDCard) (string, error) {
+	if card.AgentsMDPreferPath && card.AgentsMDPath != "" {
+		data, err := os.ReadFile(card.AgentsMDPath)
+		if err != nil {
+			return "", fmt.Errorf("read agents md path %s: %w", card.AgentsMDPath, err)
+		}
+		return string(data), nil
+	}
+	return card.AgentsMD, nil
+}
+
+func appendPersonaInstruction(content string, p config.Persona) string {
+	ext := filepath.Ext(p.Source)
+	relPath := filepath.Join(".agents", "agents", p.Name+ext)
+	instruction := fmt.Sprintf("Read the file %s and embody the persona described during this session,", relPath)
+	if content != "" {
+		return content + "\n\n" + instruction
+	}
+	return instruction
+}
+
+func appendMCPInstruction(content string, mcps []config.MCPServer) string {
+	mcpNames := make([]string, 0, len(mcps))
+	for _, mcp := range mcps {
+		mcpNames = append(mcpNames, mcp.Name)
+	}
+	mcpJSON, _ := json.Marshal(mcpNames)
+	mcpLine := fmt.Sprintf("Available mcp: %s", string(mcpJSON))
+	if content != "" {
+		return content + "\n" + mcpLine
+	}
+	return mcpLine
+}
+
+func writeAgentsMD(dir, content string, appendIfExist bool) error {
+	path := filepath.Join(dir, "AGENTS.md")
 	if !appendIfExist {
 		// G703: Path traversal via taint analysis.
-		errWrite := os.WriteFile(path, []byte(agentsMD), 0o600) //nolint:gosec // path is controlled
-		if errWrite != nil {
-			return fmt.Errorf("write AGENTS.md: %w", errWrite)
-		}
-		return nil
+		return os.WriteFile(path, []byte(content), 0o600) //nolint:gosec // path is controlled
 	}
 
 	// G703: Path traversal via taint analysis.
-	f, errOpen := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600) //nolint:gosec // path is controlled
-	if errOpen != nil {
-		return fmt.Errorf("open AGENTS.md: %w", errOpen)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600) //nolint:gosec // path is controlled
+	if err != nil {
+		return fmt.Errorf("open AGENTS.md: %w", err)
 	}
 	defer f.Close()
 
-	stat, errStat := f.Stat()
-	if errStat != nil {
-		return fmt.Errorf("stat AGENTS.md: %w", errStat)
+	stat, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("stat AGENTS.md: %w", err)
 	}
 
-	content := agentsMD
 	if stat.Size() > 0 {
-		content = "\n\n" + agentsMD
+		content = "\n\n" + content
 	}
 
-	if _, errWrite := f.WriteString(content); errWrite != nil {
-		return fmt.Errorf("write AGENTS.md: %w", errWrite)
-	}
-	return nil
+	_, err = f.WriteString(content)
+	return err
 }

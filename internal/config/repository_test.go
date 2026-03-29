@@ -72,6 +72,30 @@ func TestCreateIDCardRejectsUnknownRefs(t *testing.T) {
 	}
 }
 
+func TestUpsertMCPValidation(t *testing.T) {
+	repo, _ := config.NewFileRepository(t.TempDir())
+
+	// Rejects missing name
+	if _, err := repo.UpsertMCP(config.MCPServer{Command: "foo"}); err == nil {
+		t.Fatalf("expected error for missing name")
+	}
+
+	// Rejects both command and url empty
+	if _, err := repo.UpsertMCP(config.MCPServer{Name: "bad"}); err == nil {
+		t.Fatalf("expected error for both command and url empty")
+	}
+
+	// Accepts local server
+	if _, err := repo.UpsertMCP(config.MCPServer{Name: "local", Command: "foo"}); err != nil {
+		t.Fatalf("failed to upsert local mcp: %v", err)
+	}
+
+	// Accepts remote server
+	if _, err := repo.UpsertMCP(config.MCPServer{Name: "remote", URL: "http://foo"}); err != nil {
+		t.Fatalf("failed to upsert remote mcp: %v", err)
+	}
+}
+
 func TestRepositoryBootstrapsFiles(t *testing.T) {
 	dir := t.TempDir()
 	repo, err := config.NewFileRepository(dir)

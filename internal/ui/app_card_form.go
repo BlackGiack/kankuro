@@ -40,6 +40,21 @@ func (a *App) filteredPersonas() []config.Persona {
 	return filtered
 }
 
+func (a *App) filteredMCPs() []config.MCPServer {
+	if a.mcpSearchQuery == "" {
+		return a.mcps
+	}
+	query := strings.ToLower(a.mcpSearchQuery)
+	var filtered []config.MCPServer
+	for _, mcp := range a.mcps {
+		if strings.Contains(strings.ToLower(mcp.Name), query) ||
+			strings.Contains(strings.ToLower(mcp.Description), query) {
+			filtered = append(filtered, mcp)
+		}
+	}
+	return filtered
+}
+
 func (a *App) handleCardFormEscape() {
 	if a.isSkillListFocused() && a.skillSearchQuery != "" {
 		a.skillSearchQuery = ""
@@ -49,6 +64,11 @@ func (a *App) handleCardFormEscape() {
 	if a.isPersonaListFocused() && a.personaSearchQuery != "" {
 		a.personaSearchQuery = ""
 		a.personaCursor = 0
+		return
+	}
+	if a.isMCPListFocused() && a.mcpSearchQuery != "" {
+		a.mcpSearchQuery = ""
+		a.mcpCursor = 0
 		return
 	}
 	a.mode = viewDashboard
@@ -94,6 +114,26 @@ func (a *App) handlePersonaListSearchInput(keyMsg tea.KeyMsg) bool {
 	return false
 }
 
+func (a *App) handleMCPListSearchInput(keyMsg tea.KeyMsg) bool {
+	if !a.isMCPListFocused() {
+		return false
+	}
+	if keyMsg.String() == keyBackspace && len(a.mcpSearchQuery) > 0 {
+		a.mcpSearchQuery = a.mcpSearchQuery[:len(a.mcpSearchQuery)-1]
+		a.mcpCursor = 0
+		return true
+	}
+	if len(keyMsg.Runes) > 0 {
+		ch := keyMsg.Runes[0]
+		if ch >= printableCharMin && ch <= printableCharMax {
+			a.mcpSearchQuery += string(ch)
+			a.mcpCursor = 0
+			return true
+		}
+	}
+	return false
+}
+
 func (a *App) updateCardForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if a.cardFocusIndex < len(a.cardInputs) && !a.cardInputs[a.cardFocusIndex].Focused() {
 		a.setCardFocus(a.cardFocusIndex)
@@ -121,6 +161,7 @@ func (a *App) handleCardFormKeyMsg(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 	case keyTab:
 		a.skillSearchQuery = ""
 		a.personaSearchQuery = ""
+		a.mcpSearchQuery = ""
 		a.cycleCardFocus()
 		return nil, true
 	case "up":
@@ -130,44 +171,70 @@ func (a *App) handleCardFormKeyMsg(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		a.handleCardFormNav(true)
 		return nil, true
 	case " ":
-		if a.isPuppetFocused() {
-			// open puppet selector
-			a.puppetSelectorPrev = a.cardPuppet
-			// set selector index to current puppet
-			a.puppetSelectorIndex = 0
-			for i, p := range puppetStyles() {
-				if p == a.cardPuppet {
-					a.puppetSelectorIndex = i
-					break
-				}
-			}
-			a.mode = viewPuppetSelector
-			return nil, true
-		}
-		if a.isSkillListFocused() || a.isPersonaListFocused() || a.isAgentsMDFocused() {
-			a.handleCardFormToggle()
-			return nil, true
-		}
+		return nil, a.handleCardFormSpace()
 	case keyEnter:
 		a.handleCardFormSubmit()
 		return nil, true
+	case "delete", "del":
+		if a.isMCPListFocused() {
+			a.deleteSelectedMCP()
+			return nil, true
+		}
 	case "ctrl+e":
-		if a.isSkillListFocused() {
-			a.openSkillSources()
-			return nil, true
-		}
-		if a.isPersonaListFocused() {
-			a.openPersonaSources()
-			return nil, true
-		}
+		return nil, a.handleCardFormCtrlE()
 	}
+	return nil, a.handleCardFormSearch(keyMsg)
+}
+
+func (a *App) handleCardFormSpace() bool {
+	if a.isPuppetFocused() {
+		a.puppetSelectorPrev = a.cardPuppet
+		a.puppetSelectorIndex = 0
+		for i, p := range puppetStyles() {
+			if p == a.cardPuppet {
+				a.puppetSelectorIndex = i
+				break
+			}
+		}
+		a.mode = viewPuppetSelector
+		return true
+	}
+	if a.isSkillListFocused() || a.isPersonaListFocused() || a.isAgentsMDFocused() || a.isMCPListFocused() {
+		a.handleCardFormToggle()
+		return true
+	}
+	return false
+}
+
+func (a *App) handleCardFormCtrlE() bool {
 	if a.isSkillListFocused() {
-		return nil, a.handleSkillListSearchInput(keyMsg)
+		a.openSkillSources()
+		return true
 	}
 	if a.isPersonaListFocused() {
-		return nil, a.handlePersonaListSearchInput(keyMsg)
+		a.openPersonaSources()
+		return true
 	}
-	return nil, false
+	if a.isMCPListFocused() {
+		a.mcpFormPrevMode = viewCardForm
+		a.mode = viewMCPForm
+		a.mcpInputs[0].Focus()
+		return true
+	}
+	return false
+}
+
+func (a *App) handleCardFormSearch(keyMsg tea.KeyMsg) bool {
+	if a.isSkillListFocused() {
+		return a.handleSkillListSearchInput(keyMsg)
+	}
+	if a.isPersonaListFocused() {
+		return a.handlePersonaListSearchInput(keyMsg)
+	}
+	if a.isMCPListFocused() {
+		return a.handleMCPListSearchInput(keyMsg)
+	}
+	return false
 }
 
 func (a *App) openSkillSources() {
@@ -193,29 +260,32 @@ func (a *App) openPersonaSources() {
 }
 
 func (a *App) handleCardFormNav(down bool) {
-	if a.isSkillListFocused() {
-		filtered := a.filteredSkills()
-		if down {
-			if a.skillCursor < len(filtered)-1 {
-				a.skillCursor++
-			}
-		} else if a.skillCursor > 0 {
-			a.skillCursor--
-		}
-	}
-	if a.isPersonaListFocused() {
-		filtered := a.filteredPersonas()
-		if down {
-			if a.personaCursor < len(filtered)-1 {
-				a.personaCursor++
-			}
-		} else if a.personaCursor > 0 {
-			a.personaCursor--
-		}
-	}
-	if a.isAgentsMDFocused() {
+	switch {
+	case a.isSkillListFocused():
+		a.skillCursor = a.calculateNavCursor(a.skillCursor, len(a.filteredSkills()), down)
+	case a.isPersonaListFocused():
+		a.personaCursor = a.calculateNavCursor(a.personaCursor, len(a.filteredPersonas()), down)
+	case a.isMCPListFocused():
+		a.mcpCursor = a.calculateNavCursor(a.mcpCursor, len(a.filteredMCPs()), down)
+	case a.isAgentsMDFocused():
 		a.agentsMDPreferPath = down
 	}
+}
+
+func (a *App) calculateNavCursor(current, total int, down bool) int {
+	if total == 0 {
+		return 0
+	}
+	if down {
+		if current < total-1 {
+			return current + 1
+		}
+	} else {
+		if current > 0 {
+			return current - 1
+		}
+	}
+	return current
 }
 
 func (a *App) handleCardFormToggle() {
@@ -224,6 +294,9 @@ func (a *App) handleCardFormToggle() {
 	}
 	if a.isPersonaListFocused() {
 		a.toggleSelectedPersona()
+	}
+	if a.isMCPListFocused() {
+		a.toggleSelectedMCP()
 	}
 	if a.isAgentsMDFocused() {
 		if a.agentsMDPreferPath {
@@ -252,6 +325,7 @@ func (a *App) handleCardFormSubmit() {
 		AgentsMDPreferPath: a.agentsMDPreferPath,
 		SkillIDs:           a.selectedSkillIDsSlice(),
 		PersonaIDs:         a.selectedPersonaIDsSlice(),
+		MCPIDs:             a.selectedMCPIDsSlice(),
 	}
 	var err error
 	if a.editingCardID == "" {
@@ -287,6 +361,9 @@ func (a *App) resetCardForm() {
 	a.selectedPersonaIDs = make(map[string]bool)
 	a.personaCursor = 0
 	a.personaSearchQuery = ""
+	a.selectedMCPIDs = make(map[string]bool)
+	a.mcpCursor = 0
+	a.mcpSearchQuery = ""
 	a.cardFocusIndex = 0
 	a.setCardFocus(a.cardFocusIndex)
 }
@@ -305,6 +382,14 @@ func (a *App) setSelectedPersonas(ids []string) {
 		a.selectedPersonaIDs[id] = true
 	}
 	a.personaCursor = 0
+}
+
+func (a *App) setSelectedMCPs(ids []string) {
+	a.selectedMCPIDs = make(map[string]bool)
+	for _, id := range ids {
+		a.selectedMCPIDs[id] = true
+	}
+	a.mcpCursor = 0
 }
 
 func (a *App) selectedSkillIDsSlice() []string {
@@ -337,6 +422,16 @@ func (a *App) selectedPersonaIDsSlice() []string {
 	return ids
 }
 
+func (a *App) selectedMCPIDsSlice() []string {
+	ids := make([]string, 0, len(a.selectedMCPIDs))
+	for _, mcp := range a.mcps {
+		if a.selectedMCPIDs[mcp.ID] {
+			ids = append(ids, mcp.ID)
+		}
+	}
+	return ids
+}
+
 func (a *App) isAgentsMDFocused() bool {
 	return a.cardFocusIndex == cardAgentsMDIndex
 }
@@ -349,19 +444,22 @@ func (a *App) isPersonaListFocused() bool {
 	return a.cardFocusIndex == cardPersonaListIndex
 }
 
+func (a *App) isMCPListFocused() bool {
+	return a.cardFocusIndex == cardMCPListIndex
+}
+
 // setCardFocus sets focus for text inputs mapping logical focus index to input indices.
 func (a *App) setCardFocus(index int) {
 	a.cardFocusIndex = index
 	// determine which textinput should be focused (if any)
 	var mapped int
 	switch {
-	case index < cardInputCount-1:
+	case index < cardPuppetIndex:
 		mapped = index
-	case index == cardPuppetIndex:
-		mapped = -1 // puppet, no text input
+	case index == cardUseTmpIndex:
+		mapped = 5
 	default:
-		// indices >= cardUseTmpIndex map to cardInputs[index-1]
-		mapped = index - 1
+		mapped = -1
 	}
 	for i := range a.cardInputs {
 		if i == mapped {
@@ -437,6 +535,36 @@ func (a *App) toggleSelectedPersona() {
 	a.selectedPersonaIDs[id] = true
 }
 
+func (a *App) toggleSelectedMCP() {
+	filtered := a.filteredMCPs()
+	if len(filtered) == 0 || a.mcpCursor < 0 || a.mcpCursor >= len(filtered) {
+		return
+	}
+	id := filtered[a.mcpCursor].ID
+	if a.selectedMCPIDs[id] {
+		delete(a.selectedMCPIDs, id)
+		return
+	}
+	a.selectedMCPIDs[id] = true
+}
+
+func (a *App) deleteSelectedMCP() {
+	filtered := a.filteredMCPs()
+	if len(filtered) == 0 || a.mcpCursor < 0 || a.mcpCursor >= len(filtered) {
+		return
+	}
+	id := filtered[a.mcpCursor].ID
+	if err := a.repo.DeleteMCP(id); err != nil {
+		a.err = err
+		return
+	}
+	// Refresh MCP list from repo
+	a.mcps, _ = a.repo.ListMCPs()
+	if a.mcpCursor >= len(a.filteredMCPs()) {
+		a.mcpCursor = max(0, len(a.filteredMCPs())-1)
+	}
+}
+
 func (a *App) skillWindow(total int) (int, int) {
 	if total == 0 {
 		return 0, 0
@@ -471,6 +599,23 @@ func (a *App) personaWindow(total int) (int, int) {
 	return start, end
 }
 
+func (a *App) mcpWindow(total int) (int, int) {
+	if total == 0 {
+		return 0, 0
+	}
+	height := a.mcpListHeight()
+	if height >= total {
+		return 0, total
+	}
+	start := max(0, a.mcpCursor-height/2)
+	end := start + height
+	if end > total {
+		end = total
+		start = max(0, end-height)
+	}
+	return start, end
+}
+
 func (a *App) skillListHeight() int {
 	if a.height <= 0 {
 		return defaultSkillListHeight / skillListHeightDivisor
@@ -480,5 +625,9 @@ func (a *App) skillListHeight() int {
 }
 
 func (a *App) personaListHeight() int {
+	return a.skillListHeight()
+}
+
+func (a *App) mcpListHeight() int {
 	return a.skillListHeight()
 }

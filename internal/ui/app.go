@@ -41,10 +41,10 @@ const (
 const (
 	defaultSkillListHeight = 10
 	minSkillListHeight     = 3
-	skillListHeightOffset  = 18
+	skillListHeightOffset  = 20
 
 	cardInputCount = 6
-	mcpInputCount  = 2
+	mcpInputCount  = 7
 
 	cardListMinWidth  = 20
 	cardListMinHeight = 10
@@ -82,19 +82,20 @@ const (
 	contentSummaryLimit = 30
 	contentSummaryKeep  = 27
 
-	cardInputTotalOffset = 3
+	cardInputTotalOffset = 4
 	// Focus indices for non-text inputs in the card form.
 	cardPuppetIndex      = 5
 	cardUseTmpIndex      = 6
 	cardAgentsMDIndex    = 7
 	cardSkillListIndex   = 8
 	cardPersonaListIndex = 9
+	cardMCPListIndex     = 10
 	skillWindowBuffer    = 2
 
 	// default puppet style.
 	defaultPuppet = "kankuro"
 
-	skillListHeightDivisor = 2
+	skillListHeightDivisor = 3
 
 	maxPillsShown = 4
 	pillTextLimit = 10
@@ -149,6 +150,10 @@ type App struct {
 	personaCursor      int
 	selectedPersonaIDs map[string]bool
 	personaSearchQuery string
+	mcpCursor          int
+	selectedMCPIDs     map[string]bool
+	mcpSearchQuery     string
+	mcpFormPrevMode    viewMode
 
 	editingCardID   string
 	activeSessionID string

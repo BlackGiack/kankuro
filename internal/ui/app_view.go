@@ -47,6 +47,7 @@ func (a *App) View() string {
 			"AGENTS.md:\n" + a.renderAgentsMDRow() + "\n\n" +
 			a.renderSkillList() + "\n\n" +
 			a.renderPersonaList() + "\n\n" +
+			a.renderMCPList() + "\n\n" +
 			"Enter=save Tab=next Esc=cancel"
 	case viewSkillSources:
 		return errLine + titleStyle.Render("Manage Skill Sources") + "\n\n" +
@@ -96,7 +97,12 @@ func (a *App) View() string {
 	case viewMCPForm:
 		return errLine + titleStyle.Render("Add MCP") + "\n\n" +
 			"Name: " + a.mcpInputs[0].View() + "\n" +
-			"Command: " + a.mcpInputs[1].View() + "\n\n" +
+			"Command: " + a.mcpInputs[1].View() + "\n" +
+			"Args: " + a.mcpInputs[2].View() + "\n" +
+			"CWD: " + a.mcpInputs[3].View() + "\n" +
+			"URL: " + a.mcpInputs[4].View() + "\n" +
+			"Env: " + a.mcpInputs[5].View() + "\n" +
+			"Headers: " + a.mcpInputs[6].View() + "\n\n" +
 			"Enter=save Tab=next Esc=cancel"
 	case viewSwitchAgent:
 		header := "Switch Agent"
@@ -167,9 +173,9 @@ func (a *App) renderDashboard() string {
 
 	footer := lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().Foreground(gray).Render("[Nav] Tab "),
-		lipgloss.NewStyle().Foreground(gray).Render(" [Card] Enter=Launch n=New e=Edit m=MCP "),
+		lipgloss.NewStyle().Foreground(gray).Render(" [Card] Enter=Launch n=New e=Edit "),
 		lipgloss.NewStyle().Foreground(gray).Render(" [Session] Enter=Attach x=Kill Del=Remove "),
-		lipgloss.NewStyle().Foreground(gray).Render(" [Global] q=Quit"),
+		lipgloss.NewStyle().Foreground(gray).Render(" [Global] m=MCP q=Quit"),
 	)
 
 	return header + "\n" + body + "\n" + footer

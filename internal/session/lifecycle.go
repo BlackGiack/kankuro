@@ -14,13 +14,13 @@ import (
 )
 
 // Launch starts a new session process from an ID card.
-func (m *Manager) Launch(card config.IDCard, skills []config.Skill, personas []config.Persona) (string, error) {
+func (m *Manager) Launch(card config.IDCard, skills []config.Skill, personas []config.Persona, mcps []config.MCPServer) (string, error) {
 	sid := uuid.NewString()
-	return sid, m.startSession(sid, card, skills, personas, true, "")
+	return sid, m.startSession(sid, card, skills, personas, mcps, true, "")
 }
 
 // Relaunch restarts a terminated session using its existing workspace (if tmp).
-func (m *Manager) Relaunch(id string, card config.IDCard, skills []config.Skill, personas []config.Persona) error {
+func (m *Manager) Relaunch(id string, card config.IDCard, skills []config.Skill, personas []config.Persona, mcps []config.MCPServer) error {
 	m.mu.RLock()
 	s, ok := m.sessions[id]
 	m.mu.RUnlock()
@@ -30,11 +30,17 @@ func (m *Manager) Relaunch(id string, card config.IDCard, skills []config.Skill,
 	if s.Status != StatusTerminated {
 		return errors.New("session is already running")
 	}
-	return m.startSession(id, card, skills, personas, false, s.WorkingDir)
+	return m.startSession(id, card, skills, personas, mcps, false, s.WorkingDir)
 }
 
 // SwitchAgent restarts a terminated session using its existing workspace, but with a new agent card.
-func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Skill, personas []config.Persona) error {
+func (m *Manager) SwitchAgent(
+	id string,
+	card config.IDCard,
+	skills []config.Skill,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+) error {
 	m.mu.RLock()
 	s, ok := m.sessions[id]
 	m.mu.RUnlock()
@@ -62,7 +68,7 @@ func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Ski
 		if errRemove := os.RemoveAll(personasDir); errRemove != nil {
 			return fmt.Errorf("clear tmp personas dir: %w", errRemove)
 		}
-		if errSync := syncAgentsMD(finalWD, card, personas, false); errSync != nil {
+		if errSync := syncAgentsMD(finalWD, card, personas, mcps, false); errSync != nil {
 			return errSync
 		}
 	}
@@ -73,6 +79,9 @@ func (m *Manager) SwitchAgent(id string, card config.IDCard, skills []config.Ski
 	}
 	if errPersonas := d.SetPersonas(personas, finalWD); errPersonas != nil {
 		return errPersonas
+	}
+	if errMCPs := d.SelectMCPs(mcps, finalWD); errMCPs != nil {
+		return errMCPs
 	}
 	args := d.SetModel(card.Model)
 	h, errSpawn := d.Spawn(driver.AgentConfig{
@@ -116,6 +125,7 @@ func (m *Manager) startSession(
 	card config.IDCard,
 	skills []config.Skill,
 	personas []config.Persona,
+	mcps []config.MCPServer,
 	isNew bool,
 	workspaceOverride string,
 ) error {
@@ -130,7 +140,7 @@ func (m *Manager) startSession(
 		}
 	}
 
-	finalWD, errPrep := m.prepareWorkspace(sid, card, wd, skills, personas, isNew)
+	finalWD, errPrep := m.prepareWorkspace(sid, card, wd, skills, personas, mcps, isNew)
 	if errPrep != nil {
 		return errPrep
 	}
@@ -141,6 +151,9 @@ func (m *Manager) startSession(
 	}
 	if errPersonas := d.SetPersonas(personas, finalWD); errPersonas != nil {
 		return errPersonas
+	}
+	if errMCPs := d.SelectMCPs(mcps, finalWD); errMCPs != nil {
+		return errMCPs
 	}
 	args := d.SetModel(card.Model)
 	h, errSpawn := d.Spawn(driver.AgentConfig{

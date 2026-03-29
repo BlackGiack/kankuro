@@ -25,8 +25,8 @@ func (r *FileRepository) UpsertMCP(mcp MCPServer) (MCPServer, error) {
 	if mcp.Name == "" {
 		return MCPServer{}, errors.New("mcp name is required")
 	}
-	if mcp.Command == "" {
-		return MCPServer{}, errors.New("mcp command is required")
+	if mcp.Command == "" && mcp.URL == "" {
+		return MCPServer{}, errors.New("mcp command or url is required")
 	}
 	if mcp.ID == "" {
 		mcp.ID = uuid.NewString()

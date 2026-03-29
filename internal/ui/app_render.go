@@ -55,91 +55,86 @@ func (a *App) renderAgentsMDRow() string {
 }
 
 func (a *App) renderSkillList() string {
-	if len(a.skills) == 0 {
-		text := "(no skills found)"
-		if a.isSkillListFocused() {
-			return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render("> " + text)
-		}
-		return text
-	}
-	header := lipgloss.NewStyle().Foreground(gray).Render("Skills (ctrl+e=sources)")
-	if a.skillSearchQuery != "" {
-		header += lipgloss.NewStyle().Foreground(gray).Render(" | Search: " + a.skillSearchQuery)
-	}
-	header += "\n"
-
-	filtered := a.filteredSkills()
-	if len(filtered) == 0 {
-		return header + "(no matching skills)"
-	}
-	counts := skillNameCounts(a.skills)
-	start, end := a.skillWindow(len(filtered))
-	lines := make([]string, 0, end-start+skillWindowBuffer)
-	if start > 0 {
-		lines = append(lines, "  ...")
-	}
-	for i := start; i < end; i++ {
-		skill := filtered[i]
-		prefix := "  "
-		if a.isSkillListFocused() && i == a.skillCursor {
-			prefix = "> "
-		}
-		mark := " "
-		if a.selectedSkillIDs[skill.ID] {
-			mark = "x"
-		}
-		line := fmt.Sprintf("%s[%s] %s", prefix, mark, skillLabel(skill, counts))
-		if a.isSkillListFocused() && i == a.skillCursor {
-			line = lipgloss.NewStyle().Foreground(highlightColor).Render(line)
-		}
-		lines = append(lines, line)
-	}
-	if end < len(filtered) {
-		lines = append(lines, "  ...")
-	}
-	return header + strings.Join(lines, "\n")
+	return renderRegistryList("Skills (ctrl+e=sources)", a.isSkillListFocused(), a.skillSearchQuery,
+		func() []config.Skill { return a.filteredSkills() },
+		func(total int) (int, int) { return a.skillWindow(total) },
+		a.skillCursor,
+		func(id string) bool { return a.selectedSkillIDs[id] },
+		func(item config.Skill) string { return skillLabel(item, skillNameCounts(a.skills)) },
+		func(item config.Skill) string { return item.ID },
+	)
 }
 
 func (a *App) renderPersonaList() string {
-	if len(a.personas) == 0 {
-		text := "(no personas found)"
-		if a.isPersonaListFocused() {
-			return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render("> " + text)
-		}
-		return text
-	}
-	header := lipgloss.NewStyle().Foreground(gray).Render("Personas (ctrl+e=sources)")
-	if a.personaSearchQuery != "" {
-		header += lipgloss.NewStyle().Foreground(gray).Render(" | Search: " + a.personaSearchQuery)
+	return renderRegistryList("Personas (ctrl+e=sources)", a.isPersonaListFocused(), a.personaSearchQuery,
+		func() []config.Persona { return a.filteredPersonas() },
+		func(total int) (int, int) { return a.personaWindow(total) },
+		a.personaCursor,
+		func(id string) bool { return a.selectedPersonaIDs[id] },
+		func(item config.Persona) string { return item.Name },
+		func(item config.Persona) string { return item.ID },
+	)
+}
+
+func (a *App) renderMCPList() string {
+	return renderRegistryList("MCPs (ctrl+e=add)", a.isMCPListFocused(), a.mcpSearchQuery,
+		func() []config.MCPServer { return a.filteredMCPs() },
+		func(total int) (int, int) { return a.mcpWindow(total) },
+		a.mcpCursor,
+		func(id string) bool { return a.selectedMCPIDs[id] },
+		func(item config.MCPServer) string { return item.Name },
+		func(item config.MCPServer) string { return item.ID },
+	)
+}
+
+func renderRegistryList[T any](
+	title string,
+	focused bool,
+	query string,
+	filter func() []T,
+	window func(int) (int, int),
+	cursor int,
+	selected func(string) bool,
+	label func(T) string,
+	getID func(T) string,
+) string {
+	items := filter()
+	header := lipgloss.NewStyle().Foreground(gray).Render(title)
+	if query != "" {
+		header += lipgloss.NewStyle().Foreground(gray).Render(" | Search: " + query)
 	}
 	header += "\n"
 
-	filtered := a.filteredPersonas()
-	if len(filtered) == 0 {
-		return header + "(no matching personas)"
+	if len(items) == 0 {
+		text := "(no matching items)"
+		if focused {
+			return header + lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render("> "+text)
+		}
+		return header + text
 	}
-	start, end := a.personaWindow(len(filtered))
+
+	start, end := window(len(items))
 	lines := make([]string, 0, end-start+skillWindowBuffer)
 	if start > 0 {
 		lines = append(lines, "  ...")
 	}
 	for i := start; i < end; i++ {
-		p := filtered[i]
+		item := items[i]
 		prefix := "  "
-		if a.isPersonaListFocused() && i == a.personaCursor {
+		if focused && i == cursor {
 			prefix = "> "
 		}
 		mark := " "
-		if a.selectedPersonaIDs[p.ID] {
+		if selected(getID(item)) {
 			mark = "x"
 		}
-		line := fmt.Sprintf("%s[%s] %s", prefix, mark, p.Name)
-		if a.isPersonaListFocused() && i == a.personaCursor {
+		line := fmt.Sprintf("%s[%s] %s", prefix, mark, label(item))
+		if focused && i == cursor {
 			line = lipgloss.NewStyle().Foreground(highlightColor).Render(line)
 		}
 		lines = append(lines, line)
 	}
-	if end < len(filtered) {
+	if end < len(items) {
 		lines = append(lines, "  ...")
 	}
 	return header + strings.Join(lines, "\n")

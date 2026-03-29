@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -53,7 +54,7 @@ type AgentDriver interface {
 
 	SetSkills(skills []config.Skill, workspaceRoot ...string) error
 	SetPersonas(personas []config.Persona, workspaceRoot ...string) error
-	SetMcps(mcps []config.MCPServer) error
+	SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error
 	SetModel(model string) []string
 
 	SendInput(data string) error
@@ -258,9 +259,60 @@ func (d *GenericCLIDriver) SetPersonas(personas []config.Persona, workspaceRoot 
 	return nil
 }
 
-// SetMcps is a placeholder hook for provider-specific MCP wiring.
-func (d *GenericCLIDriver) SetMcps(mcps []config.MCPServer) error {
-	_ = mcps
+// SelectMCPs ensures MCP configuration is present in the session workspace.
+func (d *GenericCLIDriver) SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error {
+	if len(mcps) == 0 {
+		return nil
+	}
+	root := ""
+	if len(workspaceRoot) > 0 {
+		root = strings.TrimSpace(workspaceRoot[0])
+	}
+	if root == "" {
+		return errors.New("workspace root is required for MCP sync")
+	}
+	kankuroDir := filepath.Join(root, ".kankuro")
+	if err := os.MkdirAll(kankuroDir, 0o700); err != nil {
+		return fmt.Errorf("create .kankuro dir: %w", err)
+	}
+
+	type mcpEntry struct {
+		Command string            `json:"command,omitempty"`
+		Args    []string          `json:"args,omitempty"`
+		Env     map[string]string `json:"env,omitempty"`
+		CWD     string            `json:"cwd,omitempty"`
+		URL     string            `json:"url,omitempty"`
+		Headers map[string]string `json:"headers,omitempty"`
+	}
+	type mcpConfig struct {
+		MCPServers map[string]mcpEntry `json:"mcpServers"`
+	}
+
+	cfg := mcpConfig{MCPServers: make(map[string]mcpEntry)}
+	for _, mcp := range mcps {
+		entry := mcpEntry{
+			Args:    mcp.Args,
+			Env:     mcp.Env,
+			CWD:     mcp.CWD,
+			Headers: mcp.Headers,
+		}
+		if mcp.Command != "" {
+			entry.Command = mcp.Command
+		}
+		if mcp.URL != "" {
+			entry.URL = mcp.URL
+		}
+		cfg.MCPServers[mcp.Name] = entry
+	}
+
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal mcp config: %w", err)
+	}
+
+	if err = os.WriteFile(filepath.Join(kankuroDir, "mcp-servers.json"), data, 0o600); err != nil {
+		return fmt.Errorf("write mcp-servers.json: %w", err)
+	}
 	return nil
 }
 

@@ -16,7 +16,7 @@ func TestSessionIdleWordDetection(t *testing.T) {
 		WorkingDir: t.TempDir(),
 	}
 
-	sid, err := sm.Launch(card, nil, nil)
+	sid, err := sm.Launch(card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
