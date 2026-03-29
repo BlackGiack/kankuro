@@ -59,7 +59,6 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	a.cardsList, cmd = a.cardsList.Update(msg)
-	a.updateCardSelection()
 	return a, cmd
 }
 
@@ -161,8 +160,6 @@ func (a *App) handleDashboardSwitch() (tea.Model, tea.Cmd) {
 	a.switchSessionID = s.ID
 	a.switchList.SetItems(toCardItems(a.cards, a.skills, a.personas))
 	a.switchList.Select(0)
-	// mark selected for visual feedback
-	a.updateSwitchSelection()
 	a.mode = viewSwitchAgent
 	return a, nil
 }

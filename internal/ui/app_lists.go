@@ -2,45 +2,42 @@ package ui
 
 import (
 	"fmt"
+	"io"
 	"sort"
 
 	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
 )
 
-func newCardDelegate() list.DefaultDelegate {
-	d := list.NewDefaultDelegate()
-	d.SetHeight(cardDelegateHeight)
-	d.Styles.NormalTitle = d.Styles.NormalTitle.Foreground(primaryColor)
-	d.Styles.NormalDesc = d.Styles.NormalDesc.Foreground(gray)
-
-	// Keep same base styles for selected entries but adjust border/foreground to avoid double borders/backgrounds
-	d.Styles.SelectedTitle = d.Styles.NormalTitle.
-		Foreground(highlightColor).
-		BorderForeground(primaryColor).
-		UnsetBackground()
-	d.Styles.SelectedDesc = d.Styles.NormalDesc.
-		Foreground(highlightColor).
-		BorderForeground(primaryColor).
-		UnsetBackground()
-
-	d.Styles.DimmedTitle = d.Styles.DimmedTitle.Foreground(gray)
-	d.Styles.DimmedDesc = d.Styles.DimmedDesc.Foreground(gray)
-	return d
+type cardDelegate struct {
+	height   int
+	skills   []config.Skill
+	personas []config.Persona
 }
 
-func (a *App) updateCardSelection() {
-	items := a.cardsList.Items()
-	cursor := a.cardsList.Cursor()
-	for i := range items {
-		if c, ok := items[i].(cardItem); ok {
-			c.selected = (i == cursor)
-			items[i] = c
-		}
+func newCardDelegate(skills []config.Skill, personas []config.Persona) cardDelegate {
+	return cardDelegate{
+		height:   cardDelegateHeight,
+		skills:   skills,
+		personas: personas,
 	}
-	a.cardsList.SetItems(items)
+}
+
+func (d cardDelegate) Height() int                             { return d.height }
+func (d cardDelegate) Spacing() int                            { return 0 }
+func (d cardDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+
+func (d cardDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	c, ok := item.(cardItem)
+	if !ok {
+		return
+	}
+	selected := index == m.Index()
+	content := renderCardItem(c.card, d.skills, d.personas, selected)
+	fmt.Fprint(w, content)
 }
 
 func (a *App) resize() {
@@ -63,19 +60,6 @@ func (a *App) refreshLists() {
 func (a *App) refreshCardList() {
 	items := toCardItems(a.cards, a.skills, a.personas)
 	a.cardsList.SetItems(items)
-	a.updateCardSelection()
-}
-
-func (a *App) updateSwitchSelection() {
-	items := a.switchList.Items()
-	cursor := a.switchList.Cursor()
-	for i := range items {
-		if c, ok := items[i].(cardItem); ok {
-			c.selected = (i == cursor)
-			items[i] = c
-		}
-	}
-	a.switchList.SetItems(items)
 }
 
 func (a *App) refreshSessionList() {

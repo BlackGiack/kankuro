@@ -18,7 +18,7 @@ A saved configuration template for an agent. It encapsulates:
 * **Model:** Specific LLM selection.
 * **System Instruction:** Default behavior overrides.
 * **Temporary Workspace:** Option to run sessions in an isolated directory.
-* **Capabilities:** Assigned **Skills** and **MCPs** (Model Context Protocol).
+* **Capabilities:** Assigned **Skills**, **MCPs** (Model Context Protocol through cli), **Personas**.
 * **Face Style:** Visual identity used in the dashboard.
 
 ### 1.2 The Session
@@ -54,23 +54,21 @@ KANKURO detects when the agents are stopped either because they are done or beca
 
 ### 2.2 The `AgentDriver` Interface
 
-Every CLI tool integrated into KANKURO must implement this interface to ensure the orchestrator remains tool-agnostic.
+Every CLI tool integrated into KANKURO must implement this interface to ensure the orchestrator remains tool-agnostic. A Generic Driver is available with functional methods, specific drivers should only override the needed features.
 
 ```go
 type AgentDriver interface {
-    // Lifecycle
-    Spawn(config AgentConfig) (*SessionHandle, error)
-    Kill() error
+	Spawn(config AgentConfig) (*SessionHandle, error)
+	Kill() error
 
-    // Configuration
-    SetSkills(skills []Skill) error // Anthropic Open Standard
-    SetMcps(mcps []McpServer) error // Model Context Protocol
-    SetModel(model string) []string
+	SetSkills(skills []config.Skill, workspaceRoot ...string) error
+	SetPersonas(personas []config.Persona, workspaceRoot ...string) error
+	SetMcps(mcps []config.MCPServer) error
+	SetModel(model string) []string
 
-    // I/O
-    SendInput(data string) error // Not implemented, in prevision of automations
-    
-    GetStatus() SessionStatus
+	SendInput(data string) error
+
+	GetStatus() SessionStatus
 }
 ```
 
@@ -104,7 +102,7 @@ type AgentDriver interface {
 ## 4. UI/UX Design
 
 * **Main Screen:** 
-    * **Center:** A collection of "Agent Identity Cards" with assigned ASCII faces.
+    * **Center:** A collection of "Agent Identity Cards" with assigned ASCII puppets.
     * **Right Sidebar:** A scrollable list of sessions showing status (Running, Waiting, Terminated) and the agent's identity face.
 
 * **Interactions:**
@@ -113,6 +111,7 @@ type AgentDriver interface {
     * `Ctrl+K`: Detach from the attached PTY and return to Kankuro Dashboard.
     * `Tab`: Switch dashboard focus between ID cards and sessions.
     * `x`: Kill the selected running session.
+    * `s`: Switch agent on the selected terminated session 
     * `Backspace/Delete`: Trigger a **confirmation dialog** to remove a terminated session (and its temporary workspace).
 
 * **Visual Cues:** 
@@ -125,7 +124,7 @@ type AgentDriver interface {
 * **Terminal Handling:** Use `creack/pty` or similar Go libraries to handle pseudo-terminal allocation, attach replay, and live terminal resizing for interactive CLIs.
 * **TUI Framework:** Built using [Bubble Tea](https://github.com/charmbracelet/bubbletea) for a modern, responsive terminal experience.
 * **Attach Mode:** Bubble Tea should temporarily release terminal control during session attach, then restore the dashboard on detach.
-* **Storage:** ID Cards are stored in YAML; Sessions are stored in JSON within the user's config directory.
+* **Storage:** Configs are stored in YAML; Sessions are stored in JSON within the user's config directory.
 * **Workspace Isolation:** Temporary workspaces are created using standard system copy tools to ensure attribute preservation.
 
 ---

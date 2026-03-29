@@ -40,11 +40,8 @@ type cardItem struct {
 	skills   []config.Skill
 	personas []config.Persona
 	status   session.Status
-	selected bool
 }
 
-func (i cardItem) Title() string { return "" }
-func (i cardItem) Description() string {
-	return renderCardItem(i.card, i.skills, i.personas, i.selected)
-}
+func (i cardItem) Title() string       { return "" }
+func (i cardItem) Description() string { return "" }
 func (i cardItem) FilterValue() string { return i.card.Name }

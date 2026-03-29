@@ -16,7 +16,7 @@ import (
 // Launch starts a new session process from an ID card.
 func (m *Manager) Launch(card config.IDCard, skills []config.Skill, personas []config.Persona) (string, error) {
 	sid := uuid.NewString()
-	return sid, m.startSession(sid, card, skills, personas, true)
+	return sid, m.startSession(sid, card, skills, personas, true, "")
 }
 
 // Relaunch restarts a terminated session using its existing workspace (if tmp).
@@ -30,7 +30,7 @@ func (m *Manager) Relaunch(id string, card config.IDCard, skills []config.Skill,
 	if s.Status != StatusTerminated {
 		return errors.New("session is already running")
 	}
-	return m.startSession(id, card, skills, personas, false)
+	return m.startSession(id, card, skills, personas, false, s.WorkingDir)
 }
 
 // SwitchAgent restarts a terminated session using its existing workspace, but with a new agent card.
@@ -117,10 +117,17 @@ func (m *Manager) startSession(
 	skills []config.Skill,
 	personas []config.Persona,
 	isNew bool,
+	workspaceOverride string,
 ) error {
-	wd, errWD := driver.SanitizeWorkingDir(card.WorkingDir)
-	if errWD != nil {
-		return errWD
+	var wd string
+	var errWD error
+	if workspaceOverride != "" {
+		wd = workspaceOverride
+	} else {
+		wd, errWD = driver.SanitizeWorkingDir(card.WorkingDir)
+		if errWD != nil {
+			return errWD
+		}
 	}
 
 	finalWD, errPrep := m.prepareWorkspace(sid, card, wd, skills, personas, isNew)

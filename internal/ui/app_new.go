@@ -70,7 +70,7 @@ func (a *App) initLists() {
 	sessionsDelegate.Styles.DimmedTitle = sessionsDelegate.Styles.DimmedTitle.Foreground(gray)
 	sessionsDelegate.Styles.DimmedDesc = sessionsDelegate.Styles.DimmedDesc.Foreground(gray)
 
-	cardsDelegate := newCardDelegate()
+	cardsDelegate := newCardDelegate(a.skills, a.personas)
 
 	a.cardsList = list.New(toCardItems(a.cards, a.skills, a.personas), cardsDelegate, 0, 0)
 	a.cardsList.Title = "ID Cards"
