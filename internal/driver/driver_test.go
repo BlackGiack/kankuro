@@ -94,3 +94,58 @@ func TestSelectMCPs(t *testing.T) {
 		t.Fatalf("remote-mcp fields mismatch: %+v", remote)
 	}
 }
+
+func TestSetAgentsMD(t *testing.T) {
+	d := driver.NewGenericCLIDriver()
+	wd := t.TempDir()
+
+	card := config.IDCard{
+		AgentsMD: "# Inline instruction",
+	}
+
+	if err := d.SetAgentsMD(card, nil, nil, wd, false); err != nil {
+		t.Fatalf("failed to set agents md: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(wd, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("failed to read AGENTS.md: %v", err)
+	}
+	if string(content) != "# Inline instruction" {
+		t.Fatalf("expected %q, got %q", "# Inline instruction", string(content))
+	}
+}
+
+func TestClaudeCodeDriver(t *testing.T) {
+	d := driver.NewClaudeCodeDriver()
+	wd := t.TempDir()
+
+	card := config.IDCard{
+		AgentsMD: "# Claude instruction",
+	}
+
+	if err := d.SetAgentsMD(card, nil, nil, wd, false); err != nil {
+		t.Fatalf("failed to set agents md: %v", err)
+	}
+
+	// Should create CLAUDE.md
+	content, err := os.ReadFile(filepath.Join(wd, "CLAUDE.md"))
+	if err != nil {
+		t.Fatalf("failed to read CLAUDE.md: %v", err)
+	}
+	if string(content) != "# Claude instruction" {
+		t.Fatalf("expected %q, got %q", "# Claude instruction", string(content))
+	}
+
+	// Should NOT create AGENTS.md
+	if _, errStat := os.Stat(filepath.Join(wd, "AGENTS.md")); !os.IsNotExist(errStat) {
+		t.Fatalf("expected AGENTS.md not to exist")
+	}
+}
+
+func TestNewCLIDriverClaude(t *testing.T) {
+	d := driver.NewCLIDriver("claude")
+	if _, ok := d.(*driver.ClaudeCodeDriver); !ok {
+		t.Fatalf("expected ClaudeCodeDriver")
+	}
+}

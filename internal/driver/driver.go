@@ -52,6 +52,7 @@ type AgentDriver interface {
 	Spawn(config AgentConfig) (*SessionHandle, error)
 	Kill() error
 
+	SetAgentsMD(card config.IDCard, personas []config.Persona, mcps []config.MCPServer, workspaceRoot string, appendIfExist bool) error
 	SetSkills(skills []config.Skill, workspaceRoot ...string) error
 	SetPersonas(personas []config.Persona, workspaceRoot ...string) error
 	SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error
@@ -75,6 +76,126 @@ type GenericCLIDriver struct {
 // NewGenericCLIDriver returns the default PTY-backed CLI driver implementation.
 func NewGenericCLIDriver() *GenericCLIDriver {
 	return &GenericCLIDriver{status: StatusTerminated}
+}
+
+// SetAgentsMD ensures the agent instruction file (AGENTS.md) is present in the session workspace.
+func (d *GenericCLIDriver) SetAgentsMD(
+	card config.IDCard,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+	workspaceRoot string,
+	appendIfExist bool,
+) error {
+	return syncInstructionFile(workspaceRoot, "AGENTS.md", card, personas, mcps, appendIfExist)
+}
+
+// ClaudeCodeDriver specializes the GenericCLIDriver to write CLAUDE.md instead of AGENTS.md.
+type ClaudeCodeDriver struct {
+	*GenericCLIDriver
+}
+
+// NewClaudeCodeDriver returns a specialized driver for Claude Code.
+func NewClaudeCodeDriver() *ClaudeCodeDriver {
+	return &ClaudeCodeDriver{GenericCLIDriver: NewGenericCLIDriver()}
+}
+
+// SetAgentsMD ensures the agent instruction file (CLAUDE.md) is present in the session workspace.
+func (d *ClaudeCodeDriver) SetAgentsMD(
+	card config.IDCard,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+	workspaceRoot string,
+	appendIfExist bool,
+) error {
+	return syncInstructionFile(workspaceRoot, "CLAUDE.md", card, personas, mcps, appendIfExist)
+}
+
+func syncInstructionFile(
+	finalWD, filename string,
+	card config.IDCard,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+	appendIfExist bool,
+) error {
+	content, err := resolveAgentsMDContent(card)
+	if err != nil {
+		return err
+	}
+
+	if len(personas) == 1 {
+		content = appendPersonaInstruction(content, personas[0])
+	}
+
+	if len(mcps) > 0 {
+		content = appendMCPInstruction(content, mcps)
+	}
+
+	if content == "" {
+		return nil
+	}
+
+	return writeInstructionFile(finalWD, filename, content, appendIfExist)
+}
+
+func resolveAgentsMDContent(card config.IDCard) (string, error) {
+	if card.AgentsMDPreferPath && card.AgentsMDPath != "" {
+		data, err := os.ReadFile(card.AgentsMDPath)
+		if err != nil {
+			return "", fmt.Errorf("read agents md path %s: %w", card.AgentsMDPath, err)
+		}
+		return string(data), nil
+	}
+	return card.AgentsMD, nil
+}
+
+func appendPersonaInstruction(content string, p config.Persona) string {
+	ext := filepath.Ext(p.Source)
+	relPath := filepath.Join(".agents", "agents", p.Name+ext)
+	instruction := fmt.Sprintf("Read the file %s and embody the persona described during this session,", relPath)
+	if content != "" {
+		return content + "\n\n" + instruction
+	}
+	return instruction
+}
+
+func appendMCPInstruction(content string, mcps []config.MCPServer) string {
+	mcpNames := make([]string, 0, len(mcps))
+	for _, mcp := range mcps {
+		mcpNames = append(mcpNames, mcp.Name)
+	}
+	mcpJSON, _ := json.Marshal(mcpNames)
+	mcpLine := fmt.Sprintf("Available mcp: %s", string(mcpJSON))
+	if content != "" {
+		return content + "\n" + mcpLine
+	}
+	return mcpLine
+}
+
+func writeInstructionFile(dir, filename, content string, appendIfExist bool) error {
+	path := filepath.Join(dir, filename)
+	if !appendIfExist {
+		// G703: Path traversal via taint analysis.
+		return os.WriteFile(path, []byte(content), 0o600)
+	}
+
+	// G703: Path traversal via taint analysis.
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return fmt.Errorf("open %s: %w", filename, err)
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("stat %s: %w", filename, err)
+	}
+
+	if stat.Size() > 0 {
+		content = "\n\n" + content
+	}
+
+	_, err = f.WriteString(content)
+	return err
 }
 
 // Spawn starts an interactive CLI process in a PTY and wires streaming output.

@@ -9,12 +9,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"kankuro/internal/config"
+	"kankuro/internal/driver"
 	"kankuro/internal/session"
 	"kankuro/internal/ui"
 )
 
 // main wires repository, session manager, and TUI program startup.
 func main() {
+	driver.RegisterDriver("claude", func() driver.AgentDriver { return driver.NewClaudeCodeDriver() })
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)

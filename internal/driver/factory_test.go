@@ -15,6 +15,9 @@ func (s *stubDriver) Spawn(_ driver.AgentConfig) (*driver.SessionHandle, error) 
 	return nil, errStubSpawn
 }
 func (s *stubDriver) Kill() error { return nil }
+func (s *stubDriver) SetAgentsMD(_ config.IDCard, _ []config.Persona, _ []config.MCPServer, _ string, _ bool) error {
+	return nil
+}
 func (s *stubDriver) SetSkills(_ []config.Skill, _ ...string) error {
 	return nil
 }

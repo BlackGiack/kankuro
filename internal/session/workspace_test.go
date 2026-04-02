@@ -110,6 +110,59 @@ func TestSessionAgentsMD(t *testing.T) {
 	}
 }
 
+func TestSessionClaudeAgentsMD(t *testing.T) {
+	// Setup dummy claude binary
+	tmpPath := t.TempDir()
+	claudePath := filepath.Join(tmpPath, "claude")
+	if err := os.WriteFile(claudePath, []byte("#!/bin/sh\ncat"), 0o755); err != nil {
+		t.Fatalf("failed to create dummy claude: %v", err)
+	}
+	oldPath := os.Getenv("PATH")
+	t.Setenv("PATH", tmpPath+string(os.PathListSeparator)+oldPath)
+
+	sm := session.NewManager(t.TempDir())
+	wd := t.TempDir()
+
+	card := config.IDCard{
+		ID:              "card-claude",
+		Name:            "claude-test",
+		Driver:          "claude", // Use Claude driver
+		WorkingDir:      wd,
+		UseTmpWorkspace: true,
+		AgentsMD:        "# Claude Content",
+	}
+
+	sid, err := sm.Launch(card, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	s, ok := sm.GetSession(sid)
+	if !ok {
+		t.Fatalf("session not found")
+	}
+	finalWD := s.WorkingDir
+
+	// Verify CLAUDE.md exists
+	content, errRead := os.ReadFile(filepath.Join(finalWD, "CLAUDE.md"))
+	if errRead != nil {
+		t.Fatalf("read CLAUDE.md: %v", errRead)
+	}
+	if string(content) != "# Claude Content" {
+		t.Fatalf("expected %q, got %q", "# Claude Content", string(content))
+	}
+
+	// Verify AGENTS.md does NOT exist
+	if _, errStat := os.Stat(filepath.Join(finalWD, "AGENTS.md")); !os.IsNotExist(errStat) {
+		t.Fatalf("expected AGENTS.md not to exist")
+	}
+
+	if errKill := sm.Kill(sid); errKill != nil {
+		t.Fatalf("kill: %v", errKill)
+	}
+}
+
 func TestSessionMCPs(t *testing.T) {
 	sm := session.NewManager(t.TempDir())
 	wd := t.TempDir()

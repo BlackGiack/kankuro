@@ -68,12 +68,12 @@ func (m *Manager) SwitchAgent(
 		if errRemove := os.RemoveAll(personasDir); errRemove != nil {
 			return fmt.Errorf("clear tmp personas dir: %w", errRemove)
 		}
-		if errSync := syncAgentsMD(finalWD, card, personas, mcps, false); errSync != nil {
-			return errSync
-		}
 	}
 
 	d := driver.NewCLIDriver(card.Driver)
+	if errAgentsMD := d.SetAgentsMD(card, personas, mcps, finalWD, false); errAgentsMD != nil {
+		return errAgentsMD
+	}
 	if errSkills := d.SetSkills(skills, finalWD); errSkills != nil {
 		return errSkills
 	}
@@ -140,12 +140,16 @@ func (m *Manager) startSession(
 		}
 	}
 
-	finalWD, errPrep := m.prepareWorkspace(sid, card, wd, skills, personas, mcps, isNew)
+	finalWD, errPrep := m.prepareWorkspace(sid, card, wd, isNew)
 	if errPrep != nil {
 		return errPrep
 	}
 
 	d := driver.NewCLIDriver(card.Driver)
+	// append if first launch (isNew) and using tmp workspace
+	if errAgentsMD := d.SetAgentsMD(card, personas, mcps, finalWD, isNew && card.UseTmpWorkspace); errAgentsMD != nil {
+		return errAgentsMD
+	}
 	if errSkills := d.SetSkills(skills, finalWD); errSkills != nil {
 		return errSkills
 	}
