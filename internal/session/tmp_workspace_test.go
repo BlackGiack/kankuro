@@ -27,13 +27,17 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	// Set env var for tmp dir location
 	t.Setenv("KANKURO_TMP_DIR", filepath.Join(tmpBase, "sessions_tmp"))
 
-	sm := session.NewManager(configDir)
+	repo, _ := config.NewFileRepository(configDir)
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: sourceDir, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	sm := session.NewManager(configDir, repo)
 
 	card := config.IDCard{
 		ID:              "card-tmp",
 		Name:            "tmp-test",
 		Driver:          "cat", // simple driver
-		WorkingDir:      sourceDir,
+		WorkspaceID:     workspaces[0].ID,
 		UseTmpWorkspace: true,
 	}
 
@@ -111,7 +115,7 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 
 	// 6. Persistence check
 	// Create new manager (simulate restart)
-	sm2 := session.NewManager(configDir)
+	sm2 := session.NewManager(configDir, repo)
 	restoredSession, okRestored := sm2.GetSession(sid)
 	if !okRestored {
 		t.Fatalf("session not restored from disk")
@@ -149,13 +153,17 @@ func TestSwitchAgentReplacesSkillsInTmpWorkspace(t *testing.T) {
 
 	t.Setenv("KANKURO_TMP_DIR", filepath.Join(tmpBase, "sessions_tmp"))
 
-	sm := session.NewManager(configDir)
+	repo, _ := config.NewFileRepository(configDir)
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: sourceDir, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	sm := session.NewManager(configDir, repo)
 
 	card1 := config.IDCard{
 		ID:              "card-tmp-1",
 		Name:            "tmp-one",
 		Driver:          "cat",
-		WorkingDir:      sourceDir,
+		WorkspaceID:     workspaces[0].ID,
 		UseTmpWorkspace: true,
 	}
 	skills1 := []config.Skill{
@@ -182,10 +190,10 @@ func TestSwitchAgentReplacesSkillsInTmpWorkspace(t *testing.T) {
 	}
 
 	card2 := config.IDCard{
-		ID:         "card-tmp-2",
-		Name:       "tmp-two",
-		Driver:     "cat",
-		WorkingDir: sourceDir,
+		ID:          "card-tmp-2",
+		Name:        "tmp-two",
+		Driver:      "cat",
+		WorkspaceID: workspaces[0].ID,
 	}
 	skills2 := []config.Skill{
 		{ID: "s2", Name: "beta-skill", Source: skill2Dir},

@@ -130,13 +130,21 @@ func (m *Manager) startSession(
 	workspaceOverride string,
 ) error {
 	var wd string
-	var errWD error
 	if workspaceOverride != "" {
 		wd = workspaceOverride
 	} else {
-		wd, errWD = driver.SanitizeWorkingDir(card.WorkingDir)
-		if errWD != nil {
-			return errWD
+		workspaces, err := m.repo.ListWorkspaces()
+		if err != nil {
+			return fmt.Errorf("list workspaces: %w", err)
+		}
+		for _, w := range workspaces {
+			if w.ID == card.WorkspaceID {
+				wd = w.Path
+				break
+			}
+		}
+		if wd == "" {
+			return fmt.Errorf("workspace not found: %s", card.WorkspaceID)
 		}
 	}
 

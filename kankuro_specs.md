@@ -16,10 +16,20 @@ A saved configuration template for an agent. It encapsulates:
 
 * **CLI Tool:** The underlying binary (e.g., `claude`, `gemini`).
 * **Model:** Specific LLM selection.
+* **Workspace:** A selected workspace from the workspace registry.
 * **System Instruction:** Default behavior overrides.
 * **Temporary Workspace:** Option to run sessions in an isolated directory.
 * **Capabilities:** Assigned **Skills**, **MCPs** (Model Context Protocol through cli), **Personas**.
 * **Face Style:** Visual identity used in the dashboard.
+
+### 1.1.1 The Workspace Registry
+
+Workspaces are managed as a registry, similar to skills and personas.
+
+* **Workspace Sources:** Users can register either:
+  * A root directory containing multiple workspaces, where each direct child directory becomes a selectable workspace.
+  * A direct path to a single workspace.
+* **Workspace Selection:** ID cards reference a workspace entry from this registry instead of storing a raw working directory path directly.
 
 ### 1.2 The Session
 
@@ -61,6 +71,7 @@ type AgentDriver interface {
 	Spawn(config AgentConfig) (*SessionHandle, error)
 	Kill() error
 
+	SetAgentsMD(card config.IDCard, personas []config.Persona, mcps []config.MCPServer, workspaceRoot string, appendIfExist bool) error
 	SetSkills(skills []config.Skill, workspaceRoot ...string) error
 	SetPersonas(personas []config.Persona, workspaceRoot ...string) error
 	SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error
@@ -83,7 +94,7 @@ type AgentDriver interface {
 * **Session Persistence:** Save session state to disk to allow relaunching after app restarts.
 * **Temporary Workspaces:** Isolated "sandbox" execution for agents to prevent source code corruption.
 * **Session Wrapping:** Launching and detaching from interactive CLI sub-processes with raw PTY attach.
-* **Skill/MCP Registry:** User-editable list of agentic capabilities following the Anthropic open standard.
+* **Capability Registries:** User-editable registries for Skills, Personas, MCP servers, and Workspaces.
 
 ### 🔗 Phase 1: Connectivity (v1)
 
@@ -115,15 +126,24 @@ type AgentDriver interface {
     * `x`: Kill the selected running session.
     * `s`: Switch agent on the selected terminated session.
     * `m`: Open the MCP registry form to add a new server.
+    * `w`: Open the workspace source manager.
     * `Backspace/Delete` (on Session): Trigger a **confirmation dialog** to remove a terminated session (and its temporary workspace).
 
 * **Agent Card Editor Interactions:**
-    * `Tab`: Cycle focus between fields (Name, Driver, Model, CWD, Face, Tmp, AgentsMD, Skills, Personas, MCPs).
+    * `Tab`: Cycle focus between fields (Name, Driver, Model, Workspace, Face, Tmp, AgentsMD, Skills, Personas, MCPs).
+    * `Space` (on Workspace): Open the searchable workspace picker.
     * `Space` (on Lists): Toggle selection of the highlighted Skill, Persona, or MCP.
     * `ctrl+e` (on Lists): Open the specialized form to add a new Skill Source, Persona Source, or MCP Server.
     * `Delete/Del` (on MCP List): Remove the highlighted MCP from the global registry (only if not referenced by any ID Card).
     * `Enter`: Save the ID Card and return to the Dashboard.
     * `Esc`: Cancel changes and return to the Dashboard.
+
+* **Workspace Manager Interactions:**
+    * `n`: Add a new workspace source.
+    * `e` / `Space`: Edit the selected workspace source.
+    * `d`: Delete the selected workspace source.
+    * `r`: Refresh workspace discovery from configured sources.
+    * `Esc`: Return to the dashboard.
 
 * **Visual Cues:** 
     * Agents awaiting input will show a **neutral face** and use a **hot-pink pulse** style in the sidebar.
@@ -136,6 +156,7 @@ type AgentDriver interface {
 * **TUI Framework:** Built using [Bubble Tea](https://github.com/charmbracelet/bubbletea) for a modern, responsive terminal experience.
 * **Attach Mode:** Bubble Tea should temporarily release terminal control during session attach, then restore the dashboard on detach.
 * **Storage:** Configs are stored in YAML; Sessions are stored in JSON within the user's config directory.
+* **Config Data:** ID cards store `workspace_id`; workspace paths are resolved through the workspace registry.
 * **Workspace Isolation:** Temporary workspaces are created using standard system copy tools to ensure attribute preservation.
 
 ---

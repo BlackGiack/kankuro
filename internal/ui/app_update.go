@@ -56,6 +56,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.updatePersonaSources(msg)
 	case viewPersonaSourceForm:
 		return a.updatePersonaSourceForm(msg)
+	case viewWorkspaces:
+		return a.updateWorkspaces(msg)
+	case viewWorkspaceSourceForm:
+		return a.updateWorkspaceSourceForm(msg)
+	case viewWorkspacePicker:
+		return a.updateWorkspacePicker(msg)
 	case viewDashboard:
 		return a.updateDashboard(msg)
 	default:

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"kankuro/internal/config"
 	"kankuro/internal/driver"
 )
 
@@ -79,13 +80,15 @@ type Manager struct {
 	mu        sync.RWMutex
 	sessions  map[string]*Session
 	configDir string
+	repo      config.Repository
 }
 
 // NewManager creates a session registry and loads persisted sessions.
-func NewManager(configDir string) *Manager {
+func NewManager(configDir string, repo config.Repository) *Manager {
 	m := &Manager{
 		sessions:  make(map[string]*Session),
 		configDir: configDir,
+		repo:      repo,
 	}
 
 	sessionsDir := filepath.Join(configDir, "sessions")

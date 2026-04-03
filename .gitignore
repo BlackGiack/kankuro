@@ -2,5 +2,3 @@ cmd/kankuro/kankuro
 .agents
 kankuro
 tmp/
-feature.md
-impl_plan.md

@@ -35,6 +35,11 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.mcpInputs[0].Focus()
 			a.mode = viewMCPForm
 			return a, nil
+		case "w":
+			a.refreshWorkspaces()
+			a.workspaceSourceCursor = 0
+			a.mode = viewWorkspaces
+			return a, nil
 		case keyEnter:
 			return a.handleDashboardEnter()
 		case "a":
@@ -76,8 +81,8 @@ func (a *App) handleDashboardEdit() (tea.Model, tea.Cmd) {
 	a.cardInputs[0].SetValue(selected.Name)
 	a.cardInputs[1].SetValue(selected.Driver)
 	a.cardInputs[2].SetValue(selected.Model)
-	a.cardInputs[3].SetValue(selected.WorkingDir)
-	a.cardInputs[4].SetValue(selected.FaceStyle)
+	a.selectedWorkspaceID = selected.WorkspaceID
+	a.cardInputs[3].SetValue(selected.FaceStyle)
 	// puppet field
 	if selected.Puppet != "" {
 		a.cardPuppet = selected.Puppet
@@ -88,7 +93,7 @@ func (a *App) handleDashboardEdit() (tea.Model, tea.Cmd) {
 	if selected.UseTmpWorkspace {
 		tmpVal = "y"
 	}
-	a.cardInputs[5].SetValue(tmpVal)
+	a.cardInputs[4].SetValue(tmpVal)
 	a.setSelectedSkills(selected.SkillIDs)
 	a.setSelectedPersonas(selected.PersonaIDs)
 	a.setSelectedMCPs(selected.MCPIDs)

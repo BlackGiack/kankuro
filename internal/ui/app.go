@@ -27,6 +27,9 @@ const (
 	viewSkillSourceForm
 	viewPersonaSources
 	viewPersonaSourceForm
+	viewWorkspaces
+	viewWorkspaceSourceForm
+	viewWorkspacePicker
 )
 
 func puppetStyles() []string {
@@ -43,8 +46,9 @@ const (
 	minSkillListHeight     = 3
 	skillListHeightOffset  = 20
 
-	cardInputCount = 6
-	mcpInputCount  = 7
+	cardInputCount      = 5
+	mcpInputCount       = 7
+	workspaceInputCount = 2
 
 	cardListMinWidth  = 20
 	cardListMinHeight = 10
@@ -82,8 +86,9 @@ const (
 	contentSummaryLimit = 30
 	contentSummaryKeep  = 27
 
-	cardInputTotalOffset = 4
 	// Focus indices for non-text inputs in the card form.
+	cardWorkspaceIndex   = 3
+	cardFaceStyleIndex   = 4
 	cardPuppetIndex      = 5
 	cardUseTmpIndex      = 6
 	cardAgentsMDIndex    = 7
@@ -114,18 +119,20 @@ type App struct {
 
 	mode viewMode
 
-	cards    []config.IDCard
-	skills   []config.Skill
-	personas []config.Persona
-	mcps     []config.MCPServer
-	sessions []session.Snapshot
+	cards      []config.IDCard
+	skills     []config.Skill
+	personas   []config.Persona
+	mcps       []config.MCPServer
+	sessions   []session.Snapshot
+	workspaces []config.Workspace
 
 	cardsList    list.Model
 	sessionsList list.Model
 	switchList   list.Model
 
-	cardInputs []textinput.Model
-	mcpInputs  []textinput.Model
+	cardInputs      []textinput.Model
+	mcpInputs       []textinput.Model
+	workspaceInputs []textinput.Model
 
 	agentsEditor       textarea.Model
 	agentsMD           string
@@ -143,7 +150,15 @@ type App struct {
 	personaSourceInput        textinput.Model
 	editingPersonaSourceIndex int
 
-	cardFocusIndex     int
+	workspaceSources         []config.WorkspaceSource
+	workspaceSourceCursor    int
+	editingWorkspaceSourceID string
+
+	cardFocusIndex       int
+	selectedWorkspaceID  string
+	workspaceCursor      int
+	workspaceSearchQuery string
+
 	skillCursor        int
 	selectedSkillIDs   map[string]bool
 	skillSearchQuery   string

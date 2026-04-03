@@ -7,12 +7,14 @@ import (
 )
 
 const (
-	IDCardsFilename        = "id_cards.yaml"
-	SkillsFilename         = "skills.yaml"
-	SkillsSourcesFilename  = "skills_sources.yaml"
-	PersonasFilename       = "personas.yaml"
-	PersonaSourcesFilename = "persona_sources.yaml"
-	MCPsFilename           = "mcps.yaml"
+	IDCardsFilename          = "id_cards.yaml"
+	SkillsFilename           = "skills.yaml"
+	SkillsSourcesFilename    = "skills_sources.yaml"
+	PersonasFilename         = "personas.yaml"
+	PersonaSourcesFilename   = "persona_sources.yaml"
+	MCPsFilename             = "mcps.yaml"
+	WorkspacesFilename       = "workspaces.yaml"
+	WorkspaceSourcesFilename = "workspace_sources.yaml"
 )
 
 // Repository defines persistence operations for ID cards and capability registries.
@@ -21,6 +23,13 @@ type Repository interface {
 	CreateIDCard(card IDCard) (IDCard, error)
 	UpdateIDCard(card IDCard) (IDCard, error)
 	DeleteIDCard(id string) error
+
+	ListWorkspaceSources() ([]WorkspaceSource, error)
+	SaveWorkspaceSources(sources []WorkspaceSource) error
+	SyncWorkspacesFromSources() error
+	ListWorkspaces() ([]Workspace, error)
+	GetWorkspaceByPath(path string) (Workspace, bool)
+	DeleteWorkspaceSource(id string) error
 
 	ListSkillSources() ([]string, error)
 	SaveSkillSources(paths []string) error
@@ -107,5 +116,18 @@ func (r *FileRepository) EnsureFiles() error {
 	if err := r.EnsureYAML(mcpsPath, mcpsDefault); err != nil {
 		return err
 	}
+
+	workspacesPath := filepath.Join(r.dir, WorkspacesFilename)
+	workspacesDefault := WorkspacesFile{SchemaVersion: SchemaVersion, Workspaces: []Workspace{}}
+	if err := r.EnsureYAML(workspacesPath, workspacesDefault); err != nil {
+		return err
+	}
+
+	workspaceSourcesPath := filepath.Join(r.dir, WorkspaceSourcesFilename)
+	workspaceSourcesDefault := WorkspaceSourcesFile{SchemaVersion: SchemaVersion, Sources: []WorkspaceSource{}}
+	if err := r.EnsureYAML(workspaceSourcesPath, workspaceSourcesDefault); err != nil {
+		return err
+	}
+
 	return nil
 }

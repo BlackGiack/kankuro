@@ -48,7 +48,7 @@ func run() error {
 		return fmt.Errorf("skill sync error: %w", err)
 	}
 
-	sm := session.NewManager(repo.Dir())
+	sm := session.NewManager(repo.Dir(), repo)
 	app, err := ui.New(repo, sm)
 	if err != nil {
 		return fmt.Errorf("ui init error: %w", err)

@@ -13,7 +13,7 @@ type IDCard struct {
 	Name               string            `yaml:"name"`
 	Driver             string            `yaml:"driver"`
 	Model              string            `yaml:"model"`
-	WorkingDir         string            `yaml:"working_dir"`
+	WorkspaceID        string            `yaml:"workspace_id"`
 	UseTmpWorkspace    bool              `yaml:"use_tmp_workspace"`
 	SystemInstruction  string            `yaml:"system_instruction"`
 	SkillIDs           []string          `yaml:"skill_ids"`
@@ -27,6 +27,19 @@ type IDCard struct {
 	AgentsMDPreferPath bool              `yaml:"agents_md_prefer_path"`
 	CreatedAt          time.Time         `yaml:"created_at"`
 	UpdatedAt          time.Time         `yaml:"updated_at"`
+}
+
+type Workspace struct {
+	ID     string `yaml:"id"`
+	Name   string `yaml:"name"`
+	Path   string `yaml:"path"`
+	Source string `yaml:"source"`
+}
+
+type WorkspaceSource struct {
+	ID     string `yaml:"id"`
+	Path   string `yaml:"path"`
+	IsRoot bool   `yaml:"is_root"`
 }
 
 type Skill struct {
@@ -83,4 +96,14 @@ type PersonaSourcesFile struct {
 type MCPsFile struct {
 	SchemaVersion int         `yaml:"schema_version"`
 	MCPs          []MCPServer `yaml:"mcps"`
+}
+
+type WorkspacesFile struct {
+	SchemaVersion int         `yaml:"schema_version"`
+	Workspaces    []Workspace `yaml:"workspaces"`
+}
+
+type WorkspaceSourcesFile struct {
+	SchemaVersion int               `yaml:"schema_version"`
+	Sources       []WorkspaceSource `yaml:"sources"`
 }

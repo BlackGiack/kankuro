@@ -9,12 +9,17 @@ import (
 )
 
 func TestSessionLaunchAndKill(t *testing.T) {
-	sm := session.NewManager(t.TempDir())
+	repo, _ := config.NewFileRepository(t.TempDir())
+	wd := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	sm := session.NewManager(repo.Dir(), repo)
 	card := config.IDCard{
-		ID:         "card-1",
-		Name:       "echo",
-		Driver:     "cat",
-		WorkingDir: t.TempDir(),
+		ID:          "card-1",
+		Name:        "echo",
+		Driver:      "cat",
+		WorkspaceID: workspaces[0].ID,
 	}
 
 	sid, err := sm.Launch(card, nil, nil, nil)
@@ -46,13 +51,17 @@ func TestSessionLaunchAndKill(t *testing.T) {
 }
 
 func TestSessionSwitchAgent(t *testing.T) {
-	sm := session.NewManager(t.TempDir())
+	repo, _ := config.NewFileRepository(t.TempDir())
 	wd := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	sm := session.NewManager(repo.Dir(), repo)
 	card1 := config.IDCard{
-		ID:         "card-1",
-		Name:       "alpha",
-		Driver:     "cat",
-		WorkingDir: wd,
+		ID:          "card-1",
+		Name:        "alpha",
+		Driver:      "cat",
+		WorkspaceID: workspaces[0].ID,
 	}
 
 	sid, err := sm.Launch(card1, nil, nil, nil)
@@ -71,10 +80,10 @@ func TestSessionSwitchAgent(t *testing.T) {
 	}
 
 	card2 := config.IDCard{
-		ID:         "card-2",
-		Name:       "beta",
-		Driver:     "cat",
-		WorkingDir: wd,
+		ID:          "card-2",
+		Name:        "beta",
+		Driver:      "cat",
+		WorkspaceID: workspaces[0].ID,
 	}
 	if errSwitch := sm.SwitchAgent(sid, card2, nil, nil, nil); errSwitch != nil {
 		t.Fatalf("switch: %v", errSwitch)
@@ -103,12 +112,17 @@ func TestSessionSwitchAgent(t *testing.T) {
 }
 
 func TestRemoveOnlyDeletesTerminatedSessions(t *testing.T) {
-	sm := session.NewManager(t.TempDir())
+	repo, _ := config.NewFileRepository(t.TempDir())
+	wd := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	sm := session.NewManager(repo.Dir(), repo)
 	card := config.IDCard{
-		ID:         "card-3",
-		Name:       "remove",
-		Driver:     "cat",
-		WorkingDir: t.TempDir(),
+		ID:          "card-3",
+		Name:        "remove",
+		Driver:      "cat",
+		WorkspaceID: workspaces[0].ID,
 	}
 
 	sid, err := sm.Launch(card, nil, nil, nil)

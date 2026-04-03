@@ -11,8 +11,12 @@ import (
 )
 
 func TestSessionAgentsMD(t *testing.T) {
-	sm := session.NewManager(t.TempDir())
+	repo, _ := config.NewFileRepository(t.TempDir())
 	wd := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	sm := session.NewManager(repo.Dir(), repo)
 
 	// Pre-create AGENTS.md in original workspace
 	originalContent := "# Original Content"
@@ -24,7 +28,7 @@ func TestSessionAgentsMD(t *testing.T) {
 		ID:              "card-agents-md",
 		Name:            "agents-md",
 		Driver:          "cat",
-		WorkingDir:      wd,
+		WorkspaceID:     workspaces[0].ID,
 		UseTmpWorkspace: true,
 		AgentsMD:        "# First Content",
 	}
@@ -84,7 +88,13 @@ func TestSessionAgentsMD(t *testing.T) {
 
 	card.AgentsMDPreferPath = true
 	card.AgentsMDPath = tmpFile
-	card.WorkingDir = t.TempDir() // Fresh WD without AGENTS.md
+	wd2 := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{
+		{Path: wd, IsRoot: false},
+		{Path: wd2, IsRoot: false},
+	})
+	ws2, _ := repo.GetWorkspaceByPath(wd2)
+	card.WorkspaceID = ws2.ID
 	sid2, errLaunch := sm.Launch(card, nil, nil, nil)
 	if errLaunch != nil {
 		t.Fatalf("launch with path: %v", errLaunch)
@@ -120,14 +130,19 @@ func TestSessionClaudeAgentsMD(t *testing.T) {
 	oldPath := os.Getenv("PATH")
 	t.Setenv("PATH", tmpPath+string(os.PathListSeparator)+oldPath)
 
-	sm := session.NewManager(t.TempDir())
+	smDir := t.TempDir()
+	repo, _ := config.NewFileRepository(smDir)
 	wd := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	sm := session.NewManager(repo.Dir(), repo)
 
 	card := config.IDCard{
 		ID:              "card-claude",
 		Name:            "claude-test",
 		Driver:          "claude", // Use Claude driver
-		WorkingDir:      wd,
+		WorkspaceID:     workspaces[0].ID,
 		UseTmpWorkspace: true,
 		AgentsMD:        "# Claude Content",
 	}
@@ -164,8 +179,12 @@ func TestSessionClaudeAgentsMD(t *testing.T) {
 }
 
 func TestSessionMCPs(t *testing.T) {
-	sm := session.NewManager(t.TempDir())
+	repo, _ := config.NewFileRepository(t.TempDir())
 	wd := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	sm := session.NewManager(repo.Dir(), repo)
 
 	mcps := []config.MCPServer{
 		{Name: "mcp1", Command: "node", Args: []string{"server.js"}},
@@ -176,7 +195,7 @@ func TestSessionMCPs(t *testing.T) {
 		ID:              "card-mcp",
 		Name:            "mcp-test",
 		Driver:          "cat",
-		WorkingDir:      wd,
+		WorkspaceID:     workspaces[0].ID,
 		UseTmpWorkspace: true,
 	}
 

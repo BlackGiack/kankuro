@@ -50,6 +50,7 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 
 	app.initLists()
 	app.initInputs()
+	app.refreshWorkspaces()
 	app.refreshLists()
 
 	return app, nil
@@ -92,16 +93,17 @@ func (a *App) initLists() {
 	a.switchList.Styles.Title = titleStyle
 }
 
+//nolint:funlen // long setup function
 func (a *App) initInputs() {
 	a.cardInputs = make([]textinput.Model, cardInputCount)
 	placeholders := []string{
 		"name",
 		"driver command (e.g. claude)",
 		"model",
-		"working_dir",
 		"face_style (neutral/happy/focused/thinking)",
 		"use tmp workspace (y/n)",
 	}
+
 	for i := range a.cardInputs {
 		a.cardInputs[i] = textinput.New()
 		a.cardInputs[i].Placeholder = placeholders[i]
@@ -145,6 +147,15 @@ func (a *App) initInputs() {
 	a.mcpInputs[6] = textinput.New()
 	a.mcpInputs[6].Placeholder = "headers (KEY=VALUE, remote only)"
 	a.mcpInputs[6].Width = inputWidthDefault
+
+	a.workspaceInputs = make([]textinput.Model, workspaceInputCount)
+	a.workspaceInputs[0] = textinput.New()
+	a.workspaceInputs[0].Placeholder = "Path to workspace or root directory..."
+	a.workspaceInputs[0].Width = inputWidthDefault
+
+	a.workspaceInputs[1] = textinput.New()
+	a.workspaceInputs[1].Placeholder = "Is root directory (y/n)"
+	a.workspaceInputs[1].Width = inputWidthDefault
 
 	a.agentsEditor = textarea.New()
 	a.agentsEditor.Placeholder = "Enter AGENTS.md content here..."

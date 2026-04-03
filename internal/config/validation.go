@@ -6,6 +6,8 @@ import (
 )
 
 // ValidateCard enforces required fields and checks skill/MCP references.
+//
+//nolint:gocognit // validation logic is inherently complex
 func (r *FileRepository) ValidateCard(card IDCard) error {
 	if card.Name == "" {
 		return errors.New("id card name is required")
@@ -13,9 +15,21 @@ func (r *FileRepository) ValidateCard(card IDCard) error {
 	if card.Driver == "" {
 		return errors.New("driver is required")
 	}
-	if card.WorkingDir == "" {
-		return errors.New("working_dir is required")
+	if card.WorkspaceID == "" {
+		return errors.New("workspace is required")
 	}
+	workspaces, err := r.ListWorkspaces()
+	if err != nil {
+		return err
+	}
+	workspaceIDs := map[string]struct{}{}
+	for _, w := range workspaces {
+		workspaceIDs[w.ID] = struct{}{}
+	}
+	if _, ok := workspaceIDs[card.WorkspaceID]; !ok {
+		return fmt.Errorf("workspace reference not found: %s", card.WorkspaceID)
+	}
+
 	skills, err := r.ListSkills()
 	if err != nil {
 		return err

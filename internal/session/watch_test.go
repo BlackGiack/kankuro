@@ -8,12 +8,17 @@ import (
 )
 
 func TestSessionIdleWordDetection(t *testing.T) {
-	sm := session.NewManager(t.TempDir())
+	repo, _ := config.NewFileRepository(t.TempDir())
+	wd := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	sm := session.NewManager(repo.Dir(), repo)
 	card := config.IDCard{
-		ID:         "card-idle",
-		Name:       "idle",
-		Driver:     "cat",
-		WorkingDir: t.TempDir(),
+		ID:          "card-idle",
+		Name:        "idle",
+		Driver:      "cat",
+		WorkspaceID: workspaces[0].ID,
 	}
 
 	sid, err := sm.Launch(card, nil, nil, nil)

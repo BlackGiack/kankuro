@@ -187,6 +187,10 @@ func (a *App) handleCardFormKeyMsg(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 }
 
 func (a *App) handleCardFormSpace() bool {
+	if a.cardFocusIndex == cardWorkspaceIndex {
+		a.openWorkspacePicker()
+		return true
+	}
 	if a.isPuppetFocused() {
 		a.puppetSelectorPrev = a.cardPuppet
 		a.puppetSelectorIndex = 0
@@ -312,15 +316,16 @@ func (a *App) handleCardFormToggle() {
 
 func (a *App) handleCardFormSubmit() {
 	card := config.IDCard{
-		ID:                 a.editingCardID,
-		Name:               strings.TrimSpace(a.cardInputs[0].Value()),
-		Driver:             strings.TrimSpace(a.cardInputs[1].Value()),
-		Model:              strings.TrimSpace(a.cardInputs[2].Value()),
-		WorkingDir:         strings.TrimSpace(a.cardInputs[3].Value()),
-		FaceStyle:          strings.TrimSpace(a.cardInputs[4].Value()),
-		Puppet:             a.cardPuppet,
-		UseTmpWorkspace:    strings.ToLower(strings.TrimSpace(a.cardInputs[5].Value())) == "y",
-		AgentsMD:           a.agentsMD,
+		ID:              a.editingCardID,
+		Name:            strings.TrimSpace(a.cardInputs[0].Value()),
+		Driver:          strings.TrimSpace(a.cardInputs[1].Value()),
+		Model:           strings.TrimSpace(a.cardInputs[2].Value()),
+		WorkspaceID:     a.selectedWorkspaceID,
+		FaceStyle:       strings.TrimSpace(a.cardInputs[3].Value()),
+		Puppet:          a.cardPuppet,
+		UseTmpWorkspace: strings.ToLower(strings.TrimSpace(a.cardInputs[4].Value())) == "y",
+		AgentsMD:        a.agentsMD,
+
 		AgentsMDPath:       a.agentsMDPath,
 		AgentsMDPreferPath: a.agentsMDPreferPath,
 		SkillIDs:           a.selectedSkillIDsSlice(),
@@ -348,6 +353,9 @@ func (a *App) resetCardForm() {
 		a.cardInputs[i].Blur()
 	}
 	a.editingCardID = ""
+	a.selectedWorkspaceID = ""
+	a.workspaceCursor = 0
+	a.workspaceSearchQuery = ""
 	a.agentsMD = ""
 	a.agentsMDPath = ""
 	a.agentsMDPreferPath = false
@@ -454,10 +462,16 @@ func (a *App) setCardFocus(index int) {
 	// determine which textinput should be focused (if any)
 	var mapped int
 	switch {
-	case index < cardPuppetIndex:
+	case index < cardWorkspaceIndex: // 0, 1, 2
 		mapped = index
-	case index == cardUseTmpIndex:
-		mapped = 5
+	case index == cardWorkspaceIndex: // 3 (Picker)
+		mapped = -1
+	case index == cardFaceStyleIndex: // 4 (Face Style)
+		mapped = 3
+	case index == cardPuppetIndex: // 5 (Puppet)
+		mapped = -1
+	case index == cardUseTmpIndex: // 6
+		mapped = 4
 	default:
 		mapped = -1
 	}
@@ -471,7 +485,7 @@ func (a *App) setCardFocus(index int) {
 }
 
 func (a *App) cycleCardFocus() {
-	total := len(a.cardInputs) + cardInputTotalOffset + 1
+	total := cardMCPListIndex + 1
 	next := (a.cardFocusIndex + 1) % total
 	a.setCardFocus(next)
 }

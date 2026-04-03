@@ -30,6 +30,11 @@ func (a *App) View() string {
 		if a.editingCardID != "" {
 			title = "Edit ID Card"
 		}
+		workspaceLine := "Workspace: " + a.workspaceSummary()
+		if a.cardFocusIndex == cardWorkspaceIndex {
+			workspaceLine = "> " + workspaceLine
+			workspaceLine = lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(workspaceLine)
+		}
 		// Render puppet row with focus indicator (no preview)
 		puppetLine := "Puppet: " + a.cardPuppet
 		if a.isPuppetFocused() {
@@ -40,10 +45,11 @@ func (a *App) View() string {
 			"Name: " + a.cardInputs[0].View() + "\n" +
 			"Driver: " + a.cardInputs[1].View() + "\n" +
 			"Model: " + a.cardInputs[2].View() + "\n" +
-			"Working Dir: " + a.cardInputs[3].View() + "\n" +
-			"Face Style: " + a.cardInputs[4].View() + "\n" +
+			workspaceLine + "\n" +
+			"Face Style: " + a.cardInputs[3].View() + "\n" +
 			puppetLine + "\n" +
-			"Use Tmp Workspace: " + a.cardInputs[5].View() + "\n\n" +
+			"Use Tmp Workspace: " + a.cardInputs[4].View() + "\n\n" +
+
 			"AGENTS.md:\n" + a.renderAgentsMDRow() + "\n\n" +
 			a.renderSkillList() + "\n\n" +
 			a.renderPersonaList() + "\n\n" +
@@ -86,6 +92,21 @@ func (a *App) View() string {
 		return errLine + titleStyle.Render(title) + "\n\n" +
 			"Path: " + a.personaSourceInput.View() + "\n\n" +
 			"Enter=save Esc=cancel"
+	case viewWorkspaces:
+		return errLine + a.renderWorkspacesList() + "\n\n" +
+			"Enter/Space=edit n=new d=delete r=refresh Esc=back"
+	case viewWorkspaceSourceForm:
+		title := "New Workspace Source"
+		if a.editingWorkspaceSourceID != "" {
+			title = "Edit Workspace Source"
+		}
+		return errLine + titleStyle.Render(title) + "\n\n" +
+			"Path: " + a.workspaceInputs[0].View() + "\n" +
+			"Is Root (y/n): " + a.workspaceInputs[1].View() + "\n\n" +
+			"Enter=save Tab=next Esc=cancel"
+	case viewWorkspacePicker:
+		return errLine + a.renderWorkspacePicker() + "\n\n" +
+			"Enter/Space=select Esc=cancel"
 	case viewAgentsEditor:
 		return errLine + titleStyle.Render("Editing AGENTS.md") + "\n\n" +
 			a.agentsEditor.View() + "\n\n" +
@@ -175,7 +196,7 @@ func (a *App) renderDashboard() string {
 		lipgloss.NewStyle().Foreground(gray).Render("[Nav] Tab "),
 		lipgloss.NewStyle().Foreground(gray).Render(" [Card] Enter=Launch n=New e=Edit "),
 		lipgloss.NewStyle().Foreground(gray).Render(" [Session] Enter=Attach x=Kill Del=Remove "),
-		lipgloss.NewStyle().Foreground(gray).Render(" [Global] m=MCP q=Quit"),
+		lipgloss.NewStyle().Foreground(gray).Render(" [Global] m=MCP w=Workspaces q=Quit"),
 	)
 
 	return header + "\n" + body + "\n" + footer

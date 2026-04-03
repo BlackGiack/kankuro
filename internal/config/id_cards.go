@@ -101,6 +101,7 @@ func (r *FileRepository) LoadIDCardsFile() (IDCardsFile, error) {
 	if err := ReadYAML(path, &f); err != nil {
 		return IDCardsFile{}, err
 	}
+
 	if f.SchemaVersion == 0 {
 		f.SchemaVersion = SchemaVersion
 	}

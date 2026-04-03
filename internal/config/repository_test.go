@@ -13,6 +13,11 @@ func TestCreateAndListIDCard(t *testing.T) {
 		t.Fatalf("new repo: %v", err)
 	}
 
+	wd := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+	wsID := workspaces[0].ID
+
 	skill, err := repo.UpsertSkill(config.Skill{Name: "analysis"})
 	if err != nil {
 		t.Fatalf("upsert skill: %v", err)
@@ -27,14 +32,14 @@ func TestCreateAndListIDCard(t *testing.T) {
 	}
 
 	_, err = repo.CreateIDCard(config.IDCard{
-		Name:       "Claude",
-		Driver:     "cat",
-		Model:      "opus",
-		WorkingDir: t.TempDir(),
-		SkillIDs:   []string{skill.ID},
-		MCPIDs:     []string{mcp.ID},
-		PersonaIDs: []string{persona.ID},
-		AgentsMD:   "# Custom AgentsMD\nHello world",
+		Name:        "Claude",
+		Driver:      "cat",
+		Model:       "opus",
+		WorkspaceID: wsID,
+		SkillIDs:    []string{skill.ID},
+		MCPIDs:      []string{mcp.ID},
+		PersonaIDs:  []string{persona.ID},
+		AgentsMD:    "# Custom AgentsMD\nHello world",
 	})
 	if err != nil {
 		t.Fatalf("create card: %v", err)
@@ -61,11 +66,16 @@ func TestCreateIDCardRejectsUnknownRefs(t *testing.T) {
 		t.Fatalf("new repo: %v", err)
 	}
 
+	wd := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+	wsID := workspaces[0].ID
+
 	_, err = repo.CreateIDCard(config.IDCard{
-		Name:       "Bad",
-		Driver:     "cat",
-		WorkingDir: t.TempDir(),
-		SkillIDs:   []string{"missing"},
+		Name:        "Bad",
+		Driver:      "cat",
+		WorkspaceID: wsID,
+		SkillIDs:    []string{"missing"},
 	})
 	if err == nil {
 		t.Fatalf("expected validation error")
@@ -109,6 +119,8 @@ func TestRepositoryBootstrapsFiles(t *testing.T) {
 		filepath.Join(repo.Dir(), "personas.yaml"),
 		filepath.Join(repo.Dir(), "persona_sources.yaml"),
 		filepath.Join(repo.Dir(), "mcps.yaml"),
+		filepath.Join(repo.Dir(), "workspaces.yaml"),
+		filepath.Join(repo.Dir(), "workspace_sources.yaml"),
 	}
 	for _, p := range paths {
 		if _, errStat := os.Stat(p); errStat != nil {
