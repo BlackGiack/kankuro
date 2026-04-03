@@ -120,14 +120,24 @@ func (a *App) handleDashboardEnter() (tea.Model, tea.Cmd) {
 	personas := a.personasForCard(selected)
 	mcps := a.mcpsForCard(selected)
 	skills = a.injectMCPCliSkill(selected, skills)
-	id, err := a.session.Launch(selected, skills, personas, mcps)
-	if err != nil {
-		a.err = err
-		return a, nil
+
+	a.namingCard = selected
+	a.namingInput.SetValue("")
+	a.namingLaunchDone = false
+	a.namingLaunchErr = nil
+	a.namingSessionID = ""
+	a.namingSubmitted = false
+	a.namingInput.Focus()
+	a.mode = viewNaming
+
+	return a, a.launchSessionAsync(selected, skills, personas, mcps)
+}
+
+func (a *App) launchSessionAsync(card config.IDCard, skills []config.Skill, personas []config.Persona, mcps []config.MCPServer) tea.Cmd {
+	return func() tea.Msg {
+		id, err := a.session.Launch(card, skills, personas, mcps)
+		return launchFinishedMsg{sessionID: id, err: err}
 	}
-	a.activeSessionID = id
-	a.mode = viewDashboard
-	return a, a.attachSession(id)
 }
 
 func (a *App) handleDashboardDelete() (tea.Model, tea.Cmd) {

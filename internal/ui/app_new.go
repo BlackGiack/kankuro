@@ -173,6 +173,10 @@ func (a *App) initInputs() {
 	a.personaSourceInput = textinput.New()
 	a.personaSourceInput.Placeholder = "Path to persona source directory..."
 	a.personaSourceInput.Width = inputWidthDefault
+
+	a.namingInput = textinput.New()
+	a.namingInput.Placeholder = "Session name (Enter to confirm)"
+	a.namingInput.Width = inputWidthDefault
 }
 
 // Init starts periodic refresh and textinput blink commands.

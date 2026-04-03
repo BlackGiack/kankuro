@@ -12,7 +12,7 @@ import (
 // View renders the active screen for the Bubble Tea program.
 // TODO: This function is quite long and could be refactored into smaller render functions for each view mode.
 //
-//nolint:funlen // This is the main view function that delegates to sub-renderers based on the current mode.
+//nolint:funlen,gocognit // Main Bubble Tea renderer delegates to many mode-specific branches by design.
 func (a *App) View() string {
 	errLine := ""
 	if a.err != nil {
@@ -133,6 +133,21 @@ func (a *App) View() string {
 		return errLine + titleStyle.Render(header) + "\n\n" +
 			a.switchList.View() + "\n" +
 			"Enter=switch Esc=cancel"
+	case viewNaming:
+		var statusLine string
+		if a.namingLaunchDone {
+			if a.namingLaunchErr != nil {
+				statusLine = "Launch failed: " + a.namingLaunchErr.Error()
+			} else {
+				statusLine = "Session ready. Enter to confirm name and attach."
+			}
+		} else {
+			statusLine = "Launching session..."
+		}
+		return errLine + titleStyle.Render("Name Your Session") + "\n\n" +
+			statusLine + "\n\n" +
+			"Name: " + a.namingInput.View() + "\n\n" +
+			"Enter=confirm  (Leave empty to use session ID as name)"
 	case viewDashboard:
 		return errLine + a.renderDashboard()
 	default:

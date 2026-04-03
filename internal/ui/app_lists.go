@@ -68,9 +68,11 @@ func (a *App) refreshSessionList() {
 	items := make([]list.Item, 0, len(a.sessions))
 	for _, s := range a.sessions {
 		faceStyle := faceNeutral
+		cardName := s.CardID
 		for _, c := range a.cards {
 			if c.ID == s.CardID {
 				faceStyle = c.FaceStyle
+				cardName = c.Name
 				break
 			}
 		}
@@ -91,7 +93,8 @@ func (a *App) refreshSessionList() {
 			sessionDetail = "WS: " + wsPath
 		}
 		items = append(items, sessionListItem{
-			title:         s.Name + " " + face,
+			sessionName:   s.Name,
+			cardNameFace:  cardName + " " + face,
 			desc:          fmt.Sprintf("%s pid=%d", s.Status, s.PID),
 			sessionDetail: sessionDetail,
 			id:            s.ID,

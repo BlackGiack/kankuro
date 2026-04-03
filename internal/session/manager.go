@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"io"
 	"maps"
 	"os"
@@ -159,4 +160,17 @@ func (m *Manager) List() []Snapshot {
 		})
 	}
 	return out
+}
+
+// SetName updates the name of an existing session and persists it.
+func (m *Manager) SetName(id, name string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, ok := m.sessions[id]
+	if !ok {
+		return fmt.Errorf("session not found: %s", id)
+	}
+	s.Name = name
+	m.persistSessionLocked(s)
+	return nil
 }

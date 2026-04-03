@@ -8,7 +8,8 @@ import (
 )
 
 type sessionListItem struct {
-	title         string
+	sessionName   string
+	cardNameFace  string
 	desc          string
 	sessionDetail string
 	id            string
@@ -17,23 +18,28 @@ type sessionListItem struct {
 
 func (i sessionListItem) Title() string {
 	if i.status == session.StatusWaiting {
-		return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(i.title)
+		return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(i.sessionName)
 	}
-	return i.title
+	return i.sessionName
 }
 
 func (i sessionListItem) Description() string {
-	baseDesc := i.desc
+	cardLine := i.cardNameFace
 	if i.status == session.StatusWaiting {
-		baseDesc = lipgloss.NewStyle().Foreground(highlightColor).Render(i.desc)
+		cardLine = lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(i.cardNameFace)
 	}
-	if i.sessionDetail != "" {
-		return baseDesc + "\n" + i.sessionDetail
+	descLine := i.desc
+	if i.status == session.StatusWaiting {
+		descLine = lipgloss.NewStyle().Foreground(highlightColor).Render(i.desc)
 	}
-	return baseDesc
+	detailLine := i.sessionDetail
+	if detailLine != "" {
+		return cardLine + "\n" + descLine + "\n" + detailLine
+	}
+	return cardLine + "\n" + descLine
 }
 
-func (i sessionListItem) FilterValue() string { return i.title }
+func (i sessionListItem) FilterValue() string { return i.sessionName }
 
 type cardItem struct {
 	card     config.IDCard

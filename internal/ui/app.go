@@ -30,6 +30,7 @@ const (
 	viewWorkspaces
 	viewWorkspaceSourceForm
 	viewWorkspacePicker
+	viewNaming
 )
 
 func puppetStyles() []string {
@@ -180,6 +181,13 @@ type App struct {
 	cardPuppet          string
 	puppetSelectorIndex int
 	puppetSelectorPrev  string
+
+	namingSessionID  string
+	namingCard       config.IDCard
+	namingInput      textinput.Model
+	namingLaunchDone bool
+	namingLaunchErr  error
+	namingSubmitted  bool
 
 	help help.Model
 

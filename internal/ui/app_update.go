@@ -13,7 +13,14 @@ type attachFinishedMsg struct {
 	err       error
 }
 
+type launchFinishedMsg struct {
+	sessionID string
+	err       error
+}
+
 // Update handles key events, timers, and view-specific state transitions.
+//
+//nolint:funlen // Central event dispatcher for Bubble Tea view modes.
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -31,6 +38,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			a.err = msg.err
 		}
+	case launchFinishedMsg:
+		a.namingLaunchDone = true
+		a.namingLaunchErr = msg.err
+		a.namingSessionID = msg.sessionID
 	}
 
 	switch a.mode {
@@ -64,6 +75,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.updateWorkspacePicker(msg)
 	case viewDashboard:
 		return a.updateDashboard(msg)
+	case viewNaming:
+		return a.updateNaming(msg)
 	default:
 		return a, nil
 	}
