@@ -17,38 +17,60 @@ const (
 	WorkspaceSourcesFilename = "workspace_sources.yaml"
 )
 
-// Repository defines persistence operations for ID cards and capability registries.
-type Repository interface {
+// CardRepository defines persistence operations for ID cards.
+type CardRepository interface {
 	ListIDCards() ([]IDCard, error)
 	CreateIDCard(card IDCard) (IDCard, error)
 	UpdateIDCard(card IDCard) (IDCard, error)
 	DeleteIDCard(id string) error
+}
 
+// WorkspaceRepository defines persistence operations for workspaces.
+type WorkspaceRepository interface {
 	ListWorkspaceSources() ([]WorkspaceSource, error)
 	SaveWorkspaceSources(sources []WorkspaceSource) error
 	SyncWorkspacesFromSources() error
 	ListWorkspaces() ([]Workspace, error)
 	GetWorkspaceByPath(path string) (Workspace, bool)
 	DeleteWorkspaceSource(id string) error
+}
 
+// SkillRepository defines persistence operations for skills.
+type SkillRepository interface {
 	ListSkillSources() ([]string, error)
 	SaveSkillSources(paths []string) error
 	SyncSkillsFromSources() error
 	ListSkills() ([]Skill, error)
 	UpsertSkill(skill Skill) (Skill, error)
 	DeleteSkill(id string) error
+}
 
+// PersonaRepository defines persistence operations for personas.
+type PersonaRepository interface {
 	ListPersonaSources() ([]string, error)
 	SavePersonaSources(paths []string) error
 	SyncPersonasFromSources() error
 	ListPersonas() ([]Persona, error)
 	UpsertPersona(persona Persona) (Persona, error)
 	DeletePersona(id string) error
+}
 
+// MCPRepository defines persistence operations for MCP servers.
+type MCPRepository interface {
 	ListMCPs() ([]MCPServer, error)
 	UpsertMCP(mcp MCPServer) (MCPServer, error)
 	DeleteMCP(id string) error
+}
 
+// Repository composes all domain repositories for convenience.
+// Use individual sub-interfaces (CardRepository, etc.) when you only need
+// operations for a specific domain.
+type Repository interface {
+	CardRepository
+	WorkspaceRepository
+	SkillRepository
+	PersonaRepository
+	MCPRepository
 	Dir() string
 }
 

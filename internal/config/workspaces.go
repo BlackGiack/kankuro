@@ -72,70 +72,52 @@ func (r *FileRepository) DeleteWorkspaceSource(id string) error {
 
 // SyncWorkspacesFromSources rebuilds the workspace registry by scanning configured sources.
 func (r *FileRepository) SyncWorkspacesFromSources() error {
-	sources, err := r.ListWorkspaceSources()
-	if err != nil {
-		return err
+	sources, listErr := r.ListWorkspaceSources()
+	if listErr != nil {
+		return listErr
 	}
-	workspaces := make([]Workspace, 0, len(sources))
+	var workspaces []Workspace
 	for _, source := range sources {
-		discovered, ok := discoverWorkspacesFromSource(source)
-		if !ok {
-			continue
+		if source.IsRoot {
+			rootPaths := []string{source.Path}
+			scanErr := ScanEntriesWithSkip(rootPaths,
+				func(entry os.DirEntry) bool { return !shouldSkipWorkspaceEntry(entry) },
+				func(_, expanded string, entry os.DirEntry) error {
+					fullPath := filepath.Join(expanded, entry.Name())
+					workspaces = append(workspaces, Workspace{
+						ID:     WorkspaceIDFromPath(fullPath),
+						Name:   entry.Name(),
+						Path:   fullPath,
+						Source: source.ID,
+					})
+					return nil
+				},
+			)
+			if scanErr != nil {
+				return scanErr
+			}
+		} else {
+			expanded, expErr := expandPath(source.Path)
+			if expErr != nil {
+				continue
+			}
+			info, statErr := os.Stat(expanded)
+			if statErr != nil || !info.IsDir() {
+				continue
+			}
+			workspaces = append(workspaces, Workspace{
+				ID:     WorkspaceIDFromPath(expanded),
+				Name:   filepath.Base(expanded),
+				Path:   expanded,
+				Source: source.ID,
+			})
 		}
-		workspaces = append(workspaces, discovered...)
 	}
 
 	return r.WriteWorkspacesFile(WorkspacesFile{
 		SchemaVersion: SchemaVersion,
 		Workspaces:    dedupeWorkspacesByPath(workspaces),
 	})
-}
-
-func discoverWorkspacesFromSource(source WorkspaceSource) ([]Workspace, bool) {
-	expanded, err := expandPath(source.Path)
-	if err != nil {
-		return nil, false
-	}
-	if source.IsRoot {
-		return discoverRootWorkspaces(source.ID, expanded)
-	}
-	return discoverSingleWorkspace(source.ID, expanded)
-}
-
-func discoverRootWorkspaces(sourceID, root string) ([]Workspace, bool) {
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return nil, false
-	}
-
-	workspaces := make([]Workspace, 0, len(entries))
-	for _, entry := range entries {
-		if shouldSkipWorkspaceEntry(entry) {
-			continue
-		}
-		fullPath := filepath.Join(root, entry.Name())
-		workspaces = append(workspaces, Workspace{
-			ID:     WorkspaceIDFromPath(fullPath),
-			Name:   entry.Name(),
-			Path:   fullPath,
-			Source: sourceID,
-		})
-	}
-	return workspaces, true
-}
-
-func discoverSingleWorkspace(sourceID, path string) ([]Workspace, bool) {
-	info, err := os.Stat(path)
-	if err != nil || !info.IsDir() {
-		return nil, false
-	}
-
-	return []Workspace{{
-		ID:     WorkspaceIDFromPath(path),
-		Name:   filepath.Base(path),
-		Path:   path,
-		Source: sourceID,
-	}}, true
 }
 
 func shouldSkipWorkspaceEntry(entry os.DirEntry) bool {

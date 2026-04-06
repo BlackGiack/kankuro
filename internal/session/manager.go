@@ -77,15 +77,21 @@ type Snapshot struct {
 	Pinged          bool
 }
 
+// WorkspaceReader provides the minimal interface the session manager needs
+// to resolve workspace paths when launching sessions.
+type WorkspaceReader interface {
+	ListWorkspaces() ([]config.Workspace, error)
+}
+
 type Manager struct {
 	mu        sync.RWMutex
 	sessions  map[string]*Session
 	configDir string
-	repo      config.Repository
+	repo      WorkspaceReader
 }
 
 // NewManager creates a session registry and loads persisted sessions.
-func NewManager(configDir string, repo config.Repository) *Manager {
+func NewManager(configDir string, repo WorkspaceReader) *Manager {
 	m := &Manager{
 		sessions:  make(map[string]*Session),
 		configDir: configDir,

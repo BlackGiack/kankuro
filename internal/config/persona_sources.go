@@ -3,7 +3,6 @@ package config
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,33 +30,24 @@ func (r *FileRepository) SyncPersonasFromSources() error {
 	if err != nil {
 		return err
 	}
-	personas := make([]Persona, 0)
-	for _, source := range sources {
-		expanded, errExp := expandPath(source)
-		if errExp != nil {
-			return fmt.Errorf("expand persona source %q: %w", source, errExp)
-		}
-		entries, errRead := os.ReadDir(expanded)
-		if errRead != nil {
-			return fmt.Errorf("read persona source %q: %w", expanded, errRead)
-		}
-		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-			if strings.HasPrefix(entry.Name(), ".") {
-				continue
-			}
-			if !strings.HasSuffix(strings.ToLower(entry.Name()), ".md") {
-				continue
-			}
+	var personas []Persona
+	err = ScanEntries(sources,
+		func(entry os.DirEntry) bool {
+			return !entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") &&
+				strings.HasSuffix(strings.ToLower(entry.Name()), ".md")
+		},
+		func(_, expanded string, entry os.DirEntry) error {
 			fullPath := filepath.Join(expanded, entry.Name())
 			personas = append(personas, Persona{
 				ID:     PersonaIDFromSource(fullPath),
 				Name:   strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name())),
 				Source: fullPath,
 			})
-		}
+			return nil
+		},
+	)
+	if err != nil {
+		return err
 	}
 	return r.WritePersonasFile(PersonasFile{SchemaVersion: SchemaVersion, Personas: personas})
 }

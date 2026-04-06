@@ -9,55 +9,64 @@ import (
 	"kankuro/internal/config"
 )
 
-type workspaceRepoStub struct {
+// workspaceOnlyStub implements workspaceStore for focused workspace tests.
+type workspaceOnlyStub struct {
 	listWorkspaceSourcesFn  func() ([]config.WorkspaceSource, error)
 	saveWorkspaceSourcesFn  func([]config.WorkspaceSource) error
 	syncWorkspacesFn        func() error
 	listWorkspacesFn        func() ([]config.Workspace, error)
 	deleteWorkspaceSourceFn func(string) error
+	DirFn                   func() string
 }
 
-func (s workspaceRepoStub) ListIDCards() ([]config.IDCard, error)                  { return nil, nil }
-func (s workspaceRepoStub) CreateIDCard(card config.IDCard) (config.IDCard, error) { return card, nil }
-func (s workspaceRepoStub) UpdateIDCard(card config.IDCard) (config.IDCard, error) { return card, nil }
-func (s workspaceRepoStub) DeleteIDCard(string) error                              { return nil }
-func (s workspaceRepoStub) ListWorkspaceSources() ([]config.WorkspaceSource, error) {
+func (s workspaceOnlyStub) ListWorkspaceSources() ([]config.WorkspaceSource, error) {
 	return s.listWorkspaceSourcesFn()
 }
-func (s workspaceRepoStub) SaveWorkspaceSources(src []config.WorkspaceSource) error {
+func (s workspaceOnlyStub) SaveWorkspaceSources(src []config.WorkspaceSource) error {
 	return s.saveWorkspaceSourcesFn(src)
 }
-func (s workspaceRepoStub) SyncWorkspacesFromSources() error            { return s.syncWorkspacesFn() }
-func (s workspaceRepoStub) ListWorkspaces() ([]config.Workspace, error) { return s.listWorkspacesFn() }
-func (s workspaceRepoStub) GetWorkspaceByPath(string) (config.Workspace, bool) {
+func (s workspaceOnlyStub) SyncWorkspacesFromSources() error            { return s.syncWorkspacesFn() }
+func (s workspaceOnlyStub) ListWorkspaces() ([]config.Workspace, error) { return s.listWorkspacesFn() }
+func (s workspaceOnlyStub) GetWorkspaceByPath(string) (config.Workspace, bool) {
 	return config.Workspace{}, false
 }
-func (s workspaceRepoStub) DeleteWorkspaceSource(id string) error {
+func (s workspaceOnlyStub) DeleteWorkspaceSource(id string) error {
 	return s.deleteWorkspaceSourceFn(id)
 }
-func (s workspaceRepoStub) ListSkillSources() ([]string, error)                  { return nil, nil }
-func (s workspaceRepoStub) SaveSkillSources([]string) error                      { return nil }
-func (s workspaceRepoStub) SyncSkillsFromSources() error                         { return nil }
-func (s workspaceRepoStub) ListSkills() ([]config.Skill, error)                  { return nil, nil }
-func (s workspaceRepoStub) UpsertSkill(skill config.Skill) (config.Skill, error) { return skill, nil }
-func (s workspaceRepoStub) DeleteSkill(string) error                             { return nil }
-func (s workspaceRepoStub) ListPersonaSources() ([]string, error)                { return nil, nil }
-func (s workspaceRepoStub) SavePersonaSources([]string) error                    { return nil }
-func (s workspaceRepoStub) SyncPersonasFromSources() error                       { return nil }
-func (s workspaceRepoStub) ListPersonas() ([]config.Persona, error)              { return nil, nil }
-func (s workspaceRepoStub) UpsertPersona(persona config.Persona) (config.Persona, error) {
+
+func (s workspaceOnlyStub) Dir() string {
+	if s.DirFn != nil {
+		return s.DirFn()
+	}
+	return ""
+}
+
+func (s workspaceOnlyStub) ListIDCards() ([]config.IDCard, error)                  { return nil, nil }
+func (s workspaceOnlyStub) CreateIDCard(card config.IDCard) (config.IDCard, error) { return card, nil }
+func (s workspaceOnlyStub) UpdateIDCard(card config.IDCard) (config.IDCard, error) { return card, nil }
+func (s workspaceOnlyStub) DeleteIDCard(string) error                              { return nil }
+func (s workspaceOnlyStub) ListSkillSources() ([]string, error)                    { return nil, nil }
+func (s workspaceOnlyStub) SaveSkillSources([]string) error                        { return nil }
+func (s workspaceOnlyStub) SyncSkillsFromSources() error                           { return nil }
+func (s workspaceOnlyStub) ListSkills() ([]config.Skill, error)                    { return nil, nil }
+func (s workspaceOnlyStub) UpsertSkill(skill config.Skill) (config.Skill, error)   { return skill, nil }
+func (s workspaceOnlyStub) DeleteSkill(string) error                               { return nil }
+func (s workspaceOnlyStub) ListPersonaSources() ([]string, error)                  { return nil, nil }
+func (s workspaceOnlyStub) SavePersonaSources([]string) error                      { return nil }
+func (s workspaceOnlyStub) SyncPersonasFromSources() error                         { return nil }
+func (s workspaceOnlyStub) ListPersonas() ([]config.Persona, error)                { return nil, nil }
+func (s workspaceOnlyStub) UpsertPersona(persona config.Persona) (config.Persona, error) {
 	return persona, nil
 }
-func (s workspaceRepoStub) DeletePersona(string) error                               { return nil }
-func (s workspaceRepoStub) ListMCPs() ([]config.MCPServer, error)                    { return nil, nil }
-func (s workspaceRepoStub) UpsertMCP(mcp config.MCPServer) (config.MCPServer, error) { return mcp, nil }
-func (s workspaceRepoStub) DeleteMCP(string) error                                   { return nil }
-func (s workspaceRepoStub) Dir() string                                              { return "" }
+func (s workspaceOnlyStub) DeletePersona(string) error                               { return nil }
+func (s workspaceOnlyStub) ListMCPs() ([]config.MCPServer, error)                    { return nil, nil }
+func (s workspaceOnlyStub) UpsertMCP(mcp config.MCPServer) (config.MCPServer, error) { return mcp, nil }
+func (s workspaceOnlyStub) DeleteMCP(string) error                                   { return nil }
 
 func TestUpdateWorkspaceSourceFormSaveErrorStaysInForm(t *testing.T) {
 	expectedErr := errors.New("save failed")
 	app := &App{
-		repo: workspaceRepoStub{
+		repo: workspaceOnlyStub{
 			listWorkspaceSourcesFn: func() ([]config.WorkspaceSource, error) {
 				return nil, nil
 			},
@@ -90,7 +99,7 @@ func TestUpdateWorkspaceSourceFormSaveErrorStaysInForm(t *testing.T) {
 func TestDeleteSelectedWorkspaceSourceSetsError(t *testing.T) {
 	expectedErr := errors.New("delete failed")
 	app := &App{
-		repo: workspaceRepoStub{
+		repo: workspaceOnlyStub{
 			listWorkspaceSourcesFn:  func() ([]config.WorkspaceSource, error) { return nil, nil },
 			saveWorkspaceSourcesFn:  func([]config.WorkspaceSource) error { return nil },
 			listWorkspacesFn:        func() ([]config.Workspace, error) { return nil, nil },
@@ -113,7 +122,7 @@ func TestDeleteSelectedWorkspaceSourceSetsError(t *testing.T) {
 func TestUpdateWorkspacesRefreshSetsError(t *testing.T) {
 	expectedErr := errors.New("refresh failed")
 	app := &App{
-		repo: workspaceRepoStub{
+		repo: workspaceOnlyStub{
 			listWorkspaceSourcesFn:  func() ([]config.WorkspaceSource, error) { return nil, nil },
 			saveWorkspaceSourcesFn:  func([]config.WorkspaceSource) error { return nil },
 			listWorkspacesFn:        func() ([]config.Workspace, error) { return nil, nil },

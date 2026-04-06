@@ -3,8 +3,6 @@ package config
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,50 +30,25 @@ func (r *FileRepository) SyncSkillsFromSources() error {
 	if err != nil {
 		return err
 	}
-	skills := make([]Skill, 0)
-	for _, source := range sources {
-		expanded, errExp := expandPath(source)
-		if errExp != nil {
-			return fmt.Errorf("expand skill source %q: %w", source, errExp)
-		}
-		entries, errRead := os.ReadDir(expanded)
-		if errRead != nil {
-			return fmt.Errorf("read skill source %q: %w", expanded, errRead)
-		}
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
-			}
-			if strings.HasPrefix(entry.Name(), ".") {
-				continue
-			}
+	var skills []Skill
+	err = ScanEntries(sources,
+		func(entry os.DirEntry) bool {
+			return entry.IsDir() && !strings.HasPrefix(entry.Name(), ".")
+		},
+		func(_, expanded string, entry os.DirEntry) error {
 			fullPath := filepath.Join(expanded, entry.Name())
 			skills = append(skills, Skill{
 				ID:     SkillIDFromSource(fullPath),
 				Name:   entry.Name(),
 				Source: fullPath,
 			})
-		}
+			return nil
+		},
+	)
+	if err != nil {
+		return err
 	}
 	return r.WriteSkillsFile(SkillsFile{SchemaVersion: SchemaVersion, Skills: skills})
-}
-
-func expandPath(value string) (string, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return "", errors.New("path is empty")
-	}
-	value = os.ExpandEnv(value)
-	if strings.HasPrefix(value, "~") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		suffix := strings.TrimPrefix(value, "~")
-		suffix = strings.TrimPrefix(suffix, string(os.PathSeparator))
-		value = filepath.Join(home, suffix)
-	}
-	return filepath.Abs(value)
 }
 
 func SkillIDFromSource(path string) string {
