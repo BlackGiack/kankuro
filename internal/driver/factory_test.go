@@ -32,21 +32,28 @@ func (s *stubDriver) SetModel(_ string) []string      { return nil }
 func (s *stubDriver) SendInput(_ string) error        { return nil }
 func (s *stubDriver) GetStatus() driver.SessionStatus { return driver.StatusRunning }
 
-func TestNewCLIDriverFallsBackToGeneric(t *testing.T) {
-	//nolint:reassign // This is a test resetting the global registry.
-	driver.DriverConstructors = map[string]func() driver.AgentDriver{}
-	d := driver.NewCLIDriver("unknown")
-	if _, ok := d.(*driver.GenericCLIDriver); !ok {
-		t.Fatalf("expected generic fallback")
+func TestNewRegistry(t *testing.T) {
+	r := driver.NewRegistry()
+	r.Register("special", func() driver.AgentDriver { return &stubDriver{} })
+
+	d := r.Get("special")
+	if _, ok := d.(*stubDriver); !ok {
+		t.Fatal("expected registered constructor")
 	}
 }
 
-func TestNewCLIDriverUsesRegisteredConstructor(t *testing.T) {
-	//nolint:reassign // This is a test resetting the global registry.
-	driver.DriverConstructors = map[string]func() driver.AgentDriver{}
-	driver.RegisterDriver("special", func() driver.AgentDriver { return &stubDriver{} })
-	d := driver.NewCLIDriver("special")
-	if _, ok := d.(*stubDriver); !ok {
-		t.Fatalf("expected registered constructor")
+func TestRegistryFallbackToGeneric(t *testing.T) {
+	r := driver.NewRegistry()
+	d := r.Get("unknown")
+	if _, ok := d.(*driver.GenericCLIDriver); !ok {
+		t.Fatal("expected GenericCLIDriver fallback")
+	}
+}
+
+func TestBuiltinRegistry(t *testing.T) {
+	r := driver.NewBuiltinRegistry()
+	d := r.Get("claude")
+	if _, ok := d.(*driver.ClaudeCodeDriver); !ok {
+		t.Fatal("expected ClaudeCodeDriver from builtin registry")
 	}
 }

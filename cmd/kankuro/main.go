@@ -16,14 +16,16 @@ import (
 
 // main wires repository, session manager, and TUI program startup.
 func main() {
-	driver.RegisterDriver("claude", func() driver.AgentDriver { return driver.NewClaudeCodeDriver() })
-	if err := run(); err != nil {
+	// Create and configure driver registry
+	registry := driver.NewBuiltinRegistry()
+
+	if err := run(registry); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func run(registry driver.Registry) error {
 	var cfgDir string
 	var debug bool
 	flag.StringVar(&cfgDir, "config-dir", os.Getenv("KANKURO_CONFIG_DIR"), "override config directory")
@@ -48,7 +50,11 @@ func run() error {
 		return fmt.Errorf("skill sync error: %w", err)
 	}
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := session.NewManager(
+		repo.Dir(),
+		repo,
+		session.WithDriverRegistry(registry),
+	)
 	app, err := ui.New(repo, sm)
 	if err != nil {
 		return fmt.Errorf("ui init error: %w", err)

@@ -96,6 +96,44 @@ func TestUpdateWorkspaceSourceFormSaveErrorStaysInForm(t *testing.T) {
 	}
 }
 
+func TestUpdateWorkspaceSourceFormSuccessfulSaveClearsStaleErrorAndReturnsToList(t *testing.T) {
+	saved := false
+	app := &App{
+		repo: workspaceOnlyStub{
+			listWorkspaceSourcesFn: func() ([]config.WorkspaceSource, error) {
+				return nil, nil
+			},
+			saveWorkspaceSourcesFn: func([]config.WorkspaceSource) error {
+				saved = true
+				return nil
+			},
+			listWorkspacesFn: func() ([]config.Workspace, error) {
+				return nil, nil
+			},
+			syncWorkspacesFn:        func() error { return nil },
+			deleteWorkspaceSourceFn: func(string) error { return nil },
+		},
+		mode: viewWorkspaceSourceForm,
+		err:  errors.New("old error"),
+	}
+	app.initInputs()
+	app.workspaceInputs[0].SetValue("/tmp/demo")
+	app.workspaceInputs[1].SetValue("y")
+
+	model, _ := app.updateWorkspaceSourceForm(tea.KeyMsg{Type: tea.KeyEnter})
+	got := model.(*App)
+
+	if !saved {
+		t.Fatalf("expected workspace source to be saved")
+	}
+	if got.err != nil {
+		t.Fatalf("expected stale error to be cleared, got %v", got.err)
+	}
+	if got.mode != viewWorkspaces {
+		t.Fatalf("expected to return to workspace list, got mode %v", got.mode)
+	}
+}
+
 func TestDeleteSelectedWorkspaceSourceSetsError(t *testing.T) {
 	expectedErr := errors.New("delete failed")
 	app := &App{

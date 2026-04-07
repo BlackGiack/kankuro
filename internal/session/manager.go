@@ -88,14 +88,29 @@ type Manager struct {
 	sessions  map[string]*Session
 	configDir string
 	repo      WorkspaceReader
+	drivers   driver.Registry
+}
+
+// Option configures the Manager.
+type Option func(*Manager)
+
+// WithDriverRegistry sets a custom driver registry.
+func WithDriverRegistry(reg driver.Registry) Option {
+	return func(m *Manager) {
+		m.drivers = reg
+	}
 }
 
 // NewManager creates a session registry and loads persisted sessions.
-func NewManager(configDir string, repo WorkspaceReader) *Manager {
+func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager {
 	m := &Manager{
 		sessions:  make(map[string]*Session),
 		configDir: configDir,
 		repo:      repo,
+		drivers:   driver.NewBuiltinRegistry(), // default builtin registry
+	}
+	for _, opt := range opts {
+		opt(m)
 	}
 
 	sessionsDir := filepath.Join(configDir, "sessions")

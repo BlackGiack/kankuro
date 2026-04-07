@@ -1,8 +1,9 @@
+// Copyright (c) 2024-present, KANKURO authors.
+// All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package session_test
 
-import "kankuro/internal/driver"
-
-//nolint:gochecknoinits // Tests need to mirror main.go driver registration.
-func init() {
-	driver.RegisterDriver("claude", func() driver.AgentDriver { return driver.NewClaudeCodeDriver() })
-}
+// This file is intentionally left empty to preserve the test package structure.
+// The global driver registration has been removed in favor of explicit registry usage.

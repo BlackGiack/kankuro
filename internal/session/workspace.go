@@ -45,17 +45,5 @@ func (m *Manager) prepareWorkspace(
 		}
 	}
 
-	skillsDir := filepath.Join(targetDir, ".agents", "skills")
-	// G703: Path traversal via taint analysis.
-	if errRemove := os.RemoveAll(skillsDir); errRemove != nil { //nolint:gosec // skillsDir is derived from managed path
-		return "", fmt.Errorf("clear tmp skills dir: %w", errRemove)
-	}
-
-	personasDir := filepath.Join(targetDir, ".agents", "agents")
-	// G703: Path traversal via taint analysis.
-	if errRemove := os.RemoveAll(personasDir); errRemove != nil { //nolint:gosec // personasDir is derived from managed path
-		return "", fmt.Errorf("clear tmp personas dir: %w", errRemove)
-	}
-
 	return targetDir, nil
 }

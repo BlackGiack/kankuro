@@ -14,6 +14,45 @@ import (
 )
 
 // Launch starts a new session process from an ID card.
+// syncDriverFiles clears temp directories (if needed) and syncs skill/persona/MCP files.
+func (m *Manager) syncDriverFiles(
+	card config.IDCard,
+	skills []config.Skill,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+	workingDir string,
+	clearTmp bool,
+	appendAgentsMD bool,
+) (driver.AgentDriver, error) {
+	d := m.drivers.Get(card.Driver)
+
+	if clearTmp {
+		// Clear existing .agents directories in tmp workspace
+		skillsDir := filepath.Join(workingDir, ".agents", "skills")
+		if err := os.RemoveAll(skillsDir); err != nil {
+			return nil, fmt.Errorf("clear tmp skills dir: %w", err)
+		}
+		personasDir := filepath.Join(workingDir, ".agents", "agents")
+		if err := os.RemoveAll(personasDir); err != nil {
+			return nil, fmt.Errorf("clear tmp personas dir: %w", err)
+		}
+	}
+
+	if err := d.SetAgentsMD(card, personas, mcps, workingDir, appendAgentsMD); err != nil {
+		return nil, fmt.Errorf("set agents.md: %w", err)
+	}
+	if err := d.SetSkills(skills, workingDir); err != nil {
+		return nil, fmt.Errorf("set skills: %w", err)
+	}
+	if err := d.SetPersonas(personas, workingDir); err != nil {
+		return nil, fmt.Errorf("set personas: %w", err)
+	}
+	if err := d.SelectMCPs(mcps, workingDir); err != nil {
+		return nil, fmt.Errorf("select mcps: %w", err)
+	}
+	return d, nil
+}
+
 func (m *Manager) Launch(card config.IDCard, skills []config.Skill, personas []config.Persona, mcps []config.MCPServer) (string, error) {
 	sid := uuid.NewString()
 	return sid, m.startSession(sid, card, skills, personas, mcps, true, "")
@@ -59,30 +98,14 @@ func (m *Manager) SwitchAgent(
 		return fmt.Errorf("session workspace missing: %w", errStat)
 	}
 
-	if s.UseTmpWorkspace {
-		skillsDir := filepath.Join(finalWD, ".agents", "skills")
-		if errRemove := os.RemoveAll(skillsDir); errRemove != nil {
-			return fmt.Errorf("clear tmp skills dir: %w", errRemove)
-		}
-		personasDir := filepath.Join(finalWD, ".agents", "agents")
-		if errRemove := os.RemoveAll(personasDir); errRemove != nil {
-			return fmt.Errorf("clear tmp personas dir: %w", errRemove)
-		}
+	// Clear tmp directories if using tmp workspace
+	clearTmp := s.UseTmpWorkspace
+	// SwitchAgent should replace agents.md content, not append
+	d, err := m.syncDriverFiles(card, skills, personas, mcps, finalWD, clearTmp, false)
+	if err != nil {
+		return err
 	}
 
-	d := driver.NewCLIDriver(card.Driver)
-	if errAgentsMD := d.SetAgentsMD(card, personas, mcps, finalWD, false); errAgentsMD != nil {
-		return errAgentsMD
-	}
-	if errSkills := d.SetSkills(skills, finalWD); errSkills != nil {
-		return errSkills
-	}
-	if errPersonas := d.SetPersonas(personas, finalWD); errPersonas != nil {
-		return errPersonas
-	}
-	if errMCPs := d.SelectMCPs(mcps, finalWD); errMCPs != nil {
-		return errMCPs
-	}
 	args := d.SetModel(card.Model)
 	h, errSpawn := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,
@@ -153,20 +176,15 @@ func (m *Manager) startSession(
 		return errPrep
 	}
 
-	d := driver.NewCLIDriver(card.Driver)
-	// append if first launch (isNew) and using tmp workspace
-	if errAgentsMD := d.SetAgentsMD(card, personas, mcps, finalWD, isNew && card.UseTmpWorkspace); errAgentsMD != nil {
-		return errAgentsMD
+	// Sync driver files (clear generated content for tmp workspaces on every launch)
+	clearTmp := card.UseTmpWorkspace
+	// startSession should append to agents.md if it's a new session and using tmp workspace
+	appendAgentsMD := card.UseTmpWorkspace && isNew
+	d, err := m.syncDriverFiles(card, skills, personas, mcps, finalWD, clearTmp, appendAgentsMD)
+	if err != nil {
+		return err
 	}
-	if errSkills := d.SetSkills(skills, finalWD); errSkills != nil {
-		return errSkills
-	}
-	if errPersonas := d.SetPersonas(personas, finalWD); errPersonas != nil {
-		return errPersonas
-	}
-	if errMCPs := d.SelectMCPs(mcps, finalWD); errMCPs != nil {
-		return errMCPs
-	}
+
 	args := d.SetModel(card.Model)
 	h, errSpawn := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,

@@ -11,6 +11,7 @@ import (
 )
 
 func (a *App) refreshWorkspaces() {
+	a.err = nil
 	ws, err := a.repo.ListWorkspaces()
 	if err != nil {
 		a.err = err
@@ -329,7 +330,7 @@ func (a *App) saveWorkspaceSource(path string, isRoot bool) error {
 	}
 
 	a.refreshWorkspaces()
-	return a.err
+	return nil
 }
 
 func upsertWorkspaceSource(sources []config.WorkspaceSource, source config.WorkspaceSource) []config.WorkspaceSource {

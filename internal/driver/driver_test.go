@@ -144,7 +144,8 @@ func TestClaudeCodeDriver(t *testing.T) {
 }
 
 func TestNewCLIDriverClaude(t *testing.T) {
-	d := driver.NewCLIDriver("claude")
+	r := driver.NewBuiltinRegistry()
+	d := r.Get("claude")
 	if _, ok := d.(*driver.ClaudeCodeDriver); !ok {
 		t.Fatalf("expected ClaudeCodeDriver")
 	}
