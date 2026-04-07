@@ -12,47 +12,23 @@ const printableCharMin = 33
 const printableCharMax = 126
 
 func (a *App) filteredSkills() []config.Skill {
-	if a.skillSearchQuery == "" {
-		return a.skills
-	}
-	query := strings.ToLower(a.skillSearchQuery)
-	var filtered []config.Skill
-	for _, skill := range a.skills {
-		if strings.Contains(strings.ToLower(skill.Name), query) ||
-			strings.Contains(strings.ToLower(skill.Description), query) {
-			filtered = append(filtered, skill)
-		}
-	}
-	return filtered
+	return filterByQuery(a.skills, a.skillSearchQuery, func(s config.Skill, q string) bool {
+		return strings.Contains(strings.ToLower(s.Name), q) ||
+			strings.Contains(strings.ToLower(s.Description), q)
+	})
 }
 
 func (a *App) filteredPersonas() []config.Persona {
-	if a.personaSearchQuery == "" {
-		return a.personas
-	}
-	query := strings.ToLower(a.personaSearchQuery)
-	var filtered []config.Persona
-	for _, p := range a.personas {
-		if strings.Contains(strings.ToLower(p.Name), query) {
-			filtered = append(filtered, p)
-		}
-	}
-	return filtered
+	return filterByQuery(a.personas, a.personaSearchQuery, func(p config.Persona, q string) bool {
+		return strings.Contains(strings.ToLower(p.Name), q)
+	})
 }
 
 func (a *App) filteredMCPs() []config.MCPServer {
-	if a.mcpSearchQuery == "" {
-		return a.mcps
-	}
-	query := strings.ToLower(a.mcpSearchQuery)
-	var filtered []config.MCPServer
-	for _, mcp := range a.mcps {
-		if strings.Contains(strings.ToLower(mcp.Name), query) ||
-			strings.Contains(strings.ToLower(mcp.Description), query) {
-			filtered = append(filtered, mcp)
-		}
-	}
-	return filtered
+	return filterByQuery(a.mcps, a.mcpSearchQuery, func(m config.MCPServer, q string) bool {
+		return strings.Contains(strings.ToLower(m.Name), q) ||
+			strings.Contains(strings.ToLower(m.Description), q)
+	})
 }
 
 func (a *App) handleCardFormEscape() {
@@ -580,54 +556,15 @@ func (a *App) deleteSelectedMCP() {
 }
 
 func (a *App) skillWindow(total int) (int, int) {
-	if total == 0 {
-		return 0, 0
-	}
-	height := a.skillListHeight()
-	if height >= total {
-		return 0, total
-	}
-	start := max(0, a.skillCursor-height/2)
-	end := start + height
-	if end > total {
-		end = total
-		start = max(0, end-height)
-	}
-	return start, end
+	return calculateWindow(a.skillCursor, total, a.skillListHeight())
 }
 
 func (a *App) personaWindow(total int) (int, int) {
-	if total == 0 {
-		return 0, 0
-	}
-	height := a.personaListHeight()
-	if height >= total {
-		return 0, total
-	}
-	start := max(0, a.personaCursor-height/2)
-	end := start + height
-	if end > total {
-		end = total
-		start = max(0, end-height)
-	}
-	return start, end
+	return calculateWindow(a.personaCursor, total, a.personaListHeight())
 }
 
 func (a *App) mcpWindow(total int) (int, int) {
-	if total == 0 {
-		return 0, 0
-	}
-	height := a.mcpListHeight()
-	if height >= total {
-		return 0, total
-	}
-	start := max(0, a.mcpCursor-height/2)
-	end := start + height
-	if end > total {
-		end = total
-		start = max(0, end-height)
-	}
-	return start, end
+	return calculateWindow(a.mcpCursor, total, a.mcpListHeight())
 }
 
 func (a *App) skillListHeight() int {

@@ -180,3 +180,55 @@ func TestUpdateWorkspacesRefreshSetsError(t *testing.T) {
 		t.Fatalf("expected to stay in workspace view, got mode %v", got.mode)
 	}
 }
+
+func TestFilteredWorkspacesMatchesNameAndPath(t *testing.T) {
+	app := &App{
+		workspaces: []config.Workspace{
+			{ID: "1", Name: "Project Alpha", Path: "/home/user/code/alpha"},
+			{ID: "2", Name: "Beta Workspace", Path: "/home/user/beta"},
+			{ID: "3", Name: "Gamma", Path: "/home/user/code/gamma"},
+		},
+		workspaceSearchQuery: "alpha",
+	}
+	got := app.filteredWorkspaces()
+	if len(got) != 1 || got[0].ID != "1" {
+		t.Fatalf("expected workspace ID 1 by name, got %v", got)
+	}
+
+	app.workspaceSearchQuery = "/home/user/code"
+	got = app.filteredWorkspaces()
+	if len(got) != 2 || got[0].ID != "1" || got[1].ID != "3" {
+		t.Fatalf("expected workspaces 1 and 3 by path, got %v", got)
+	}
+
+	app.workspaceSearchQuery = ""
+	got = app.filteredWorkspaces()
+	if len(got) != 3 {
+		t.Fatalf("expected all 3 workspaces with empty query, got %v", got)
+	}
+}
+
+func TestWorkspaceWindowTopMiddleBottom(t *testing.T) {
+	app := &App{
+		workspaceCursor: 0,
+		height:          38,
+	}
+	app.workspaces = make([]config.Workspace, 20)
+
+	start, end := app.workspaceWindow(20)
+	if start != 0 || end != 6 {
+		t.Fatalf("top: expected (0, 6), got (%d, %d)", start, end)
+	}
+
+	app.workspaceCursor = 10
+	start, end = app.workspaceWindow(20)
+	if start != 7 || end != 13 {
+		t.Fatalf("middle: expected (7, 13), got (%d, %d)", start, end)
+	}
+
+	app.workspaceCursor = 18
+	start, end = app.workspaceWindow(20)
+	if start != 14 || end != 20 {
+		t.Fatalf("bottom: expected (14, 20), got (%d, %d)", start, end)
+	}
+}

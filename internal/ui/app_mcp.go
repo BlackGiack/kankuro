@@ -66,8 +66,7 @@ func parseCommaList(input string) []string {
 
 func parseKeyValueList(input string) map[string]string {
 	result := make(map[string]string)
-	//nolint:modernize // stick to Split for broader compatibility
-	for _, pair := range strings.Split(input, ",") {
+	for pair := range strings.SplitSeq(input, ",") {
 		if k, v, ok := strings.Cut(pair, "="); ok {
 			result[strings.TrimSpace(k)] = strings.TrimSpace(v)
 		}

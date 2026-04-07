@@ -27,18 +27,10 @@ func (a *App) refreshWorkspaces() {
 }
 
 func (a *App) filteredWorkspaces() []config.Workspace {
-	if a.workspaceSearchQuery == "" {
-		return a.workspaces
-	}
-	query := strings.ToLower(a.workspaceSearchQuery)
-	var filtered []config.Workspace
-	for _, ws := range a.workspaces {
-		if strings.Contains(strings.ToLower(ws.Name), query) ||
-			strings.Contains(strings.ToLower(ws.Path), query) {
-			filtered = append(filtered, ws)
-		}
-	}
-	return filtered
+	return filterByQuery(a.workspaces, a.workspaceSearchQuery, func(w config.Workspace, q string) bool {
+		return strings.Contains(strings.ToLower(w.Name), q) ||
+			strings.Contains(strings.ToLower(w.Path), q)
+	})
 }
 
 func (a *App) workspaceSummary() string {
@@ -138,20 +130,7 @@ func (a *App) renderWorkspacePicker() string {
 }
 
 func (a *App) workspaceWindow(total int) (int, int) {
-	if total == 0 {
-		return 0, 0
-	}
-	height := a.skillListHeight()
-	if height >= total {
-		return 0, total
-	}
-	start := max(0, a.workspaceCursor-height/2)
-	end := start + height
-	if end > total {
-		end = total
-		start = max(0, end-height)
-	}
-	return start, end
+	return calculateWindow(a.workspaceCursor, total, a.skillListHeight())
 }
 
 func (a *App) updateWorkspaces(msg tea.Msg) (tea.Model, tea.Cmd) {
