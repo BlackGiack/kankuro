@@ -1,73 +1,71 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 )
 
 // ValidateCard enforces required fields and checks skill/MCP references.
-//
-//nolint:gocognit // validation logic is inherently complex
 func (r *FileRepository) ValidateCard(card IDCard) error {
-	if card.Name == "" {
-		return errors.New("id card name is required")
+	if err := validateCardFields(card); err != nil {
+		return err
 	}
-	if card.Driver == "" {
-		return errors.New("driver is required")
+
+	if err := r.validateWorkspaceRef(card.WorkspaceID); err != nil {
+		return err
 	}
-	if card.WorkspaceID == "" {
-		return errors.New("workspace is required")
+
+	if err := r.validateSkillRefs(card.SkillIDs); err != nil {
+		return err
 	}
+
+	if err := r.validatePersonaRefs(card.PersonaIDs); err != nil {
+		return err
+	}
+
+	return r.validateMCPRefs(card.MCPIDs)
+}
+
+func (r *FileRepository) validateWorkspaceRef(workspaceID string) error {
 	workspaces, err := r.ListWorkspaces()
 	if err != nil {
 		return err
 	}
-	workspaceIDs := map[string]struct{}{}
-	for _, w := range workspaces {
-		workspaceIDs[w.ID] = struct{}{}
+	set := idSet(workspaces, func(w Workspace) string { return w.ID })
+	if _, ok := set[workspaceID]; !ok {
+		return fmt.Errorf("workspace reference not found: %s", workspaceID)
 	}
-	if _, ok := workspaceIDs[card.WorkspaceID]; !ok {
-		return fmt.Errorf("workspace reference not found: %s", card.WorkspaceID)
-	}
+	return nil
+}
 
+func (r *FileRepository) validateSkillRefs(skillIDs []string) error {
 	skills, err := r.ListSkills()
 	if err != nil {
 		return err
 	}
-	mcpList, err := r.ListMCPs()
-	if err != nil {
-		return err
+	if len(skillIDs) == 0 {
+		return nil
 	}
+	return validateRefs(skillIDs, idSet(skills, func(s Skill) string { return s.ID }), "skill")
+}
+
+func (r *FileRepository) validatePersonaRefs(personaIDs []string) error {
 	personas, err := r.ListPersonas()
 	if err != nil {
 		return err
 	}
-	skillIDs := map[string]struct{}{}
-	for _, s := range skills {
-		skillIDs[s.ID] = struct{}{}
+	if len(personaIDs) == 0 {
+		return nil
 	}
-	mcpIDs := map[string]struct{}{}
-	for _, m := range mcpList {
-		mcpIDs[m.ID] = struct{}{}
+	return validateRefs(personaIDs, idSet(personas, func(p Persona) string { return p.ID }), "persona")
+}
+
+func (r *FileRepository) validateMCPRefs(mcpIDs []string) error {
+	mcps, err := r.ListMCPs()
+	if err != nil {
+		return err
 	}
-	personaIDs := map[string]struct{}{}
-	for _, p := range personas {
-		personaIDs[p.ID] = struct{}{}
+	if len(mcpIDs) == 0 {
+		return nil
 	}
-	for _, id := range card.SkillIDs {
-		if _, ok := skillIDs[id]; !ok {
-			return fmt.Errorf("skill reference not found: %s", id)
-		}
-	}
-	for _, id := range card.PersonaIDs {
-		if _, ok := personaIDs[id]; !ok {
-			return fmt.Errorf("persona reference not found: %s", id)
-		}
-	}
-	for _, id := range card.MCPIDs {
-		if _, ok := mcpIDs[id]; !ok {
-			return fmt.Errorf("mcp reference not found: %s", id)
-		}
-	}
-	return nil
+	return validateRefs(mcpIDs, idSet(mcps, func(m MCPServer) string { return m.ID }), "mcp")
 }

@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
-
-	"github.com/google/uuid"
 )
 
 // ListSkills returns the skill registry sorted by name.
@@ -26,24 +24,19 @@ func (r *FileRepository) UpsertSkill(skill Skill) (Skill, error) {
 	if skill.Name == "" {
 		return Skill{}, errors.New("skill name is required")
 	}
-	if skill.ID == "" {
-		skill.ID = uuid.NewString()
-	}
+
 	f, err := r.LoadSkillsFile()
 	if err != nil {
 		return Skill{}, err
 	}
-	updated := false
-	for i := range f.Skills {
-		if f.Skills[i].ID == skill.ID {
-			f.Skills[i] = skill
-			updated = true
-			break
-		}
-	}
-	if !updated {
-		f.Skills = append(f.Skills, skill)
-	}
+
+	f.Skills, skill = UpsertInSlice(
+		f.Skills,
+		skill,
+		func(s Skill) string { return s.ID },
+		func(s *Skill, id string) { s.ID = id },
+	)
+
 	if err = r.WriteSkillsFile(f); err != nil {
 		return Skill{}, err
 	}

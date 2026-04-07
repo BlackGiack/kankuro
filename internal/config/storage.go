@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
 
@@ -45,4 +46,24 @@ func (r *FileRepository) WriteAtomic(path string, data any) error {
 		return fmt.Errorf("rename temp %s: %w", filepath.Base(path), err)
 	}
 	return nil
+}
+
+// UpsertInSlice adds or updates an item in a slice.
+// getID and setID functions provide ID access.
+func UpsertInSlice[T any](
+	items []T,
+	item T,
+	getID func(T) string,
+	setID func(*T, string),
+) ([]T, T) {
+	if getID(item) == "" {
+		setID(&item, uuid.NewString())
+	}
+	for i := range items {
+		if getID(items[i]) == getID(item) {
+			items[i] = item
+			return items, item
+		}
+	}
+	return append(items, item), item
 }

@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
-
-	"github.com/google/uuid"
 )
 
 // ListMCPs returns the MCP server registry sorted by name.
@@ -28,24 +26,19 @@ func (r *FileRepository) UpsertMCP(mcp MCPServer) (MCPServer, error) {
 	if mcp.Command == "" && mcp.URL == "" {
 		return MCPServer{}, errors.New("mcp command or url is required")
 	}
-	if mcp.ID == "" {
-		mcp.ID = uuid.NewString()
-	}
+
 	f, err := r.LoadMCPsFile()
 	if err != nil {
 		return MCPServer{}, err
 	}
-	updated := false
-	for i := range f.MCPs {
-		if f.MCPs[i].ID == mcp.ID {
-			f.MCPs[i] = mcp
-			updated = true
-			break
-		}
-	}
-	if !updated {
-		f.MCPs = append(f.MCPs, mcp)
-	}
+
+	f.MCPs, mcp = UpsertInSlice(
+		f.MCPs,
+		mcp,
+		func(m MCPServer) string { return m.ID },
+		func(m *MCPServer, id string) { m.ID = id },
+	)
+
 	if err = r.WriteMCPsFile(f); err != nil {
 		return MCPServer{}, err
 	}

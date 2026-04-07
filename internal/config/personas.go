@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
-
-	"github.com/google/uuid"
 )
 
 // ListPersonas returns the persona registry sorted by name.
@@ -26,24 +24,19 @@ func (r *FileRepository) UpsertPersona(persona Persona) (Persona, error) {
 	if persona.Name == "" {
 		return Persona{}, errors.New("persona name is required")
 	}
-	if persona.ID == "" {
-		persona.ID = uuid.NewString()
-	}
+
 	f, err := r.LoadPersonasFile()
 	if err != nil {
 		return Persona{}, err
 	}
-	updated := false
-	for i := range f.Personas {
-		if f.Personas[i].ID == persona.ID {
-			f.Personas[i] = persona
-			updated = true
-			break
-		}
-	}
-	if !updated {
-		f.Personas = append(f.Personas, persona)
-	}
+
+	f.Personas, persona = UpsertInSlice(
+		f.Personas,
+		persona,
+		func(p Persona) string { return p.ID },
+		func(p *Persona, id string) { p.ID = id },
+	)
+
 	if err = r.WritePersonasFile(f); err != nil {
 		return Persona{}, err
 	}

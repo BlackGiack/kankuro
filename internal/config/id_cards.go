@@ -61,19 +61,26 @@ func (r *FileRepository) UpdateIDCard(card IDCard) (IDCard, error) {
 	if err = r.ValidateCard(card); err != nil {
 		return IDCard{}, err
 	}
-	idx := -1
-	for i, existing := range f.IDCards {
+	found := false
+	for _, existing := range f.IDCards {
 		if existing.ID == card.ID {
-			idx = i
 			card.CreatedAt = existing.CreatedAt
+			found = true
 			break
 		}
 	}
-	if idx == -1 {
+	if !found {
 		return IDCard{}, fmt.Errorf("id card not found: %s", card.ID)
 	}
 	card.UpdatedAt = time.Now().UTC()
-	f.IDCards[idx] = card
+
+	f.IDCards, card = UpsertInSlice(
+		f.IDCards,
+		card,
+		func(c IDCard) string { return c.ID },
+		func(c *IDCard, id string) { c.ID = id },
+	)
+
 	if err = r.WriteIDCardsFile(f); err != nil {
 		return IDCard{}, err
 	}
