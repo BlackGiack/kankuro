@@ -32,16 +32,16 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.refreshSessionList()
 		return a, tick()
 	case attachFinishedMsg:
-		a.activeSessionID = msg.sessionID
+		a.sessionView.ActiveID = msg.sessionID
 		a.mode = viewDashboard
 		a.refreshSessionList()
 		if msg.err != nil {
 			a.err = msg.err
 		}
 	case launchFinishedMsg:
-		a.namingLaunchDone = true
-		a.namingLaunchErr = msg.err
-		a.namingSessionID = msg.sessionID
+		a.naming.LaunchDone = true
+		a.naming.LaunchErr = msg.err
+		a.naming.SessionID = msg.sessionID
 	}
 
 	switch a.mode {

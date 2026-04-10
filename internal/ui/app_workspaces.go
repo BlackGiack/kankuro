@@ -23,22 +23,22 @@ func (a *App) refreshWorkspaces() {
 		a.err = err
 		return
 	}
-	a.workspaceSources = sources
+	a.workspaceForm.Sources = sources
 }
 
 func (a *App) filteredWorkspaces() []config.Workspace {
-	return filterByQuery(a.workspaces, a.workspaceSearchQuery, func(w config.Workspace, q string) bool {
+	return filterByQuery(a.workspaces, a.cardForm.WorkspaceSearchQuery, func(w config.Workspace, q string) bool {
 		return strings.Contains(strings.ToLower(w.Name), q) ||
 			strings.Contains(strings.ToLower(w.Path), q)
 	})
 }
 
 func (a *App) workspaceSummary() string {
-	if a.selectedWorkspaceID == "" {
+	if a.cardForm.SelectedWorkspaceID == "" {
 		return "none selected (press Space to pick)"
 	}
 	for _, ws := range a.workspaces {
-		if ws.ID == a.selectedWorkspaceID {
+		if ws.ID == a.cardForm.SelectedWorkspaceID {
 			path := ws.Path
 			if len(path) > pathTruncateLimit {
 				path = "..." + path[len(path)-pathTruncateKeep:]
@@ -50,8 +50,8 @@ func (a *App) workspaceSummary() string {
 }
 
 func (a *App) openWorkspacePicker() {
-	a.workspaceSearchQuery = ""
-	a.workspaceCursor = 0
+	a.cardForm.WorkspaceSearchQuery = ""
+	a.cardForm.WorkspaceCursor = 0
 	a.mode = viewWorkspacePicker
 }
 
@@ -65,8 +65,8 @@ func (a *App) updateWorkspacePicker(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case keyEsc:
 		a.mode = viewCardForm
 	case "up":
-		if a.workspaceCursor > 0 {
-			a.workspaceCursor--
+		if a.cardForm.WorkspaceCursor > 0 {
+			a.cardForm.WorkspaceCursor--
 		}
 	case keyDown:
 		a.handleWorkspacePickerDown()
@@ -82,23 +82,23 @@ func (a *App) updateWorkspacePicker(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (a *App) handleWorkspacePickerDown() {
 	filtered := a.filteredWorkspaces()
-	if a.workspaceCursor < len(filtered)-1 {
-		a.workspaceCursor++
+	if a.cardForm.WorkspaceCursor < len(filtered)-1 {
+		a.cardForm.WorkspaceCursor++
 	}
 }
 
 func (a *App) handleWorkspacePickerSelect() {
 	filtered := a.filteredWorkspaces()
-	if len(filtered) > 0 && a.workspaceCursor >= 0 && a.workspaceCursor < len(filtered) {
-		a.selectedWorkspaceID = filtered[a.workspaceCursor].ID
+	if len(filtered) > 0 && a.cardForm.WorkspaceCursor >= 0 && a.cardForm.WorkspaceCursor < len(filtered) {
+		a.cardForm.SelectedWorkspaceID = filtered[a.cardForm.WorkspaceCursor].ID
 	}
 	a.mode = viewCardForm
 }
 
 func (a *App) handleWorkspacePickerBackspace() {
-	if len(a.workspaceSearchQuery) > 0 {
-		a.workspaceSearchQuery = a.workspaceSearchQuery[:len(a.workspaceSearchQuery)-1]
-		a.workspaceCursor = 0
+	if len(a.cardForm.WorkspaceSearchQuery) > 0 {
+		a.cardForm.WorkspaceSearchQuery = a.cardForm.WorkspaceSearchQuery[:len(a.cardForm.WorkspaceSearchQuery)-1]
+		a.cardForm.WorkspaceCursor = 0
 	}
 }
 
@@ -106,18 +106,18 @@ func (a *App) handleWorkspacePickerTyping(keyMsg tea.KeyMsg) {
 	if len(keyMsg.Runes) > 0 {
 		ch := keyMsg.Runes[0]
 		if ch >= printableCharMin && ch <= printableCharMax {
-			a.workspaceSearchQuery += string(ch)
-			a.workspaceCursor = 0
+			a.cardForm.WorkspaceSearchQuery += string(ch)
+			a.cardForm.WorkspaceCursor = 0
 		}
 	}
 }
 
 func (a *App) renderWorkspacePicker() string {
-	return renderRegistryList("Select Workspace", true, a.workspaceSearchQuery,
+	return renderRegistryList("Select Workspace", true, a.cardForm.WorkspaceSearchQuery,
 		func() []config.Workspace { return a.filteredWorkspaces() },
 		func(total int) (int, int) { return a.workspaceWindow(total) },
-		a.workspaceCursor,
-		func(id string) bool { return id == a.selectedWorkspaceID },
+		a.cardForm.WorkspaceCursor,
+		func(id string) bool { return id == a.cardForm.SelectedWorkspaceID },
 		func(item config.Workspace) string {
 			path := item.Path
 			if len(path) > pathTruncateLimit {
@@ -130,7 +130,7 @@ func (a *App) renderWorkspacePicker() string {
 }
 
 func (a *App) workspaceWindow(total int) (int, int) {
-	return calculateWindow(a.workspaceCursor, total, a.skillListHeight())
+	return calculateWindow(a.cardForm.WorkspaceCursor, total, a.skillListHeight())
 }
 
 func (a *App) updateWorkspaces(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -143,12 +143,12 @@ func (a *App) updateWorkspaces(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case keyEsc:
 		a.mode = viewDashboard
 	case "up":
-		if a.workspaceSourceCursor > 0 {
-			a.workspaceSourceCursor--
+		if a.workspaceForm.Cursor > 0 {
+			a.workspaceForm.Cursor--
 		}
 	case keyDown:
-		if a.workspaceSourceCursor < len(a.workspaceSources)-1 {
-			a.workspaceSourceCursor++
+		if a.workspaceForm.Cursor < len(a.workspaceForm.Sources)-1 {
+			a.workspaceForm.Cursor++
 		}
 	case "n":
 		a.openNewWorkspaceSourceForm()
@@ -171,53 +171,53 @@ func (a *App) refreshWorkspaceRegistry() {
 }
 
 func (a *App) openNewWorkspaceSourceForm() {
-	a.editingWorkspaceSourceID = ""
-	a.workspaceInputs[0].SetValue("")
-	a.workspaceInputs[1].SetValue("n")
-	a.workspaceInputs[0].Focus()
+	a.workspaceForm.EditingID = ""
+	a.workspaceForm.Inputs[0].SetValue("")
+	a.workspaceForm.Inputs[1].SetValue("n")
+	a.workspaceForm.Inputs[0].Focus()
 	a.mode = viewWorkspaceSourceForm
 }
 
 func (a *App) openEditWorkspaceSourceForm() {
-	if len(a.workspaceSources) == 0 {
+	if len(a.workspaceForm.Sources) == 0 {
 		return
 	}
-	s := a.workspaceSources[a.workspaceSourceCursor]
-	a.editingWorkspaceSourceID = s.ID
-	a.workspaceInputs[0].SetValue(s.Path)
+	s := a.workspaceForm.Sources[a.workspaceForm.Cursor]
+	a.workspaceForm.EditingID = s.ID
+	a.workspaceForm.Inputs[0].SetValue(s.Path)
 	isRoot := "n"
 	if s.IsRoot {
 		isRoot = "y"
 	}
-	a.workspaceInputs[1].SetValue(isRoot)
-	a.workspaceInputs[0].Focus()
+	a.workspaceForm.Inputs[1].SetValue(isRoot)
+	a.workspaceForm.Inputs[0].Focus()
 	a.mode = viewWorkspaceSourceForm
 }
 
 func (a *App) deleteSelectedWorkspaceSource() {
-	if len(a.workspaceSources) == 0 {
+	if len(a.workspaceForm.Sources) == 0 {
 		return
 	}
-	id := a.workspaceSources[a.workspaceSourceCursor].ID
+	id := a.workspaceForm.Sources[a.workspaceForm.Cursor].ID
 	if err := a.repo.DeleteWorkspaceSource(id); err != nil {
 		a.err = err
 		return
 	}
 	a.refreshWorkspaces()
-	if a.workspaceSourceCursor >= len(a.workspaceSources) {
-		a.workspaceSourceCursor = max(0, len(a.workspaceSources)-1)
+	if a.workspaceForm.Cursor >= len(a.workspaceForm.Sources) {
+		a.workspaceForm.Cursor = max(0, len(a.workspaceForm.Sources)-1)
 	}
 }
 
 func (a *App) renderWorkspacesList() string {
 	header := lipgloss.NewStyle().Foreground(gray).Render("Manage Workspace Sources") + "\n\n"
-	if len(a.workspaceSources) == 0 {
+	if len(a.workspaceForm.Sources) == 0 {
 		return header + "(no sources defined)"
 	}
 	var lines []string
-	for i, s := range a.workspaceSources {
+	for i, s := range a.workspaceForm.Sources {
 		prefix := "  "
-		if i == a.workspaceSourceCursor {
+		if i == a.workspaceForm.Cursor {
 			prefix = "> "
 		}
 		rootMarker := " "
@@ -225,7 +225,7 @@ func (a *App) renderWorkspacesList() string {
 			rootMarker = "R"
 		}
 		line := fmt.Sprintf("%s[%s] %s", prefix, rootMarker, s.Path)
-		if i == a.workspaceSourceCursor {
+		if i == a.workspaceForm.Cursor {
 			line = lipgloss.NewStyle().Foreground(highlightColor).Render(line)
 		}
 		lines = append(lines, line)
@@ -241,9 +241,9 @@ func (a *App) updateWorkspaceSourceForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	var cmds []tea.Cmd
-	for i := range a.workspaceInputs {
+	for i := range a.workspaceForm.Inputs {
 		var cmd tea.Cmd
-		a.workspaceInputs[i], cmd = a.workspaceInputs[i].Update(msg)
+		a.workspaceForm.Inputs[i], cmd = a.workspaceForm.Inputs[i].Update(msg)
 		cmds = append(cmds, cmd)
 	}
 	return a, tea.Batch(cmds...)
@@ -266,22 +266,22 @@ func (a *App) handleWorkspaceSourceFormKey(keyMsg tea.KeyMsg) bool {
 }
 
 func (a *App) toggleWorkspaceSourceInputFocus() {
-	if a.workspaceInputs[0].Focused() {
-		a.workspaceInputs[0].Blur()
-		a.workspaceInputs[1].Focus()
+	if a.workspaceForm.Inputs[0].Focused() {
+		a.workspaceForm.Inputs[0].Blur()
+		a.workspaceForm.Inputs[1].Focus()
 		return
 	}
-	a.workspaceInputs[1].Blur()
-	a.workspaceInputs[0].Focus()
+	a.workspaceForm.Inputs[1].Blur()
+	a.workspaceForm.Inputs[0].Focus()
 }
 
 func (a *App) submitWorkspaceSourceForm() {
-	path := strings.TrimSpace(a.workspaceInputs[0].Value())
+	path := strings.TrimSpace(a.workspaceForm.Inputs[0].Value())
 	if path == "" {
 		a.mode = viewWorkspaces
 		return
 	}
-	if err := a.saveWorkspaceSource(path, parseWorkspaceRootInput(a.workspaceInputs[1].Value())); err != nil {
+	if err := a.saveWorkspaceSource(path, parseWorkspaceRootInput(a.workspaceForm.Inputs[1].Value())); err != nil {
 		a.err = err
 		return
 	}
@@ -299,7 +299,7 @@ func (a *App) saveWorkspaceSource(path string, isRoot bool) error {
 	}
 
 	source := config.WorkspaceSource{
-		ID:     a.editingWorkspaceSourceID,
+		ID:     a.workspaceForm.EditingID,
 		Path:   path,
 		IsRoot: isRoot,
 	}

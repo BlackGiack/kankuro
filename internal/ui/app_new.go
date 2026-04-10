@@ -33,19 +33,21 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 	}
 
 	app := &App{
-		repo:               repo,
-		session:            sm,
-		mode:               viewDashboard,
-		cards:              cards,
-		skills:             skills,
-		personas:           personas,
-		mcps:               mcps,
-		sessions:           sm.List(),
-		selectedSkillIDs:   make(map[string]bool),
-		selectedPersonaIDs: make(map[string]bool),
-		selectedMCPIDs:     make(map[string]bool),
-		focusedPane:        paneCards,
-		help:               help.New(),
+		repo:           repo,
+		session:        sm,
+		mode:           viewDashboard,
+		cards:          cards,
+		skills:         skills,
+		personas:       personas,
+		mcps:           mcps,
+		sessions:       sm.List(),
+		cardForm:       NewCardFormState(),
+		sessionView:    SessionViewState{FocusedPane: paneCards},
+		naming:         NewNamingState(),
+		skillSources:   NewSourceFormState(),
+		personaSources: NewSourceFormState(),
+		workspaceForm:  NewWorkspaceFormState(),
+		help:           help.New(),
 	}
 
 	app.initLists()
@@ -93,9 +95,8 @@ func (a *App) initLists() {
 	a.switchList.Styles.Title = titleStyle
 }
 
-//nolint:funlen // long setup function
 func (a *App) initInputs() {
-	a.cardInputs = make([]textinput.Model, cardInputCount)
+	// Card form inputs
 	placeholders := []string{
 		"name",
 		"driver command (e.g. claude)",
@@ -104,79 +105,51 @@ func (a *App) initInputs() {
 		"use tmp workspace (y/n)",
 	}
 
-	for i := range a.cardInputs {
-		a.cardInputs[i] = textinput.New()
-		a.cardInputs[i].Placeholder = placeholders[i]
-		a.cardInputs[i].Width = inputWidthDefault
+	for i := range a.cardForm.Inputs {
+		a.cardForm.Inputs[i] = textinput.New()
+		a.cardForm.Inputs[i].Placeholder = placeholders[i]
+		a.cardForm.Inputs[i].Width = inputWidthDefault
 	}
-	a.cardInputs[0].Focus()
-	// default puppet value
-	a.cardPuppet = defaultPuppet
+	a.cardForm.Inputs[0].Focus()
+
+	// Initialize puppet selector index
 	for i, p := range puppetStyles() {
-		if p == a.cardPuppet {
-			a.puppetSelectorIndex = i
+		if p == a.cardForm.Puppet {
+			a.cardForm.PuppetSelectorIndex = i
 			break
 		}
 	}
 
+	// MCP inputs
 	a.mcpInputs = make([]textinput.Model, mcpInputCount)
-	a.mcpInputs[0] = textinput.New()
-	a.mcpInputs[0].Placeholder = "mcp name"
-	a.mcpInputs[0].Width = inputWidthDefault
+	mcpPlaceholders := []string{
+		"mcp name",
+		"mcp command (local only)",
+		"args (comma separated, local only)",
+		"cwd (local only)",
+		"url (remote only)",
+		"env (KEY=VALUE, local only)",
+		"headers (KEY=VALUE, remote only)",
+	}
+	for i := range a.mcpInputs {
+		a.mcpInputs[i] = textinput.New()
+		a.mcpInputs[i].Placeholder = mcpPlaceholders[i]
+		a.mcpInputs[i].Width = inputWidthDefault
+	}
 
-	a.mcpInputs[1] = textinput.New()
-	a.mcpInputs[1].Placeholder = "mcp command (local only)"
-	a.mcpInputs[1].Width = inputWidthDefault
+	// AgentsMD editor
+	a.cardForm.Editor = textarea.New()
+	a.cardForm.Editor.Placeholder = "Enter AGENTS.md content here..."
+	a.cardForm.Editor.SetWidth(editorWidth)
+	a.cardForm.Editor.SetHeight(editorHeight)
 
-	a.mcpInputs[2] = textinput.New()
-	a.mcpInputs[2].Placeholder = "args (comma separated, local only)"
-	a.mcpInputs[2].Width = inputWidthDefault
+	a.cardForm.PathInput = textinput.New()
+	a.cardForm.PathInput.Placeholder = "Path to AGENTS.md file..."
+	a.cardForm.PathInput.Width = inputWidthDefault
 
-	a.mcpInputs[3] = textinput.New()
-	a.mcpInputs[3].Placeholder = "cwd (local only)"
-	a.mcpInputs[3].Width = inputWidthDefault
-
-	a.mcpInputs[4] = textinput.New()
-	a.mcpInputs[4].Placeholder = "url (remote only)"
-	a.mcpInputs[4].Width = inputWidthDefault
-
-	a.mcpInputs[5] = textinput.New()
-	a.mcpInputs[5].Placeholder = "env (KEY=VALUE, local only)"
-	a.mcpInputs[5].Width = inputWidthDefault
-
-	a.mcpInputs[6] = textinput.New()
-	a.mcpInputs[6].Placeholder = "headers (KEY=VALUE, remote only)"
-	a.mcpInputs[6].Width = inputWidthDefault
-
-	a.workspaceInputs = make([]textinput.Model, workspaceInputCount)
-	a.workspaceInputs[0] = textinput.New()
-	a.workspaceInputs[0].Placeholder = "Path to workspace or root directory..."
-	a.workspaceInputs[0].Width = inputWidthDefault
-
-	a.workspaceInputs[1] = textinput.New()
-	a.workspaceInputs[1].Placeholder = "Is root directory (y/n)"
-	a.workspaceInputs[1].Width = inputWidthDefault
-
-	a.agentsEditor = textarea.New()
-	a.agentsEditor.Placeholder = "Enter AGENTS.md content here..."
-	a.agentsEditor.SetWidth(editorWidth)
-	a.agentsEditor.SetHeight(editorHeight)
-
-	a.agentsPathInput = textinput.New()
-	a.agentsPathInput.Placeholder = "Path to AGENTS.md file..."
-	a.agentsPathInput.Width = inputWidthDefault
-
-	a.skillSourceInput = textinput.New()
-	a.skillSourceInput.Placeholder = "Path to skill source directory..."
-	a.skillSourceInput.Width = inputWidthDefault
-
-	a.personaSourceInput = textinput.New()
-	a.personaSourceInput.Placeholder = "Path to persona source directory..."
-	a.personaSourceInput.Width = inputWidthDefault
-
-	a.namingInput = textinput.New()
-	a.namingInput.Placeholder = "Session name (Enter to confirm)"
-	a.namingInput.Width = inputWidthDefault
+	// skillSourceInput, personaSourceInput, namingInput, workspaceInputs
+	// are already initialized in their respective New* constructors.
+	// But we might want to override placeholders if needed, though they are set in constructors.
 }
 
 // Init starts periodic refresh and textinput blink commands.

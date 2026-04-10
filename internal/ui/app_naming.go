@@ -18,38 +18,38 @@ func (a *App) updateNaming(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	if a.namingLaunchDone && a.namingLaunchErr != nil {
-		a.err = a.namingLaunchErr
+	if a.naming.LaunchDone && a.naming.LaunchErr != nil {
+		a.err = a.naming.LaunchErr
 		a.mode = viewDashboard
 		return a, nil
 	}
 
-	if a.namingLaunchDone && a.namingSubmitted {
+	if a.naming.LaunchDone && a.naming.Submitted {
 		return a.doAttach()
 	}
 
 	var cmd tea.Cmd
-	a.namingInput, cmd = a.namingInput.Update(msg)
+	a.naming.Input, cmd = a.naming.Input.Update(msg)
 	return a, cmd
 }
 
 func (a *App) handleNamingEnter() (tea.Model, tea.Cmd) {
-	if !a.namingLaunchDone {
-		a.namingSubmitted = true
+	if !a.naming.LaunchDone {
+		a.naming.Submitted = true
 		return a, nil
 	}
 	return a.doAttach()
 }
 
 func (a *App) doAttach() (tea.Model, tea.Cmd) {
-	name := strings.TrimSpace(a.namingInput.Value())
+	name := strings.TrimSpace(a.naming.Input.Value())
 	if name == "" {
-		name = a.namingSessionID
+		name = a.naming.SessionID
 	}
-	if err := a.session.SetName(a.namingSessionID, name); err != nil {
+	if err := a.session.SetName(a.naming.SessionID, name); err != nil {
 		a.err = err
 	}
-	a.activeSessionID = a.namingSessionID
+	a.sessionView.ActiveID = a.naming.SessionID
 	a.mode = viewDashboard
-	return a, a.attachSession(a.namingSessionID)
+	return a, a.attachSession(a.naming.SessionID)
 }

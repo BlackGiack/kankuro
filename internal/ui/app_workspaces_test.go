@@ -79,11 +79,13 @@ func TestUpdateWorkspaceSourceFormSaveErrorStaysInForm(t *testing.T) {
 			syncWorkspacesFn:        func() error { return nil },
 			deleteWorkspaceSourceFn: func(string) error { return nil },
 		},
-		mode: viewWorkspaceSourceForm,
+		mode:          viewWorkspaceSourceForm,
+		cardForm:      NewCardFormState(),
+		workspaceForm: NewWorkspaceFormState(),
 	}
 	app.initInputs()
-	app.workspaceInputs[0].SetValue("/tmp/demo")
-	app.workspaceInputs[1].SetValue("y")
+	app.workspaceForm.Inputs[0].SetValue("/tmp/demo")
+	app.workspaceForm.Inputs[1].SetValue("y")
 
 	model, _ := app.updateWorkspaceSourceForm(tea.KeyMsg{Type: tea.KeyEnter})
 	got := model.(*App)
@@ -113,12 +115,14 @@ func TestUpdateWorkspaceSourceFormSuccessfulSaveClearsStaleErrorAndReturnsToList
 			syncWorkspacesFn:        func() error { return nil },
 			deleteWorkspaceSourceFn: func(string) error { return nil },
 		},
-		mode: viewWorkspaceSourceForm,
-		err:  errors.New("old error"),
+		mode:          viewWorkspaceSourceForm,
+		err:           errors.New("old error"),
+		cardForm:      NewCardFormState(),
+		workspaceForm: NewWorkspaceFormState(),
 	}
 	app.initInputs()
-	app.workspaceInputs[0].SetValue("/tmp/demo")
-	app.workspaceInputs[1].SetValue("y")
+	app.workspaceForm.Inputs[0].SetValue("/tmp/demo")
+	app.workspaceForm.Inputs[1].SetValue("y")
 
 	model, _ := app.updateWorkspaceSourceForm(tea.KeyMsg{Type: tea.KeyEnter})
 	got := model.(*App)
@@ -144,15 +148,16 @@ func TestDeleteSelectedWorkspaceSourceSetsError(t *testing.T) {
 			syncWorkspacesFn:        func() error { return nil },
 			deleteWorkspaceSourceFn: func(string) error { return expectedErr },
 		},
-		workspaceSources: []config.WorkspaceSource{{ID: "source-1", Path: "/tmp/demo"}},
+		workspaceForm: NewWorkspaceFormState(),
 	}
+	app.workspaceForm.Sources = []config.WorkspaceSource{{ID: "source-1", Path: "/tmp/demo"}}
 
 	app.deleteSelectedWorkspaceSource()
 
 	if !errors.Is(app.err, expectedErr) {
 		t.Fatalf("expected error %v, got %v", expectedErr, app.err)
 	}
-	if len(app.workspaceSources) != 1 {
+	if len(app.workspaceForm.Sources) != 1 {
 		t.Fatalf("expected sources to remain unchanged on delete error")
 	}
 }
@@ -167,7 +172,8 @@ func TestUpdateWorkspacesRefreshSetsError(t *testing.T) {
 			syncWorkspacesFn:        func() error { return expectedErr },
 			deleteWorkspaceSourceFn: func(string) error { return nil },
 		},
-		mode: viewWorkspaces,
+		mode:          viewWorkspaces,
+		workspaceForm: NewWorkspaceFormState(),
 	}
 
 	model, _ := app.updateWorkspaces(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
@@ -188,20 +194,20 @@ func TestFilteredWorkspacesMatchesNameAndPath(t *testing.T) {
 			{ID: "2", Name: "Beta Workspace", Path: "/home/user/beta"},
 			{ID: "3", Name: "Gamma", Path: "/home/user/code/gamma"},
 		},
-		workspaceSearchQuery: "alpha",
 	}
+	app.cardForm.WorkspaceSearchQuery = "alpha"
 	got := app.filteredWorkspaces()
 	if len(got) != 1 || got[0].ID != "1" {
 		t.Fatalf("expected workspace ID 1 by name, got %v", got)
 	}
 
-	app.workspaceSearchQuery = "/home/user/code"
+	app.cardForm.WorkspaceSearchQuery = "/home/user/code"
 	got = app.filteredWorkspaces()
 	if len(got) != 2 || got[0].ID != "1" || got[1].ID != "3" {
 		t.Fatalf("expected workspaces 1 and 3 by path, got %v", got)
 	}
 
-	app.workspaceSearchQuery = ""
+	app.cardForm.WorkspaceSearchQuery = ""
 	got = app.filteredWorkspaces()
 	if len(got) != 3 {
 		t.Fatalf("expected all 3 workspaces with empty query, got %v", got)
@@ -210,9 +216,9 @@ func TestFilteredWorkspacesMatchesNameAndPath(t *testing.T) {
 
 func TestWorkspaceWindowTopMiddleBottom(t *testing.T) {
 	app := &App{
-		workspaceCursor: 0,
-		height:          38,
+		height: 38,
 	}
+	app.cardForm.WorkspaceCursor = 0
 	app.workspaces = make([]config.Workspace, 20)
 
 	start, end := app.workspaceWindow(20)
@@ -220,13 +226,13 @@ func TestWorkspaceWindowTopMiddleBottom(t *testing.T) {
 		t.Fatalf("top: expected (0, 6), got (%d, %d)", start, end)
 	}
 
-	app.workspaceCursor = 10
+	app.cardForm.WorkspaceCursor = 10
 	start, end = app.workspaceWindow(20)
 	if start != 7 || end != 13 {
 		t.Fatalf("middle: expected (7, 13), got (%d, %d)", start, end)
 	}
 
-	app.workspaceCursor = 18
+	app.cardForm.WorkspaceCursor = 18
 	start, end = app.workspaceWindow(20)
 	if start != 14 || end != 20 {
 		t.Fatalf("bottom: expected (14, 20), got (%d, %d)", start, end)

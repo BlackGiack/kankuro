@@ -103,7 +103,7 @@ func (a *App) refreshSessionList() {
 	}
 	a.sessionsList.SetItems(items)
 	if len(items) == 0 {
-		a.focusedPane = paneCards
+		a.sessionView.FocusedPane = paneCards
 	}
 }
 

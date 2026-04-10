@@ -59,7 +59,7 @@ func (a *App) renderDashboard() string {
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(normalBorderColor)
 
-	if a.focusedPane == paneCards {
+	if a.sessionView.FocusedPane == paneCards {
 		leftStyle = leftStyle.BorderForeground(focusedBorderColor)
 	} else {
 		rightStyle = rightStyle.BorderForeground(focusedBorderColor)

@@ -7,7 +7,7 @@ import (
 
 func (a *App) viewPuppetSelectorRender() string {
 	title := "Select Puppet"
-	selected := puppetStyles()[a.puppetSelectorIndex]
+	selected := puppetStyles()[a.cardForm.PuppetSelectorIndex]
 	p := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", selected) })
 	w, h := p.Bounds()
 	canvas := ascii.NewCanvas(w, h)

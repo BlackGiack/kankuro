@@ -17,12 +17,12 @@ func (a *App) updateSkillSources(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch keyMsg.String() {
 	case keyUp:
-		if a.skillSourceCursor > 0 {
-			a.skillSourceCursor--
+		if a.skillSources.Cursor > 0 {
+			a.skillSources.Cursor--
 		}
 	case keyDown:
-		if a.skillSourceCursor < len(a.skillSources) { // +1 for "New"
-			a.skillSourceCursor++
+		if a.skillSources.Cursor < len(a.skillSources.Sources) { // +1 for "New"
+			a.skillSources.Cursor++
 		}
 	case "n":
 		return a.handleSkillSourceNew()
@@ -39,39 +39,39 @@ func (a *App) updateSkillSources(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a *App) handleSkillSourceNew() (tea.Model, tea.Cmd) {
-	a.editingSkillSourceIndex = -1
-	a.skillSourceInput.SetValue("")
-	a.skillSourceInput.Focus()
+	a.skillSources.EditingIdx = -1
+	a.skillSources.Input.SetValue("")
+	a.skillSources.Input.Focus()
 	a.mode = viewSkillSourceForm
 	return a, nil
 }
 
 func (a *App) handleSkillSourceSelect() (tea.Model, tea.Cmd) {
-	if a.skillSourceCursor == len(a.skillSources) {
+	if a.skillSources.Cursor == len(a.skillSources.Sources) {
 		// "New" selected
-		a.editingSkillSourceIndex = -1
-		a.skillSourceInput.SetValue("")
+		a.skillSources.EditingIdx = -1
+		a.skillSources.Input.SetValue("")
 	} else {
 		// Edit existing
-		a.editingSkillSourceIndex = a.skillSourceCursor
-		a.skillSourceInput.SetValue(a.skillSources[a.skillSourceCursor])
+		a.skillSources.EditingIdx = a.skillSources.Cursor
+		a.skillSources.Input.SetValue(a.skillSources.Sources[a.skillSources.Cursor])
 	}
-	a.skillSourceInput.Focus()
+	a.skillSources.Input.Focus()
 	a.mode = viewSkillSourceForm
 	return a, nil
 }
 
 func (a *App) handleSkillSourceDelete() (tea.Model, tea.Cmd) {
-	if a.skillSourceCursor < len(a.skillSources) {
+	if a.skillSources.Cursor < len(a.skillSources.Sources) {
 		// Delete existing
-		a.skillSources = append(a.skillSources[:a.skillSourceCursor], a.skillSources[a.skillSourceCursor+1:]...)
-		if err := a.repo.SaveSkillSources(a.skillSources); err != nil {
+		a.skillSources.Sources = append(a.skillSources.Sources[:a.skillSources.Cursor], a.skillSources.Sources[a.skillSources.Cursor+1:]...)
+		if err := a.repo.SaveSkillSources(a.skillSources.Sources); err != nil {
 			a.err = err
 		} else {
 			a.refreshSkills()
 		}
-		if a.skillSourceCursor >= len(a.skillSources) && a.skillSourceCursor > 0 {
-			a.skillSourceCursor--
+		if a.skillSources.Cursor >= len(a.skillSources.Sources) && a.skillSources.Cursor > 0 {
+			a.skillSources.Cursor--
 		}
 	}
 	return a, nil
@@ -79,7 +79,7 @@ func (a *App) handleSkillSourceDelete() (tea.Model, tea.Cmd) {
 
 func (a *App) updateSkillSourceForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
-	a.skillSourceInput, cmd = a.skillSourceInput.Update(msg)
+	a.skillSources.Input, cmd = a.skillSources.Input.Update(msg)
 
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if !ok {
@@ -88,7 +88,7 @@ func (a *App) updateSkillSourceForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch keyMsg.String() {
 	case keyEnter:
-		val := strings.TrimSpace(a.skillSourceInput.Value())
+		val := strings.TrimSpace(a.skillSources.Input.Value())
 		if val != "" {
 			a.saveSkillSource(val)
 		}
@@ -102,12 +102,12 @@ func (a *App) updateSkillSourceForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a *App) saveSkillSource(val string) {
-	if a.editingSkillSourceIndex == -1 {
-		a.skillSources = append(a.skillSources, val)
+	if a.skillSources.EditingIdx == -1 {
+		a.skillSources.Sources = append(a.skillSources.Sources, val)
 	} else {
-		a.skillSources[a.editingSkillSourceIndex] = val
+		a.skillSources.Sources[a.skillSources.EditingIdx] = val
 	}
-	if err := a.repo.SaveSkillSources(a.skillSources); err != nil {
+	if err := a.repo.SaveSkillSources(a.skillSources.Sources); err != nil {
 		a.err = err
 	} else {
 		a.refreshSkills()
@@ -115,14 +115,14 @@ func (a *App) saveSkillSource(val string) {
 }
 
 func (a *App) renderSkillSourcesList() string {
-	lines := make([]string, 0, len(a.skillSources)+1)
-	for i, src := range a.skillSources {
+	lines := make([]string, 0, len(a.skillSources.Sources)+1)
+	for i, src := range a.skillSources.Sources {
 		prefix := "  "
-		if i == a.skillSourceCursor {
+		if i == a.skillSources.Cursor {
 			prefix = "> "
 		}
 		line := fmt.Sprintf("%s%s", prefix, src)
-		if i == a.skillSourceCursor {
+		if i == a.skillSources.Cursor {
 			line = lipgloss.NewStyle().Foreground(highlightColor).Render(line)
 		}
 		lines = append(lines, line)
@@ -130,11 +130,11 @@ func (a *App) renderSkillSourcesList() string {
 
 	// "New" option
 	prefix := "  "
-	if a.skillSourceCursor == len(a.skillSources) {
+	if a.skillSources.Cursor == len(a.skillSources.Sources) {
 		prefix = "> "
 	}
 	line := fmt.Sprintf("%s[ New Source ]", prefix)
-	if a.skillSourceCursor == len(a.skillSources) {
+	if a.skillSources.Cursor == len(a.skillSources.Sources) {
 		line = lipgloss.NewStyle().Foreground(highlightColor).Render(line)
 	}
 	lines = append(lines, line)

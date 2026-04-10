@@ -11,13 +11,13 @@ func (a *App) updateAgentsEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.mode = viewCardForm
 			return a, nil
 		case "ctrl+s":
-			a.agentsMD = a.agentsEditor.Value()
+			a.cardForm.Content = a.cardForm.Editor.Value()
 			a.mode = viewCardForm
 			return a, nil
 		}
 	}
 	var cmd tea.Cmd
-	a.agentsEditor, cmd = a.agentsEditor.Update(msg)
+	a.cardForm.Editor, cmd = a.cardForm.Editor.Update(msg)
 	return a, cmd
 }
 
@@ -30,12 +30,12 @@ func (a *App) updateAgentsPathInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.mode = viewCardForm
 			return a, nil
 		case keyEnter:
-			a.agentsMDPath = a.agentsPathInput.Value()
+			a.cardForm.Path = a.cardForm.PathInput.Value()
 			a.mode = viewCardForm
 			return a, nil
 		}
 	}
 	var cmd tea.Cmd
-	a.agentsPathInput, cmd = a.agentsPathInput.Update(msg)
+	a.cardForm.PathInput, cmd = a.cardForm.PathInput.Update(msg)
 	return a, cmd
 }

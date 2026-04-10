@@ -7,12 +7,12 @@ func (a *App) viewWorkspacesRender() string {
 
 func (a *App) viewWorkspaceSourceFormRender() string {
 	title := "New Workspace Source"
-	if a.editingWorkspaceSourceID != "" {
+	if a.workspaceForm.EditingID != "" {
 		title = "Edit Workspace Source"
 	}
 	return titleStyle.Render(title) + "\n\n" +
-		"Path: " + a.workspaceInputs[0].View() + "\n" +
-		"Is Root (y/n): " + a.workspaceInputs[1].View() + "\n\n" +
+		"Path: " + a.workspaceForm.Inputs[0].View() + "\n" +
+		"Is Root (y/n): " + a.workspaceForm.Inputs[1].View() + "\n\n" +
 		"Enter=save Tab=next Esc=cancel"
 }
 

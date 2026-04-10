@@ -28,7 +28,7 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a.handleDashboardEdit()
 		case "m":
 			// open mcp form
-			a.mcpFormPrevMode = viewDashboard
+			a.cardForm.MCPFormPrevMode = viewDashboard
 			for i := range a.mcpInputs {
 				a.mcpInputs[i].SetValue("")
 			}
@@ -37,7 +37,7 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		case "w":
 			a.refreshWorkspaces()
-			a.workspaceSourceCursor = 0
+			a.workspaceForm.Cursor = 0
 			a.mode = viewWorkspaces
 			return a, nil
 		case keyEnter:
@@ -45,7 +45,7 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "a":
 			return a, a.activateSelectedSession()
 		case "x":
-			if a.focusedPane != paneSessions {
+			if a.sessionView.FocusedPane != paneSessions {
 				return a, nil
 			}
 			if err := a.killSelectedSession(); err != nil {
@@ -60,7 +60,7 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	if a.focusedPane == paneSessions {
+	if a.sessionView.FocusedPane == paneSessions {
 		var cmd tea.Cmd
 		a.sessionsList, cmd = a.sessionsList.Update(msg)
 		return a, cmd
@@ -71,45 +71,45 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a *App) handleDashboardEdit() (tea.Model, tea.Cmd) {
-	if a.focusedPane != paneCards {
+	if a.sessionView.FocusedPane != paneCards {
 		return a, nil
 	}
 	selected, ok := a.selectedCard()
 	if !ok {
 		return a, nil
 	}
-	a.cardInputs[0].SetValue(selected.Name)
-	a.cardInputs[1].SetValue(selected.Driver)
-	a.cardInputs[2].SetValue(selected.Model)
-	a.selectedWorkspaceID = selected.WorkspaceID
-	a.cardInputs[3].SetValue(selected.FaceStyle)
+	a.cardForm.Inputs[0].SetValue(selected.Name)
+	a.cardForm.Inputs[1].SetValue(selected.Driver)
+	a.cardForm.Inputs[2].SetValue(selected.Model)
+	a.cardForm.SelectedWorkspaceID = selected.WorkspaceID
+	a.cardForm.Inputs[3].SetValue(selected.FaceStyle)
 	// puppet field
 	if selected.Puppet != "" {
-		a.cardPuppet = selected.Puppet
+		a.cardForm.Puppet = selected.Puppet
 	} else {
-		a.cardPuppet = defaultPuppet
+		a.cardForm.Puppet = defaultPuppet
 	}
 	tmpVal := "n"
 	if selected.UseTmpWorkspace {
 		tmpVal = "y"
 	}
-	a.cardInputs[4].SetValue(tmpVal)
+	a.cardForm.Inputs[4].SetValue(tmpVal)
 	a.setSelectedSkills(selected.SkillIDs)
 	a.setSelectedPersonas(selected.PersonaIDs)
 	a.setSelectedMCPs(selected.MCPIDs)
-	a.editingCardID = selected.ID
-	a.agentsMD = selected.AgentsMD
-	a.agentsMDPath = selected.AgentsMDPath
-	a.agentsMDPreferPath = selected.AgentsMDPreferPath
-	a.agentsPathInput.SetValue(selected.AgentsMDPath)
-	a.cardFocusIndex = 0
-	a.setCardFocus(a.cardFocusIndex)
+	a.cardForm.EditingID = selected.ID
+	a.cardForm.Content = selected.AgentsMD
+	a.cardForm.Path = selected.AgentsMDPath
+	a.cardForm.PreferPath = selected.AgentsMDPreferPath
+	a.cardForm.PathInput.SetValue(selected.AgentsMDPath)
+	a.cardForm.FocusIndex = 0
+	a.setCardFocus(a.cardForm.FocusIndex)
 	a.mode = viewCardForm
 	return a, nil
 }
 
 func (a *App) handleDashboardEnter() (tea.Model, tea.Cmd) {
-	if a.focusedPane == paneSessions {
+	if a.sessionView.FocusedPane == paneSessions {
 		return a, a.activateSelectedSession()
 	}
 	selected, ok := a.selectedCard()
@@ -121,13 +121,13 @@ func (a *App) handleDashboardEnter() (tea.Model, tea.Cmd) {
 	mcps := a.mcpsForCard(selected)
 	skills = a.injectMCPCliSkill(selected, skills)
 
-	a.namingCard = selected
-	a.namingInput.SetValue("")
-	a.namingLaunchDone = false
-	a.namingLaunchErr = nil
-	a.namingSessionID = ""
-	a.namingSubmitted = false
-	a.namingInput.Focus()
+	a.naming.Card = selected
+	a.naming.Input.SetValue("")
+	a.naming.LaunchDone = false
+	a.naming.LaunchErr = nil
+	a.naming.SessionID = ""
+	a.naming.Submitted = false
+	a.naming.Input.Focus()
 	a.mode = viewNaming
 
 	return a, a.launchSessionAsync(selected, skills, personas, mcps)
@@ -141,7 +141,7 @@ func (a *App) launchSessionAsync(card config.IDCard, skills []config.Skill, pers
 }
 
 func (a *App) handleDashboardDelete() (tea.Model, tea.Cmd) {
-	if a.focusedPane != paneSessions {
+	if a.sessionView.FocusedPane != paneSessions {
 		return a, nil
 	}
 	sel := a.sessionsList.Index()
@@ -150,7 +150,7 @@ func (a *App) handleDashboardDelete() (tea.Model, tea.Cmd) {
 	}
 	s := a.sessions[sel]
 	if s.UseTmpWorkspace {
-		a.pendingDeleteID = s.ID
+		a.sessionView.PendingDeleteID = s.ID
 		a.mode = viewDeleteConfirm
 		return a, nil
 	}
@@ -162,7 +162,7 @@ func (a *App) handleDashboardDelete() (tea.Model, tea.Cmd) {
 }
 
 func (a *App) handleDashboardSwitch() (tea.Model, tea.Cmd) {
-	if a.focusedPane != paneSessions {
+	if a.sessionView.FocusedPane != paneSessions {
 		return a, nil
 	}
 	sel := a.sessionsList.Index()
@@ -178,7 +178,7 @@ func (a *App) handleDashboardSwitch() (tea.Model, tea.Cmd) {
 		a.err = errors.New("no ID cards available")
 		return a, nil
 	}
-	a.switchSessionID = s.ID
+	a.sessionView.SwitchID = s.ID
 	a.switchList.SetItems(toCardItems(a.cards, a.skills, a.personas))
 	a.switchList.Select(0)
 	a.mode = viewSwitchAgent
@@ -186,11 +186,11 @@ func (a *App) handleDashboardSwitch() (tea.Model, tea.Cmd) {
 }
 
 func (a *App) toggleDashboardPane() {
-	if a.focusedPane == paneCards && len(a.sessions) > 0 {
-		a.focusedPane = paneSessions
+	if a.sessionView.FocusedPane == paneCards && len(a.sessions) > 0 {
+		a.sessionView.FocusedPane = paneSessions
 		return
 	}
-	a.focusedPane = paneCards
+	a.sessionView.FocusedPane = paneCards
 }
 
 func (a *App) activateSelectedSession() tea.Cmd {
@@ -230,9 +230,9 @@ func (a *App) activateSelectedSession() tea.Cmd {
 		a.refreshSessionList()
 	}
 
-	a.activeSessionID = s.ID
+	a.sessionView.ActiveID = s.ID
 	a.mode = viewDashboard
-	return a.attachSession(a.activeSessionID)
+	return a.attachSession(a.sessionView.ActiveID)
 }
 
 func (a *App) killSelectedSession() error {

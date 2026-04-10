@@ -3,7 +3,6 @@ package ui
 import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 
 	"kankuro/internal/config"
@@ -131,63 +130,18 @@ type App struct {
 	sessionsList list.Model
 	switchList   list.Model
 
-	cardInputs      []textinput.Model
-	mcpInputs       []textinput.Model
-	workspaceInputs []textinput.Model
+	// View-specific state
+	cardForm    CardFormState
+	sessionView SessionViewState
+	naming      NamingState
 
-	agentsEditor       textarea.Model
-	agentsMD           string
-	agentsMDPath       string
-	agentsMDPreferPath bool
-	agentsPathInput    textinput.Model
+	// Source management
+	skillSources   SourceFormState
+	personaSources SourceFormState
+	workspaceForm  WorkspaceFormState // Form state for workspace management
 
-	skillSources            []string
-	skillSourceCursor       int
-	skillSourceInput        textinput.Model
-	editingSkillSourceIndex int
-
-	personaSources            []string
-	personaSourceCursor       int
-	personaSourceInput        textinput.Model
-	editingPersonaSourceIndex int
-
-	workspaceSources         []config.WorkspaceSource
-	workspaceSourceCursor    int
-	editingWorkspaceSourceID string
-
-	cardFocusIndex       int
-	selectedWorkspaceID  string
-	workspaceCursor      int
-	workspaceSearchQuery string
-
-	skillCursor        int
-	selectedSkillIDs   map[string]bool
-	skillSearchQuery   string
-	personaCursor      int
-	selectedPersonaIDs map[string]bool
-	personaSearchQuery string
-	mcpCursor          int
-	selectedMCPIDs     map[string]bool
-	mcpSearchQuery     string
-	mcpFormPrevMode    viewMode
-
-	editingCardID   string
-	activeSessionID string
-	pendingDeleteID string
-	switchSessionID string
-	focusedPane     dashboardPane
-
-	// Puppet selection state for the card form
-	cardPuppet          string
-	puppetSelectorIndex int
-	puppetSelectorPrev  string
-
-	namingSessionID  string
-	namingCard       config.IDCard
-	namingInput      textinput.Model
-	namingLaunchDone bool
-	namingLaunchErr  error
-	namingSubmitted  bool
+	// MCP form (remains separate as it's simple)
+	mcpInputs []textinput.Model
 
 	help help.Model
 

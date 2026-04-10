@@ -13,8 +13,8 @@ import (
 
 func (a *App) renderAgentsMDRow() string {
 	contentSummary := "empty"
-	if a.agentsMD != "" {
-		lines := strings.Split(a.agentsMD, `\n`)
+	if a.cardForm.Content != "" {
+		lines := strings.Split(a.cardForm.Content, `\n`)
 		contentSummary = lines[0]
 		if len(lines) > 1 || len(contentSummary) > contentSummaryLimit {
 			if len(contentSummary) > contentSummaryLimit {
@@ -26,8 +26,8 @@ func (a *App) renderAgentsMDRow() string {
 	}
 
 	pathSummary := "empty"
-	if a.agentsMDPath != "" {
-		pathSummary = a.agentsMDPath
+	if a.cardForm.Path != "" {
+		pathSummary = a.cardForm.Path
 		if len(pathSummary) > contentSummaryLimit {
 			pathSummary = "..." + pathSummary[len(pathSummary)-contentSummaryKeep:]
 		}
@@ -38,7 +38,7 @@ func (a *App) renderAgentsMDRow() string {
 
 	if a.isAgentsMDFocused() {
 		prefix := "> "
-		if a.agentsMDPreferPath {
+		if a.cardForm.PreferPath {
 			return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(
 				prefix + "  " + contentOption + "\n" + prefix + "x " + pathOption,
 			)
@@ -48,40 +48,40 @@ func (a *App) renderAgentsMDRow() string {
 		)
 	}
 
-	if a.agentsMDPreferPath {
+	if a.cardForm.PreferPath {
 		return lipgloss.NewStyle().Foreground(gray).Render("    " + contentOption + "\n  x " + pathOption)
 	}
 	return lipgloss.NewStyle().Foreground(gray).Render("  x " + contentOption + "\n    " + pathOption)
 }
 
 func (a *App) renderSkillList() string {
-	return renderRegistryList("Skills (ctrl+e=sources)", a.isSkillListFocused(), a.skillSearchQuery,
+	return renderRegistryList("Skills (ctrl+e=sources)", a.isSkillListFocused(), a.cardForm.SkillSearchQuery,
 		func() []config.Skill { return a.filteredSkills() },
 		func(total int) (int, int) { return a.skillWindow(total) },
-		a.skillCursor,
-		func(id string) bool { return a.selectedSkillIDs[id] },
+		a.cardForm.SkillCursor,
+		func(id string) bool { return a.cardForm.SelectedSkillIDs[id] },
 		func(item config.Skill) string { return skillLabel(item, skillNameCounts(a.skills)) },
 		func(item config.Skill) string { return item.ID },
 	)
 }
 
 func (a *App) renderPersonaList() string {
-	return renderRegistryList("Personas (ctrl+e=sources)", a.isPersonaListFocused(), a.personaSearchQuery,
+	return renderRegistryList("Personas (ctrl+e=sources)", a.isPersonaListFocused(), a.cardForm.PersonaSearchQuery,
 		func() []config.Persona { return a.filteredPersonas() },
 		func(total int) (int, int) { return a.personaWindow(total) },
-		a.personaCursor,
-		func(id string) bool { return a.selectedPersonaIDs[id] },
+		a.cardForm.PersonaCursor,
+		func(id string) bool { return a.cardForm.SelectedPersonaIDs[id] },
 		func(item config.Persona) string { return item.Name },
 		func(item config.Persona) string { return item.ID },
 	)
 }
 
 func (a *App) renderMCPList() string {
-	return renderRegistryList("MCPs (ctrl+e=add)", a.isMCPListFocused(), a.mcpSearchQuery,
+	return renderRegistryList("MCPs (ctrl+e=add)", a.isMCPListFocused(), a.cardForm.MCPSearchQuery,
 		func() []config.MCPServer { return a.filteredMCPs() },
 		func(total int) (int, int) { return a.mcpWindow(total) },
-		a.mcpCursor,
-		func(id string) bool { return a.selectedMCPIDs[id] },
+		a.cardForm.MCPCursor,
+		func(id string) bool { return a.cardForm.SelectedMCPIDs[id] },
 		func(item config.MCPServer) string { return item.Name },
 		func(item config.MCPServer) string { return item.ID },
 	)

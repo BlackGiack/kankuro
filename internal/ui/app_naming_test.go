@@ -23,14 +23,14 @@ func TestNamingFlowSubmitsBeforeLaunchCompletes(t *testing.T) {
 		t.Fatalf("expected naming view, got %v", app.mode)
 	}
 
-	app.namingInput.SetValue("feature run")
+	app.naming.Input.SetValue("feature run")
 
 	model, submitCmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	app = model.(*App)
 	if submitCmd != nil {
 		t.Fatal("expected no attach command before launch completes")
 	}
-	if !app.namingSubmitted {
+	if !app.naming.Submitted {
 		t.Fatal("expected naming submission to be recorded")
 	}
 
@@ -49,8 +49,8 @@ func TestNamingFlowSubmitsBeforeLaunchCompletes(t *testing.T) {
 	if app.mode != viewDashboard {
 		t.Fatalf("expected dashboard view, got %v", app.mode)
 	}
-	if app.activeSessionID != launchFinished.sessionID {
-		t.Fatalf("expected active session %q, got %q", launchFinished.sessionID, app.activeSessionID)
+	if app.sessionView.ActiveID != launchFinished.sessionID {
+		t.Fatalf("expected active session %q, got %q", launchFinished.sessionID, app.sessionView.ActiveID)
 	}
 
 	assertSessionName(t, app.session, launchFinished.sessionID, "feature run")
@@ -80,7 +80,7 @@ func TestNamingFlowUsesSessionIDWhenBlank(t *testing.T) {
 		t.Fatalf("expected naming view, got %v", app.mode)
 	}
 
-	app.namingInput.SetValue("   ")
+	app.naming.Input.SetValue("   ")
 	model, attachCmd := app.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	app = model.(*App)
 	if attachCmd == nil {

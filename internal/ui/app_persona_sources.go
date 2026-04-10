@@ -17,12 +17,12 @@ func (a *App) updatePersonaSources(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch keyMsg.String() {
 	case keyUp:
-		if a.personaSourceCursor > 0 {
-			a.personaSourceCursor--
+		if a.personaSources.Cursor > 0 {
+			a.personaSources.Cursor--
 		}
 	case keyDown:
-		if a.personaSourceCursor < len(a.personaSources) { // +1 for "New"
-			a.personaSourceCursor++
+		if a.personaSources.Cursor < len(a.personaSources.Sources) { // +1 for "New"
+			a.personaSources.Cursor++
 		}
 	case "n":
 		return a.handlePersonaSourceNew()
@@ -39,42 +39,42 @@ func (a *App) updatePersonaSources(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a *App) handlePersonaSourceNew() (tea.Model, tea.Cmd) {
-	a.editingPersonaSourceIndex = -1
-	a.personaSourceInput.SetValue("")
-	a.personaSourceInput.Focus()
+	a.personaSources.EditingIdx = -1
+	a.personaSources.Input.SetValue("")
+	a.personaSources.Input.Focus()
 	a.mode = viewPersonaSourceForm
 	return a, nil
 }
 
 func (a *App) handlePersonaSourceSelect() (tea.Model, tea.Cmd) {
-	if a.personaSourceCursor == len(a.personaSources) {
+	if a.personaSources.Cursor == len(a.personaSources.Sources) {
 		// "New" selected
-		a.editingPersonaSourceIndex = -1
-		a.personaSourceInput.SetValue("")
+		a.personaSources.EditingIdx = -1
+		a.personaSources.Input.SetValue("")
 	} else {
 		// Edit existing
-		a.editingPersonaSourceIndex = a.personaSourceCursor
-		a.personaSourceInput.SetValue(a.personaSources[a.personaSourceCursor])
+		a.personaSources.EditingIdx = a.personaSources.Cursor
+		a.personaSources.Input.SetValue(a.personaSources.Sources[a.personaSources.Cursor])
 	}
-	a.personaSourceInput.Focus()
+	a.personaSources.Input.Focus()
 	a.mode = viewPersonaSourceForm
 	return a, nil
 }
 
 func (a *App) handlePersonaSourceDelete() (tea.Model, tea.Cmd) {
-	if a.personaSourceCursor < len(a.personaSources) {
+	if a.personaSources.Cursor < len(a.personaSources.Sources) {
 		// Delete existing
-		a.personaSources = append(
-			a.personaSources[:a.personaSourceCursor],
-			a.personaSources[a.personaSourceCursor+1:]...,
+		a.personaSources.Sources = append(
+			a.personaSources.Sources[:a.personaSources.Cursor],
+			a.personaSources.Sources[a.personaSources.Cursor+1:]...,
 		)
-		if err := a.repo.SavePersonaSources(a.personaSources); err != nil {
+		if err := a.repo.SavePersonaSources(a.personaSources.Sources); err != nil {
 			a.err = err
 		} else {
 			a.refreshPersonas()
 		}
-		if a.personaSourceCursor >= len(a.personaSources) && a.personaSourceCursor > 0 {
-			a.personaSourceCursor--
+		if a.personaSources.Cursor >= len(a.personaSources.Sources) && a.personaSources.Cursor > 0 {
+			a.personaSources.Cursor--
 		}
 	}
 	return a, nil
@@ -82,7 +82,7 @@ func (a *App) handlePersonaSourceDelete() (tea.Model, tea.Cmd) {
 
 func (a *App) updatePersonaSourceForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
-	a.personaSourceInput, cmd = a.personaSourceInput.Update(msg)
+	a.personaSources.Input, cmd = a.personaSources.Input.Update(msg)
 
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if !ok {
@@ -91,7 +91,7 @@ func (a *App) updatePersonaSourceForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch keyMsg.String() {
 	case keyEnter:
-		val := strings.TrimSpace(a.personaSourceInput.Value())
+		val := strings.TrimSpace(a.personaSources.Input.Value())
 		if val != "" {
 			a.savePersonaSource(val)
 		}
@@ -105,12 +105,12 @@ func (a *App) updatePersonaSourceForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a *App) savePersonaSource(val string) {
-	if a.editingPersonaSourceIndex == -1 {
-		a.personaSources = append(a.personaSources, val)
+	if a.personaSources.EditingIdx == -1 {
+		a.personaSources.Sources = append(a.personaSources.Sources, val)
 	} else {
-		a.personaSources[a.editingPersonaSourceIndex] = val
+		a.personaSources.Sources[a.personaSources.EditingIdx] = val
 	}
-	if err := a.repo.SavePersonaSources(a.personaSources); err != nil {
+	if err := a.repo.SavePersonaSources(a.personaSources.Sources); err != nil {
 		a.err = err
 	} else {
 		a.refreshPersonas()
@@ -118,14 +118,14 @@ func (a *App) savePersonaSource(val string) {
 }
 
 func (a *App) renderPersonaSourcesList() string {
-	lines := make([]string, 0, len(a.personaSources)+1)
-	for i, src := range a.personaSources {
+	lines := make([]string, 0, len(a.personaSources.Sources)+1)
+	for i, src := range a.personaSources.Sources {
 		prefix := "  "
-		if i == a.personaSourceCursor {
+		if i == a.personaSources.Cursor {
 			prefix = "> "
 		}
 		line := fmt.Sprintf("%s%s", prefix, src)
-		if i == a.personaSourceCursor {
+		if i == a.personaSources.Cursor {
 			line = lipgloss.NewStyle().Foreground(highlightColor).Render(line)
 		}
 		lines = append(lines, line)
@@ -133,11 +133,11 @@ func (a *App) renderPersonaSourcesList() string {
 
 	// "New" option
 	prefix := "  "
-	if a.personaSourceCursor == len(a.personaSources) {
+	if a.personaSources.Cursor == len(a.personaSources.Sources) {
 		prefix = "> "
 	}
 	line := fmt.Sprintf("%s[ New Source ]", prefix)
-	if a.personaSourceCursor == len(a.personaSources) {
+	if a.personaSources.Cursor == len(a.personaSources.Sources) {
 		line = lipgloss.NewStyle().Foreground(highlightColor).Render(line)
 	}
 	lines = append(lines, line)

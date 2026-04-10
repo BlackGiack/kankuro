@@ -12,7 +12,7 @@ func (a *App) updateSwitchAgent(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", keyCtrlC:
 			return a, tea.Quit
 		case keyEsc:
-			a.switchSessionID = ""
+			a.sessionView.SwitchID = ""
 			a.mode = viewDashboard
 			return a, nil
 		case keyEnter:
@@ -24,16 +24,16 @@ func (a *App) updateSwitchAgent(msg tea.Msg) (tea.Model, tea.Cmd) {
 			personas := a.personasForCard(card)
 			mcps := a.mcpsForCard(card)
 			skills = a.injectMCPCliSkill(card, skills)
-			if err := a.session.SwitchAgent(a.switchSessionID, card, skills, personas, mcps); err != nil {
+			if err := a.session.SwitchAgent(a.sessionView.SwitchID, card, skills, personas, mcps); err != nil {
 				a.err = fmt.Errorf("switch agent failed: %w", err)
 				return a, nil
 			}
 			a.sessions = a.session.List()
 			a.refreshSessionList()
-			id := a.switchSessionID
-			a.switchSessionID = ""
+			id := a.sessionView.SwitchID
+			a.sessionView.SwitchID = ""
 			a.mode = viewDashboard
-			a.activeSessionID = id
+			a.sessionView.ActiveID = id
 			return a, a.attachSession(id)
 		}
 	}
@@ -48,15 +48,15 @@ func (a *App) updateDeleteConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", keyCtrlC:
 			return a, tea.Quit
 		case "y", "Y":
-			if err := a.session.Remove(a.pendingDeleteID); err != nil {
+			if err := a.session.Remove(a.sessionView.PendingDeleteID); err != nil {
 				a.err = err
 			}
-			a.pendingDeleteID = ""
+			a.sessionView.PendingDeleteID = ""
 			a.mode = viewDashboard
 			a.refreshSessionList()
 			return a, nil
 		case "n", "N", keyEsc:
-			a.pendingDeleteID = ""
+			a.sessionView.PendingDeleteID = ""
 			a.mode = viewDashboard
 			return a, nil
 		}

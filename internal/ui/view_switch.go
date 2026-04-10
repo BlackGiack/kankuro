@@ -4,8 +4,8 @@ import "fmt"
 
 func (a *App) viewSwitchAgentRender() string {
 	header := "Switch Agent"
-	if a.switchSessionID != "" {
-		header = fmt.Sprintf("Switch Agent (session %s)", a.switchSessionID)
+	if a.sessionView.SwitchID != "" {
+		header = fmt.Sprintf("Switch Agent (session %s)", a.sessionView.SwitchID)
 	}
 	return titleStyle.Render(header) + "\n\n" +
 		a.switchList.View() + "\n" +

@@ -49,7 +49,7 @@ func (a *App) handleMCPFormSubmit() (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 	a.mcps, _ = a.repo.ListMCPs() // Refresh full list to get ID etc
-	a.mode = a.mcpFormPrevMode
+	a.mode = a.cardForm.MCPFormPrevMode
 	return a, nil
 }
 

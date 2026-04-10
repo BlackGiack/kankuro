@@ -9,11 +9,11 @@ func (a *App) viewSkillSourcesRender() string {
 
 func (a *App) viewSkillSourceFormRender() string {
 	title := "New Skill Source"
-	if a.editingSkillSourceIndex != -1 {
+	if a.skillSources.EditingIdx != -1 {
 		title = "Edit Skill Source"
 	}
 	return titleStyle.Render(title) + "\n\n" +
-		"Path: " + a.skillSourceInput.View() + "\n\n" +
+		"Path: " + a.skillSources.Input.View() + "\n\n" +
 		"Enter=save Esc=cancel"
 }
 
@@ -26,10 +26,10 @@ func (a *App) viewPersonaSourcesRender() string {
 
 func (a *App) viewPersonaSourceFormRender() string {
 	title := "New Persona Source"
-	if a.editingPersonaSourceIndex != -1 {
+	if a.personaSources.EditingIdx != -1 {
 		title = "Edit Persona Source"
 	}
 	return titleStyle.Render(title) + "\n\n" +
-		"Path: " + a.personaSourceInput.View() + "\n\n" +
+		"Path: " + a.personaSources.Input.View() + "\n\n" +
 		"Enter=save Esc=cancel"
 }
