@@ -243,7 +243,9 @@ func (m *Manager) activateSessionLocked(
 	now time.Time,
 ) {
 	s.CardID = card.ID
-	s.Name = card.Name
+	if s.Name == "" {
+		s.Name = card.Name
+	}
 	s.PID = pid
 	s.StartedAt = now
 	s.LastWordAt = now
