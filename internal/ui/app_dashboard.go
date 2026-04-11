@@ -10,6 +10,7 @@ import (
 	"kankuro/internal/session"
 )
 
+//nolint:funlen // Central event dispatcher for dashboard view.
 func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
@@ -39,6 +40,15 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.refreshWorkspaces()
 			a.workspaceForm.Cursor = 0
 			a.mode = viewWorkspaces
+			return a, nil
+		case "i":
+			return a.openIDEConfig()
+		case "o":
+			if a.sessionView.FocusedPane != paneSessions {
+				return a, nil
+			}
+			a.launchIDE()
+			a.refreshSessionList()
 			return a, nil
 		case keyEnter:
 			return a.handleDashboardEnter()

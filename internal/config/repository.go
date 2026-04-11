@@ -15,6 +15,7 @@ const (
 	MCPsFilename             = "mcps.yaml"
 	WorkspacesFilename       = "workspaces.yaml"
 	WorkspaceSourcesFilename = "workspace_sources.yaml"
+	IDEConfigFilename        = "ide_config.yaml"
 )
 
 // CardRepository defines persistence operations for ID cards.
@@ -62,6 +63,12 @@ type MCPRepository interface {
 	DeleteMCP(id string) error
 }
 
+// IDERepository defines persistence operations for IDE configuration.
+type IDERepository interface {
+	GetIDEConfig() (IDEConfig, error)
+	SaveIDEConfig(cfg IDEConfig) error
+}
+
 // Repository composes all domain repositories for convenience.
 // Use individual sub-interfaces (CardRepository, etc.) when you only need
 // operations for a specific domain.
@@ -71,6 +78,7 @@ type Repository interface {
 	SkillRepository
 	PersonaRepository
 	MCPRepository
+	IDERepository
 	Dir() string
 }
 
@@ -151,5 +159,28 @@ func (r *FileRepository) EnsureFiles() error {
 		return err
 	}
 
+	ideConfigPath := filepath.Join(r.dir, IDEConfigFilename)
+	ideConfigDefault := IDEConfigFile{SchemaVersion: SchemaVersion, IDEConfig: IDEConfig{}}
+	if err := r.EnsureYAML(ideConfigPath, ideConfigDefault); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// GetIDEConfig loads the IDE configuration from disk.
+func (r *FileRepository) GetIDEConfig() (IDEConfig, error) {
+	path := filepath.Join(r.dir, IDEConfigFilename)
+	var f IDEConfigFile
+	if err := ReadYAML(path, &f); err != nil {
+		return IDEConfig{}, err
+	}
+	return f.IDEConfig, nil
+}
+
+// SaveIDEConfig persists the IDE configuration to disk.
+func (r *FileRepository) SaveIDEConfig(cfg IDEConfig) error {
+	path := filepath.Join(r.dir, IDEConfigFilename)
+	f := IDEConfigFile{SchemaVersion: SchemaVersion, IDEConfig: cfg}
+	return r.WriteAtomic(path, f)
 }

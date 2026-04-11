@@ -107,3 +107,14 @@ type WorkspaceSourcesFile struct {
 	SchemaVersion int               `yaml:"schema_version"`
 	Sources       []WorkspaceSource `yaml:"sources"`
 }
+
+// IDEConfig holds the user's IDE launch command configuration.
+type IDEConfig struct {
+	Command string `yaml:"command"`
+}
+
+// IDEConfigFile represents the persisted IDE configuration file.
+type IDEConfigFile struct {
+	SchemaVersion int       `yaml:"schema_version"`
+	IDEConfig     IDEConfig `yaml:"ide_config"`
+}

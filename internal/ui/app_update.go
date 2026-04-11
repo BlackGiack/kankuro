@@ -77,6 +77,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.updateDashboard(msg)
 	case viewNaming:
 		return a.updateNaming(msg)
+	case viewIDE:
+		return a.updateIDE(msg)
+	case viewIDEForm:
+		return a.updateIDEForm(msg)
 	default:
 		return a, nil
 	}

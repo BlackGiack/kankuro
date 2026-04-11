@@ -44,6 +44,10 @@ func (a *App) View() string {
 		return errLine + a.viewNamingRender()
 	case viewDashboard:
 		return errLine + a.renderDashboard()
+	case viewIDE:
+		return errLine + a.viewIDERender()
+	case viewIDEForm:
+		return errLine + a.viewIDEFormRender()
 	default:
 		return "Unknown view"
 	}
@@ -104,8 +108,8 @@ func (a *App) renderDashboard() string {
 	footer := lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().Foreground(gray).Render("[Nav] Tab "),
 		lipgloss.NewStyle().Foreground(gray).Render(" [Card] Enter=Launch n=New e=Edit "),
-		lipgloss.NewStyle().Foreground(gray).Render(" [Session] Enter=Attach x=Kill Del=Remove "),
-		lipgloss.NewStyle().Foreground(gray).Render(" [Global] m=MCP w=Workspaces q=Quit"),
+		lipgloss.NewStyle().Foreground(gray).Render(" [Session] Enter=Attach x=Kill Del=Remove o=Open "),
+		lipgloss.NewStyle().Foreground(gray).Render(" [Global] m=MCP w=Workspaces i=IDE q=Quit"),
 	)
 
 	return header + "\n" + body + "\n" + footer

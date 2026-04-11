@@ -62,6 +62,8 @@ func (s workspaceOnlyStub) DeletePersona(string) error                          
 func (s workspaceOnlyStub) ListMCPs() ([]config.MCPServer, error)                    { return nil, nil }
 func (s workspaceOnlyStub) UpsertMCP(mcp config.MCPServer) (config.MCPServer, error) { return mcp, nil }
 func (s workspaceOnlyStub) DeleteMCP(string) error                                   { return nil }
+func (s workspaceOnlyStub) GetIDEConfig() (config.IDEConfig, error)                  { return config.IDEConfig{}, nil }
+func (s workspaceOnlyStub) SaveIDEConfig(config.IDEConfig) error                     { return nil }
 
 func TestUpdateWorkspaceSourceFormSaveErrorStaysInForm(t *testing.T) {
 	expectedErr := errors.New("save failed")

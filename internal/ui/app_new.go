@@ -50,6 +50,19 @@ func New(repo config.Repository, sm *session.Manager) (*App, error) {
 		help:           help.New(),
 	}
 
+	// Load IDE config
+	ideCfg, err := repo.GetIDEConfig()
+	if err != nil {
+		ideCfg = config.IDEConfig{}
+	}
+	app.ideConfig = ideCfg
+
+	// Init IDE input
+	app.ideInput = textinput.New()
+	app.ideInput.Placeholder = "e.g. code $PATH"
+	app.ideInput.Width = inputWidthDefault
+	app.ideInput.SetValue(ideCfg.Command)
+
 	app.initLists()
 	app.initInputs()
 	app.refreshWorkspaces()

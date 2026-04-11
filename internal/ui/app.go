@@ -30,6 +30,8 @@ const (
 	viewWorkspaceSourceForm
 	viewWorkspacePicker
 	viewNaming
+	viewIDE
+	viewIDEForm
 )
 
 func puppetStyles() []string {
@@ -142,6 +144,10 @@ type App struct {
 
 	// MCP form (remains separate as it's simple)
 	mcpInputs []textinput.Model
+
+	// IDE config
+	ideConfig config.IDEConfig
+	ideInput  textinput.Model
 
 	help help.Model
 
