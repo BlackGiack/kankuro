@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -54,6 +56,7 @@ func (a *App) View() string {
 }
 
 func (a *App) renderDashboard() string {
+	fmt.Print("\x1b[=0u")
 	const borderWidth = 2
 
 	leftStyle := lipgloss.NewStyle().Width(max(switchListMinWidth, a.width-cardsListPadding)).

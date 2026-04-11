@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -39,7 +40,14 @@ type attachExec struct {
 	stopOnce  sync.Once
 }
 
-var errDetach = errors.New("detach")
+var (
+	errDetach = errors.New("detach")
+
+	// Standard legacy byte for Ctrl+K (11)
+	legacyDetach = []byte{byte(detachKey)}
+	// Kitty Protocol sequence for Ctrl+K (\x1b[107;5u)
+	kittyDetach = []byte("\x1b[107;5u")
+)
 
 func (a *App) attachSession(id string) tea.Cmd {
 	handle, err := a.session.Attach(id)
@@ -80,10 +88,24 @@ func (e *attachExec) Run() error {
 	if err != nil {
 		return err
 	}
+
+	// 1. ON ATTACH: Push the state and enable the protocol.
+	// This ensures that even on RE-ATTACH, the terminal is synced
+	// to the "modern" mode the agent expects.
+	_, _ = e.stdout.Write([]byte("\x1b[>1u"))
+
 	defer func() {
+		// 2. ON DETACH: Pop the state back to what it was.
+		// This restores the terminal to the "classic" state
+		// that Kankuro's Bubble Tea dashboard expects.
+		_, _ = e.stdout.Write([]byte("\x1b[<1u"))
+		// _, _ = e.stdout.Write([]byte("\x1b[<1u"))
+
 		_ = cterm.Restore(stdinFile.Fd(), oldState)
 	}()
 
+	// 3. THE RE-SYNC TRIGGER:
+	// Most modern TUIs re-emit their terminal-init sequences when they receive a SIGWINCH.
 	if errSync := syncPTYSize(stdinFile, e.handle.PTY); errSync != nil {
 		return errSync
 	}
@@ -198,24 +220,36 @@ func (e *attachExec) pumpInput(stdinFile *os.File, resizeCh <-chan os.Signal, wr
 }
 
 func (e *attachExec) forwardInput(buf []byte) error {
-	start := 0
-	for i, b := range buf {
-		if b != detachKey {
-			continue
-		}
-		if i > start {
-			if _, err := e.handle.Input.Write(buf[start:i]); err != nil {
-				return err
-			}
-		}
-		e.stopOutput()
-		return errDetach
+	idx := -1
+
+	// 1. Prioritize the modern sequence check
+	if i := bytes.Index(buf, kittyDetach); i != -1 {
+		idx = i
+	} else if i := bytes.Index(buf, legacyDetach); i != -1 {
+		idx = i
 	}
-	if len(buf) > 0 {
-		_, err := e.handle.Input.Write(buf)
-		return err
+
+	// 2. No signal? Send the whole buffer to the agent.
+	if idx == -1 {
+		if len(buf) > 0 {
+			_, err := e.handle.Input.Write(buf)
+			return err
+		}
+		return nil
 	}
-	return nil
+
+	// 3. Signal found!
+	// Write only the bytes that came BEFORE the hotkey to the agent.
+	if idx > 0 {
+		if _, err := e.handle.Input.Write(buf[:idx]); err != nil {
+			e.stopOutput() // we still want to stop the output if we have an error
+			return err
+		}
+	}
+
+	// 4. Trigger the detach logic immediately.
+	e.stopOutput()
+	return errDetach
 }
 
 func (e *attachExec) stopOutput() {
