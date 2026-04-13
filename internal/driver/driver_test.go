@@ -1,11 +1,13 @@
 package driver_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"kankuro/internal/config"
 	"kankuro/internal/driver"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -149,4 +151,152 @@ func TestNewCLIDriverClaude(t *testing.T) {
 	if _, ok := d.(*driver.ClaudeCodeDriver); !ok {
 		t.Fatalf("expected ClaudeCodeDriver")
 	}
+}
+
+func TestSetSkillsBuiltinSkill(t *testing.T) {
+	d := driver.NewGenericCLIDriver()
+	wd := t.TempDir()
+
+	skills := []config.Skill{
+		{
+			ID:      config.BuiltinSkillMCPCLI,
+			Name:    "mcp-cli",
+			Builtin: true,
+		},
+	}
+
+	if err := d.SetSkills(skills, wd); err != nil {
+		t.Fatalf("failed to set builtin skills: %v", err)
+	}
+
+	// Verify the skill directory was created
+	skillPath := filepath.Join(wd, ".agents", "skills", "mcp-cli")
+	info, err := os.Stat(skillPath)
+	if err != nil {
+		t.Fatalf("expected mcp-cli skill dir to exist: %v", err)
+	}
+	if !info.IsDir() {
+		t.Fatalf("expected mcp-cli to be a directory")
+	}
+
+	// Verify SKILL.md was written with embedded content
+	skillFile := filepath.Join(skillPath, "SKILL.md")
+	content, err := os.ReadFile(skillFile)
+	if err != nil {
+		t.Fatalf("failed to read SKILL.md: %v", err)
+	}
+	if len(content) == 0 {
+		t.Fatalf("expected non-empty SKILL.md")
+	}
+	// Verify content matches embedded file
+	if !containsBytes(content, []byte("mcp-cli")) {
+		t.Fatalf("SKILL.md should contain mcp-cli references")
+	}
+	if !containsBytes(content, []byte("# MCP-CLI")) {
+		t.Fatalf("SKILL.md should contain # MCP-CLI header")
+	}
+}
+
+func TestSetSkillsMixedBuiltinAndRegular(t *testing.T) {
+	d := driver.NewGenericCLIDriver()
+	wd := t.TempDir()
+
+	// Create a regular skill source
+	skillSource := filepath.Join(t.TempDir(), "custom-skill")
+	if err := os.MkdirAll(skillSource, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(skillSource, "SKILL.md"), []byte("# Custom Skill"), 0o644); err != nil {
+		t.Fatalf("write skill: %v", err)
+	}
+
+	skills := []config.Skill{
+		{
+			ID:      config.BuiltinSkillMCPCLI,
+			Name:    "mcp-cli",
+			Builtin: true,
+		},
+		{
+			ID:     "custom-id",
+			Name:   "custom-skill",
+			Source: skillSource,
+		},
+	}
+
+	if err := d.SetSkills(skills, wd); err != nil {
+		t.Fatalf("failed to set skills: %v", err)
+	}
+
+	// Verify both skills were created
+	for _, name := range []string{"mcp-cli", "custom-skill"} {
+		skillPath := filepath.Join(wd, ".agents", "skills", name)
+		info, errStat := os.Stat(skillPath)
+		if errStat != nil {
+			t.Fatalf("expected %s skill dir to exist: %v", name, errStat)
+		}
+		if !info.IsDir() {
+			t.Fatalf("expected %s to be a directory", name)
+		}
+		skillFile := filepath.Join(skillPath, "SKILL.md")
+		if _, errFile := os.Stat(skillFile); errFile != nil {
+			t.Fatalf("expected SKILL.md in %s: %v", name, errFile)
+		}
+	}
+}
+
+func TestSetSkillsBuiltinSkillDeduplication(t *testing.T) {
+	d := driver.NewGenericCLIDriver()
+	wd := t.TempDir()
+
+	skills := []config.Skill{
+		{
+			ID:      config.BuiltinSkillMCPCLI,
+			Name:    "mcp-cli",
+			Builtin: true,
+		},
+	}
+
+	// First call should create the skill
+	if err := d.SetSkills(skills, wd); err != nil {
+		t.Fatalf("first SetSkills failed: %v", err)
+	}
+
+	// Second call should skip (directory already exists)
+	if err := d.SetSkills(skills, wd); err != nil {
+		t.Fatalf("second SetSkills failed (should skip existing): %v", err)
+	}
+
+	skillPath := filepath.Join(wd, ".agents", "skills", "mcp-cli")
+	info, err := os.Stat(skillPath)
+	if err != nil {
+		t.Fatalf("expected mcp-cli skill dir to exist: %v", err)
+	}
+	if !info.IsDir() {
+		t.Fatalf("expected mcp-cli to be a directory")
+	}
+}
+
+func TestSetSkillsRejectsNonBuiltinWithEmptySource(t *testing.T) {
+	d := driver.NewGenericCLIDriver()
+	wd := t.TempDir()
+
+	skills := []config.Skill{
+		{
+			ID:   "some-skill",
+			Name: "some-skill",
+			// Source is empty but skill is not marked as builtin
+		},
+	}
+
+	err := d.SetSkills(skills, wd)
+	if err == nil {
+		t.Fatalf("expected error for non-builtin skill with empty source")
+	}
+	if !strings.Contains(err.Error(), "no source directory") {
+		t.Fatalf("expected 'no source directory' error, got: %v", err)
+	}
+}
+
+func containsBytes(data, sub []byte) bool {
+	return bytes.Contains(data, sub)
 }

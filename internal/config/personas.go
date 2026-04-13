@@ -1,4 +1,3 @@
-//nolint:dupl // similar to skills
 package config
 
 import (

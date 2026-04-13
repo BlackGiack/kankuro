@@ -1,4 +1,3 @@
-//nolint:dupl // similar to personas
 package config
 
 import (
@@ -9,14 +8,15 @@ import (
 	"sort"
 )
 
-// ListSkills returns the skill registry sorted by name.
+// ListSkills returns the skill registry sorted by name, always including built-in skills.
 func (r *FileRepository) ListSkills() ([]Skill, error) {
 	f, err := r.LoadSkillsFile()
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(f.Skills, func(i, j int) bool { return f.Skills[i].Name < f.Skills[j].Name })
-	return f.Skills, nil
+	skills := MergeBuiltinSkills(f.Skills)
+	sort.Slice(skills, func(i, j int) bool { return skills[i].Name < skills[j].Name })
+	return skills, nil
 }
 
 // UpsertSkill creates or updates one skill entry.

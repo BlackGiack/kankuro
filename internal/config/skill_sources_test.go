@@ -42,8 +42,9 @@ func TestSyncSkillsFromSources(t *testing.T) {
 	if errList != nil {
 		t.Fatalf("list skills: %v", errList)
 	}
-	if len(skills) != 2 {
-		t.Fatalf("expected 2 skills, got %d", len(skills))
+	// Should have 3 skills: alpha, beta (from source) + mcp-cli (builtin)
+	if len(skills) != 3 {
+		t.Fatalf("expected 3 skills (alpha, beta, mcp-cli), got %d", len(skills))
 	}
 
 	expected := map[string]string{

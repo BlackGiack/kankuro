@@ -48,6 +48,10 @@ type Skill struct {
 	Description string `yaml:"description"`
 	Version     string `yaml:"version"`
 	Source      string `yaml:"source"`
+	// Builtin marks a skill as bundled into the binary. Built-in skills are
+	// never removed during source sync and their content is resolved from
+	// embedded assets rather than from a filesystem source directory.
+	Builtin bool `yaml:"builtin,omitempty"`
 }
 
 type Persona struct {

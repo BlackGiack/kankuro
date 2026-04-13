@@ -129,7 +129,6 @@ func (a *App) handleDashboardEnter() (tea.Model, tea.Cmd) {
 	skills := a.skillsForCard(selected)
 	personas := a.personasForCard(selected)
 	mcps := a.mcpsForCard(selected)
-	skills = a.injectMCPCliSkill(selected, skills)
 
 	a.naming.Card = selected
 	a.naming.Input.SetValue("")
@@ -230,7 +229,6 @@ func (a *App) activateSelectedSession() tea.Cmd {
 		skills := a.skillsForCard(card)
 		personas := a.personasForCard(card)
 		mcps := a.mcpsForCard(card)
-		skills = a.injectMCPCliSkill(card, skills)
 		if err := a.session.Relaunch(s.ID, card, skills, personas, mcps); err != nil {
 			a.err = fmt.Errorf("relaunch failed: %w", err)
 			return nil

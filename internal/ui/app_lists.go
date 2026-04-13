@@ -174,23 +174,6 @@ func (a *App) mcpsForCard(card config.IDCard) []config.MCPServer {
 	return out
 }
 
-func (a *App) injectMCPCliSkill(card config.IDCard, skills []config.Skill) []config.Skill {
-	if len(card.MCPIDs) == 0 {
-		return skills
-	}
-	for _, s := range skills {
-		if s.Name == "mcp-cli" {
-			return skills
-		}
-	}
-	for _, s := range a.skills {
-		if s.Name == "mcp-cli" {
-			return append(skills, s)
-		}
-	}
-	return skills
-}
-
 func toCardItems(cards []config.IDCard, allSkills []config.Skill, allPersonas []config.Persona) []list.Item {
 	items := make([]list.Item, 0, len(cards))
 	for _, c := range cards {

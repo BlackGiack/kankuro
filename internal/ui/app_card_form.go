@@ -536,6 +536,20 @@ func (a *App) toggleSelectedMCP() {
 		return
 	}
 	a.cardForm.SelectedMCPIDs[id] = true
+	// Auto-select mcp-cli skill if not already selected
+	a.autoSelectMCPCLISkill()
+}
+
+// autoSelectMCPCLISkill ensures the mcp-cli built-in skill is selected when an MCP is added.
+func (a *App) autoSelectMCPCLISkill() {
+	for _, s := range a.skills {
+		if s.Name == "mcp-cli" {
+			if !a.cardForm.SelectedSkillIDs[s.ID] {
+				a.cardForm.SelectedSkillIDs[s.ID] = true
+			}
+			return
+		}
+	}
 }
 
 func (a *App) deleteSelectedMCP() {

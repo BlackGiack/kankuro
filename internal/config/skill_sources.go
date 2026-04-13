@@ -24,7 +24,8 @@ func (r *FileRepository) ListSkillSources() ([]string, error) {
 	return f.Paths, nil
 }
 
-// SyncSkillsFromSources rebuilds the skills registry by scanning configured source folders.
+// SyncSkillsFromSources rebuilds the skills registry by scanning configured source folders
+// and merging built-in skills so they are never removed by a refresh.
 func (r *FileRepository) SyncSkillsFromSources() error {
 	sources, err := r.ListSkillSources()
 	if err != nil {
@@ -48,6 +49,8 @@ func (r *FileRepository) SyncSkillsFromSources() error {
 	if err != nil {
 		return err
 	}
+	// Merge built-in skills so they persist across refreshes
+	skills = MergeBuiltinSkills(skills)
 	return r.WriteSkillsFile(SkillsFile{SchemaVersion: SchemaVersion, Skills: skills})
 }
 

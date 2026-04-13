@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+//nolint:gocognit
 func TestUpsertDomainTypes(t *testing.T) {
 	repo, err := config.NewFileRepository(t.TempDir())
 	if err != nil {
@@ -25,8 +26,22 @@ func TestUpsertDomainTypes(t *testing.T) {
 		t.Fatalf("update skill: %v", err)
 	}
 	skills, _ := repo.ListSkills()
-	if len(skills) != 1 {
-		t.Fatalf("expected 1 skill, got %d", len(skills))
+	// Should have 2 skills: skill1 (custom) + mcp-cli (builtin)
+	if len(skills) != 2 {
+		t.Fatalf("expected 2 skills (skill1 + mcp-cli), got %d", len(skills))
+	}
+	// Verify our custom skill is present
+	found := false
+	for _, s := range skills {
+		if s.Name == "skill1" {
+			found = true
+			if s.Description != "updated" {
+				t.Fatalf("expected updated description, got %s", s.Description)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("skill1 not found in skills list")
 	}
 
 	// Test Personas

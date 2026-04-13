@@ -287,20 +287,18 @@ func (d *GenericCLIDriver) Kill() error {
 }
 
 // SetSkills ensures skill assets are present in the session workspace.
+// For built-in skills (empty Source), content is written directly from embedded bytes.
 func (d *GenericCLIDriver) SetSkills(skills []config.Skill, workspaceRoot ...string) error {
 	if len(skills) == 0 {
 		return nil
 	}
-	root := ""
-	if len(workspaceRoot) > 0 {
-		root = strings.TrimSpace(workspaceRoot[0])
-	}
-	if root == "" {
-		return errors.New("workspace root is required for skill sync")
+	root, errResolve := resolveWorkspaceRoot(workspaceRoot)
+	if errResolve != nil {
+		return errResolve
 	}
 	skillsRoot := filepath.Join(root, ".agents", "skills")
-	if err := os.MkdirAll(skillsRoot, 0o700); err != nil {
-		return fmt.Errorf("create skills dir: %w", err)
+	if errMkdir := os.MkdirAll(skillsRoot, 0o700); errMkdir != nil {
+		return fmt.Errorf("create skills dir: %w", errMkdir)
 	}
 
 	nameCounts := make(map[string]int)
@@ -309,29 +307,55 @@ func (d *GenericCLIDriver) SetSkills(skills []config.Skill, workspaceRoot ...str
 	}
 
 	for _, skill := range skills {
-		if skill.Source == "" || skill.Name == "" {
-			return errors.New("skill name and source are required")
-		}
-		destName := skill.Name
-		if nameCounts[skill.Name] > 1 {
-			destName = fmt.Sprintf("%s--%s", skill.Name, shortSkillHash(skill.Source))
-		}
-		destPath := filepath.Join(skillsRoot, destName)
-		info, errStat := os.Stat(destPath)
-		if errStat == nil {
-			if !info.IsDir() {
-				return fmt.Errorf("skill destination exists and is not a directory: %s", destPath)
-			}
-			continue
-		}
-		if !errors.Is(errStat, os.ErrNotExist) {
-			return fmt.Errorf("stat skill destination: %w", errStat)
-		}
-		if errCopy := copySkillFolder(skill.Source, destPath); errCopy != nil {
-			return errCopy
+		if errDeploy := d.deploySkill(skill, skillsRoot, nameCounts); errDeploy != nil {
+			return errDeploy
 		}
 	}
 	return nil
+}
+
+func (d *GenericCLIDriver) deploySkill(skill config.Skill, skillsRoot string, nameCounts map[string]int) error {
+	if skill.Name == "" {
+		return errors.New("skill name is required")
+	}
+	destName := skill.Name
+	if nameCounts[skill.Name] > 1 {
+		destName = fmt.Sprintf("%s--%s", skill.Name, shortSkillHash(skill.Source))
+	}
+	destPath := filepath.Join(skillsRoot, destName)
+
+	info, errStat := os.Stat(destPath)
+	if errStat == nil {
+		if !info.IsDir() {
+			return fmt.Errorf("skill destination exists and is not a directory: %s", destPath)
+		}
+		return nil
+	}
+	if !errors.Is(errStat, os.ErrNotExist) {
+		return fmt.Errorf("stat skill destination: %w", errStat)
+	}
+
+	// Handle built-in skills: write content directly from embedded bytes
+	if skill.Builtin {
+		return writeBuiltinSkill(skill.Name, destPath)
+	}
+
+	// Regular skills: copy from filesystem source directory
+	if skill.Source == "" {
+		return fmt.Errorf("skill %q has no source directory", skill.Name)
+	}
+	return copySkillFolder(skill.Source, destPath)
+}
+
+func resolveWorkspaceRoot(workspaceRoot []string) (string, error) {
+	if len(workspaceRoot) == 0 {
+		return "", errors.New("workspace root is required for skill sync")
+	}
+	root := strings.TrimSpace(workspaceRoot[0])
+	if root == "" {
+		return "", errors.New("workspace root is required for skill sync")
+	}
+	return root, nil
 }
 
 // SetPersonas ensures persona assets are present in the session workspace.
@@ -514,6 +538,18 @@ func upsertEnv(env []string, key string, value string) []string {
 func shortSkillHash(path string) string {
 	sum := sha256.Sum256([]byte(path))
 	return hex.EncodeToString(sum[:])[:8]
+}
+
+func writeBuiltinSkill(name, destPath string) error {
+	content, ok := config.GetBuiltinSkillContent(name)
+	if !ok {
+		return fmt.Errorf("built-in skill content not found: %s", name)
+	}
+	if err := os.MkdirAll(destPath, 0o700); err != nil {
+		return fmt.Errorf("create skill dir: %w", err)
+	}
+	skillFile := filepath.Join(destPath, "SKILL.md")
+	return os.WriteFile(skillFile, content, 0o600)
 }
 
 func copySkillFolder(source, dest string) error {
