@@ -13,6 +13,11 @@ import (
 //nolint:funlen // Central event dispatcher for dashboard view.
 func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		// Handle search input if search is active or '/' is pressed
+		if cmd, handled := a.handleDashboardSearch(keyMsg); handled {
+			return a, cmd
+		}
+
 		switch keyMsg.String() {
 		case "q", "ctrl+c":
 			return a, tea.Quit
@@ -78,6 +83,74 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	a.cardsList, cmd = a.cardsList.Update(msg)
 	return a, cmd
+}
+
+func (a *App) handleDashboardSearch(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
+	switch keyMsg.String() {
+	case keyEsc:
+		if a.sessionView.IsSearching {
+			a.sessionView.CardsSearchQuery = ""
+			a.sessionView.SessionsSearchQuery = ""
+			a.sessionView.IsSearching = false
+			a.refreshLists()
+			return nil, true
+		}
+	case "/":
+		if !a.sessionView.IsSearching {
+			a.sessionView.IsSearching = true
+			a.refreshLists()
+			return nil, true
+		}
+	case keyEnter:
+		if a.sessionView.IsSearching {
+			a.sessionView.IsSearching = false
+			a.refreshLists()
+			return nil, true
+		}
+	case keyBackspace:
+		if a.sessionView.IsSearching {
+			return a.handleDashboardSearchBackspace()
+		}
+	}
+
+	if len(keyMsg.Runes) > 0 && a.sessionView.IsSearching {
+		return a.handleDashboardSearchRunes(keyMsg)
+	}
+
+	return nil, false
+}
+
+func (a *App) handleDashboardSearchBackspace() (tea.Cmd, bool) {
+	isCards := a.sessionView.FocusedPane == paneCards
+	isSessions := a.sessionView.FocusedPane == paneSessions
+
+	if isCards && len(a.sessionView.CardsSearchQuery) > 0 {
+		a.sessionView.CardsSearchQuery = a.sessionView.CardsSearchQuery[:len(a.sessionView.CardsSearchQuery)-1]
+		a.refreshCardList()
+		return nil, true
+	}
+	if isSessions && len(a.sessionView.SessionsSearchQuery) > 0 {
+		a.sessionView.SessionsSearchQuery = a.sessionView.SessionsSearchQuery[:len(a.sessionView.SessionsSearchQuery)-1]
+		a.refreshSessionList()
+		return nil, true
+	}
+	return nil, false
+}
+
+func (a *App) handleDashboardSearchRunes(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
+	ch := keyMsg.Runes[0]
+	if ch < printableCharMin || ch > printableCharMax {
+		return nil, false
+	}
+
+	if a.sessionView.FocusedPane == paneCards {
+		a.sessionView.CardsSearchQuery += string(ch)
+		a.refreshCardList()
+	} else {
+		a.sessionView.SessionsSearchQuery += string(ch)
+		a.refreshSessionList()
+	}
+	return nil, true
 }
 
 func (a *App) handleDashboardEdit() (tea.Model, tea.Cmd) {
@@ -150,23 +223,34 @@ func (a *App) launchSessionAsync(card config.IDCard, skills []config.Skill, pers
 }
 
 func (a *App) handleDashboardDelete() (tea.Model, tea.Cmd) {
-	if a.sessionView.FocusedPane != paneSessions {
+	if a.sessionView.FocusedPane == paneSessions {
+		sel := a.sessionsList.Index()
+		if sel < 0 || sel >= len(a.sessions) {
+			return a, nil
+		}
+		s := a.sessions[sel]
+		if s.UseTmpWorkspace {
+			a.sessionView.PendingDeleteID = s.ID
+			a.mode = viewDeleteConfirm
+			return a, nil
+		}
+		if err := a.session.Remove(s.ID); err != nil {
+			a.err = err
+		}
+		a.refreshSessionList()
 		return a, nil
 	}
-	sel := a.sessionsList.Index()
-	if sel < 0 || sel >= len(a.sessions) {
-		return a, nil
-	}
-	s := a.sessions[sel]
-	if s.UseTmpWorkspace {
-		a.sessionView.PendingDeleteID = s.ID
+
+	if a.sessionView.FocusedPane == paneCards {
+		selected, ok := a.selectedCard()
+		if !ok {
+			return a, nil
+		}
+		a.sessionView.PendingDeleteCardID = selected.ID
 		a.mode = viewDeleteConfirm
 		return a, nil
 	}
-	if err := a.session.Remove(s.ID); err != nil {
-		a.err = err
-	}
-	a.refreshSessionList()
+
 	return a, nil
 }
 

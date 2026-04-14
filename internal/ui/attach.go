@@ -42,11 +42,6 @@ type attachExec struct {
 
 var (
 	errDetach = errors.New("detach")
-
-	// Standard legacy byte for Ctrl+K (11)
-	legacyDetach = []byte{byte(detachKey)}
-	// Kitty Protocol sequence for Ctrl+K (\x1b[107;5u)
-	kittyDetach = []byte("\x1b[107;5u")
 )
 
 func (a *App) attachSession(id string) tea.Cmd {
@@ -222,11 +217,16 @@ func (e *attachExec) pumpInput(stdinFile *os.File, resizeCh <-chan os.Signal, wr
 func (e *attachExec) forwardInput(buf []byte) error {
 	idx := -1
 
-	// 1. Prioritize the modern sequence check
+	// Standard legacy byte for Ctrl+K (11).
+	legacyDetach := []byte{byte(detachKey)}
+	// Kitty Protocol sequence for Ctrl+K (\x1b[107;5u).
+	kittyDetach := []byte("\x1b[107;5u")
+
+	// 1. Prioritize the modern sequence check.
 	if i := bytes.Index(buf, kittyDetach); i != -1 {
 		idx = i
-	} else if i := bytes.Index(buf, legacyDetach); i != -1 {
-		idx = i
+	} else if j := bytes.Index(buf, legacyDetach); j != -1 {
+		idx = j
 	}
 
 	// 2. No signal? Send the whole buffer to the agent.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -58,15 +59,29 @@ func (a *App) refreshLists() {
 }
 
 func (a *App) refreshCardList() {
-	items := toCardItems(a.cards, a.skills, a.personas)
+	filtered := filterByQuery(a.cards, a.sessionView.CardsSearchQuery, func(c config.IDCard, q string) bool {
+		return strings.Contains(strings.ToLower(c.Name), q) ||
+			strings.Contains(strings.ToLower(c.Driver), q) ||
+			strings.Contains(strings.ToLower(c.Model), q)
+	})
+
+	items := toCardItems(filtered, a.skills, a.personas)
 	a.cardsList.SetItems(items)
+
+	a.cardsList.Title = ""
 }
 
 func (a *App) refreshSessionList() {
 	a.sessions = a.session.List()
 	sort.Slice(a.sessions, func(i, j int) bool { return a.sessions[i].StartedAt.After(a.sessions[j].StartedAt) })
-	items := make([]list.Item, 0, len(a.sessions))
-	for _, s := range a.sessions {
+
+	filteredSessions := filterByQuery(a.sessions, a.sessionView.SessionsSearchQuery, func(s session.Snapshot, q string) bool {
+		return strings.Contains(strings.ToLower(s.Name), q) ||
+			strings.Contains(strings.ToLower(s.CardID), q)
+	})
+
+	items := make([]list.Item, 0, len(filteredSessions))
+	for _, s := range filteredSessions {
 		faceStyle := faceNeutral
 		cardName := s.CardID
 		for _, c := range a.cards {
@@ -102,7 +117,10 @@ func (a *App) refreshSessionList() {
 		})
 	}
 	a.sessionsList.SetItems(items)
-	if len(items) == 0 {
+
+	a.sessionsList.Title = "Active Sessions"
+
+	if len(items) == 0 && a.sessionView.SessionsSearchQuery == "" && !a.sessionView.IsSearching {
 		a.sessionView.FocusedPane = paneCards
 	}
 }

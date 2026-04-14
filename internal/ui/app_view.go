@@ -56,7 +56,7 @@ func (a *App) View() string {
 }
 
 func (a *App) renderDashboard() string {
-	fmt.Print("\x1b[=0u")
+	fmt.Print("\x1b[=0u") //nolint:forbidigo // Terminal keyboard mode reset.
 	const borderWidth = 2
 
 	leftStyle := lipgloss.NewStyle().Width(max(switchListMinWidth, a.width-cardsListPadding)).
@@ -72,9 +72,25 @@ func (a *App) renderDashboard() string {
 		rightStyle = rightStyle.BorderForeground(focusedBorderColor)
 	}
 
+	a.cardsList.SetShowTitle(false) // just in case
 	left := a.cardsList.View()
+	leftTitle := titleStyle.Render("ID Cards")
+	switch {
+	case a.sessionView.IsSearching && a.sessionView.FocusedPane == paneCards:
+		leftTitle += "\n" + lipgloss.NewStyle().Foreground(gray).Render("Search: "+a.sessionView.CardsSearchQuery)
+	case a.sessionView.CardsSearchQuery != "":
+		leftTitle += "\n" + lipgloss.NewStyle().Foreground(gray).Render("Filter: "+a.sessionView.CardsSearchQuery)
+	default:
+		leftTitle += "\n " // empty line to keep height consistent
+	}
+
+	leftPane := lipgloss.JoinVertical(lipgloss.Left,
+		lipgloss.NewStyle().Padding(0, 1).Render(leftTitle),
+		left,
+	)
+
 	var right string
-	if len(a.sessions) == 0 {
+	if len(a.sessions) == 0 && !a.sessionView.IsSearching && a.sessionView.SessionsSearchQuery == "" {
 		crowASCII := `
       ,   ,
      / \_/ \
@@ -92,12 +108,29 @@ func (a *App) renderDashboard() string {
 			Foreground(gray).
 			Render(crowASCII)
 	} else {
+		a.sessionsList.SetShowTitle(false)
 		right = a.sessionsList.View()
 	}
 
+	// Manually render Right Pane Title + Search
+	rightTitle := titleStyle.Render("Active Sessions")
+	switch {
+	case a.sessionView.IsSearching && a.sessionView.FocusedPane == paneSessions:
+		rightTitle += "\n" + lipgloss.NewStyle().Foreground(gray).Render("Search: "+a.sessionView.SessionsSearchQuery)
+	case a.sessionView.SessionsSearchQuery != "":
+		rightTitle += "\n" + lipgloss.NewStyle().Foreground(gray).Render("Filter: "+a.sessionView.SessionsSearchQuery)
+	default:
+		rightTitle += "\n " // empty line to keep height consistent
+	}
+
+	rightPane := lipgloss.JoinVertical(lipgloss.Left,
+		lipgloss.NewStyle().Padding(0, 1).Render(rightTitle),
+		right,
+	)
+
 	body := lipgloss.JoinHorizontal(lipgloss.Top,
-		leftStyle.Render(left),
-		rightStyle.Render(right),
+		leftStyle.Render(leftPane),
+		rightStyle.Render(rightPane),
 	)
 
 	header := lipgloss.NewStyle().

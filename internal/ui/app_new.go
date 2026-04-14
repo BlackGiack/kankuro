@@ -93,12 +93,14 @@ func (a *App) initLists() {
 	a.cardsList.Title = "ID Cards"
 	a.cardsList.SetShowStatusBar(false)
 	a.cardsList.SetFilteringEnabled(false)
+	a.cardsList.SetShowTitle(false)
 	a.cardsList.Styles.Title = titleStyle
 
 	a.sessionsList = list.New([]list.Item{}, sessionsDelegate, 0, 0)
 	a.sessionsList.Title = "Active Sessions"
 	a.sessionsList.SetShowStatusBar(false)
 	a.sessionsList.SetFilteringEnabled(false)
+	a.sessionsList.SetShowTitle(false)
 	a.sessionsList.Styles.Title = titleStyle
 
 	a.switchList = list.New([]list.Item{}, cardsDelegate, 0, 0)

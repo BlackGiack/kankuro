@@ -52,10 +52,15 @@ func NewCardFormState() CardFormState {
 
 // SessionViewState holds session-related UI state.
 type SessionViewState struct {
-	ActiveID        string
-	PendingDeleteID string
-	SwitchID        string
-	FocusedPane     dashboardPane
+	ActiveID            string
+	PendingDeleteID     string
+	PendingDeleteCardID string
+	SwitchID            string
+	FocusedPane         dashboardPane
+
+	CardsSearchQuery    string
+	SessionsSearchQuery string
+	IsSearching         bool
 }
 
 // NamingState holds the session naming prompt state.

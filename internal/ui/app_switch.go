@@ -42,23 +42,44 @@ func (a *App) updateSwitchAgent(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a *App) updateDeleteConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.String() {
-		case "q", keyCtrlC:
-			return a, tea.Quit
-		case "y", "Y":
-			if err := a.session.Remove(a.sessionView.PendingDeleteID); err != nil {
-				a.err = err
-			}
-			a.sessionView.PendingDeleteID = ""
-			a.mode = viewDashboard
-			a.refreshSessionList()
-			return a, nil
-		case "n", "N", keyEsc:
-			a.sessionView.PendingDeleteID = ""
-			a.mode = viewDashboard
-			return a, nil
-		}
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return a, nil
 	}
+
+	switch keyMsg.String() {
+	case "q", keyCtrlC:
+		return a, tea.Quit
+	case "y", "Y":
+		return a.handleDeleteConfirmYes()
+	case "n", "N", keyEsc:
+		a.sessionView.PendingDeleteID = ""
+		a.sessionView.PendingDeleteCardID = ""
+		a.mode = viewDashboard
+		return a, nil
+	}
+	return a, nil
+}
+
+func (a *App) handleDeleteConfirmYes() (tea.Model, tea.Cmd) {
+	if a.sessionView.PendingDeleteID != "" {
+		if err := a.session.Remove(a.sessionView.PendingDeleteID); err != nil {
+			a.err = err
+		}
+		a.sessionView.PendingDeleteID = ""
+		a.refreshSessionList()
+	} else if a.sessionView.PendingDeleteCardID != "" {
+		if err := a.repo.DeleteIDCard(a.sessionView.PendingDeleteCardID); err != nil {
+			a.err = err
+		}
+		// Also refresh cards local list
+		cards, err := a.repo.ListIDCards()
+		if err == nil {
+			a.cards = cards
+		}
+		a.sessionView.PendingDeleteCardID = ""
+		a.refreshCardList()
+	}
+	a.mode = viewDashboard
 	return a, nil
 }
