@@ -61,6 +61,13 @@ type SessionViewState struct {
 	CardsSearchQuery    string
 	SessionsSearchQuery string
 	IsSearching         bool
+
+	PreviewSessionID  string
+	PreviewScrollback []byte
+
+	CardsWidth    int
+	SessionsWidth int
+	PreviewWidth  int
 }
 
 // NamingState holds the session naming prompt state.

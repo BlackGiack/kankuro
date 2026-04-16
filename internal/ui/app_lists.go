@@ -42,8 +42,23 @@ func (d cardDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 }
 
 func (a *App) resize() {
+	const borderPadding = 4
+	sessionListWidth := a.width / 4               //nolint:mnd // a quarter
+	previewWidth := (a.width/4)*2 - borderPadding //nolint:mnd // 2 quarters
+	totalSideWidths := sessionListWidth + previewWidth + borderPadding
+	cardsWidth := a.width - totalSideWidths - cardsListPadding
+	if cardsWidth < cardListMinWidth {
+		diff := cardListMinWidth - cardsWidth
+		cardsWidth += diff
+		previewWidth -= diff
+	}
+
+	a.sessionView.CardsWidth = cardsWidth
+	a.sessionView.SessionsWidth = sessionListWidth
+	a.sessionView.PreviewWidth = previewWidth
+
 	a.cardsList.SetSize(
-		max(cardListMinWidth, a.width-cardsListPadding),
+		cardsWidth,
 		max(cardListMinHeight, a.height-cardsListHeight),
 	)
 	a.sessionsList.SetSize(sessionListWidth, max(cardListMinHeight, a.height-sessionsListHeight))
@@ -123,6 +138,8 @@ func (a *App) refreshSessionList() {
 	if len(items) == 0 && a.sessionView.SessionsSearchQuery == "" && !a.sessionView.IsSearching {
 		a.sessionView.FocusedPane = paneCards
 	}
+
+	a.syncPreviewSelection()
 }
 
 func (a *App) selectedCard() (config.IDCard, bool) {
@@ -139,6 +156,19 @@ func (a *App) selectedSwitchCard() (config.IDCard, bool) {
 		return config.IDCard{}, false
 	}
 	return it.card, true
+}
+
+func (a *App) selectedSession() (session.Snapshot, bool) {
+	it, ok := a.sessionsList.SelectedItem().(sessionListItem)
+	if !ok {
+		return session.Snapshot{}, false
+	}
+	for _, s := range a.sessions {
+		if s.ID == it.id {
+			return s, true
+		}
+	}
+	return session.Snapshot{}, false
 }
 
 func (a *App) skillsForCard(card config.IDCard) []config.Skill {

@@ -78,11 +78,58 @@ func (a *App) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if a.sessionView.FocusedPane == paneSessions {
 		var cmd tea.Cmd
 		a.sessionsList, cmd = a.sessionsList.Update(msg)
+		a.syncPreviewSelection()
 		return a, cmd
 	}
 	var cmd tea.Cmd
 	a.cardsList, cmd = a.cardsList.Update(msg)
 	return a, cmd
+}
+
+func (a *App) syncPreviewSelection() {
+	// If there are no sessions at all, clear preview.
+	if len(a.sessions) == 0 {
+		a.sessionView.PreviewSessionID = ""
+		a.sessionView.PreviewScrollback = nil
+		return
+	}
+
+	// Check if current preview session still exists
+	currentStillExists := false
+	if a.sessionView.PreviewSessionID != "" {
+		for _, s := range a.sessions {
+			if s.ID == a.sessionView.PreviewSessionID {
+				currentStillExists = true
+				break
+			}
+		}
+	}
+
+	// If we are NOT in sessions pane AND current preview still exists, just refresh it.
+	if a.sessionView.FocusedPane != paneSessions && currentStillExists {
+		a.refreshPreviewScrollback()
+		return
+	}
+
+	// Otherwise, try to follow selection.
+	selectedItem := a.sessionsList.SelectedItem()
+	if selectedItem == nil {
+		a.sessionView.PreviewSessionID = ""
+		a.sessionView.PreviewScrollback = nil
+		return
+	}
+
+	item, ok := selectedItem.(sessionListItem)
+	if !ok {
+		a.sessionView.PreviewSessionID = ""
+		a.sessionView.PreviewScrollback = nil
+		return
+	}
+
+	if a.sessionView.PreviewSessionID != item.id {
+		a.sessionView.PreviewSessionID = item.id
+	}
+	a.refreshPreviewScrollback()
 }
 
 func (a *App) handleDashboardSearch(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
@@ -224,11 +271,10 @@ func (a *App) launchSessionAsync(card config.IDCard, skills []config.Skill, pers
 
 func (a *App) handleDashboardDelete() (tea.Model, tea.Cmd) {
 	if a.sessionView.FocusedPane == paneSessions {
-		sel := a.sessionsList.Index()
-		if sel < 0 || sel >= len(a.sessions) {
+		s, ok := a.selectedSession()
+		if !ok {
 			return a, nil
 		}
-		s := a.sessions[sel]
 		if s.UseTmpWorkspace {
 			a.sessionView.PendingDeleteID = s.ID
 			a.mode = viewDeleteConfirm
@@ -258,11 +304,10 @@ func (a *App) handleDashboardSwitch() (tea.Model, tea.Cmd) {
 	if a.sessionView.FocusedPane != paneSessions {
 		return a, nil
 	}
-	sel := a.sessionsList.Index()
-	if sel < 0 || sel >= len(a.sessions) {
+	s, ok := a.selectedSession()
+	if !ok {
 		return a, nil
 	}
-	s := a.sessions[sel]
 	if s.Status != session.StatusTerminated {
 		a.err = errors.New("switch requires a terminated session")
 		return a, nil
@@ -281,20 +326,17 @@ func (a *App) handleDashboardSwitch() (tea.Model, tea.Cmd) {
 func (a *App) toggleDashboardPane() {
 	if a.sessionView.FocusedPane == paneCards && len(a.sessions) > 0 {
 		a.sessionView.FocusedPane = paneSessions
+		a.syncPreviewSelection()
 		return
 	}
 	a.sessionView.FocusedPane = paneCards
 }
 
 func (a *App) activateSelectedSession() tea.Cmd {
-	if len(a.sessions) == 0 {
+	s, ok := a.selectedSession()
+	if !ok {
 		return nil
 	}
-	sel := a.sessionsList.Index()
-	if sel < 0 || sel >= len(a.sessions) {
-		return nil
-	}
-	s := a.sessions[sel]
 
 	if s.Status == session.StatusTerminated {
 		var card config.IDCard
@@ -328,12 +370,9 @@ func (a *App) activateSelectedSession() tea.Cmd {
 }
 
 func (a *App) killSelectedSession() error {
-	if len(a.sessions) == 0 {
+	s, ok := a.selectedSession()
+	if !ok {
 		return nil
 	}
-	sel := a.sessionsList.Index()
-	if sel < 0 || sel >= len(a.sessions) {
-		return nil
-	}
-	return a.session.Kill(a.sessions[sel].ID)
+	return a.session.Kill(s.ID)
 }

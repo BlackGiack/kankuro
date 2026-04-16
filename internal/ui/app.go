@@ -52,11 +52,10 @@ const (
 	mcpInputCount       = 7
 	workspaceInputCount = 2
 
-	cardListMinWidth     = 20
+	cardListMinWidth     = 46
 	cardListMinHeight    = 10
-	cardsListPadding     = 38
+	cardsListPadding     = 2
 	cardsListHeight      = 7
-	sessionListWidth     = 34
 	sessionsListHeight   = 7
 	switchListMinWidth   = 40
 	switchListPadding    = 10

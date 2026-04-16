@@ -9,6 +9,7 @@ var (
 	richPurple   = lipgloss.Color("#8E44AD")
 	crimsonRed   = lipgloss.Color("#C0392B")
 	tealCyan     = lipgloss.Color("#16A085")
+	hotPink      = lipgloss.Color("#FF69B4")
 	white        = lipgloss.Color("#FFFFFF")
 	gray         = lipgloss.Color("240")
 
@@ -17,6 +18,22 @@ var (
 	secondaryColor   = crimsonRed
 	highlightColor   = tealCyan
 	personaPillColor = crimsonRed
+
+	// Status badge styles.
+	statusRunningStyle = lipgloss.NewStyle().
+				Foreground(white).
+				Background(tealCyan).
+				Padding(0, 1)
+
+	statusWaitingStyle = lipgloss.NewStyle().
+				Foreground(white).
+				Background(hotPink).
+				Padding(0, 1)
+
+	statusTerminatedStyle = lipgloss.NewStyle().
+				Foreground(white).
+				Background(gray).
+				Padding(0, 1)
 
 	// Text Styles.
 	titleStyle = lipgloss.NewStyle().

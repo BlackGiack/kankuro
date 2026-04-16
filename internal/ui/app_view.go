@@ -56,11 +56,17 @@ func (a *App) View() string {
 }
 
 func (a *App) renderDashboard() string {
-	fmt.Print("\x1b[=0u") //nolint:forbidigo // Terminal keyboard mode reset.
-	const borderWidth = 2
+	fmt.Print("\x1b[=0u") //nolint:forbidigo // this ensures that when we are on kankuro's side the terminal mode is classic mode
 
-	leftStyle := lipgloss.NewStyle().Width(max(switchListMinWidth, a.width-cardsListPadding)).
+	cardsWidth := a.sessionView.CardsWidth
+	sessionListWidth := a.sessionView.SessionsWidth
+	previewWidth := a.sessionView.PreviewWidth
+
+	leftStyle := lipgloss.NewStyle().Width(cardsWidth).
 		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(normalBorderColor)
+	previewStyle := lipgloss.NewStyle().Width(previewWidth).
+		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(normalBorderColor)
 	rightStyle := lipgloss.NewStyle().Width(sessionListWidth).
 		BorderStyle(lipgloss.NormalBorder()).
@@ -89,20 +95,21 @@ func (a *App) renderDashboard() string {
 		left,
 	)
 
+	preview := renderSessionPreview(a, previewWidth)
 	var right string
 	if len(a.sessions) == 0 && !a.sessionView.IsSearching && a.sessionView.SessionsSearchQuery == "" {
 		crowASCII := `
-      ,   ,
+    ,   ,
      / \_/ \
     ( o . o )
      \  ^  /
-      |||||
+    |||||
 
    The puppets
    are resting
 `
 		right = lipgloss.NewStyle().
-			Width(sessionListWidth-borderWidth).
+			Width(a.sessionsList.Width()).
 			Height(a.sessionsList.Height()).
 			Align(lipgloss.Center, lipgloss.Center).
 			Foreground(gray).
@@ -130,6 +137,7 @@ func (a *App) renderDashboard() string {
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top,
 		leftStyle.Render(leftPane),
+		previewStyle.Render(preview),
 		rightStyle.Render(rightPane),
 	)
 

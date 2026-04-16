@@ -237,7 +237,7 @@ func renderCardItem(card config.IDCard, skills []config.Skill, personas []config
 }
 
 func truncate(s string, w int) string {
-	if len(s) > w {
+	if len(s) > w && w > 3 {
 		return s[:w-3] + "..."
 	}
 	return s

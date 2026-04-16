@@ -85,3 +85,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 }
+
+// refreshPreviewScrollback loads the latest scrollback for the preview session.
+func (a *App) refreshPreviewScrollback() {
+	if a.sessionView.PreviewSessionID == "" {
+		a.sessionView.PreviewScrollback = nil
+		return
+	}
+	a.sessionView.PreviewScrollback = a.session.GetScrollback(a.sessionView.PreviewSessionID)
+}
