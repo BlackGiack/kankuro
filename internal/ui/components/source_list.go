@@ -49,12 +49,12 @@ type SourceListConfig struct {
 type SourceList struct {
 	component.Base
 
-	Mode         SourceListMode
-	Config       SourceListConfig
-	Callbacks    SourceListCallbacks
+	Mode      SourceListMode
+	Config    SourceListConfig
+	Callbacks SourceListCallbacks
 
-	Items        []SourceItem
-	Cursor       int
+	Items  []SourceItem
+	Cursor int
 
 	Inputs       []textinput.Model
 	EditingIndex int // -1 for new, >= 0 for edit

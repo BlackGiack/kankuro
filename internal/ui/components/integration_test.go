@@ -50,7 +50,7 @@ func TestCardListIntegration(t *testing.T) {
 	// 5. Apply search filter
 	c.SetSearchQuery("first")
 	// Note: filterCards is unexported, but we can check if selected item is correct
-	if card, ok := c.Selected(); ok {
+	if card, ok2 := c.Selected(); ok2 {
 		if card.Name != "First" {
 			t.Errorf("Expected 'First' card, got '%s'", card.Name)
 		}

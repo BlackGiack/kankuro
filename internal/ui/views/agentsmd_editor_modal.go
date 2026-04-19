@@ -1,0 +1,132 @@
+package views
+
+import (
+	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/textinput"
+	bubbletea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+
+	"kankuro/internal/ui/component"
+)
+
+// AgentsMDEditorModal allows editing agents.md content or path.
+type AgentsMDEditorModal struct {
+	component.Base
+
+	mode       int // 0 = content, 1 = path
+	editor     textarea.Model
+	pathInput  textinput.Model
+	preferPath bool
+	confirmed  bool
+	cancelled  bool
+}
+
+// NewAgentsMDEditorModal creates a new agents.md editor.
+func NewAgentsMDEditorModal() *AgentsMDEditorModal {
+	editor := textarea.New()
+	editor.SetWidth(60)
+	editor.SetHeight(10)
+	editor.Placeholder = "Enter AGENTS.md content..."
+
+	pathInput := textinput.New()
+	pathInput.Placeholder = "Path to AGENTS.md file..."
+	pathInput.Width = 50
+
+	return &AgentsMDEditorModal{
+		editor:    editor,
+		pathInput: pathInput,
+	}
+}
+
+func (m *AgentsMDEditorModal) SetState(state AgentsMDState) {
+	m.editor.SetValue(state.Content)
+	m.pathInput.SetValue(state.Path)
+	m.preferPath = state.PreferPath
+	if m.preferPath {
+		m.mode = 1
+		m.pathInput.Focus()
+	} else {
+		m.mode = 0
+		m.editor.Focus()
+	}
+}
+
+func (m *AgentsMDEditorModal) State() AgentsMDState {
+	return AgentsMDState{
+		Content:    m.editor.Value(),
+		Path:       m.pathInput.Value(),
+		PreferPath: m.preferPath,
+	}
+}
+
+func (m *AgentsMDEditorModal) Open()           { m.confirmed = false; m.cancelled = false }
+func (m *AgentsMDEditorModal) Close()          { m.confirmed = false; m.cancelled = false }
+func (m *AgentsMDEditorModal) IsOpen() bool    { return !m.cancelled }
+func (m *AgentsMDEditorModal) Confirmed() bool { return m.confirmed }
+func (m *AgentsMDEditorModal) Cancelled() bool { return m.cancelled }
+
+func (m *AgentsMDEditorModal) Init() bubbletea.Cmd { return nil }
+
+func (m *AgentsMDEditorModal) Update(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) {
+	if keyMsg, ok := msg.(bubbletea.KeyMsg); ok {
+		switch keyMsg.String() {
+		case "enter":
+			if m.mode == 1 { // Path mode - enter confirms
+				m.preferPath = true
+				m.confirmed = true
+				return m, nil
+			}
+		case "ctrl+enter":
+			m.preferPath = m.mode == 1
+			m.confirmed = true
+			return m, nil
+		case "esc":
+			m.cancelled = true
+			return m, nil
+		case "tab":
+			m.mode = 1 - m.mode
+			if m.mode == 0 {
+				m.editor.Focus()
+				m.pathInput.Blur()
+			} else {
+				m.editor.Blur()
+				m.pathInput.Focus()
+			}
+			return m, nil
+		}
+	}
+
+	var cmd bubbletea.Cmd
+	if m.mode == 0 {
+		m.editor, cmd = m.editor.Update(msg)
+	} else {
+		m.pathInput, cmd = m.pathInput.Update(msg)
+	}
+	return m, cmd
+}
+
+func (m *AgentsMDEditorModal) View() string {
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#8E44AD")).
+		Padding(1, 2).
+		Width(70)
+
+	var content string
+	content += "AGENTS.md Editor\n\n"
+	content += "Content:\n"
+	if m.mode == 0 {
+		content += lipgloss.NewStyle().Foreground(highlightColor).Render("> "+m.editor.View()) + "\n"
+	} else {
+		content += m.editor.View() + "\n"
+	}
+	content += "\nPath:\n"
+	if m.mode == 1 {
+		content += lipgloss.NewStyle().Foreground(highlightColor).Render("> "+m.pathInput.View()) + "\n"
+	} else {
+		content += m.pathInput.View() + "\n"
+	}
+	content += "\nTab=switch Ctrl+Enter=confirm Esc=cancel"
+
+	return boxStyle.Render(content)
+}

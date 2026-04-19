@@ -51,6 +51,7 @@ type CardListCallbacks struct {
 // CardList is a scrollable list of ID cards.
 type CardList struct {
 	component.Base
+
 	list        list.Model
 	cards       []config.IDCard
 	skills      []config.Skill
@@ -116,19 +117,19 @@ func (c *CardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
 		case "enter":
-			if card, ok := c.Selected(); ok {
+			if card, ok2 := c.Selected(); ok2 {
 				if c.callbacks.OnSelect != nil {
 					c.callbacks.OnSelect(card)
 				}
 			}
 		case "e":
-			if card, ok := c.Selected(); ok {
+			if card, ok2 := c.Selected(); ok2 {
 				if c.callbacks.OnEdit != nil {
 					c.callbacks.OnEdit(card)
 				}
 			}
 		case "delete", "backspace":
-			if card, ok := c.Selected(); ok {
+			if card, ok2 := c.Selected(); ok2 {
 				if c.callbacks.OnDelete != nil {
 					c.callbacks.OnDelete(card.ID)
 				}

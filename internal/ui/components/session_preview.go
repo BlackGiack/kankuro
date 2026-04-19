@@ -33,13 +33,13 @@ var (
 	kittyProtocolRE = regexp.MustCompile(`(?:\x1b_|\x1b\[|\x1b\]|\x1bP).*?(\x1b\\|[\x07\x40-\x7e])`)
 )
 
-// Theme colors (local copies to keep component self-contained for now, or use styles.go)
+// Theme colors (local copies to keep component self-contained for now, or use styles.go).
 var (
-	ColorPrimary      = lipgloss.Color("#8E44AD")
-	ColorHighlight    = lipgloss.Color("#16A085")
-	ColorHotPink      = lipgloss.Color("#FF69B4")
-	ColorGray         = lipgloss.Color("240")
-	ColorWhite        = lipgloss.Color("#FFFFFF")
+	ColorPrimary   = lipgloss.Color("#8E44AD") //nolint:gochecknoglobals // UI theme colors
+	ColorHighlight = lipgloss.Color("#16A085") //nolint:gochecknoglobals // UI theme colors
+	ColorHotPink   = lipgloss.Color("#FF69B4") //nolint:gochecknoglobals // UI theme colors
+	ColorGray      = lipgloss.Color("240")     //nolint:gochecknoglobals // UI theme colors
+	ColorWhite     = lipgloss.Color("#FFFFFF") //nolint:gochecknoglobals // UI theme colors
 )
 
 // Status badge styles.
@@ -144,7 +144,7 @@ func (p *SessionPreview) renderPlaceholder() string {
    see a preview here.
 `
 	return lipgloss.NewStyle().
-		Width(p.Width - WidthBorders).
+		Width(p.Width-WidthBorders).
 		Height(p.Height).
 		Align(lipgloss.Center, lipgloss.Center).
 		Foreground(ColorGray).

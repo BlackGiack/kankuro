@@ -38,6 +38,7 @@ type SessionListCallbacks struct {
 // SessionList is a scrollable list of active sessions.
 type SessionList struct {
 	component.Base
+
 	list        list.Model
 	sessions    []session.Snapshot
 	cards       []config.IDCard
@@ -152,25 +153,25 @@ func (s *SessionList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
 		case "enter":
-			if session, ok := s.Selected(); ok {
+			if session, ok2 := s.Selected(); ok2 {
 				if s.callbacks.OnAttach != nil {
 					s.callbacks.OnAttach(session.ID)
 				}
 			}
 		case "x":
-			if session, ok := s.Selected(); ok {
+			if session, ok2 := s.Selected(); ok2 {
 				if s.callbacks.OnKill != nil {
 					s.callbacks.OnKill(session.ID)
 				}
 			}
 		case "delete", "backspace":
-			if session, ok := s.Selected(); ok {
+			if session, ok2 := s.Selected(); ok2 {
 				if s.callbacks.OnDelete != nil {
 					s.callbacks.OnDelete(session.ID)
 				}
 			}
 		case "s":
-			if session, ok := s.Selected(); ok {
+			if session, ok2 := s.Selected(); ok2 {
 				if s.callbacks.OnSwitch != nil {
 					s.callbacks.OnSwitch(session.ID)
 				}

@@ -10,6 +10,7 @@ import (
 // Modal is a reusable overlay component for dialogs.
 type Modal struct {
 	component.Base
+
 	title     string
 	content   string
 	open      bool
