@@ -40,15 +40,15 @@ func TestModal_ViewVisible(t *testing.T) {
 	if view == "" {
 		t.Error("Open modal should render content")
 	}
-	if !containsSubstring(view, "Visible Modal") {
+	if !hasSubstring(view, "Visible Modal") {
 		t.Error("Should contain title")
 	}
-	if !containsSubstring(view, "Are you sure?") {
+	if !hasSubstring(view, "Are you sure?") {
 		t.Error("Should contain content")
 	}
 }
 
-func containsSubstring(s, substr string) bool {
+func hasSubstring(s, substr string) bool {
 	return len(s) >= len(substr) &&
 		(s == substr || len(s) > 0 && containsRecursive(s, substr))
 }

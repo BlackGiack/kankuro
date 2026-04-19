@@ -7,6 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"kankuro/internal/ui/components"
 )
 
 func (a *App) updateSkillSources(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -153,4 +155,62 @@ func (a *App) refreshSkills() {
 		return
 	}
 	a.skills = skills
+}
+
+// ===== Integration with new SourceList component =====
+
+func (a *App) newSkillSourceListComponent() *components.SourceList {
+	config := components.SourceListConfig{
+		Title:      "Manage Skill Sources",
+		FormPrompt: "Path to skill source...",
+		FormFields: 1,
+	}
+
+	callbacks := components.SourceListCallbacks{
+		OnSave: func(item components.SourceItem, idx int) error {
+			path := strings.TrimSpace(item.Display())
+			if idx == -1 {
+				// New
+				a.skillSources.Sources = append(a.skillSources.Sources, path)
+			} else {
+				// Edit
+				if idx >= 0 && idx < len(a.skillSources.Sources) {
+					a.skillSources.Sources[idx] = path
+				}
+			}
+			if err := a.repo.SaveSkillSources(a.skillSources.Sources); err != nil {
+				a.err = err
+				return err
+			}
+			a.refreshSkills()
+			return nil
+		},
+
+		OnDelete: func(idx int) error {
+			if idx >= 0 && idx < len(a.skillSources.Sources) {
+				a.skillSources.Sources = append(
+					a.skillSources.Sources[:idx],
+					a.skillSources.Sources[idx+1:]...,
+				)
+			}
+			if err := a.repo.SaveSkillSources(a.skillSources.Sources); err != nil {
+				a.err = err
+				return err
+			}
+			a.refreshSkills()
+			return nil
+		},
+
+		OnRefresh: func() {
+			a.refreshSkills()
+		},
+
+		OnClose: func() {
+			a.mode = viewCardForm
+		},
+	}
+
+	sl := components.NewSourceList(config, callbacks)
+	sl.SetItems(components.ToSimpleItems(a.skillSources.Sources))
+	return sl
 }

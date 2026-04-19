@@ -1,13 +1,16 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"kankuro/internal/config"
+	"kankuro/internal/ui/components"
 )
 
 func (a *App) refreshWorkspaces() {
@@ -323,4 +326,74 @@ func upsertWorkspaceSource(sources []config.WorkspaceSource, source config.Works
 		}
 	}
 	return append(sources, source)
+}
+
+// ===== Integration with new SourceList component =====
+
+func (a *App) newWorkspaceSourceListComponent() *components.SourceList {
+	config := components.SourceListConfig{
+		Title:       "Manage Workspace Sources",
+		Legend:      "(R=Root folder containing multiple workspaces)",
+		FormPrompt:  "Path to workspace or root directory...",
+		FormFields:  2,
+		Field2Label: "Is Root (y/n)",
+	}
+
+	callbacks := components.SourceListCallbacks{
+		OnSave: func(item components.SourceItem, idx int) error {
+			wsItem, ok := item.(components.WorkspaceSourceItem)
+			if !ok {
+				return errors.New("invalid item type")
+			}
+
+			sources := a.workspaceForm.Sources
+
+			if idx == -1 {
+				// New - generate ID
+				wsItem.Source.ID = generateWorkspaceID()
+				sources = append(sources, wsItem.Source)
+			} else {
+				// Edit - preserve ID
+				if idx >= 0 && idx < len(sources) {
+					wsItem.Source.ID = sources[idx].ID
+					sources[idx] = wsItem.Source
+				}
+			}
+
+			if err := a.repo.SaveWorkspaceSources(sources); err != nil {
+				a.err = err
+				return err
+			}
+			a.refreshWorkspaces()
+			return nil
+		},
+
+		OnDelete: func(idx int) error {
+			if idx >= 0 && idx < len(a.workspaceForm.Sources) {
+				id := a.workspaceForm.Sources[idx].ID
+				if err := a.repo.DeleteWorkspaceSource(id); err != nil {
+					a.err = err
+					return err
+				}
+			}
+			a.refreshWorkspaces()
+			return nil
+		},
+
+		OnRefresh: func() {
+			a.refreshWorkspaces()
+		},
+
+		OnClose: func() {
+			a.mode = viewDashboard
+		},
+	}
+
+	sl := components.NewSourceList(config, callbacks)
+	sl.SetItems(components.ToWorkspaceItems(a.workspaceForm.Sources))
+	return sl
+}
+
+func generateWorkspaceID() string {
+	return fmt.Sprintf("ws-%d", time.Now().UnixNano())
 }

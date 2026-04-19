@@ -295,3 +295,61 @@ func (a *App) newCardListComponent() *components.CardList {
 
 	return components.NewCardList(callbacks)
 }
+
+// ===== Integration with new SessionList component =====
+// This shows how App will eventually delegate to SessionList.
+
+func (a *App) newSessionListComponent() *components.SessionList {
+	callbacks := components.SessionListCallbacks{
+		OnSelect: func(sess session.Snapshot) {
+			// Triggers preview update
+			a.sessionView.PreviewSessionID = sess.ID
+			a.refreshPreviewScrollback()
+		},
+		OnAttach: func(sessionID string) {
+			// Same as handleDashboardEnter for sessions
+			a.sessionView.ActiveID = sessionID
+			a.mode = viewDashboard
+			// Would return tea.Cmd: a.attachSession(sessionID)
+		},
+		OnKill: func(sessionID string) {
+			// Kill the session
+			if err := a.session.Kill(sessionID); err != nil {
+				a.err = err
+			}
+			a.refreshSessionList()
+		},
+		OnDelete: func(sessionID string) {
+			// Trigger delete confirmation
+			// Need to find session by ID first
+			for _, s := range a.sessions {
+				if s.ID == sessionID {
+					if s.UseTmpWorkspace {
+						a.sessionView.PendingDeleteID = sessionID
+						a.mode = viewDeleteConfirm
+					} else {
+						if err := a.session.Remove(sessionID); err != nil {
+							a.err = err
+						}
+						a.refreshSessionList()
+					}
+					break
+				}
+			}
+		},
+		OnSwitch: func(sessionID string) {
+			// Trigger agent switch
+			a.sessionView.SwitchID = sessionID
+			a.switchList.SetItems(toCardItems(a.cards, a.skills, a.personas))
+			a.switchList.Select(0)
+			a.mode = viewSwitchAgent
+		},
+		OnPreview: func(sessionID string) {
+			// Sync preview
+			a.sessionView.PreviewSessionID = sessionID
+			a.refreshPreviewScrollback()
+		},
+	}
+
+	return components.NewSessionList(callbacks)
+}

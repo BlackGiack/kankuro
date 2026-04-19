@@ -9,8 +9,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"kankuro/internal/ascii"
-	"kankuro/internal/ascii/characters"
 	"kankuro/internal/config"
 	"kankuro/internal/ui/component"
 )
@@ -241,15 +239,7 @@ func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config
 	pills := renderPills(skillNames, personaNames)
 	skillsLine := lipgloss.JoinHorizontal(lipgloss.Top, pills...)
 
-	style := card.Puppet
-	if style == "" {
-		style = "kankuro"
-	}
-	puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", style) })
-	w, h := puppet.Bounds()
-	canvas := ascii.NewCanvas(w, h)
-	puppet.Render(canvas, 0, 0)
-	puppetStr := canvas.String()
+	puppetStr := RenderAgentPuppet(card.Puppet)
 
 	driverLine := fmt.Sprintf("%s | %s", card.Driver, card.Model)
 

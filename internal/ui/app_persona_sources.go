@@ -7,6 +7,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"kankuro/internal/ui/components"
 )
 
 func (a *App) updatePersonaSources(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -156,4 +158,60 @@ func (a *App) refreshPersonas() {
 		return
 	}
 	a.personas = personas
+}
+
+// ===== Integration with new SourceList component =====
+
+func (a *App) newPersonaSourceListComponent() *components.SourceList {
+	config := components.SourceListConfig{
+		Title:      "Manage Persona Sources",
+		FormPrompt: "Path to persona source...",
+		FormFields: 1,
+	}
+
+	callbacks := components.SourceListCallbacks{
+		OnSave: func(item components.SourceItem, idx int) error {
+			path := strings.TrimSpace(item.Display())
+			if idx == -1 {
+				a.personaSources.Sources = append(a.personaSources.Sources, path)
+			} else {
+				if idx >= 0 && idx < len(a.personaSources.Sources) {
+					a.personaSources.Sources[idx] = path
+				}
+			}
+			if err := a.repo.SavePersonaSources(a.personaSources.Sources); err != nil {
+				a.err = err
+				return err
+			}
+			a.refreshPersonas()
+			return nil
+		},
+
+		OnDelete: func(idx int) error {
+			if idx >= 0 && idx < len(a.personaSources.Sources) {
+				a.personaSources.Sources = append(
+					a.personaSources.Sources[:idx],
+					a.personaSources.Sources[idx+1:]...,
+				)
+			}
+			if err := a.repo.SavePersonaSources(a.personaSources.Sources); err != nil {
+				a.err = err
+				return err
+			}
+			a.refreshPersonas()
+			return nil
+		},
+
+		OnRefresh: func() {
+			a.refreshPersonas()
+		},
+
+		OnClose: func() {
+			a.mode = viewCardForm
+		},
+	}
+
+	sl := components.NewSourceList(config, callbacks)
+	sl.SetItems(components.ToSimpleItems(a.personaSources.Sources))
+	return sl
 }

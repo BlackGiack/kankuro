@@ -8,6 +8,7 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
+	"kankuro/internal/ui/components"
 )
 
 //nolint:funlen // Central event dispatcher for dashboard view.
@@ -130,6 +131,49 @@ func (a *App) syncPreviewSelection() {
 		a.sessionView.PreviewSessionID = item.id
 	}
 	a.refreshPreviewScrollback()
+}
+
+// ===== Integration with new SessionPreview component =====
+
+func (a *App) newSessionPreviewComponent() *components.SessionPreview {
+	p := components.NewSessionPreview()
+	p.SetSize(a.sessionView.PreviewWidth, a.sessionsList.Height())
+	return p
+}
+
+// syncPreviewToComponent pushes preview state to the component.
+// Called after syncPreviewSelection updates sessionView state.
+func (a *App) syncPreviewToComponent(p *components.SessionPreview) {
+	if a.sessionView.PreviewSessionID == "" {
+		p.Clear()
+		return
+	}
+
+	// Find session snapshot
+	var snap *session.Snapshot
+	for i := range a.sessions {
+		if a.sessions[i].ID == a.sessionView.PreviewSessionID {
+			snap = &a.sessions[i]
+			break
+		}
+	}
+
+	if snap == nil {
+		p.Clear()
+		return
+	}
+
+	// Find card
+	var card *config.IDCard
+	for i := range a.cards {
+		if a.cards[i].ID == snap.CardID {
+			card = &a.cards[i]
+			break
+		}
+	}
+
+	p.SetSession(snap, card)
+	p.SetScrollback(a.sessionView.PreviewScrollback)
 }
 
 func (a *App) handleDashboardSearch(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
