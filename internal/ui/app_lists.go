@@ -11,6 +11,7 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
+	"kankuro/internal/ui/components"
 )
 
 type cardDelegate struct {
@@ -265,4 +266,32 @@ func (a *App) upsertCardLocal(card config.IDCard) {
 		}
 	}
 	a.cards = append(a.cards, card)
+}
+
+// ===== Integration with new CardList component =====
+// This shows how App will eventually delegate to CardList.
+// Once fully migrated, the old cardDelegate and related functions
+// can be removed.
+
+func (a *App) newCardListComponent() *components.CardList {
+	callbacks := components.CardListCallbacks{
+		OnSelect: func(card config.IDCard) {
+			// Will emit CardSelectedMsg in component world
+			// For now, call existing handler
+			a.handleDashboardEnter()
+		},
+		OnEdit: func(card config.IDCard) {
+			// Will emit CardEditRequestedMsg in component world
+			// For now, call existing handler
+			a.handleDashboardEdit()
+		},
+		OnDelete: func(cardID string) {
+			// Will emit CardDeleteRequestedMsg in component world
+			// For now, just trigger delete flow
+			a.sessionView.PendingDeleteCardID = cardID
+			a.mode = viewDeleteConfirm
+		},
+	}
+
+	return components.NewCardList(callbacks)
 }
