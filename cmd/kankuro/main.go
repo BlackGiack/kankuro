@@ -8,10 +8,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"kankuro/internal/app"
 	"kankuro/internal/config"
 	"kankuro/internal/driver"
 	"kankuro/internal/session"
-	"kankuro/internal/ui"
 )
 
 // main wires repository, session manager, and TUI program startup.
@@ -55,12 +55,12 @@ func run(registry driver.Registry) error {
 		repo,
 		session.WithDriverRegistry(registry),
 	)
-	app, err := ui.New(repo, sm)
+	application, err := app.New(repo, sm)
 	if err != nil {
 		return fmt.Errorf("ui init error: %w", err)
 	}
 
-	p := tea.NewProgram(app, tea.WithAltScreen())
+	p := tea.NewProgram(application, tea.WithAltScreen())
 	if _, err = p.Run(); err != nil {
 		sm.Shutdown()
 		return fmt.Errorf("runtime error: %w", err)

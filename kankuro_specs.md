@@ -98,8 +98,7 @@ type AgentDriver interface {
 
 ### 🔗 Phase 1: Connectivity (v1)
 
-* **Direct Piping:** Route `STDOUT` from Session A directly into `STDIN` of Session B.
-* **Sanitized Output:** A middleware layer to strip non-textual noise (ANSI codes, progress bars, spinners) from pipes to ensure the receiving agent gets clean context.
+* **A2A:** 
 * **Inter-Session Communication:** UI triggers to link agents in a chain.
 
 ### 🤖 Phase 2: Hybrid Automation (v2)
@@ -113,7 +112,8 @@ type AgentDriver interface {
 ## 4. UI/UX Design
 
 * **Main Screen (Dashboard):** 
-    * **Center:** A collection of "Agent Identity Cards" with assigned ASCII puppets.
+    * **Left:** A collection of "Agent Identity Cards" with assigned ASCII puppets.
+    * **Center:** A a preview of the selected session.
     * **Right Sidebar:** A scrollable list of sessions showing status (Running, Waiting, Terminated) and the agent's identity face.
 
 * **Dashboard Interactions:**
@@ -127,6 +127,7 @@ type AgentDriver interface {
     * `s`: Switch agent on the selected terminated session.
     * `m`: Open the MCP registry form to add a new server.
     * `w`: Open the workspace source manager.
+    * `i`: Open the ide integration manager.
     * `Backspace/Delete` (on Session): Trigger a **confirmation dialog** to remove a terminated session (and its temporary workspace).
 
 * **Agent Card Editor Interactions:**

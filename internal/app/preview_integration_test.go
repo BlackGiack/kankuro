@@ -1,0 +1,154 @@
+package app_test
+
+import (
+	"bytes"
+	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+
+	"kankuro/internal/app"
+	"kankuro/internal/config"
+	"kankuro/internal/session"
+	"kankuro/internal/ui/messages"
+	"kankuro/internal/ui/views"
+)
+
+func TestPreviewImmediateUpdate(t *testing.T) {
+	repo, _ := config.NewFileRepository(t.TempDir())
+	sm := session.NewManager(repo.Dir(), repo)
+
+	wd := t.TempDir()
+	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	card, _ := repo.CreateIDCard(config.IDCard{
+		Name:        "Test Card",
+		Driver:      "echo",
+		Model:       "test",
+		WorkspaceID: workspaces[0].ID,
+	})
+
+	// Launch session
+	sessionID, _ := sm.Launch(card, nil, nil, nil)
+
+	coord := app.NewCoordinator(repo, sm)
+
+	// Execute refreshData from Init
+	_ = coord.Init()
+	// Init returns a batch, but we know refreshData is there.
+	// For simplicity in test, let's just call RefreshData directly.
+	msg := coord.RefreshData()()
+	coord.Update(msg)
+
+	dashboard := coord.Views()[app.ViewDashboard].(*views.Dashboard)
+
+	// Trigger preview request (simulate selection change)
+	msgReq := messages.SessionPreviewRequestedMsg{SessionID: sessionID}
+	coord.Update(msgReq)
+
+	// Check if preview is updated immediately
+	if dashboard.PreviewSessionID() != sessionID {
+		t.Errorf("Expected preview to be %s immediately, got %s", sessionID, dashboard.PreviewSessionID())
+	}
+}
+
+func TestPreviewAutoSelection(t *testing.T) {
+	repo, _ := config.NewFileRepository(t.TempDir())
+	sm := session.NewManager(repo.Dir(), repo)
+
+	wd := t.TempDir()
+	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	card, _ := repo.CreateIDCard(config.IDCard{
+		Name:        "Test Card",
+		Driver:      "echo",
+		Model:       "test",
+		WorkspaceID: workspaces[0].ID,
+	})
+
+	// Launch session
+	sessionID, _ := sm.Launch(card, nil, nil, nil)
+
+	coord := app.NewCoordinator(repo, sm)
+
+	// Initial data load: refreshData will have PreviewSessionID="" because dashboard hasn't seen the session yet
+	msg := coord.RefreshData()()
+	dm := msg.(messages.DataLoadedMsg)
+	if dm.PreviewSessionID != "" {
+		t.Fatal("Expected empty PreviewSessionID in initial refreshData")
+	}
+
+	// Update coordinator: this should trigger Dashboard.SetData, which auto-selects sessionID,
+	// and then Coordinator should realize it and return a subscription command.
+	_, cmd := coord.Update(dm)
+	if cmd == nil {
+		t.Fatal("Expected subscription command from Coordinator.Update(DataLoadedMsg)")
+	}
+
+	dashboard := coord.Views()[app.ViewDashboard].(*views.Dashboard)
+	if dashboard.PreviewSessionID() != sessionID {
+		t.Errorf("Expected dashboard to auto-select %s, got %s", sessionID, dashboard.PreviewSessionID())
+	}
+}
+
+func TestPreviewStreaming(t *testing.T) {
+	repo, _ := config.NewFileRepository(t.TempDir())
+	sm := session.NewManager(repo.Dir(), repo)
+
+	wd := t.TempDir()
+	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	card, _ := repo.CreateIDCard(config.IDCard{
+		Name:        "Test Card",
+		Driver:      "echo",
+		Model:       "test",
+		WorkspaceID: workspaces[0].ID,
+	})
+
+	// Launch session
+	sessionID, _ := sm.Launch(card, nil, nil, nil)
+	sess, _ := sm.GetSession(sessionID)
+
+	coord := app.NewCoordinator(repo, sm)
+
+	// Initial data load
+	msg := coord.RefreshData()()
+	coord.Update(msg)
+
+	// Select session for preview
+	coord.Update(messages.SessionPreviewRequestedMsg{SessionID: sessionID})
+
+	dashboard := coord.Views()[app.ViewDashboard].(*views.Dashboard)
+
+	// Simulate output from session
+	testOutput := []byte("hello world")
+
+	// Re-trigger preview to get the cmd
+	var cmd tea.Cmd
+	_, cmd = coord.Update(messages.SessionPreviewRequestedMsg{SessionID: sessionID})
+	if cmd == nil {
+		t.Fatal("Expected cmd from PreviewRequestedMsg")
+	}
+
+	// Manually send output to session subscribers
+	for ch := range sess.Subscribers {
+		ch <- testOutput
+	}
+
+	// Execute the captured command (it should read from the channel)
+	outputMsg := cmd()
+	if outputMsg == nil {
+		t.Fatal("Expected SessionOutputMsg from cmd")
+	}
+
+	// Update coordinator with output message
+	coord.Update(outputMsg)
+
+	// Verify preview scrollback contains the output
+	preview := dashboard.Preview()
+	if !bytes.Contains(preview.Scrollback(), testOutput) {
+		t.Errorf("Expected scrollback to contain '%s', got '%s'", string(testOutput), string(preview.Scrollback()))
+	}
+}
