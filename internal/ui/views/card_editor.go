@@ -685,7 +685,7 @@ func (e *CardEditor) deleteSelectedMCP() tea.Cmd {
 func (e *CardEditor) View() string {
 	// Handle modal overlays
 	if e.workspacePicker.IsOpen() {
-		return e.renderWithOverlay(e.workspacePicker.View())
+		return e.workspacePicker.View()
 	}
 	if e.puppetSelector.IsOpen() {
 		return e.renderWithOverlay(e.puppetSelector.View())
@@ -831,8 +831,8 @@ func (e *CardEditor) SetSize(width, height int) {
 	e.skillList.SetSize(width, capListHeight)
 	e.personaList.SetSize(width, capListHeight)
 	e.mcpList.SetSize(width, capListHeight)
-	// Split screen equally for workspace picker
-	e.workspacePicker.SetSize(width/screenSplitDivisor, height/screenSplitDivisor)
+	// Give workspace picker full dimensions
+	e.workspacePicker.SetSize(width, height)
 }
 
 // Capability item types

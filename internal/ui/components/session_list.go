@@ -32,7 +32,7 @@ type SessionListCallbacks struct {
 	OnKill    func(sessionID string)
 	OnDelete  func(sessionID string)
 	OnSwitch  func(sessionID string)
-	OnPreview func(sessionID string) // Called when selection changes
+	OnPreview func(sessionID string) tea.Cmd // Called when selection changes
 }
 
 // SessionList is a scrollable list of active sessions.
@@ -146,7 +146,8 @@ func (s *SessionList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 
 	// Handle selection change
 	if s.list.Index() != prevIndex {
-		s.handleSelectionChange()
+		pCmd := s.handleSelectionChange()
+		cmd = tea.Batch(cmd, pCmd)
 	}
 
 	// Handle key events
@@ -157,12 +158,13 @@ func (s *SessionList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	return s, cmd
 }
 
-func (s *SessionList) handleSelectionChange() {
+func (s *SessionList) handleSelectionChange() tea.Cmd {
 	if sel, ok := s.Selected(); ok {
 		if s.callbacks.OnPreview != nil {
-			s.callbacks.OnPreview(sel.ID)
+			return s.callbacks.OnPreview(sel.ID)
 		}
 	}
+	return nil
 }
 
 func (s *SessionList) handleKey(keyMsg tea.KeyMsg) {

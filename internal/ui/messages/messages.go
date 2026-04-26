@@ -101,6 +101,17 @@ type SessionSelectedMsg struct {
 	Session session.Snapshot
 }
 
+// SessionPreviewRequestedMsg signals that a specific session should be previewed immediately.
+type SessionPreviewRequestedMsg struct {
+	SessionID string
+}
+
+// SessionOutputMsg signals that new output has been received for a session.
+type SessionOutputMsg struct {
+	SessionID string
+	Output    []byte
+}
+
 // SessionAttachRequestedMsg signals user wants to attach to session.
 type SessionAttachRequestedMsg struct {
 	SessionID string
@@ -168,6 +179,7 @@ type DataLoadedMsg struct {
 
 	PreviewSessionID  string
 	PreviewScrollback []byte
+	IsIncremental     bool
 }
 
 // DataReceiver is an interface for components that can receive data updates.

@@ -41,6 +41,9 @@ type Coordinator struct {
 	err    error
 
 	ideConfig config.IDEConfig
+
+	previewSubChan   chan []byte
+	previewSessionID string
 }
 
 func NewCoordinator(repo config.Repository, sm *session.Manager) *Coordinator {
@@ -160,6 +163,28 @@ func (c *Coordinator) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case messages.DataLoadedMsg:
 		c.broadcastData(m)
+		// If the dashboard auto-selected a session (e.g. on first launch), subscribe immediately
+		if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+			id := dashboard.PreviewSessionID()
+			if id != "" && id != c.previewSessionID {
+				return c, c.handlePreviewRequest(id)
+			}
+		}
+		return c, nil
+
+	case messages.SessionPreviewRequestedMsg:
+		return c, c.handlePreviewRequest(m.SessionID)
+
+	case messages.SessionOutputMsg:
+		// Only forward if it's the currently previewed session
+		if m.SessionID == c.previewSessionID {
+			c.broadcastData(messages.DataLoadedMsg{
+				PreviewSessionID:  m.SessionID,
+				PreviewScrollback: m.Output,
+				IsIncremental:     true,
+			})
+			return c, c.waitForOutput(m.SessionID, c.previewSubChan)
+		}
 		return c, nil
 
 	case messages.NavigateMsg:
@@ -239,6 +264,12 @@ func (c *Coordinator) updateCurrentView(msg tea.Msg) (component.Model, tea.Cmd) 
 }
 
 func (c *Coordinator) navigateTo(vt ViewType) tea.Cmd {
+	if c.currentView == ViewDashboard && vt != ViewDashboard {
+		if c.previewSubChan != nil {
+			c.session.UnsubscribeOutput(c.previewSessionID, c.previewSubChan)
+			c.previewSubChan = nil
+		}
+	}
 	c.prevView = c.currentView
 	c.currentView = vt
 	c.err = nil
@@ -291,6 +322,45 @@ func (c *Coordinator) broadcastData(msg messages.DataLoadedMsg) {
 	for _, view := range c.views {
 		if dataReceiver, ok := view.(messages.DataReceiver); ok {
 			dataReceiver.SetData(msg)
+		}
+	}
+}
+
+func (c *Coordinator) handlePreviewRequest(sessionID string) tea.Cmd {
+	// Unsubscribe from old session
+	if c.previewSubChan != nil {
+		c.session.UnsubscribeOutput(c.previewSessionID, c.previewSubChan)
+		c.previewSubChan = nil
+	}
+
+	c.previewSessionID = sessionID
+
+	// Immediate scrollback fetch
+	scrollback := c.session.GetScrollback(sessionID)
+	c.broadcastData(messages.DataLoadedMsg{
+		PreviewSessionID:  sessionID,
+		PreviewScrollback: scrollback,
+	})
+
+	// Subscribe to new session
+	ch, err := c.session.SubscribeOutput(sessionID)
+	if err == nil {
+		c.previewSubChan = ch
+		return c.waitForOutput(sessionID, ch)
+	}
+
+	return nil
+}
+
+func (c *Coordinator) waitForOutput(id string, ch chan []byte) tea.Cmd {
+	return func() tea.Msg {
+		output, ok := <-ch
+		if !ok {
+			return nil
+		}
+		return messages.SessionOutputMsg{
+			SessionID: id,
+			Output:    output,
 		}
 	}
 }

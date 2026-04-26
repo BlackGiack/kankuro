@@ -82,14 +82,43 @@ func (m *WorkspacePickerModal) Cancelled() bool { return m.cancelled }
 
 func (m *WorkspacePickerModal) Init() tea.Cmd { return nil }
 
+func (m *WorkspacePickerModal) SetSize(width, height int) {
+	m.Base.SetSize(width, height)
+	// Adjust list size to fit within the box and leave room for help/search
+	m.list.SetSize(width-widthPadding*2-4, height-heightPadding*2-8)
+}
+
 func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		// Intercept 'q' to prevent quitting
+		if keyMsg.String() == "q" {
+			return m, nil
+		}
+
 		switch keyMsg.String() {
 		case keyEnter:
 			m.confirmed = true
 			return m, nil
 		case keyEsc:
+			if m.searchQuery != "" {
+				m.searchQuery = ""
+				m.refreshItems()
+				return m, nil
+			}
 			m.cancelled = true
+			return m, nil
+		case keyBackspace:
+			if len(m.searchQuery) > 0 {
+				m.searchQuery = m.searchQuery[:len(m.searchQuery)-1]
+				m.refreshItems()
+			}
+			return m, nil
+		}
+
+		// Handle search input
+		if len(keyMsg.Runes) > 0 {
+			m.searchQuery += string(keyMsg.Runes)
+			m.refreshItems()
 			return m, nil
 		}
 	}
@@ -104,9 +133,28 @@ func (m *WorkspacePickerModal) View() string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#8E44AD")).
 		Padding(heightPadding, widthPadding).
-		Width(workspacePickerDialogWidth)
+		Width(m.Width).
+		Height(m.Height)
 
-	return boxStyle.Render(m.list.View())
+	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	help := "Enter=select • Esc=back • Type to search"
+	if m.searchQuery != "" {
+		help = "Enter=select • Esc=clear search • Type to search"
+	}
+
+	searchDisplay := ""
+	if m.searchQuery != "" {
+		searchDisplay = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#ADF")).
+			Render("\nSearch: " + m.searchQuery)
+	}
+
+	return boxStyle.Render(
+		m.list.View() +
+			searchDisplay +
+			"\n\n" +
+			helpStyle.Render(help),
+	)
 }
 
 func (m *WorkspacePickerModal) refreshItems() {

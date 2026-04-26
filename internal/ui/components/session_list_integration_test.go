@@ -23,8 +23,9 @@ func TestSessionListIntegration(t *testing.T) {
 			selectedID = s.ID
 			return nil
 		},
-		OnPreview: func(sessionID string) {
+		OnPreview: func(sessionID string) tea.Cmd {
 			previews = append(previews, sessionID)
+			return nil
 		},
 	})
 

@@ -99,6 +99,14 @@ func (p *SessionPreview) SetScrollback(data []byte) {
 	p.scrollback = data
 }
 
+// AppendScrollback appends data to the scrollback buffer.
+func (p *SessionPreview) AppendScrollback(data []byte) {
+	p.scrollback = append(p.scrollback, data...)
+	if len(p.scrollback) > PreviewMaxScrollbackBytes {
+		p.scrollback = p.scrollback[len(p.scrollback)-PreviewMaxScrollbackBytes:]
+	}
+}
+
 // SetSessionByID sets the session by ID (requires separate SetSession call).
 func (p *SessionPreview) SetSessionByID(sessionID string) {
 	p.sessionID = sessionID

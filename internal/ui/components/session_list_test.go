@@ -24,7 +24,7 @@ func TestSessionList_New(t *testing.T) {
 		OnKill:    func(string) {},
 		OnDelete:  func(string) {},
 		OnSwitch:  func(string) {},
-		OnPreview: func(string) {},
+		OnPreview: func(string) tea.Cmd { return nil },
 	}
 
 	sl := components.NewSessionList(callbacks)

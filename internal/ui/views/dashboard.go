@@ -128,7 +128,11 @@ func NewDashboard(callbacks DashboardCallbacks, cmds *commands.Commands) *Dashbo
 		OnKill:    func(_ string) {},
 		OnDelete:  func(_ string) {},
 		OnSwitch:  func(_ string) {},
-		OnPreview: func(_ string) {},
+		OnPreview: func(sessionID string) tea.Cmd {
+			return func() tea.Msg {
+				return messages.SessionPreviewRequestedMsg{SessionID: sessionID}
+			}
+		},
 	})
 
 	return d
@@ -136,20 +140,39 @@ func NewDashboard(callbacks DashboardCallbacks, cmds *commands.Commands) *Dashbo
 
 // SetData updates all child components with fresh data.
 func (d *Dashboard) SetData(msg messages.DataLoadedMsg) {
-	d.cards = msg.Cards
-	d.sessions = msg.Sessions
-	d.skills = msg.Skills
-	d.personas = msg.Personas
-	d.mcps = msg.MCPs
-
-	d.cardList.SetCards(d.cards, d.skills, d.personas)
-	d.sessionList.SetSessions(d.sessions, d.cards)
+	if msg.Cards != nil {
+		d.cards = msg.Cards
+		d.cardList.SetCards(d.cards, d.skills, d.personas)
+	}
+	if msg.Sessions != nil {
+		d.sessions = msg.Sessions
+		d.sessionList.SetSessions(d.sessions, d.cards)
+	}
+	if msg.Skills != nil {
+		d.skills = msg.Skills
+		if msg.Cards != nil {
+			d.cardList.SetCards(d.cards, d.skills, d.personas)
+		}
+	}
+	if msg.Personas != nil {
+		d.personas = msg.Personas
+		if msg.Cards != nil {
+			d.cardList.SetCards(d.cards, d.skills, d.personas)
+		}
+	}
+	if msg.MCPs != nil {
+		d.mcps = msg.MCPs
+	}
 
 	d.syncPreviewSelection()
 
 	// Update scrollback if it matches current preview
 	if msg.PreviewSessionID != "" && msg.PreviewSessionID == d.preview.SessionID() {
-		d.preview.SetScrollback(msg.PreviewScrollback)
+		if msg.IsIncremental {
+			d.preview.AppendScrollback(msg.PreviewScrollback)
+		} else {
+			d.preview.SetScrollback(msg.PreviewScrollback)
+		}
 	}
 }
 
