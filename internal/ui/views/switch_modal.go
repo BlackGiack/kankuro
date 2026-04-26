@@ -23,9 +23,9 @@ type SwitchModal struct {
 // NewSwitchModal creates a new switch modal.
 func NewSwitchModal() *SwitchModal {
 	delegate := list.NewDefaultDelegate()
-	delegate.SetHeight(4)
+	delegate.SetHeight(switchModalDelegateHeight)
 
-	l := list.New([]list.Item{}, delegate, 40, 10)
+	l := list.New([]list.Item{}, delegate, switchModalWidth, switchModalHeight)
 	l.SetShowTitle(true)
 	l.Title = "Select New Agent"
 	l.SetShowStatusBar(false)
@@ -86,6 +86,16 @@ func (m *SwitchModal) SelectedCardID() string {
 	return ""
 }
 
+// List returns the underlying list model.
+func (m *SwitchModal) List() *list.Model {
+	return &m.list
+}
+
+// Select selects the item at the given index.
+func (m *SwitchModal) Select(index int) {
+	m.list.Select(index)
+}
+
 // Init initializes the modal.
 func (m *SwitchModal) Init() bubbletea.Cmd {
 	return nil
@@ -96,11 +106,11 @@ func (m *SwitchModal) Update(msg bubbletea.Msg) (component.Model, bubbletea.Cmd)
 	// Handle modal-level keys first
 	if keyMsg, ok := msg.(bubbletea.KeyMsg); ok {
 		switch keyMsg.String() {
-		case "enter":
+		case keyEnter:
 			m.confirmed = true
 			m.Close()
 			return m, nil
-		case "esc":
+		case keyEsc:
 			m.cancelled = true
 			m.Close()
 			return m, nil
@@ -118,8 +128,8 @@ func (m *SwitchModal) View() string {
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#8E44AD")).
-		Padding(1, 2).
-		Width(50)
+		Padding(heightPadding, widthPadding).
+		Width(switchModalDialogWidth)
 
 	return boxStyle.Render(m.list.View())
 }

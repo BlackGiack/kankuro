@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"kankuro/internal/config"
 	"kankuro/internal/session"
 	"kankuro/internal/ui/components"
@@ -17,8 +19,9 @@ func TestSessionListIntegration(t *testing.T) {
 	var previews []string
 
 	sl := components.NewSessionList(components.SessionListCallbacks{
-		OnSelect: func(s session.Snapshot) {
+		OnSelect: func(s session.Snapshot) tea.Cmd {
 			selectedID = s.ID
+			return nil
 		},
 		OnPreview: func(sessionID string) {
 			previews = append(previews, sessionID)

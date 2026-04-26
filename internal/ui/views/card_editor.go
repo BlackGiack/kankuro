@@ -4,12 +4,13 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
-	bubbletea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
+	"kankuro/internal/ui/messages"
 )
 
 // Focus indices for the card form.
@@ -25,17 +26,32 @@ const (
 	FocusSkills
 	FocusPersonas
 	FocusMCPs
+)
 
-	FocusCount = 11
+const (
+	screenSplitDivisor = 2
+)
+
+// FocusCount is the total number of focusable elements.
+const FocusCount = 11
+
+// Focus field constants for card editor layout.
+const (
+	faceStyleIndex = 3
+	useTmpIndex    = 4
+
+	// UI constants.
+	hPadding = 2
+	vPadding = 1
 )
 
 // CardEditorCallbacks defines callbacks for card editor actions.
 type CardEditorCallbacks struct {
-	OnSave           func(card config.IDCard) (config.IDCard, error)
-	OnCancel         func()
-	OnOpenSources    func(sourceType string)
-	OnOpenMCPForm    func()
-	OnOpenWorkspaces func()
+	OnSave           func(card config.IDCard) (config.IDCard, tea.Cmd, error)
+	OnCancel         func() tea.Cmd
+	OnOpenSources    func(sourceType string) tea.Cmd
+	OnOpenMCPForm    func() tea.Cmd
+	OnOpenWorkspaces func() tea.Cmd
 }
 
 // CardEditor is the form for creating/editing ID cards.
@@ -79,10 +95,17 @@ type AgentsMDState struct {
 	PreferPath bool
 }
 
+const (
+	inputCount     = 5
+	maxVisibleCaps = 5
+	inputWidth     = 60
+	summaryLimit   = 27
+)
+
 // NewCardEditor creates a new card editor.
 func NewCardEditor(callbacks CardEditorCallbacks, cmds *commands.Commands) *CardEditor {
 	// Initialize text inputs
-	inputs := make([]textinput.Model, 5)
+	inputs := make([]textinput.Model, inputCount)
 	placeholders := []string{
 		"Card name...",
 		"Driver (e.g., claude, gemini)...",
@@ -93,26 +116,26 @@ func NewCardEditor(callbacks CardEditorCallbacks, cmds *commands.Commands) *Card
 	for i := range inputs {
 		inputs[i] = textinput.New()
 		inputs[i].Placeholder = placeholders[i]
-		inputs[i].Width = 60
+		inputs[i].Width = inputWidth
 	}
 
 	// Initialize capability lists
 	skillList := NewCapabilityList(CapabilityListConfig{
 		Title:      "Skills",
 		SourceHint: "ctrl+e=sources",
-		MaxVisible: 5,
+		MaxVisible: maxVisibleCaps,
 	})
 
 	personaList := NewCapabilityList(CapabilityListConfig{
 		Title:      "Personas",
 		SourceHint: "ctrl+e=sources",
-		MaxVisible: 5,
+		MaxVisible: maxVisibleCaps,
 	})
 
 	mcpList := NewCapabilityList(CapabilityListConfig{
 		Title:      "MCPs",
 		SourceHint: "ctrl+e=add",
-		MaxVisible: 5,
+		MaxVisible: maxVisibleCaps,
 	})
 
 	return &CardEditor{
@@ -129,6 +152,22 @@ func NewCardEditor(callbacks CardEditorCallbacks, cmds *commands.Commands) *Card
 	}
 }
 
+func (e *CardEditor) SkillList() *CapabilityList { return e.skillList }
+
+func (e *CardEditor) Workspaces() []config.Workspace { return e.workspaces }
+
+func (e *CardEditor) WorkspaceID() string               { return e.workspaceID }
+func (e *CardEditor) SetWorkspaceID(workspaceID string) { e.workspaceID = workspaceID }
+
+func (e *CardEditor) Puppet() string          { return e.puppet }
+func (e *CardEditor) SetPuppet(puppet string) { e.puppet = puppet }
+
+func (e *CardEditor) EditingID() string { return e.editingID }
+
+func (e *CardEditor) FocusIndex() int { return e.focusIndex }
+
+func (e *CardEditor) Inputs() []textinput.Model { return e.inputs }
+
 // SetCard populates the form for editing an existing card.
 func (e *CardEditor) SetCard(card config.IDCard) {
 	e.editingID = card.ID
@@ -139,7 +178,7 @@ func (e *CardEditor) SetCard(card config.IDCard) {
 	e.inputs[3].SetValue(card.FaceStyle)
 	e.puppet = card.Puppet
 	if e.puppet == "" {
-		e.puppet = "kankuro"
+		e.puppet = defaultPuppetStyle
 	}
 	tmpVal := "n"
 	if card.UseTmpWorkspace {
@@ -176,37 +215,32 @@ func (e *CardEditor) Reset() {
 }
 
 // SetData sets the available options.
-func (e *CardEditor) SetData(
-	workspaces []config.Workspace,
-	skills []config.Skill,
-	personas []config.Persona,
-	mcps []config.MCPServer,
-) {
-	e.workspaces = workspaces
-	e.skills = skills
-	e.personas = personas
-	e.mcps = mcps
+func (e *CardEditor) SetData(msg messages.DataLoadedMsg) {
+	e.workspaces = msg.Workspaces
+	e.skills = msg.Skills
+	e.personas = msg.Personas
+	e.mcps = msg.MCPs
 
 	// Convert to capability items
-	skillItems := make([]CapabilityItem, len(skills))
-	for i, s := range skills {
-		skillItems[i] = skillItem{skill: s}
+	skillItems := make([]CapabilityItem, len(e.skills))
+	for i, s := range e.skills {
+		skillItems[i] = SkillItem{Skill: s}
 	}
 	e.skillList.SetItems(skillItems)
 
-	personaItems := make([]CapabilityItem, len(personas))
-	for i, p := range personas {
+	personaItems := make([]CapabilityItem, len(e.personas))
+	for i, p := range e.personas {
 		personaItems[i] = personaItem{persona: p}
 	}
 	e.personaList.SetItems(personaItems)
 
-	mcpItems := make([]CapabilityItem, len(mcps))
-	for i, m := range mcps {
+	mcpItems := make([]CapabilityItem, len(e.mcps))
+	for i, m := range e.mcps {
 		mcpItems[i] = mcpItem{mcp: m}
 	}
 	e.mcpList.SetItems(mcpItems)
 
-	e.workspacePicker.SetWorkspaces(workspaces)
+	e.workspacePicker.SetWorkspaces(e.workspaces)
 }
 
 // Card returns the current card data.
@@ -230,12 +264,28 @@ func (e *CardEditor) Card() config.IDCard {
 }
 
 // Init initializes the editor.
-func (e *CardEditor) Init() bubbletea.Cmd {
+func (e *CardEditor) Init() tea.Cmd {
 	return nil
 }
 
 // Update handles messages.
-func (e *CardEditor) Update(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) {
+func (e *CardEditor) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+	// Handle data refresh messages
+	switch msg := msg.(type) {
+	case messages.MCPDeletedMsg:
+		// Remove the deleted MCP from selection
+		delete(e.mcpList.selected, msg.MCPID)
+		// Adjust cursor if needed
+		if e.mcpList.Cursor() >= len(e.mcpList.items) && e.mcpList.Cursor() > 0 {
+			e.mcpList.SetCursor(e.mcpList.Cursor() - 1)
+		}
+		return e, nil
+
+	case messages.MCPUpdatedMsg:
+		// MCP list will be refreshed via DataLoadedMsg
+		return e, nil
+	}
+
 	// Handle modals first
 	if e.workspacePicker.IsOpen() {
 		return e.updateWorkspacePicker(msg)
@@ -248,7 +298,7 @@ func (e *CardEditor) Update(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) 
 	}
 
 	// Handle key events
-	if keyMsg, ok := msg.(bubbletea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		if cmd, handled := e.handleKey(keyMsg); handled {
 			return e, cmd
 		}
@@ -259,23 +309,26 @@ func (e *CardEditor) Update(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) 
 }
 
 // handleKey processes global key events.
-func (e *CardEditor) handleKey(keyMsg bubbletea.KeyMsg) (bubbletea.Cmd, bool) {
+func (e *CardEditor) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 	switch keyMsg.String() {
-	case "ctrl+c":
-		return bubbletea.Quit, true
+	case keyCtrlC:
+		return tea.Quit, true
 
-	case "esc":
+	case keyEsc:
 		e.handleEscape()
+		if e.callbacks.OnCancel != nil {
+			return e.callbacks.OnCancel(), true
+		}
 		return nil, true
 
-	case "tab":
+	case keyTab:
 		e.clearSearches()
-		e.cycleFocus(1)
+		e.CycleFocus(1)
 		return nil, true
 
 	case "shift+tab":
 		e.clearSearches()
-		e.cycleFocus(-1)
+		e.CycleFocus(-1)
 		return nil, true
 
 	case "up":
@@ -289,18 +342,16 @@ func (e *CardEditor) handleKey(keyMsg bubbletea.KeyMsg) (bubbletea.Cmd, bool) {
 	case " ":
 		return nil, e.handleSpace()
 
-	case "enter":
-		e.handleSubmit()
-		return nil, true
+	case keyEnter:
+		return e.handleSubmit(), true
 
 	case "delete", "del":
 		if e.focusIndex == FocusMCPs {
-			e.deleteSelectedMCP()
-			return nil, true
+			return e.deleteSelectedMCP(), true
 		}
 
 	case "ctrl+e":
-		return nil, e.handleCtrlE()
+		return e.handleCtrlE()
 	}
 
 	return nil, false
@@ -325,11 +376,6 @@ func (e *CardEditor) handleEscape() {
 			e.mcpList.SetSearchQuery("")
 			return
 		}
-	}
-
-	// Otherwise cancel
-	if e.callbacks.OnCancel != nil {
-		e.callbacks.OnCancel()
 	}
 }
 
@@ -370,28 +416,28 @@ func (e *CardEditor) handleSpace() bool {
 }
 
 // handleCtrlE handles ctrl+e for opening source editors.
-func (e *CardEditor) handleCtrlE() bool {
+func (e *CardEditor) handleCtrlE() (tea.Cmd, bool) {
 	switch e.focusIndex {
 	case FocusSkills:
 		if e.callbacks.OnOpenSources != nil {
-			e.callbacks.OnOpenSources("skills")
+			return e.callbacks.OnOpenSources("skills"), true
 		}
-		return true
+		return nil, true
 
 	case FocusPersonas:
 		if e.callbacks.OnOpenSources != nil {
-			e.callbacks.OnOpenSources("personas")
+			return e.callbacks.OnOpenSources("personas"), true
 		}
-		return true
+		return nil, true
 
 	case FocusMCPs:
 		if e.callbacks.OnOpenMCPForm != nil {
-			e.callbacks.OnOpenMCPForm()
+			return e.callbacks.OnOpenMCPForm(), true
 		}
-		return true
+		return nil, true
 	}
 
-	return false
+	return nil, false
 }
 
 // handleNav handles up/down navigation.
@@ -424,21 +470,27 @@ func (e *CardEditor) handleNav(down bool) {
 }
 
 // handleSubmit saves the card.
-func (e *CardEditor) handleSubmit() {
+func (e *CardEditor) handleSubmit() tea.Cmd {
 	card := e.Card()
 
 	if e.callbacks.OnSave != nil {
-		_, err := e.callbacks.OnSave(card)
+		_, cmd, err := e.callbacks.OnSave(card)
 		if err != nil {
 			// Emit error message
-			return
+			return func() tea.Msg {
+				return messages.ErrorMsg{Err: err}
+			}
+		}
+		if cmd != nil {
+			return cmd
 		}
 	}
 
 	e.editingID = ""
 	if e.callbacks.OnCancel != nil {
-		e.callbacks.OnCancel()
+		return e.callbacks.OnCancel()
 	}
+	return nil
 }
 
 // clearSearches clears all search queries.
@@ -448,8 +500,8 @@ func (e *CardEditor) clearSearches() {
 	e.mcpList.SetSearchQuery("")
 }
 
-// cycleFocus moves focus forward or backward.
-func (e *CardEditor) cycleFocus(dir int) {
+// CycleFocus moves focus forward or backward.
+func (e *CardEditor) CycleFocus(dir int) {
 	e.focusIndex = (e.focusIndex + dir + FocusCount) % FocusCount
 	e.setFocus(e.focusIndex)
 }
@@ -478,88 +530,86 @@ func (e *CardEditor) mapFocusToInput(index int) int {
 	case FocusName, FocusDriver, FocusModel:
 		return index
 	case FocusFaceStyle:
-		return 3
+		return faceStyleIndex
 	case FocusUseTmp:
-		return 4
+		return useTmpIndex
 	default:
 		return -1
 	}
 }
 
 // updateFocusedInput routes update to the focused element.
-func (e *CardEditor) updateFocusedInput(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) {
-	var cmd bubbletea.Cmd
-
+func (e *CardEditor) updateFocusedInput(msg tea.Msg) (component.Model, tea.Cmd) {
 	switch e.focusIndex {
 	case FocusSkills:
-		// Handle search input
-		if keyMsg, ok := msg.(bubbletea.KeyMsg); ok {
-			if len(keyMsg.Runes) > 0 {
-				ch := keyMsg.Runes[0]
-				if ch >= 33 && ch <= 126 {
-					e.skillList.SetSearchQuery(e.skillList.searchQuery + string(ch))
-					return e, nil
-				}
-			}
-			if keyMsg.String() == "backspace" {
-				if len(e.skillList.searchQuery) > 0 {
-					e.skillList.SetSearchQuery(e.skillList.searchQuery[:len(e.skillList.searchQuery)-1])
-				}
-				return e, nil
-			}
-		}
-		_, cmd = e.skillList.Update(msg)
-
+		return e, e.updateSkillList(msg)
 	case FocusPersonas:
-		if keyMsg, ok := msg.(bubbletea.KeyMsg); ok {
-			if len(keyMsg.Runes) > 0 {
-				ch := keyMsg.Runes[0]
-				if ch >= 33 && ch <= 126 {
-					e.personaList.SetSearchQuery(e.personaList.searchQuery + string(ch))
-					return e, nil
-				}
-			}
-			if keyMsg.String() == "backspace" {
-				if len(e.personaList.searchQuery) > 0 {
-					e.personaList.SetSearchQuery(e.personaList.searchQuery[:len(e.personaList.searchQuery)-1])
-				}
-				return e, nil
-			}
-		}
-		_, cmd = e.personaList.Update(msg)
-
+		return e, e.updatePersonaList(msg)
 	case FocusMCPs:
-		if keyMsg, ok := msg.(bubbletea.KeyMsg); ok {
-			if len(keyMsg.Runes) > 0 {
-				ch := keyMsg.Runes[0]
-				if ch >= 33 && ch <= 126 {
-					e.mcpList.SetSearchQuery(e.mcpList.searchQuery + string(ch))
-					return e, nil
-				}
-			}
-			if keyMsg.String() == "backspace" {
-				if len(e.mcpList.searchQuery) > 0 {
-					e.mcpList.SetSearchQuery(e.mcpList.searchQuery[:len(e.mcpList.searchQuery)-1])
-				}
-				return e, nil
-			}
-		}
-		_, cmd = e.mcpList.Update(msg)
-
+		return e, e.updateMCPList(msg)
 	default:
-		// Update text inputs
-		cmds := make([]bubbletea.Cmd, len(e.inputs))
-		for i := range e.inputs {
-			e.inputs[i], cmds[i] = e.inputs[i].Update(msg)
-		}
-		cmd = bubbletea.Batch(cmds...)
+		return e, e.updateInputs(msg)
 	}
+}
 
-	return e, cmd
+func (e *CardEditor) updateSkillList(msg tea.Msg) tea.Cmd {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if e.handleListSearch(e.skillList, keyMsg) {
+			return nil
+		}
+	}
+	_, cmd := e.skillList.Update(msg)
+	return cmd
+}
+
+func (e *CardEditor) updatePersonaList(msg tea.Msg) tea.Cmd {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if e.handleListSearch(e.personaList, keyMsg) {
+			return nil
+		}
+	}
+	_, cmd := e.personaList.Update(msg)
+	return cmd
+}
+
+func (e *CardEditor) updateMCPList(msg tea.Msg) tea.Cmd {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if e.handleListSearch(e.mcpList, keyMsg) {
+			return nil
+		}
+	}
+	_, cmd := e.mcpList.Update(msg)
+	return cmd
+}
+
+func (e *CardEditor) handleListSearch(list *CapabilityList, keyMsg tea.KeyMsg) bool {
+	if len(keyMsg.Runes) > 0 {
+		ch := keyMsg.Runes[0]
+		if ch >= 33 && ch <= 126 {
+			list.SetSearchQuery(list.searchQuery + string(ch))
+			return true
+		}
+	}
+	if keyMsg.String() == keyBackspace {
+		if len(list.searchQuery) > 0 {
+			list.SetSearchQuery(list.searchQuery[:len(list.searchQuery)-1])
+		}
+		return true
+	}
+	return false
+}
+
+func (e *CardEditor) updateInputs(msg tea.Msg) tea.Cmd {
+	// Update text inputs
+	cmds := make([]tea.Cmd, len(e.inputs))
+	for i := range e.inputs {
+		e.inputs[i], cmds[i] = e.inputs[i].Update(msg)
+	}
+	return tea.Batch(cmds...)
 }
 
 // updateWorkspacePicker handles workspace picker modal.
-func (e *CardEditor) updateWorkspacePicker(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) {
+func (e *CardEditor) updateWorkspacePicker(msg tea.Msg) (component.Model, tea.Cmd) {
 	model, cmd := e.workspacePicker.Update(msg)
 	e.workspacePicker = model.(*WorkspacePickerModal) //nolint:errcheck,forcetypeassert // safe type assertion
 
@@ -576,7 +626,7 @@ func (e *CardEditor) updateWorkspacePicker(msg bubbletea.Msg) (component.Model, 
 }
 
 // updatePuppetSelector handles puppet selector modal.
-func (e *CardEditor) updatePuppetSelector(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) {
+func (e *CardEditor) updatePuppetSelector(msg tea.Msg) (component.Model, tea.Cmd) {
 	model, cmd := e.puppetSelector.Update(msg)
 	e.puppetSelector = model.(*PuppetSelectorModal) //nolint:errcheck,forcetypeassert // safe type assertion
 
@@ -593,7 +643,7 @@ func (e *CardEditor) updatePuppetSelector(msg bubbletea.Msg) (component.Model, b
 }
 
 // updateAgentsMDEditor handles agents.md editor modal.
-func (e *CardEditor) updateAgentsMDEditor(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) {
+func (e *CardEditor) updateAgentsMDEditor(msg tea.Msg) (component.Model, tea.Cmd) {
 	model, cmd := e.agentsMDEditor.Update(msg)
 	e.agentsMDEditor = model.(*AgentsMDEditorModal) //nolint:errcheck,forcetypeassert // safe type assertion
 
@@ -620,13 +670,15 @@ func (e *CardEditor) autoSelectMCPCLISkill() {
 }
 
 // deleteSelectedMCP deletes the selected MCP.
-func (e *CardEditor) deleteSelectedMCP() {
+func (e *CardEditor) deleteSelectedMCP() tea.Cmd {
 	if item, ok := e.mcpList.SelectedItem(); ok {
 		id := item.GetID()
-		// This should emit a message for App to handle
-		// For now, just remove from selection
-		delete(e.mcpList.selected, id)
+		// Emit message for coordinator to handle
+		return func() tea.Msg {
+			return messages.MCPDeleteRequestedMsg{MCPID: id}
+		}
 	}
+	return nil
 }
 
 // View renders the card editor.
@@ -680,7 +732,7 @@ func (e *CardEditor) renderForm() string {
 
 // renderWorkspaceLine renders the workspace picker line.
 func (e *CardEditor) renderWorkspaceLine() string {
-	summary := e.workspaceSummary()
+	summary := e.WorkspaceSummary()
 	line := "Workspace: " + summary
 
 	if e.focusIndex == FocusWorkspace {
@@ -690,8 +742,8 @@ func (e *CardEditor) renderWorkspaceLine() string {
 	return line
 }
 
-// workspaceSummary returns a summary of the selected workspace.
-func (e *CardEditor) workspaceSummary() string {
+// WorkspaceSummary returns a summary of the selected workspace.
+func (e *CardEditor) WorkspaceSummary() string {
 	if e.workspaceID == "" {
 		return "(none selected)"
 	}
@@ -716,13 +768,15 @@ func (e *CardEditor) renderPuppetLine() string {
 
 // renderAgentsMDRow renders the agents.md options.
 func (e *CardEditor) renderAgentsMDRow() string {
+	const ellipsisLen = 3
 	contentSummary := "empty"
 	if e.agentsMD.Content != "" {
 		lines := strings.Split(e.agentsMD.Content, `\n`)
 		contentSummary = lines[0]
-		if len(lines) > 1 || len(contentSummary) > 27 {
-			if len(contentSummary) > 27 {
-				contentSummary = contentSummary[:24] + "..."
+		if len(lines) > 1 || len(contentSummary) > summaryLimit {
+			if len(contentSummary) > summaryLimit {
+				// Trim content and add ellipsis (3 chars)
+				contentSummary = contentSummary[:summaryLimit-ellipsisLen] + "..."
 			} else {
 				contentSummary += "..."
 			}
@@ -732,8 +786,9 @@ func (e *CardEditor) renderAgentsMDRow() string {
 	pathSummary := "empty"
 	if e.agentsMD.Path != "" {
 		pathSummary = e.agentsMD.Path
-		if len(pathSummary) > 27 {
-			pathSummary = "..." + pathSummary[len(pathSummary)-24:]
+		if len(pathSummary) > summaryLimit {
+			// Trim path and add ellipsis (3 chars)
+			pathSummary = "..." + pathSummary[len(pathSummary)-(summaryLimit-ellipsisLen):]
 		}
 	}
 
@@ -763,28 +818,32 @@ func (e *CardEditor) renderWithOverlay(modalContent string) string {
 	form := e.renderForm()
 
 	overlayStyle := lipgloss.NewStyle().
-		Padding(1, 2)
+		Padding(vPadding, hPadding)
 
 	return form + "\n" + overlayStyle.Render(modalContent)
 }
 
+const capListHeight = 5
+
 // SetSize implements component.Model.
 func (e *CardEditor) SetSize(width, height int) {
 	e.Base.SetSize(width, height)
-	e.skillList.SetSize(width, 5)
-	e.personaList.SetSize(width, 5)
-	e.mcpList.SetSize(width, 5)
+	e.skillList.SetSize(width, capListHeight)
+	e.personaList.SetSize(width, capListHeight)
+	e.mcpList.SetSize(width, capListHeight)
+	// Split screen equally for workspace picker
+	e.workspacePicker.SetSize(width/screenSplitDivisor, height/screenSplitDivisor)
 }
 
 // Capability item types
 
-type skillItem struct {
-	skill config.Skill
+type SkillItem struct {
+	Skill config.Skill
 }
 
-func (i skillItem) GetID() string          { return i.skill.ID }
-func (i skillItem) GetLabel() string       { return i.skill.Name }
-func (i skillItem) GetDescription() string { return i.skill.Description }
+func (i SkillItem) GetID() string          { return i.Skill.ID }
+func (i SkillItem) GetLabel() string       { return i.Skill.Name }
+func (i SkillItem) GetDescription() string { return i.Skill.Description }
 
 type personaItem struct {
 	persona config.Persona

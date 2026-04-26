@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"kankuro/internal/session"
+	"kankuro/internal/ui/messages"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -44,11 +45,11 @@ var (
 	errDetach = errors.New("detach")
 )
 
-func (a *App) attachSession(id string) tea.Cmd {
-	handle, err := a.session.Attach(id)
+func (c *Coordinator) attachSession(id string) tea.Cmd {
+	handle, err := c.session.Attach(id)
 	if err != nil {
 		return func() tea.Msg {
-			return attachFinishedMsg{sessionID: id, err: err}
+			return messages.AttachFinishedMsg{SessionID: id, Err: err}
 		}
 	}
 
@@ -57,7 +58,7 @@ func (a *App) attachSession(id string) tea.Cmd {
 		handle:    handle,
 	}
 	return tea.Exec(cmd, func(err error) tea.Msg {
-		return attachFinishedMsg{sessionID: id, err: err}
+		return messages.AttachFinishedMsg{SessionID: id, Err: err}
 	})
 }
 
@@ -94,7 +95,6 @@ func (e *attachExec) Run() error {
 		// This restores the terminal to the "classic" state
 		// that Kankuro's Bubble Tea dashboard expects.
 		_, _ = e.stdout.Write([]byte("\x1b[<1u"))
-		// _, _ = e.stdout.Write([]byte("\x1b[<1u"))
 
 		_ = cterm.Restore(stdinFile.Fd(), oldState)
 	}()
@@ -114,6 +114,10 @@ func (e *attachExec) Run() error {
 
 	return e.pumpInput(stdinFile, resizeCh, writeErr)
 }
+
+const (
+	primaryColor = lipgloss.Color("#8E44AD")
+)
 
 func (e *attachExec) printHeader() error {
 	msg := fmt.Sprintf("\r\n[Attached to session %s. Ctrl+K detaches.]\r\n", e.sessionID)

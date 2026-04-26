@@ -62,7 +62,7 @@ func (m *Modal) Init() tea.Cmd {
 }
 
 // Update handles modal key events.
-func (m *Modal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+func (m *Modal) Update(_ tea.Msg) (component.Model, tea.Cmd) {
 	// Key handling is done by parent view
 	// Modal just renders and exposes Open/Close/IsOpen
 	return m, nil
@@ -74,11 +74,11 @@ func (m *Modal) View() string {
 		return ""
 	}
 
-	boxStyle := lipgloss.NewStyle().
+	dialog := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#8E44AD")).
-		Padding(1, 2).
-		Width(50)
+		Padding(modalPaddingHeight, modalPaddingWidth).
+		Width(modalWidth)
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
@@ -89,5 +89,5 @@ func (m *Modal) View() string {
 		content += "\n\n" + m.content
 	}
 
-	return boxStyle.Render(content)
+	return dialog.Render(content)
 }

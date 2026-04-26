@@ -13,7 +13,7 @@ import (
 	"kankuro/internal/ui/component"
 )
 
-// Card styling constants.
+// Card styling .
 const (
 	CardDelegateHeight = 8
 	CardItemWidth      = 42
@@ -43,8 +43,8 @@ func (c CardListItem) FilterValue() string {
 
 // CardListCallbacks defines callbacks for card actions.
 type CardListCallbacks struct {
-	OnSelect func(config.IDCard)
-	OnEdit   func(config.IDCard)
+	OnSelect func(config.IDCard) tea.Cmd
+	OnEdit   func(config.IDCard) tea.Cmd
 	OnDelete func(string)
 }
 
@@ -115,29 +115,35 @@ func (c *CardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 
 	// Handle selection events
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.String() {
-		case "enter":
-			if card, ok2 := c.Selected(); ok2 {
-				if c.callbacks.OnSelect != nil {
-					c.callbacks.OnSelect(card)
-				}
-			}
-		case "e":
-			if card, ok2 := c.Selected(); ok2 {
-				if c.callbacks.OnEdit != nil {
-					c.callbacks.OnEdit(card)
-				}
-			}
-		case "delete", "backspace":
-			if card, ok2 := c.Selected(); ok2 {
-				if c.callbacks.OnDelete != nil {
-					c.callbacks.OnDelete(card.ID)
-				}
-			}
-		}
+		keyCmd := c.handleKey(keyMsg)
+		return c, tea.Batch(cmd, keyCmd)
 	}
 
 	return c, cmd
+}
+
+func (c *CardList) handleKey(keyMsg tea.KeyMsg) tea.Cmd {
+	switch keyMsg.String() {
+	case "enter":
+		if card, ok := c.Selected(); ok {
+			if c.callbacks.OnSelect != nil {
+				return c.callbacks.OnSelect(card)
+			}
+		}
+	case "e":
+		if card, ok := c.Selected(); ok {
+			if c.callbacks.OnEdit != nil {
+				return c.callbacks.OnEdit(card)
+			}
+		}
+	case "delete", "backspace":
+		if card, ok := c.Selected(); ok {
+			if c.callbacks.OnDelete != nil {
+				c.callbacks.OnDelete(card.ID)
+			}
+		}
+	}
+	return nil
 }
 
 // View renders the card list.
@@ -149,6 +155,21 @@ func (c *CardList) View() string {
 func (c *CardList) SetSize(width, height int) {
 	c.Base.SetSize(width, height)
 	c.list.SetSize(width, height)
+}
+
+// Cards returns the underlying cards.
+func (c *CardList) Cards() []config.IDCard {
+	return c.cards
+}
+
+// FilteredCards returns the currently filtered cards.
+func (c *CardList) FilteredCards() []config.IDCard {
+	return c.filterCards()
+}
+
+// Select selects the item at the given index.
+func (c *CardList) Select(index int) {
+	c.list.Select(index)
 }
 
 // refreshItems rebuilds the list items from filtered cards.

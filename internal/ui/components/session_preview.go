@@ -13,7 +13,7 @@ import (
 	"kankuro/internal/ui/component"
 )
 
-// Preview layout constants.
+// Preview layout .
 const (
 	PreviewIDLabelPrefixLen   = 4
 	PreviewCardLabelPrefixLen = 6
@@ -24,6 +24,10 @@ const (
 	HeaderHeight = 2 // title + margin
 	FooterHeight = 1
 	WidthBorders = 6
+
+	previewTruncateLimit = 25
+	scrollbackHeightAdj  = 2
+	lineTruncateAdj      = 5
 )
 
 // Regex patterns for text sanitization.
@@ -44,22 +48,22 @@ var (
 
 // Status badge styles.
 var (
-	StatusRunningStyle = lipgloss.NewStyle().
+	StatusRunningStyle = lipgloss.NewStyle(). //nolint:gochecknoglobals // UI style definitions
 				Foreground(ColorWhite).
 				Background(ColorHighlight).
 				Padding(0, 1)
 
-	StatusWaitingStyle = lipgloss.NewStyle().
+	StatusWaitingStyle = lipgloss.NewStyle(). //nolint:gochecknoglobals // UI style definitions
 				Foreground(ColorWhite).
 				Background(ColorHotPink).
 				Padding(0, 1)
 
-	StatusTerminatedStyle = lipgloss.NewStyle().
+	StatusTerminatedStyle = lipgloss.NewStyle(). //nolint:gochecknoglobals // UI style definitions
 				Foreground(ColorWhite).
 				Background(ColorGray).
 				Padding(0, 1)
 
-	TitleStyle = lipgloss.NewStyle().
+	TitleStyle = lipgloss.NewStyle(). //nolint:gochecknoglobals // UI style definitions
 			Bold(true).
 			Foreground(ColorPrimary)
 )
@@ -113,13 +117,28 @@ func (p *SessionPreview) SessionID() string {
 	return p.sessionID
 }
 
+// Snapshot returns the current session snapshot.
+func (p *SessionPreview) Snapshot() *session.Snapshot {
+	return p.snapshot
+}
+
+// Card returns the current ID card.
+func (p *SessionPreview) Card() *config.IDCard {
+	return p.card
+}
+
+// Scrollback returns the current scrollback data.
+func (p *SessionPreview) Scrollback() []byte {
+	return p.scrollback
+}
+
 // Init initializes the component.
 func (p *SessionPreview) Init() tea.Cmd {
 	return nil
 }
 
 // Update handles messages (passive component, no interaction).
-func (p *SessionPreview) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+func (p *SessionPreview) Update(_ tea.Msg) (component.Model, tea.Cmd) {
 	// SessionPreview is display-only, no interaction handling
 	return p, nil
 }
@@ -153,14 +172,14 @@ func (p *SessionPreview) renderPlaceholder() string {
 
 // renderPreview renders the full session preview.
 func (p *SessionPreview) renderPreview() string {
-	statusBadge := renderStatusBadge(p.snapshot.Status)
+	statusBadge := RenderStatusBadge(p.snapshot.Status)
 
 	sessionName := p.snapshot.Name
 	if sessionName == "" {
 		sessionName = p.snapshot.ID
 	}
 
-	wdStr := truncatePath(p.snapshot.WorkingDir, 25)
+	wdStr := TruncatePath(p.snapshot.WorkingDir, previewTruncateLimit)
 	var startedStr string
 	if !p.snapshot.StartedAt.IsZero() {
 		startedStr = p.snapshot.StartedAt.Format("15:04:05")
@@ -179,14 +198,18 @@ func (p *SessionPreview) renderPreview() string {
 	headerLines := []string{
 		TitleStyle.Render(truncateString(sessionName, p.Width-WidthBorders)),
 		lipgloss.JoinHorizontal(lipgloss.Center, statusBadge),
-		lipgloss.NewStyle().Foreground(ColorGray).Render("ID: " + truncateString(p.snapshot.ID, p.Width-PreviewIDLabelPrefixLen-WidthBorders)),
+		lipgloss.NewStyle().Foreground(ColorGray).Render(
+			"ID: " + truncateString(p.snapshot.ID, p.Width-PreviewIDLabelPrefixLen-WidthBorders),
+		),
 		lipgloss.NewStyle().Foreground(ColorGray).Render("WS: " + wdStr),
 		lipgloss.NewStyle().Foreground(ColorGray).Render("Started: " + startedStr),
 	}
 
 	if p.card != nil {
 		headerLines = append(headerLines,
-			lipgloss.NewStyle().Foreground(ColorGray).Render("Card: "+truncateString(p.card.Name, p.Width-PreviewCardLabelPrefixLen-WidthBorders)),
+			lipgloss.NewStyle().Foreground(ColorGray).Render(
+				"Card: "+truncateString(p.card.Name, p.Width-PreviewCardLabelPrefixLen-WidthBorders),
+			),
 		)
 	}
 	headerLines = append(headerLines, "")
@@ -197,7 +220,7 @@ func (p *SessionPreview) renderPreview() string {
 	// Approximate header height: len(headerLines) + some padding
 	// But let's use a fixed offset for now or calculate it
 	actualHeaderHeight := lipgloss.Height(header)
-	scrollbackHeight := p.Height - actualHeaderHeight - 1
+	scrollbackHeight := p.Height - actualHeaderHeight + scrollbackHeightAdj
 
 	// Combine header with puppet
 	headerWithPuppet := lipgloss.JoinHorizontal(lipgloss.Top, header, "   ", puppetStr)
@@ -233,7 +256,7 @@ func (p *SessionPreview) renderScrollback(height int) string {
 	}
 
 	// Sanitize text
-	text := sanitizeScrollback(scrollback)
+	text := SanitizeScrollback(scrollback)
 
 	// Split and limit lines
 	lines := strings.Split(text, "\n")
@@ -250,7 +273,7 @@ func (p *SessionPreview) renderScrollback(height int) string {
 			continue
 		}
 		if len(clean) > p.Width-2 {
-			truncated = append(truncated, clean[:p.Width-5]+"...")
+			truncated = append(truncated, clean[:p.Width-lineTruncateAdj]+"...")
 		} else {
 			truncated = append(truncated, clean)
 		}
@@ -277,8 +300,8 @@ func (p *SessionPreview) renderScrollback(height int) string {
 		Render(content)
 }
 
-// renderStatusBadge renders the status badge.
-func renderStatusBadge(status session.Status) string {
+// RenderStatusBadge renders the status badge.
+func RenderStatusBadge(status session.Status) string {
 	switch status {
 	case session.StatusRunning:
 		return StatusRunningStyle.Render("Running")
@@ -291,8 +314,8 @@ func renderStatusBadge(status session.Status) string {
 	}
 }
 
-// sanitizeScrollback strips ANSI codes and control characters.
-func sanitizeScrollback(data []byte) string {
+// SanitizeScrollback strips ANSI codes and control characters.
+func SanitizeScrollback(data []byte) string {
 	// Strip ANSI sequences
 	stripped := ansiEscapeRE.ReplaceAll(data, []byte{})
 
@@ -321,8 +344,8 @@ func StripAllControlCodes(s string) string {
 	}, s)
 }
 
-// truncatePath truncates a path with ellipsis.
-func truncatePath(path string, limit int) string {
+// TruncatePath truncates a path with ellipsis.
+func TruncatePath(path string, limit int) string {
 	if len(path) <= limit {
 		return path
 	}
@@ -335,11 +358,4 @@ func truncateString(s string, w int) string {
 		return s[:w-3] + "..."
 	}
 	return s
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

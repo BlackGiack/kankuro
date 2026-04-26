@@ -1,8 +1,10 @@
-package ui //nolint:testpackage // Regression tests need unexported UI helpers.
+package ui_test
 
 import (
 	"strings"
 	"testing"
+
+	"kankuro/internal/ui"
 )
 
 type testItem struct {
@@ -32,7 +34,7 @@ func TestFilterByQuery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := filterByQuery(items, tt.query, func(i testItem, q string) bool {
+			got := ui.FilterByQuery(items, tt.query, func(i testItem, q string) bool {
 				return contains(i.Name, q) || contains(i.Description, q)
 			})
 			if len(got) != tt.wantLen {
@@ -64,7 +66,7 @@ func TestCalculateWindow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			start, end := calculateWindow(tt.cursor, tt.total, tt.viewHeight)
+			start, end := ui.CalculateWindow(tt.cursor, tt.total, tt.viewHeight)
 			if start != tt.wantStart {
 				t.Errorf("start = %d, want %d", start, tt.wantStart)
 			}

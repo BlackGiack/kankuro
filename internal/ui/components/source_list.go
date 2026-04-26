@@ -23,14 +23,18 @@ const (
 // SourceListCallbacks defines callbacks for source actions.
 type SourceListCallbacks struct {
 	// OnSave is called when user saves a source.
-	// Returns any error.
-	OnSave func(item SourceItem, editingIndex int) error
+	// Returns any error and an optional command.
+	OnSave func(item SourceItem, editingIndex int) (tea.Cmd, error)
 
 	// OnDelete is called when user deletes a source.
-	OnDelete func(index int) error
+	// Returns any error and an optional command.
+	OnDelete func(index int) (tea.Cmd, error)
 
 	// OnRefresh is called after save/delete to reload data.
-	OnRefresh func()
+	OnRefresh func() tea.Cmd
+
+	// OnReload is called to reload items into the list after save/delete.
+	OnReload func()
 
 	// OnClose is called when user presses Escape.
 	OnClose func()
@@ -69,9 +73,7 @@ type SourceList struct {
 func NewSourceList(config SourceListConfig, callbacks SourceListCallbacks) *SourceList {
 	// Create inputs based on config
 	numInputs := config.FormFields
-	if numInputs < 1 {
-		numInputs = 1
-	}
+	numInputs = max(numInputs, 1)
 
 	inputs := make([]textinput.Model, numInputs)
 	for i := range inputs {
@@ -139,10 +141,19 @@ func (s *SourceList) updateList(msg tea.Msg) (component.Model, tea.Cmd) {
 		}
 	case "n":
 		s.OpenForm(-1) // New item
-	case " ", "enter":
+	case keySpace, keyEnter:
 		s.OpenForm(s.Cursor)
-	case "d", "backspace":
-		s.HandleDelete()
+	case "d", keyBackspace:
+		return s, s.HandleDelete()
+	case "r":
+		var refreshCmd tea.Cmd
+		if s.Callbacks.OnRefresh != nil {
+			refreshCmd = s.Callbacks.OnRefresh()
+		}
+		if s.Callbacks.OnReload != nil {
+			s.Callbacks.OnReload()
+		}
+		return s, refreshCmd
 	case "esc":
 		if s.Callbacks.OnClose != nil {
 			s.Callbacks.OnClose()
@@ -168,14 +179,16 @@ func (s *SourceList) updateForm(msg tea.Msg) (component.Model, tea.Cmd) {
 	}
 
 	switch keyMsg.String() {
-	case "enter":
-		s.HandleSave()
+	case keyEnter:
+		saveCmd := s.HandleSave()
 		// Mode is usually switched by callback/parent or here if successful
 		// For simplicity in generic component, we return to list mode
 		s.Mode = SourceListModeList
-	case "tab":
+		return s, tea.Batch(cmd, saveCmd)
+	case keyTab:
 		s.cycleInputFocus()
-	case "esc":
+		return s, cmd
+	case keyEsc:
 		s.Mode = SourceListModeList
 	}
 
@@ -187,26 +200,9 @@ func (s *SourceList) OpenForm(index int) {
 	s.EditingIndex = index
 
 	if index == len(s.Items) || index < 0 {
-		// New item
-		s.EditingIndex = -1
-		for i := range s.Inputs {
-			s.Inputs[i].SetValue("")
-		}
+		s.initNewForm()
 	} else {
-		// Edit existing
-		item := s.Items[index]
-		if ws, ok := item.(WorkspaceSourceItem); ok {
-			s.Inputs[0].SetValue(ws.Source.Path)
-			if len(s.Inputs) > 1 {
-				val := "n"
-				if ws.Source.IsRoot {
-					val = "y"
-				}
-				s.Inputs[1].SetValue(val)
-			}
-		} else {
-			s.Inputs[0].SetValue(item.Display())
-		}
+		s.initEditForm(index)
 	}
 
 	for i := range s.Inputs {
@@ -216,11 +212,36 @@ func (s *SourceList) OpenForm(index int) {
 	s.Mode = SourceListModeForm
 }
 
+func (s *SourceList) initNewForm() {
+	// New item
+	s.EditingIndex = -1
+	for i := range s.Inputs {
+		s.Inputs[i].SetValue("")
+	}
+}
+
+func (s *SourceList) initEditForm(index int) {
+	// Edit existing
+	item := s.Items[index]
+	if ws, ok := item.(WorkspaceSourceItem); ok {
+		s.Inputs[0].SetValue(ws.Source.Path)
+		if len(s.Inputs) > 1 {
+			val := "n"
+			if ws.Source.IsRoot {
+				val = "y"
+			}
+			s.Inputs[1].SetValue(val)
+		}
+	} else {
+		s.Inputs[0].SetValue(item.Display())
+	}
+}
+
 // HandleSave processes form submission.
-func (s *SourceList) HandleSave() {
+func (s *SourceList) HandleSave() tea.Cmd {
 	path := strings.TrimSpace(s.Inputs[0].Value())
 	if path == "" {
-		return
+		return nil
 	}
 
 	var item SourceItem
@@ -247,28 +268,41 @@ func (s *SourceList) HandleSave() {
 		item = SimpleSourceItem(path)
 	}
 
+	var cmd tea.Cmd
 	if s.Callbacks.OnSave != nil {
-		if err := s.Callbacks.OnSave(item, s.EditingIndex); err != nil {
+		saveCmd, err := s.Callbacks.OnSave(item, s.EditingIndex)
+		if err != nil {
 			// Error handling is done by callback (e.g. set error in App)
-			return
+			return nil
 		}
+		cmd = saveCmd
 	}
 
 	if s.Callbacks.OnRefresh != nil {
-		s.Callbacks.OnRefresh()
+		refreshCmd := s.Callbacks.OnRefresh()
+		cmd = tea.Batch(cmd, refreshCmd)
 	}
+
+	if s.Callbacks.OnReload != nil {
+		s.Callbacks.OnReload()
+	}
+
+	return cmd
 }
 
 // HandleDelete processes item deletion.
-func (s *SourceList) HandleDelete() {
+func (s *SourceList) HandleDelete() tea.Cmd {
 	if s.Cursor >= len(s.Items) {
-		return // Can't delete "New" option
+		return nil // Can't delete "New" option
 	}
 
+	var cmd tea.Cmd
 	if s.Callbacks.OnDelete != nil {
-		if err := s.Callbacks.OnDelete(s.Cursor); err != nil {
-			return
+		delCmd, err := s.Callbacks.OnDelete(s.Cursor)
+		if err != nil {
+			return nil
 		}
+		cmd = delCmd
 	}
 
 	// Adjust cursor
@@ -277,8 +311,15 @@ func (s *SourceList) HandleDelete() {
 	}
 
 	if s.Callbacks.OnRefresh != nil {
-		s.Callbacks.OnRefresh()
+		refreshCmd := s.Callbacks.OnRefresh()
+		cmd = tea.Batch(cmd, refreshCmd)
 	}
+
+	if s.Callbacks.OnReload != nil {
+		s.Callbacks.OnReload()
+	}
+
+	return cmd
 }
 
 // cycleInputFocus cycles between form inputs.
@@ -363,7 +404,7 @@ func (s *SourceList) renderList() string {
 
 	// Help text
 	lines = append(lines, "")
-	lines = append(lines, "Enter/Space=edit n=new d=delete Esc=back")
+	lines = append(lines, "Enter/Space=edit n=new d=delete r=refresh Esc=back")
 
 	return strings.Join(lines, "\n")
 }
@@ -410,7 +451,11 @@ func (s *SourceList) renderForm() string {
 func (s *SourceList) SetSize(width, height int) {
 	s.Base.SetSize(width, height)
 	// Adjust input width
+	const (
+		maxInputWidth = 60
+		inputMargin   = 10
+	)
 	for i := range s.Inputs {
-		s.Inputs[i].Width = min(60, width-10)
+		s.Inputs[i].Width = min(maxInputWidth, width-inputMargin)
 	}
 }

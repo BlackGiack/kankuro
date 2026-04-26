@@ -1,10 +1,12 @@
-package views
+package views_test
 
 import (
 	"errors"
 	"fmt"
 	"strings"
 	"testing"
+
+	"kankuro/internal/ui/views"
 )
 
 func TestSplitCommand_Simple(t *testing.T) {
@@ -28,7 +30,7 @@ func TestSplitCommand_Simple(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			result := splitCommand(tt.input)
+			result := views.SplitCommand(tt.input)
 
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d parts, got %d: %v", len(tt.expected), len(result), result)
@@ -69,7 +71,7 @@ func TestSplitCommand_Quotes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			result := splitCommand(tt.input)
+			result := views.SplitCommand(tt.input)
 
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d parts, got %d: %v", len(tt.expected), len(result), result)
@@ -86,7 +88,7 @@ func TestSplitCommand_Quotes(t *testing.T) {
 }
 
 func TestSplitCommand_Empty(t *testing.T) {
-	result := splitCommand("")
+	result := views.SplitCommand("")
 
 	if len(result) != 0 {
 		t.Errorf("Empty input should return empty slice, got %v", result)
@@ -94,7 +96,7 @@ func TestSplitCommand_Empty(t *testing.T) {
 }
 
 func TestSplitCommand_Whitespace(t *testing.T) {
-	result := splitCommand("   ")
+	result := views.SplitCommand("   ")
 
 	if len(result) != 0 {
 		t.Errorf("Whitespace-only input should return empty slice, got %v", result)
@@ -102,7 +104,7 @@ func TestSplitCommand_Whitespace(t *testing.T) {
 }
 
 func TestSplitCommand_MultipleSpaces(t *testing.T) {
-	result := splitCommand("cmd   arg1    arg2")
+	result := views.SplitCommand("cmd   arg1    arg2")
 	expected := []string{"cmd", "arg1", "arg2"}
 
 	if len(result) != len(expected) {
@@ -111,14 +113,14 @@ func TestSplitCommand_MultipleSpaces(t *testing.T) {
 }
 
 func TestIDELauncher_New(t *testing.T) {
-	launcher := NewIDELauncher("code $PATH")
+	launcher := views.NewIDELauncher("code $PATH")
 
 	if launcher == nil {
 		t.Fatal("NewIDELauncher returned nil")
 	}
 
-	if launcher.command != "code $PATH" {
-		t.Errorf("Expected command 'code $PATH', got '%s'", launcher.command)
+	if launcher.Command() != "code $PATH" {
+		t.Errorf("Expected command 'code $PATH', got '%s'", launcher.Command())
 	}
 }
 
@@ -133,22 +135,22 @@ func TestIDELauncher_Errors(t *testing.T) {
 			name:    "no command configured",
 			command: "",
 			path:    "/tmp",
-			wantErr: ErrIDENotConfigured,
+			wantErr: views.ErrIDENotConfigured,
 		},
 		{
 			name:    "empty path",
 			command: "code $PATH",
 			path:    "",
-			wantErr: ErrWorkspacePathEmpty,
+			wantErr: views.ErrWorkspacePathEmpty,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			launcher := NewIDELauncher(tt.command)
+			launcher := views.NewIDELauncher(tt.command)
 			err := launcher.Launch(tt.path)
 
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("Expected error %v, got %v", tt.wantErr, err)
 			}
 		})
@@ -156,10 +158,10 @@ func TestIDELauncher_Errors(t *testing.T) {
 }
 
 func TestIDELauncher_PathReplacement(t *testing.T) {
-	launcher := NewIDELauncher("code $PATH")
+	launcher := views.NewIDELauncher("code $PATH")
 
 	expected := "code /home/user/project"
-	result := strings.ReplaceAll(launcher.command, PathPlaceholder, "/home/user/project")
+	result := strings.ReplaceAll(launcher.Command(), views.PathPlaceholder, "/home/user/project")
 
 	if result != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, result)
@@ -167,10 +169,10 @@ func TestIDELauncher_PathReplacement(t *testing.T) {
 }
 
 func TestIDELauncher_PathReplacement_Multiple(t *testing.T) {
-	launcher := NewIDELauncher("code $PATH --args $PATH")
+	launcher := views.NewIDELauncher("code $PATH --args $PATH")
 
 	expected := "code /home/user/project --args /home/user/project"
-	result := strings.ReplaceAll(launcher.command, PathPlaceholder, "/home/user/project")
+	result := strings.ReplaceAll(launcher.Command(), views.PathPlaceholder, "/home/user/project")
 
 	if result != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, result)
@@ -182,9 +184,9 @@ func TestIDEErrors(t *testing.T) {
 		err      error
 		expected string
 	}{
-		{ErrIDENotConfigured, "IDE command not configured"},
-		{ErrWorkspacePathEmpty, "workspace path is empty"},
-		{ErrInvalidCommand, "invalid IDE command"},
+		{views.ErrIDENotConfigured, "IDE command not configured"},
+		{views.ErrWorkspacePathEmpty, "workspace path is empty"},
+		{views.ErrInvalidCommand, "invalid IDE command"},
 	}
 
 	for _, tt := range tests {
@@ -205,19 +207,19 @@ func TestIDEErrors_Is(t *testing.T) {
 	}{
 		{
 			name:   "same error",
-			err:    ErrIDENotConfigured,
-			target: ErrIDENotConfigured,
+			err:    views.ErrIDENotConfigured,
+			target: views.ErrIDENotConfigured,
 			want:   true,
 		},
 		{
 			name:   "different error",
-			err:    ErrIDENotConfigured,
-			target: ErrWorkspacePathEmpty,
+			err:    views.ErrIDENotConfigured,
+			target: views.ErrWorkspacePathEmpty,
 			want:   false,
 		},
 		{
 			name:   "non-ide error",
-			err:    ErrIDENotConfigured,
+			err:    views.ErrIDENotConfigured,
 			target: errors.New("other error"),
 			want:   false,
 		},
@@ -242,13 +244,13 @@ func TestIDEErrors_Format(t *testing.T) {
 	}{
 		{
 			name:     "default format",
-			err:      ErrIDENotConfigured,
+			err:      views.ErrIDENotConfigured,
 			verb:     's',
 			expected: "IDE command not configured",
 		},
 		{
 			name:     "quoted format",
-			err:      ErrIDENotConfigured,
+			err:      views.ErrIDENotConfigured,
 			verb:     'q',
 			expected: `"IDE command not configured"`,
 		},
@@ -265,15 +267,15 @@ func TestIDEErrors_Format(t *testing.T) {
 }
 
 func TestIDELauncher_CommandWithFlags(t *testing.T) {
-	launcher := NewIDELauncher("code --new-window --wait $PATH")
+	launcher := views.NewIDELauncher("code --new-window --wait $PATH")
 
-	if launcher.command != "code --new-window --wait $PATH" {
-		t.Errorf("Expected command 'code --new-window --wait $PATH', got '%s'", launcher.command)
+	if launcher.Command() != "code --new-window --wait $PATH" {
+		t.Errorf("Expected command 'code --new-window --wait $PATH', got '%s'", launcher.Command())
 	}
 }
 
 func TestSplitCommand_Tabs(t *testing.T) {
-	result := splitCommand("cmd\targ1\targ2")
+	result := views.SplitCommand("cmd\targ1\targ2")
 	expected := []string{"cmd", "arg1", "arg2"}
 
 	if len(result) != len(expected) {
@@ -288,7 +290,7 @@ func TestSplitCommand_Tabs(t *testing.T) {
 }
 
 func TestSplitCommand_MixedWhitespace(t *testing.T) {
-	result := splitCommand("cmd arg1\targ2  arg3")
+	result := views.SplitCommand("cmd arg1\targ2  arg3")
 	expected := []string{"cmd", "arg1", "arg2", "arg3"}
 
 	if len(result) != len(expected) {

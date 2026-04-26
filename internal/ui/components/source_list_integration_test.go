@@ -1,11 +1,16 @@
 package components_test
 
 import (
+	"errors"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/components"
 )
+
+var errTest = errors.New("test")
 
 func TestSourceListIntegration_Simple(t *testing.T) {
 	// Simulate skill/persona source workflow
@@ -19,15 +24,15 @@ func TestSourceListIntegration_Simple(t *testing.T) {
 	}
 
 	callbacks := components.SourceListCallbacks{
-		OnSave: func(item components.SourceItem, idx int) error {
+		OnSave: func(item components.SourceItem, idx int) (tea.Cmd, error) {
 			if idx == -1 {
 				savedSources = append(savedSources, item.Display())
 			} else {
 				savedSources[idx] = item.Display()
 			}
-			return nil
+			return nil, errTest
 		},
-		OnRefresh: func() {},
+		OnRefresh: func() tea.Cmd { return nil },
 		OnClose:   func() {},
 	}
 
@@ -74,15 +79,15 @@ func TestSourceListIntegration_Workspace(t *testing.T) {
 	}
 
 	callbacks := components.SourceListCallbacks{
-		OnSave: func(item components.SourceItem, idx int) error {
+		OnSave: func(item components.SourceItem, idx int) (tea.Cmd, error) {
 			if idx == -1 {
 				savedItems = append(savedItems, item)
 			} else {
 				savedItems[idx] = item
 			}
-			return nil
+			return nil, errTest
 		},
-		OnRefresh: func() {},
+		OnRefresh: func() tea.Cmd { return nil },
 		OnClose:   func() {},
 	}
 
@@ -115,23 +120,21 @@ func TestSourceListIntegration_CRUD(t *testing.T) {
 	conf := components.SourceListConfig{Title: "Test", FormFields: 1}
 
 	callbacks := components.SourceListCallbacks{
-		OnSave: func(item components.SourceItem, idx int) error {
+		OnSave: func(item components.SourceItem, idx int) (tea.Cmd, error) {
 			if idx == -1 {
 				sources = append(sources, item.Display())
-			} else {
-				if idx < len(sources) {
-					sources[idx] = item.Display()
-				}
+			} else if idx < len(sources) {
+				sources[idx] = item.Display()
 			}
-			return nil
+			return nil, errTest
 		},
-		OnDelete: func(idx int) error {
+		OnDelete: func(idx int) (tea.Cmd, error) {
 			if idx >= 0 && idx < len(sources) {
 				sources = append(sources[:idx], sources[idx+1:]...)
 			}
-			return nil
+			return nil, errTest
 		},
-		OnRefresh: func() {},
+		OnRefresh: func() tea.Cmd { return nil },
 		OnClose:   func() {},
 	}
 

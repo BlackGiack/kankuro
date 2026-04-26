@@ -1,22 +1,29 @@
-package components
+package components_test
 
 import (
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
 	"kankuro/internal/config"
+	"kankuro/internal/ui/components"
 )
 
 func TestCardList_New(t *testing.T) {
-	callbacks := CardListCallbacks{
-		OnSelect: func(config.IDCard) {},
-		OnEdit:   func(config.IDCard) {},
+	callbacks := components.CardListCallbacks{
+		OnSelect: func(config.IDCard) tea.Cmd {
+			return nil
+		},
+		OnEdit: func(config.IDCard) tea.Cmd {
+			return nil
+		},
 		OnDelete: func(string) {},
 	}
 
-	c := NewCardList(callbacks)
+	c := components.NewCardList(callbacks)
 	if c == nil {
 		t.Fatal("NewCardList returned nil")
 	}
@@ -28,8 +35,8 @@ func TestCardList_New(t *testing.T) {
 }
 
 func TestCardList_SetCards(t *testing.T) {
-	callbacks := CardListCallbacks{}
-	c := NewCardList(callbacks)
+	callbacks := components.CardListCallbacks{}
+	c := components.NewCardList(callbacks)
 
 	cards := []config.IDCard{
 		{ID: "1", Name: "Card 1"},
@@ -41,14 +48,14 @@ func TestCardList_SetCards(t *testing.T) {
 	c.SetCards(cards, skills, personas)
 
 	// Verify internal state updated
-	if len(c.cards) != 2 {
-		t.Errorf("Expected 2 cards, got %d", len(c.cards))
+	if len(c.Cards()) != 2 {
+		t.Errorf("Expected 2 cards, got %d", len(c.Cards()))
 	}
 }
 
 func TestCardList_SetSearchQuery(t *testing.T) {
-	callbacks := CardListCallbacks{}
-	c := NewCardList(callbacks)
+	callbacks := components.CardListCallbacks{}
+	c := components.NewCardList(callbacks)
 
 	cards := []config.IDCard{
 		{ID: "1", Name: "Alpha"},
@@ -59,14 +66,14 @@ func TestCardList_SetSearchQuery(t *testing.T) {
 	c.SetCards(cards, nil, nil)
 
 	// No filter
-	filtered := c.filterCards()
+	filtered := c.FilteredCards()
 	if len(filtered) != 3 {
 		t.Errorf("Expected 3 cards without filter, got %d", len(filtered))
 	}
 
 	// With filter
 	c.SetSearchQuery("al")
-	filtered = c.filterCards()
+	filtered = c.FilteredCards()
 	if len(filtered) != 1 {
 		t.Errorf("Expected 1 card matching 'al', got %d", len(filtered))
 	}
@@ -76,8 +83,8 @@ func TestCardList_SetSearchQuery(t *testing.T) {
 }
 
 func TestCardList_Selected(t *testing.T) {
-	callbacks := CardListCallbacks{}
-	c := NewCardList(callbacks)
+	callbacks := components.CardListCallbacks{}
+	c := components.NewCardList(callbacks)
 
 	// No selection
 	_, ok := c.Selected()
@@ -90,7 +97,7 @@ func TestCardList_Selected(t *testing.T) {
 		{ID: "1", Name: "Test"},
 	}
 	c.SetCards(cards, nil, nil)
-	c.list.Select(0)
+	c.Select(0)
 
 	card, ok := c.Selected()
 	if !ok {
@@ -119,13 +126,13 @@ func TestRenderCardItem(t *testing.T) {
 	}
 
 	// Render unselected
-	output := RenderCardItem(card, skills, personas, false)
+	output := components.RenderCardItem(card, skills, personas, false)
 	if output == "" {
 		t.Error("RenderCardItem returned empty string")
 	}
 
 	// Render selected
-	outputSel := RenderCardItem(card, skills, personas, true)
+	outputSel := components.RenderCardItem(card, skills, personas, true)
 	if outputSel == "" {
 		t.Error("RenderCardItem (selected) returned empty string")
 	}

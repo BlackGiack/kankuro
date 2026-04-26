@@ -1,4 +1,4 @@
-package components
+package components_test
 
 import (
 	"strings"
@@ -7,21 +7,22 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
+	"kankuro/internal/ui/components"
 )
 
 func TestSessionPreview_New(t *testing.T) {
-	p := NewSessionPreview()
+	p := components.NewSessionPreview()
 	if p == nil {
 		t.Fatal("NewSessionPreview returned nil")
 	}
 
-	if p.sessionID != "" {
+	if p.SessionID() != "" {
 		t.Error("New preview should have empty session ID")
 	}
 }
 
 func TestSessionPreview_Clear(t *testing.T) {
-	p := NewSessionPreview()
+	p := components.NewSessionPreview()
 
 	// Set some data
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
@@ -31,19 +32,19 @@ func TestSessionPreview_Clear(t *testing.T) {
 	// Clear
 	p.Clear()
 
-	if p.sessionID != "" {
+	if p.SessionID() != "" {
 		t.Error("Session ID should be empty after clear")
 	}
-	if p.snapshot != nil {
+	if p.Snapshot() != nil {
 		t.Error("Snapshot should be nil after clear")
 	}
-	if p.scrollback != nil {
+	if p.Scrollback() != nil {
 		t.Error("Scrollback should be nil after clear")
 	}
 }
 
 func TestSessionPreview_SetSession(t *testing.T) {
-	p := NewSessionPreview()
+	p := components.NewSessionPreview()
 	p.SetSize(50, 20)
 
 	snap := &session.Snapshot{
@@ -63,21 +64,21 @@ func TestSessionPreview_SetSession(t *testing.T) {
 
 	p.SetSession(snap, card)
 
-	if p.sessionID != "s1" {
-		t.Errorf("Expected session ID 's1', got '%s'", p.sessionID)
+	if p.SessionID() != "s1" {
+		t.Errorf("Expected session ID 's1', got '%s'", p.SessionID())
 	}
 
-	if p.snapshot == nil {
+	if p.Snapshot() == nil {
 		t.Error("Snapshot should not be nil")
 	}
 
-	if p.card == nil {
+	if p.Card() == nil {
 		t.Error("Card should not be nil")
 	}
 }
 
 func TestSessionPreview_View_Empty(t *testing.T) {
-	p := NewSessionPreview()
+	p := components.NewSessionPreview()
 	p.SetSize(40, 15)
 
 	view := p.View()
@@ -93,7 +94,7 @@ func TestSessionPreview_View_Empty(t *testing.T) {
 }
 
 func TestSessionPreview_View_WithSession(t *testing.T) {
-	p := NewSessionPreview()
+	p := components.NewSessionPreview()
 	p.SetSize(50, 20)
 
 	snap := &session.Snapshot{
@@ -125,7 +126,7 @@ func TestSessionPreview_View_WithSession(t *testing.T) {
 }
 
 func TestSessionPreview_View_WithScrollback(t *testing.T) {
-	p := NewSessionPreview()
+	p := components.NewSessionPreview()
 	p.SetSize(60, 25)
 
 	snap := &session.Snapshot{
@@ -181,7 +182,7 @@ func TestSessionPreview_SanitizeScrollback(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := sanitizeScrollback([]byte(tt.input))
+			result := components.SanitizeScrollback([]byte(tt.input))
 
 			if tt.contains != "" && !strings.Contains(result, tt.contains) {
 				t.Errorf("Expected result to contain %q, got %q", tt.contains, result)
@@ -224,7 +225,7 @@ func TestStripAllControlCodes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := StripAllControlCodes(tt.input)
+			result := components.StripAllControlCodes(tt.input)
 			if result != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, result)
 			}
@@ -255,7 +256,7 @@ func TestTruncatePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := truncatePath(tt.path, tt.limit)
+			result := components.TruncatePath(tt.path, tt.limit)
 			if result != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, result)
 			}
@@ -276,7 +277,7 @@ func TestRenderStatusBadge(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			badge := renderStatusBadge(tt.status)
+			badge := components.RenderStatusBadge(tt.status)
 			if !strings.Contains(badge, tt.label) {
 				t.Errorf("Badge should contain %q", tt.label)
 			}
@@ -285,7 +286,7 @@ func TestRenderStatusBadge(t *testing.T) {
 }
 
 func TestSessionPreview_View_WaitingStatus(t *testing.T) {
-	p := NewSessionPreview()
+	p := components.NewSessionPreview()
 	p.SetSize(50, 20)
 
 	snap := &session.Snapshot{
@@ -306,7 +307,7 @@ func TestSessionPreview_View_WaitingStatus(t *testing.T) {
 }
 
 func TestSessionPreview_SessionID(t *testing.T) {
-	p := NewSessionPreview()
+	p := components.NewSessionPreview()
 
 	if p.SessionID() != "" {
 		t.Error("Initial session ID should be empty")

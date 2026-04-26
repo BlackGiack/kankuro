@@ -1,4 +1,4 @@
-package components
+package components_test
 
 import (
 	"errors"
@@ -9,17 +9,18 @@ import (
 	"github.com/muesli/termenv"
 
 	"kankuro/internal/config"
+	"kankuro/internal/ui/components"
 )
 
 func TestSimpleSourceItem(t *testing.T) {
-	item := SimpleSourceItem("/path/to/skills")
+	item := components.SimpleSourceItem("/path/to/skills")
 
 	if item.Display() != "/path/to/skills" {
 		t.Errorf("Expected '/path/to/skills', got '%s'", item.Display())
 	}
 
 	if item.ID() != "" {
-		t.Error("SimpleSourceItem should have empty ID")
+		t.Error("components.Simplecomponents.SourceItem should have empty ID")
 	}
 }
 
@@ -43,7 +44,7 @@ func TestWorkspaceSourceItem(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			item := WorkspaceSourceItem{Source: tt.source}
+			item := components.WorkspaceSourceItem{Source: tt.source}
 			if item.Display() != tt.expected {
 				t.Errorf("Expected '%s', got '%s'", tt.expected, item.Display())
 			}
@@ -53,7 +54,7 @@ func TestWorkspaceSourceItem(t *testing.T) {
 
 func TestToSimpleItems(t *testing.T) {
 	sources := []string{"/path1", "/path2", "/path3"}
-	items := ToSimpleItems(sources)
+	items := components.ToSimpleItems(sources)
 
 	if len(items) != 3 {
 		t.Fatalf("Expected 3 items, got %d", len(items))
@@ -67,12 +68,12 @@ func TestToSimpleItems(t *testing.T) {
 }
 
 func TestFromSimpleItems(t *testing.T) {
-	items := []SourceItem{
-		SimpleSourceItem("/path1"),
-		SimpleSourceItem("/path2"),
+	items := []components.SourceItem{
+		components.SimpleSourceItem("/path1"),
+		components.SimpleSourceItem("/path2"),
 	}
 
-	sources := FromSimpleItems(items)
+	sources := components.FromSimpleItems(items)
 
 	if len(sources) != 2 {
 		t.Fatalf("Expected 2 sources, got %d", len(sources))
@@ -84,34 +85,34 @@ func TestFromSimpleItems(t *testing.T) {
 }
 
 func TestSourceList_New(t *testing.T) {
-	config := SourceListConfig{
+	config := components.SourceListConfig{
 		Title:      "Test Sources",
 		FormPrompt: "Path:",
 		FormFields: 1,
 	}
 
-	callbacks := SourceListCallbacks{}
+	callbacks := components.SourceListCallbacks{}
 
-	sl := NewSourceList(config, callbacks)
+	sl := components.NewSourceList(config, callbacks)
 
 	if sl == nil {
-		t.Fatal("NewSourceList returned nil")
+		t.Fatal("components.NewSourceList returned nil")
 	}
 
-	if sl.Mode != SourceListModeList {
+	if sl.Mode != components.SourceListModeList {
 		t.Error("Should start in list mode")
 	}
 }
 
 func TestSourceList_SetItems(t *testing.T) {
-	config := SourceListConfig{Title: "Test", FormFields: 1}
-	callbacks := SourceListCallbacks{}
+	config := components.SourceListConfig{Title: "Test", FormFields: 1}
+	callbacks := components.SourceListCallbacks{}
 
-	sl := NewSourceList(config, callbacks)
+	sl := components.NewSourceList(config, callbacks)
 
-	items := []SourceItem{
-		SimpleSourceItem("/path1"),
-		SimpleSourceItem("/path2"),
+	items := []components.SourceItem{
+		components.SimpleSourceItem("/path1"),
+		components.SimpleSourceItem("/path2"),
 	}
 
 	sl.SetItems(items)
@@ -122,13 +123,13 @@ func TestSourceList_SetItems(t *testing.T) {
 }
 
 func TestSourceList_Navigation(t *testing.T) {
-	config := SourceListConfig{Title: "Test", FormFields: 1}
-	callbacks := SourceListCallbacks{}
+	config := components.SourceListConfig{Title: "Test", FormFields: 1}
+	callbacks := components.SourceListCallbacks{}
 
-	sl := NewSourceList(config, callbacks)
-	sl.SetItems([]SourceItem{
-		SimpleSourceItem("/path1"),
-		SimpleSourceItem("/path2"),
+	sl := components.NewSourceList(config, callbacks)
+	sl.SetItems([]components.SourceItem{
+		components.SimpleSourceItem("/path1"),
+		components.SimpleSourceItem("/path2"),
 	})
 
 	// Initial cursor at 0
@@ -156,17 +157,17 @@ func TestSourceList_Navigation(t *testing.T) {
 }
 
 func TestSourceList_OpenForm_New(t *testing.T) {
-	config := SourceListConfig{Title: "Test", FormFields: 1}
-	callbacks := SourceListCallbacks{}
+	config := components.SourceListConfig{Title: "Test", FormFields: 1}
+	callbacks := components.SourceListCallbacks{}
 
-	sl := NewSourceList(config, callbacks)
-	sl.SetItems([]SourceItem{SimpleSourceItem("/existing")})
+	sl := components.NewSourceList(config, callbacks)
+	sl.SetItems([]components.SourceItem{components.SimpleSourceItem("/existing")})
 
 	// Open form for new item (cursor at len(items))
 	sl.Cursor = 1
 	sl.OpenForm(1)
 
-	if sl.Mode != SourceListModeForm {
+	if sl.Mode != components.SourceListModeForm {
 		t.Error("Should be in form mode")
 	}
 
@@ -180,16 +181,16 @@ func TestSourceList_OpenForm_New(t *testing.T) {
 }
 
 func TestSourceList_OpenForm_Edit(t *testing.T) {
-	config := SourceListConfig{Title: "Test", FormFields: 1}
-	callbacks := SourceListCallbacks{}
+	config := components.SourceListConfig{Title: "Test", FormFields: 1}
+	callbacks := components.SourceListCallbacks{}
 
-	sl := NewSourceList(config, callbacks)
-	sl.SetItems([]SourceItem{SimpleSourceItem("/existing")})
+	sl := components.NewSourceList(config, callbacks)
+	sl.SetItems([]components.SourceItem{components.SimpleSourceItem("/existing")})
 
 	// Open form for edit (cursor at 0)
 	sl.OpenForm(0)
 
-	if sl.Mode != SourceListModeForm {
+	if sl.Mode != components.SourceListModeForm {
 		t.Error("Should be in form mode")
 	}
 
@@ -203,21 +204,21 @@ func TestSourceList_OpenForm_Edit(t *testing.T) {
 }
 
 func TestSourceList_HandleSave(t *testing.T) {
-	var savedItem SourceItem
+	var savedItem components.SourceItem
 	var savedIndex int
 
-	config := SourceListConfig{Title: "Test", FormFields: 1}
-	callbacks := SourceListCallbacks{
-		OnSave: func(item SourceItem, idx int) error {
+	config := components.SourceListConfig{Title: "Test", FormFields: 1}
+	callbacks := components.SourceListCallbacks{
+		OnSave: func(item components.SourceItem, idx int) (tea.Cmd, error) {
 			savedItem = item
 			savedIndex = idx
-			return nil
+			return nil, errTest
 		},
-		OnRefresh: func() {},
+		OnRefresh: func() tea.Cmd { return nil },
 	}
 
-	sl := NewSourceList(config, callbacks)
-	sl.SetItems([]SourceItem{})
+	sl := components.NewSourceList(config, callbacks)
+	sl.SetItems([]components.SourceItem{})
 	sl.EditingIndex = -1
 	sl.Inputs[0].SetValue("/new/path")
 
@@ -237,32 +238,32 @@ func TestSourceList_HandleSave(t *testing.T) {
 }
 
 func TestSourceList_HandleSave_WithSecondField(t *testing.T) {
-	config := SourceListConfig{
+	config := components.SourceListConfig{
 		Title:       "Workspaces",
 		FormFields:  2,
 		Field2Label: "Is Root:",
 	}
 
-	var savedItem SourceItem
+	var savedItem components.SourceItem
 
-	callbacks := SourceListCallbacks{
-		OnSave: func(item SourceItem, idx int) error {
+	callbacks := components.SourceListCallbacks{
+		OnSave: func(item components.SourceItem, _ int) (tea.Cmd, error) {
 			savedItem = item
-			return nil
+			return nil, errTest
 		},
-		OnRefresh: func() {},
+		OnRefresh: func() tea.Cmd { return nil },
 	}
 
-	sl := NewSourceList(config, callbacks)
+	sl := components.NewSourceList(config, callbacks)
 	sl.EditingIndex = -1
 	sl.Inputs[0].SetValue("/workspace/path")
 	sl.Inputs[1].SetValue("y")
 
 	sl.HandleSave()
 
-	wsItem, ok := savedItem.(WorkspaceSourceItem)
+	wsItem, ok := savedItem.(components.WorkspaceSourceItem)
 	if !ok {
-		t.Fatal("Should have saved WorkspaceSourceItem")
+		t.Fatal("Should have saved components.Workspacecomponents.SourceItem")
 	}
 
 	if wsItem.Source.Path != "/workspace/path" {
@@ -277,19 +278,19 @@ func TestSourceList_HandleSave_WithSecondField(t *testing.T) {
 func TestSourceList_HandleDelete(t *testing.T) {
 	var deletedIndex int
 
-	config := SourceListConfig{Title: "Test", FormFields: 1}
-	callbacks := SourceListCallbacks{
-		OnDelete: func(idx int) error {
+	config := components.SourceListConfig{Title: "Test", FormFields: 1}
+	callbacks := components.SourceListCallbacks{
+		OnDelete: func(idx int) (tea.Cmd, error) {
 			deletedIndex = idx
-			return nil
+			return nil, errTest
 		},
-		OnRefresh: func() {},
+		OnRefresh: func() tea.Cmd { return nil },
 	}
 
-	sl := NewSourceList(config, callbacks)
-	sl.SetItems([]SourceItem{
-		SimpleSourceItem("/path1"),
-		SimpleSourceItem("/path2"),
+	sl := components.NewSourceList(config, callbacks)
+	sl.SetItems([]components.SourceItem{
+		components.SimpleSourceItem("/path1"),
+		components.SimpleSourceItem("/path2"),
 	})
 	sl.Cursor = 1
 
@@ -300,17 +301,17 @@ func TestSourceList_HandleDelete(t *testing.T) {
 	}
 }
 
-func TestSourceList_HandleDelete_CallbackError(t *testing.T) {
-	config := SourceListConfig{Title: "Test", FormFields: 1}
-	callbacks := SourceListCallbacks{
-		OnDelete: func(idx int) error {
-			return errors.New("delete failed")
+func TestSourceList_HandleDelete_CallbackError(_ *testing.T) {
+	config := components.SourceListConfig{Title: "Test", FormFields: 1}
+	callbacks := components.SourceListCallbacks{
+		OnDelete: func(_ int) (tea.Cmd, error) {
+			return nil, errors.New("delete failed")
 		},
-		OnRefresh: func() {},
+		OnRefresh: func() tea.Cmd { return nil },
 	}
 
-	sl := NewSourceList(config, callbacks)
-	sl.SetItems([]SourceItem{SimpleSourceItem("/path")})
+	sl := components.NewSourceList(config, callbacks)
+	sl.SetItems([]components.SourceItem{components.SimpleSourceItem("/path")})
 	sl.Cursor = 0
 
 	// Should not panic on error
@@ -319,17 +320,17 @@ func TestSourceList_HandleDelete_CallbackError(t *testing.T) {
 
 func TestSourceList_View_ListMode(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
-	config := SourceListConfig{
+	config := components.SourceListConfig{
 		Title:      "Test Sources",
 		Legend:     "(R=Root folder)",
 		FormFields: 1,
 	}
-	callbacks := SourceListCallbacks{}
+	callbacks := components.SourceListCallbacks{}
 
-	sl := NewSourceList(config, callbacks)
-	sl.SetItems([]SourceItem{
-		SimpleSourceItem("/path1"),
-		SimpleSourceItem("/path2"),
+	sl := components.NewSourceList(config, callbacks)
+	sl.SetItems([]components.SourceItem{
+		components.SimpleSourceItem("/path1"),
+		components.SimpleSourceItem("/path2"),
 	})
 
 	view := sl.View()
@@ -361,15 +362,15 @@ func TestSourceList_View_ListMode(t *testing.T) {
 
 func TestSourceList_View_FormMode(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
-	config := SourceListConfig{
+	config := components.SourceListConfig{
 		Title:      "Test Sources",
 		FormPrompt: "Path:",
 		FormFields: 1,
 	}
-	callbacks := SourceListCallbacks{}
+	callbacks := components.SourceListCallbacks{}
 
-	sl := NewSourceList(config, callbacks)
-	sl.Mode = SourceListModeForm
+	sl := components.NewSourceList(config, callbacks)
+	sl.Mode = components.SourceListModeForm
 	sl.Inputs[0].SetValue("/test/path")
 
 	view := sl.View()
@@ -393,11 +394,11 @@ func TestSourceList_View_FormMode(t *testing.T) {
 
 func TestSourceList_View_EmptyList(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
-	config := SourceListConfig{Title: "Test", FormFields: 1}
-	callbacks := SourceListCallbacks{}
+	config := components.SourceListConfig{Title: "Test", FormFields: 1}
+	callbacks := components.SourceListCallbacks{}
 
-	sl := NewSourceList(config, callbacks)
-	sl.SetItems([]SourceItem{}) // Empty
+	sl := components.NewSourceList(config, callbacks)
+	sl.SetItems([]components.SourceItem{}) // Empty
 
 	view := sl.View()
 
@@ -406,7 +407,7 @@ func TestSourceList_View_EmptyList(t *testing.T) {
 	}
 }
 
-// Helper
+// Helper.
 func hasText(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {

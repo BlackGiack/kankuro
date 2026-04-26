@@ -1,7 +1,7 @@
 package views
 
 import (
-	bubbletea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"kankuro/internal/ascii"
@@ -9,8 +9,8 @@ import (
 	"kankuro/internal/ui/component"
 )
 
-// puppetStyles contains available puppet style options.
-var puppetStyles = []string{"default", "kankuro", "cat", "strawhat", "darth", "totoro"} //nolint:gochecknoglobals // puppet style options
+// PuppetStyles contains available puppet style options.
+var PuppetStyles = []string{"default", "kankuro", "cat", "strawhat", "darth", "totoro"} //nolint:gochecknoglobals // puppet style options
 
 // PuppetSelectorModal allows selecting a puppet style.
 type PuppetSelectorModal struct {
@@ -21,14 +21,17 @@ type PuppetSelectorModal struct {
 	prevStyle string
 	confirmed bool
 	cancelled bool
+	open      bool
 }
 
 // NewPuppetSelectorModal creates a new puppet selector.
 func NewPuppetSelectorModal() *PuppetSelectorModal {
 	return &PuppetSelectorModal{
-		styles: puppetStyles,
+		styles: PuppetStyles,
 	}
 }
+
+func (m *PuppetSelectorModal) Cursor() int { return m.cursor }
 
 func (m *PuppetSelectorModal) SetSelected(style string) {
 	m.prevStyle = style
@@ -42,22 +45,22 @@ func (m *PuppetSelectorModal) SetSelected(style string) {
 }
 
 func (m *PuppetSelectorModal) Selected() string {
-	if m.cursor >= 0 && m.cursor < len(m.styles) {
-		return m.styles[m.cursor]
+	if m.cursor >= 0 && m.cursor < len(PuppetStyles) {
+		return PuppetStyles[m.cursor]
 	}
-	return "kankuro"
+	return defaultPuppetStyle
 }
 
-func (m *PuppetSelectorModal) Open()           { m.confirmed = false; m.cancelled = false }
-func (m *PuppetSelectorModal) Close()          { m.confirmed = false; m.cancelled = false }
-func (m *PuppetSelectorModal) IsOpen() bool    { return !m.cancelled }
+func (m *PuppetSelectorModal) Open()           { m.open = true; m.confirmed = false; m.cancelled = false }
+func (m *PuppetSelectorModal) Close()          { m.open = false; m.confirmed = false; m.cancelled = false }
+func (m *PuppetSelectorModal) IsOpen() bool    { return m.open }
 func (m *PuppetSelectorModal) Confirmed() bool { return m.confirmed }
 func (m *PuppetSelectorModal) Cancelled() bool { return m.cancelled }
 
-func (m *PuppetSelectorModal) Init() bubbletea.Cmd { return nil }
+func (m *PuppetSelectorModal) Init() tea.Cmd { return nil }
 
-func (m *PuppetSelectorModal) Update(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) {
-	if keyMsg, ok := msg.(bubbletea.KeyMsg); ok {
+func (m *PuppetSelectorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
 		case "left":
 			if m.cursor > 0 {
@@ -71,9 +74,9 @@ func (m *PuppetSelectorModal) Update(msg bubbletea.Msg) (component.Model, bubble
 			} else {
 				m.cursor = 0
 			}
-		case "enter":
+		case keyEnter:
 			m.confirmed = true
-		case "esc":
+		case keyEsc:
 			m.cancelled = true
 		}
 	}
@@ -103,6 +106,6 @@ func (m *PuppetSelectorModal) View() string {
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#8E44AD")).
-		Padding(1, 2).
+		Padding(heightPadding, widthPadding).
 		Render("Select Puppet:\n\n" + row + "\n\n← → to navigate, Enter to confirm")
 }

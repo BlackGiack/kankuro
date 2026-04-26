@@ -3,7 +3,7 @@ package views
 import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
-	bubbletea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"kankuro/internal/ui/component"
@@ -19,13 +19,19 @@ type AgentsMDEditorModal struct {
 	preferPath bool
 	confirmed  bool
 	cancelled  bool
+	open       bool
 }
 
 // NewAgentsMDEditorModal creates a new agents.md editor.
 func NewAgentsMDEditorModal() *AgentsMDEditorModal {
+	const (
+		editorWidth  = 60
+		editorHeight = 10
+		modalPadding = 2
+	)
 	editor := textarea.New()
-	editor.SetWidth(60)
-	editor.SetHeight(10)
+	editor.SetWidth(editorWidth)
+	editor.SetHeight(editorHeight)
 	editor.Placeholder = "Enter AGENTS.md content..."
 
 	pathInput := textinput.New()
@@ -59,18 +65,18 @@ func (m *AgentsMDEditorModal) State() AgentsMDState {
 	}
 }
 
-func (m *AgentsMDEditorModal) Open()           { m.confirmed = false; m.cancelled = false }
-func (m *AgentsMDEditorModal) Close()          { m.confirmed = false; m.cancelled = false }
-func (m *AgentsMDEditorModal) IsOpen() bool    { return !m.cancelled }
+func (m *AgentsMDEditorModal) Open()           { m.open = true; m.confirmed = false; m.cancelled = false }
+func (m *AgentsMDEditorModal) Close()          { m.open = false; m.confirmed = false; m.cancelled = false }
+func (m *AgentsMDEditorModal) IsOpen() bool    { return m.open }
 func (m *AgentsMDEditorModal) Confirmed() bool { return m.confirmed }
 func (m *AgentsMDEditorModal) Cancelled() bool { return m.cancelled }
 
-func (m *AgentsMDEditorModal) Init() bubbletea.Cmd { return nil }
+func (m *AgentsMDEditorModal) Init() tea.Cmd { return nil }
 
-func (m *AgentsMDEditorModal) Update(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) {
-	if keyMsg, ok := msg.(bubbletea.KeyMsg); ok {
+func (m *AgentsMDEditorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
-		case "enter":
+		case keyEnter:
 			if m.mode == 1 { // Path mode - enter confirms
 				m.preferPath = true
 				m.confirmed = true
@@ -80,10 +86,10 @@ func (m *AgentsMDEditorModal) Update(msg bubbletea.Msg) (component.Model, bubble
 			m.preferPath = m.mode == 1
 			m.confirmed = true
 			return m, nil
-		case "esc":
+		case keyEsc:
 			m.cancelled = true
 			return m, nil
-		case "tab":
+		case keyTab:
 			m.mode = 1 - m.mode
 			if m.mode == 0 {
 				m.editor.Focus()
@@ -96,7 +102,7 @@ func (m *AgentsMDEditorModal) Update(msg bubbletea.Msg) (component.Model, bubble
 		}
 	}
 
-	var cmd bubbletea.Cmd
+	var cmd tea.Cmd
 	if m.mode == 0 {
 		m.editor, cmd = m.editor.Update(msg)
 	} else {
@@ -106,11 +112,12 @@ func (m *AgentsMDEditorModal) Update(msg bubbletea.Msg) (component.Model, bubble
 }
 
 func (m *AgentsMDEditorModal) View() string {
+	const modalWidth = 70
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#8E44AD")).
-		Padding(1, 2).
-		Width(70)
+		Padding(vPadding, hPadding).
+		Width(modalWidth)
 
 	var content string
 	content += "AGENTS.md Editor\n\n"

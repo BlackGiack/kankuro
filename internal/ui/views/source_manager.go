@@ -14,16 +14,15 @@ import (
 	"kankuro/internal/ui/messages"
 )
 
+var errNoCallback = errors.New("no callback")
+
 // SourceManagerCallbacks defines repository callbacks.
 type SourceManagerCallbacks struct {
-	LoadSources func() []components.SourceItem
-
-	SaveSimpleSource    func(path string, editingIndex int) error
-	SaveWorkspaceSource func(source config.WorkspaceSource, editingIndex int) error
-
-	DeleteSource func(index int) error
-
-	Refresh func()
+	LoadSources         func() []components.SourceItem
+	SaveSimpleSource    func(path string, editingIndex int) (tea.Cmd, error)
+	SaveWorkspaceSource func(source config.WorkspaceSource, editingIndex int) (tea.Cmd, error)
+	DeleteSource        func(index int) (tea.Cmd, error)
+	Refresh             func() tea.Cmd
 }
 
 // SourceManager is a composite view for managing source lists.
@@ -35,9 +34,7 @@ type SourceManager struct {
 	sourceType SourceType
 	typeConfig SourceTypeConfig
 	callbacks  SourceManagerCallbacks
-
-	prevView messages.ViewType
-	cmds     *commands.Commands
+	cmds       *commands.Commands
 
 	err error
 }
@@ -58,33 +55,38 @@ func NewSourceManager(
 		Field2Label: typeConfig.Field2Label,
 	}
 
-	listCallbacks := components.SourceListCallbacks{
-		OnSave: func(item components.SourceItem, editingIndex int) error {
-			return handleSave(sourceType, callbacks, item, editingIndex)
-		},
-		OnDelete: func(index int) error {
-			if callbacks.DeleteSource != nil {
-				return callbacks.DeleteSource(index)
-			}
-			return nil
-		},
-		OnRefresh: func() {
-			if callbacks.Refresh != nil {
-				callbacks.Refresh()
-			}
-		},
-		OnClose: func() {},
-	}
-
-	sourceList := components.NewSourceList(listConfig, listCallbacks)
-
-	return &SourceManager{
-		sourceList: sourceList,
+	m := &SourceManager{
 		sourceType: sourceType,
 		typeConfig: typeConfig,
 		callbacks:  callbacks,
 		cmds:       cmds,
 	}
+
+	listCallbacks := components.SourceListCallbacks{
+		OnSave: func(item components.SourceItem, editingIndex int) (tea.Cmd, error) {
+			return handleSave(sourceType, callbacks, item, editingIndex)
+		},
+		OnDelete: func(index int) (tea.Cmd, error) {
+			if callbacks.DeleteSource != nil {
+				return callbacks.DeleteSource(index)
+			}
+			return nil, errNoCallback
+		},
+		OnRefresh: func() tea.Cmd {
+			if callbacks.Refresh != nil {
+				return callbacks.Refresh()
+			}
+			return nil
+		},
+		OnReload: func() {
+			m.SetData()
+		},
+		OnClose: func() {},
+	}
+
+	m.sourceList = components.NewSourceList(listConfig, listCallbacks)
+
+	return m
 }
 
 // handleSave routes save to the appropriate callback based on source type.
@@ -93,7 +95,7 @@ func handleSave(
 	callbacks SourceManagerCallbacks,
 	item components.SourceItem,
 	editingIndex int,
-) error {
+) (tea.Cmd, error) {
 	switch sourceType {
 	case SourceTypeSkills, SourceTypePersonas:
 		if callbacks.SaveSimpleSource != nil {
@@ -106,15 +108,20 @@ func handleSave(
 				return callbacks.SaveWorkspaceSource(wsItem.Source, editingIndex)
 			}
 		}
-		return errors.New("invalid workspace source item")
+		return nil, errors.New("invalid workspace source item")
 	}
 
-	return nil
+	return nil, errNoCallback
 }
 
-// SetPrevView sets where to return when closed.
-func (m *SourceManager) SetPrevView(view messages.ViewType) {
-	m.prevView = view
+// HandleSave exports handleSave for testing.
+func HandleSave(
+	sourceType SourceType,
+	callbacks SourceManagerCallbacks,
+	item components.SourceItem,
+	editingIndex int,
+) (tea.Cmd, error) {
+	return handleSave(sourceType, callbacks, item, editingIndex)
 }
 
 // SetData loads sources into the manager.
@@ -134,10 +141,8 @@ func (m *SourceManager) Init() tea.Cmd {
 // Update handles messages.
 func (m *SourceManager) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		if keyMsg.String() == "esc" && m.sourceList.Mode == components.SourceListModeList {
-			return m, func() tea.Msg {
-				return messages.NavigateMsg{View: m.prevView}
-			}
+		if keyMsg.String() == keyEsc && m.sourceList.Mode == components.SourceListModeList {
+			return m, func() tea.Msg { return messages.NavigateBackMsg{} }
 		}
 	}
 
@@ -168,6 +173,21 @@ func (m *SourceManager) SetSize(width, height int) {
 // SourceType returns the managed source type.
 func (m *SourceManager) SourceType() SourceType {
 	return m.sourceType
+}
+
+// TypeConfig returns the configuration for the source type.
+func (m *SourceManager) TypeConfig() SourceTypeConfig {
+	return m.typeConfig
+}
+
+// SourceList returns the underlying source list component.
+func (m *SourceManager) SourceList() *components.SourceList {
+	return m.sourceList
+}
+
+// SetError sets the current error.
+func (m *SourceManager) SetError(err error) {
+	m.err = err
 }
 
 // GenerateID creates a new unique ID for workspace sources.

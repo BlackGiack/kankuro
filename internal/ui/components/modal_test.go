@@ -1,11 +1,14 @@
-package components
+package components_test
 
 import (
+	"strings"
 	"testing"
+
+	"kankuro/internal/ui/components"
 )
 
 func TestModal_OpenClose(t *testing.T) {
-	m := NewModal("Test Modal")
+	m := components.NewModal("Test Modal")
 
 	if m.IsOpen() {
 		t.Error("Modal should start closed")
@@ -23,7 +26,7 @@ func TestModal_OpenClose(t *testing.T) {
 }
 
 func TestModal_ViewHidden(t *testing.T) {
-	m := NewModal("Hidden Modal")
+	m := components.NewModal("Hidden Modal")
 
 	view := m.View()
 	if view != "" {
@@ -32,7 +35,7 @@ func TestModal_ViewHidden(t *testing.T) {
 }
 
 func TestModal_ViewVisible(t *testing.T) {
-	m := NewModal("Visible Modal")
+	m := components.NewModal("Visible Modal")
 	m.SetContent("Are you sure?")
 	m.Open()
 
@@ -40,24 +43,10 @@ func TestModal_ViewVisible(t *testing.T) {
 	if view == "" {
 		t.Error("Open modal should render content")
 	}
-	if !hasSubstring(view, "Visible Modal") {
+	if !strings.Contains(view, "Visible Modal") {
 		t.Error("Should contain title")
 	}
-	if !hasSubstring(view, "Are you sure?") {
+	if !strings.Contains(view, "Are you sure?") {
 		t.Error("Should contain content")
 	}
-}
-
-func hasSubstring(s, substr string) bool {
-	return len(s) >= len(substr) &&
-		(s == substr || len(s) > 0 && containsRecursive(s, substr))
-}
-
-func containsRecursive(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

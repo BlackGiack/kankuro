@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
-	bubbletea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"kankuro/internal/config"
@@ -20,15 +20,16 @@ type WorkspacePickerModal struct {
 	selectedID  string
 	confirmed   bool
 	cancelled   bool
+	open        bool
 	searchQuery string
 }
 
 // NewWorkspacePickerModal creates a new workspace picker.
 func NewWorkspacePickerModal() *WorkspacePickerModal {
 	delegate := list.NewDefaultDelegate()
-	delegate.SetHeight(3)
+	delegate.SetHeight(workspacePickerDelegateHeight)
 
-	l := list.New([]list.Item{}, delegate, 50, 10)
+	l := list.New([]list.Item{}, delegate, workspacePickerWidth, workspacePickerHeight)
 	l.SetShowTitle(true)
 	l.Title = "Select Workspace"
 	l.SetShowStatusBar(false)
@@ -64,34 +65,36 @@ func (m *WorkspacePickerModal) SelectedID() string {
 }
 
 func (m *WorkspacePickerModal) Open() {
+	m.open = true
 	m.confirmed = false
 	m.cancelled = false
 }
 
 func (m *WorkspacePickerModal) Close() {
+	m.open = false
 	m.confirmed = false
 	m.cancelled = false
 }
 
-func (m *WorkspacePickerModal) IsOpen() bool    { return !m.cancelled }
+func (m *WorkspacePickerModal) IsOpen() bool    { return m.open }
 func (m *WorkspacePickerModal) Confirmed() bool { return m.confirmed }
 func (m *WorkspacePickerModal) Cancelled() bool { return m.cancelled }
 
-func (m *WorkspacePickerModal) Init() bubbletea.Cmd { return nil }
+func (m *WorkspacePickerModal) Init() tea.Cmd { return nil }
 
-func (m *WorkspacePickerModal) Update(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) {
-	if keyMsg, ok := msg.(bubbletea.KeyMsg); ok {
+func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
-		case "enter":
+		case keyEnter:
 			m.confirmed = true
 			return m, nil
-		case "esc":
+		case keyEsc:
 			m.cancelled = true
 			return m, nil
 		}
 	}
 
-	var cmd bubbletea.Cmd
+	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
 }
@@ -100,8 +103,8 @@ func (m *WorkspacePickerModal) View() string {
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#8E44AD")).
-		Padding(1, 2).
-		Width(60)
+		Padding(heightPadding, widthPadding).
+		Width(workspacePickerDialogWidth)
 
 	return boxStyle.Render(m.list.View())
 }

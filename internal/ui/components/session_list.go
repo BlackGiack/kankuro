@@ -14,7 +14,7 @@ import (
 	"kankuro/internal/ui/component"
 )
 
-// Session styling constants.
+// Session styling .
 const (
 	SessionDelegateHeight = 4
 )
@@ -27,7 +27,7 @@ type SessionListItem struct {
 
 // SessionListCallbacks defines callbacks for session actions.
 type SessionListCallbacks struct {
-	OnSelect  func(session.Snapshot)
+	OnSelect  func(session.Snapshot) tea.Cmd
 	OnAttach  func(sessionID string)
 	OnKill    func(sessionID string)
 	OnDelete  func(sessionID string)
@@ -87,6 +87,10 @@ func NewSessionList(callbacks SessionListCallbacks) *SessionList {
 	}
 }
 
+func (s *SessionList) List() *list.Model { return &s.list }
+
+func (s *SessionList) Sessions() []session.Snapshot { return s.sessions }
+
 // SetSessions updates the session list data.
 func (s *SessionList) SetSessions(sessions []session.Snapshot, cards []config.IDCard) {
 	s.sessions = sessions
@@ -142,44 +146,68 @@ func (s *SessionList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 
 	// Handle selection change
 	if s.list.Index() != prevIndex {
-		if sel, ok := s.Selected(); ok {
-			if s.callbacks.OnPreview != nil {
-				s.callbacks.OnPreview(sel.ID)
-			}
-		}
+		s.handleSelectionChange()
 	}
 
 	// Handle key events
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.String() {
-		case "enter":
-			if session, ok2 := s.Selected(); ok2 {
-				if s.callbacks.OnAttach != nil {
-					s.callbacks.OnAttach(session.ID)
-				}
-			}
-		case "x":
-			if session, ok2 := s.Selected(); ok2 {
-				if s.callbacks.OnKill != nil {
-					s.callbacks.OnKill(session.ID)
-				}
-			}
-		case "delete", "backspace":
-			if session, ok2 := s.Selected(); ok2 {
-				if s.callbacks.OnDelete != nil {
-					s.callbacks.OnDelete(session.ID)
-				}
-			}
-		case "s":
-			if session, ok2 := s.Selected(); ok2 {
-				if s.callbacks.OnSwitch != nil {
-					s.callbacks.OnSwitch(session.ID)
-				}
-			}
-		}
+		s.handleKey(keyMsg)
 	}
 
 	return s, cmd
+}
+
+func (s *SessionList) handleSelectionChange() {
+	if sel, ok := s.Selected(); ok {
+		if s.callbacks.OnPreview != nil {
+			s.callbacks.OnPreview(sel.ID)
+		}
+	}
+}
+
+func (s *SessionList) handleKey(keyMsg tea.KeyMsg) {
+	switch keyMsg.String() {
+	case "enter":
+		s.handleEnter()
+	case "x":
+		s.handleKill()
+	case "delete", "backspace":
+		s.handleDelete()
+	case "s":
+		s.handleSwitch()
+	}
+}
+
+func (s *SessionList) handleEnter() {
+	if session, ok := s.Selected(); ok {
+		if s.callbacks.OnAttach != nil {
+			s.callbacks.OnAttach(session.ID)
+		}
+	}
+}
+
+func (s *SessionList) handleKill() {
+	if session, ok := s.Selected(); ok {
+		if s.callbacks.OnKill != nil {
+			s.callbacks.OnKill(session.ID)
+		}
+	}
+}
+
+func (s *SessionList) handleDelete() {
+	if session, ok := s.Selected(); ok {
+		if s.callbacks.OnDelete != nil {
+			s.callbacks.OnDelete(session.ID)
+		}
+	}
+}
+
+func (s *SessionList) handleSwitch() {
+	if session, ok := s.Selected(); ok {
+		if s.callbacks.OnSwitch != nil {
+			s.callbacks.OnSwitch(session.ID)
+		}
+	}
 }
 
 // View renders the session list.
@@ -187,10 +215,12 @@ func (s *SessionList) View() string {
 	return s.list.View()
 }
 
+const listWidthOffset = 2
+
 // SetSize implements component.Model.
 func (s *SessionList) SetSize(width, height int) {
 	s.Base.SetSize(width, height)
-	s.list.SetSize(width, height)
+	s.list.SetSize(width-listWidthOffset, height)
 }
 
 // refreshItems rebuilds the list items from sessions.
@@ -277,14 +307,20 @@ func (i SessionListItem) Description() string {
 	cardLine := cardName + " " + face
 	descLine := fmt.Sprintf("%s pid=%d", i.Session.Status, i.Session.PID)
 
+	const (
+		maxWorkspaceLen = 25
+		ellipsisLen     = 3
+	)
+
 	// Session detail (ID or working dir)
 	var detailLine string
 	if i.Session.UseTmpWorkspace {
 		detailLine = "ID: " + i.Session.ID
 	} else {
 		wsPath := i.Session.WorkingDir
-		if len(wsPath) > 25 {
-			wsPath = "..." + wsPath[len(wsPath)-22:]
+		if len(wsPath) > maxWorkspaceLen {
+			// Trim workspace path to fit, accounting for ellipsis length (3 chars)
+			wsPath = "..." + wsPath[len(wsPath)-(maxWorkspaceLen-ellipsisLen):]
 		}
 		detailLine = "WS: " + wsPath
 	}

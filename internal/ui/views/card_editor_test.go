@@ -1,33 +1,37 @@
-package views
+package views_test
 
 import (
+	"strings"
 	"testing"
 
-	bubbletea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
+
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
+	"kankuro/internal/ui/messages"
+	"kankuro/internal/ui/views"
 )
 
 func TestCardEditor_New(t *testing.T) {
-	callbacks := CardEditorCallbacks{
-		OnSave: func(config.IDCard) (config.IDCard, error) {
-			return config.IDCard{}, nil
+	callbacks := views.CardEditorCallbacks{
+		OnSave: func(config.IDCard) (config.IDCard, tea.Cmd, error) {
+			return config.IDCard{}, nil, nil
 		},
 	}
 
-	e := NewCardEditor(callbacks, &commands.Commands{})
+	e := views.NewCardEditor(callbacks, &commands.Commands{})
 
 	if e == nil {
 		t.Fatal("NewCardEditor returned nil")
 	}
 
-	if e.focusIndex != 0 {
+	if e.FocusIndex() != 0 {
 		t.Error("CardEditor should start with focus on first field")
 	}
 }
 
 func TestCardEditor_SetCard(t *testing.T) {
-	e := NewCardEditor(CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
 
 	card := config.IDCard{
 		ID:          "test-1",
@@ -41,19 +45,19 @@ func TestCardEditor_SetCard(t *testing.T) {
 
 	e.SetCard(card)
 
-	if e.editingID != "test-1" {
-		t.Errorf("Expected editingID 'test-1', got '%s'", e.editingID)
+	if e.EditingID() != "test-1" {
+		t.Errorf("Expected EditingID() 'test-1', got '%s'", e.EditingID())
 	}
-	if e.inputs[0].Value() != "Test Card" {
-		t.Errorf("Expected name 'Test Card', got '%s'", e.inputs[0].Value())
+	if e.Inputs()[0].Value() != "Test Card" {
+		t.Errorf("Expected name 'Test Card', got '%s'", e.Inputs()[0].Value())
 	}
-	if e.puppet != "cat" {
-		t.Errorf("Expected puppet 'cat', got '%s'", e.puppet)
+	if e.Puppet() != "cat" {
+		t.Errorf("Expected puppet 'cat', got '%s'", e.Puppet())
 	}
 }
 
 func TestCardEditor_Reset(t *testing.T) {
-	e := NewCardEditor(CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
 
 	e.SetCard(config.IDCard{
 		ID:     "test-1",
@@ -63,32 +67,34 @@ func TestCardEditor_Reset(t *testing.T) {
 
 	e.Reset()
 
-	if e.editingID != "" {
-		t.Error("editingID should be empty after reset")
+	if e.EditingID() != "" {
+		t.Error("EditingID() should be empty after reset")
 	}
-	if e.inputs[0].Value() != "" {
+	if e.Inputs()[0].Value() != "" {
 		t.Error("Name input should be empty after reset")
 	}
-	if e.puppet != "kankuro" {
-		t.Errorf("Puppet should reset to default, got '%s'", e.puppet)
+	if e.Puppet() != "kankuro" {
+		t.Errorf("Puppet() should reset to default, got '%s'", e.Puppet())
 	}
 }
 
 func TestCardEditor_Card(t *testing.T) {
-	e := NewCardEditor(CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
 
-	e.inputs[0].SetValue("My Card")
-	e.inputs[1].SetValue("claude")
-	e.inputs[2].SetValue("claude-3-opus")
-	e.workspaceID = "ws-1"
-	e.puppet = "darth"
+	e.Inputs()[0].SetValue("My Card")
+	e.Inputs()[1].SetValue("claude")
+	e.Inputs()[2].SetValue("claude-3-opus")
+	e.SetWorkspaceID("ws-1")
+	e.SetPuppet("darth")
 
 	// Set up skills data
 	skills := []config.Skill{
 		{ID: "s1", Name: "Skill 1"},
 	}
-	e.SetData(nil, skills, nil, nil)
-	e.skillList.SetSelected([]string{"s1"})
+	e.SetData(messages.DataLoadedMsg{
+		Skills: skills,
+	})
+	e.SkillList().SetSelected([]string{"s1"})
 
 	card := e.Card()
 
@@ -99,7 +105,7 @@ func TestCardEditor_Card(t *testing.T) {
 		t.Errorf("Expected driver 'claude', got '%s'", card.Driver)
 	}
 	if card.Puppet != "darth" {
-		t.Errorf("Expected puppet 'darth', got '%s'", card.Puppet)
+		t.Errorf("Expected Puppet() 'darth', got '%s'", card.Puppet)
 	}
 	if len(card.SkillIDs) != 1 {
 		t.Errorf("Expected 1 skill, got %d", len(card.SkillIDs))
@@ -107,34 +113,34 @@ func TestCardEditor_Card(t *testing.T) {
 }
 
 func TestCardEditor_CycleFocus(t *testing.T) {
-	e := NewCardEditor(CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
 
-	if e.focusIndex != 0 {
+	if e.FocusIndex() != 0 {
 		t.Error("Should start on first field")
 	}
 
-	e.cycleFocus(1)
-	if e.focusIndex != 1 {
-		t.Errorf("Expected focus 1, got %d", e.focusIndex)
+	e.CycleFocus(1)
+	if e.FocusIndex() != 1 {
+		t.Errorf("Expected focus 1, got %d", e.FocusIndex())
 	}
 
 	// Cycle to end
-	for i := 0; i < FocusCount-1; i++ {
-		e.cycleFocus(1)
+	for range views.FocusCount - 1 {
+		e.CycleFocus(1)
 	}
-	if e.focusIndex != 0 {
-		t.Errorf("Should wrap to 0, got %d", e.focusIndex)
+	if e.FocusIndex() != 0 {
+		t.Errorf("Should wrap to 0, got %d", e.FocusIndex())
 	}
 
 	// Cycle backwards
-	e.cycleFocus(-1)
-	if e.focusIndex != FocusCount-1 {
-		t.Errorf("Should wrap to last, got %d", e.focusIndex)
+	e.CycleFocus(-1)
+	if e.FocusIndex() != views.FocusCount-1 {
+		t.Errorf("Should wrap to last, got %d", e.FocusIndex())
 	}
 }
 
 func TestCardEditor_SetData(t *testing.T) {
-	e := NewCardEditor(CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
 
 	workspaces := []config.Workspace{
 		{ID: "ws-1", Name: "Workspace 1"},
@@ -149,71 +155,78 @@ func TestCardEditor_SetData(t *testing.T) {
 		{ID: "m1", Name: "MCP 1"},
 	}
 
-	e.SetData(workspaces, skills, personas, mcps)
+	e.SetData(messages.DataLoadedMsg{
+		Workspaces: workspaces,
+		Skills:     skills,
+		Personas:   personas,
+		MCPs:       mcps,
+	})
 
-	if len(e.workspaces) != 1 {
-		t.Errorf("Expected 1 workspace, got %d", len(e.workspaces))
+	if len(e.Workspaces()) != 1 {
+		t.Errorf("Expected 1 workspace, got %d", len(e.Workspaces()))
 	}
-	if len(e.skillList.items) != 1 {
-		t.Errorf("Expected 1 skill item, got %d", len(e.skillList.items))
+	if len(e.SkillList().Items()) != 1 {
+		t.Errorf("Expected 1 skill item, got %d", len(e.SkillList().Items()))
 	}
 }
 
 func TestCardEditor_WorkspaceSummary(t *testing.T) {
-	e := NewCardEditor(CardEditorCallbacks{}, &commands.Commands{})
-	e.SetData([]config.Workspace{
-		{ID: "ws-1", Name: "My Workspace"},
-	}, nil, nil, nil)
+	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e.SetData(messages.DataLoadedMsg{
+		Workspaces: []config.Workspace{
+			{ID: "ws-1", Name: "My Workspace"},
+		},
+	})
 
 	// No selection
-	if e.workspaceSummary() != "(none selected)" {
-		t.Errorf("Expected '(none selected)', got '%s'", e.workspaceSummary())
+	if e.WorkspaceSummary() != "(none selected)" {
+		t.Errorf("Expected '(none selected)', got '%s'", e.WorkspaceSummary())
 	}
 
 	// With selection
-	e.workspaceID = "ws-1"
-	if e.workspaceSummary() != "My Workspace" {
-		t.Errorf("Expected 'My Workspace', got '%s'", e.workspaceSummary())
+	e.SetWorkspaceID("ws-1")
+	if e.WorkspaceSummary() != "My Workspace" {
+		t.Errorf("Expected 'My Workspace', got '%s'", e.WorkspaceSummary())
 	}
 }
 
 func TestCapabilityList_Toggle(t *testing.T) {
-	list := NewCapabilityList(CapabilityListConfig{Title: "Test"})
-	list.SetItems([]CapabilityItem{
-		skillItem{skill: config.Skill{ID: "s1", Name: "Skill 1"}},
-		skillItem{skill: config.Skill{ID: "s2", Name: "Skill 2"}},
+	list := views.NewCapabilityList(views.CapabilityListConfig{Title: "Test"})
+	list.SetItems([]views.CapabilityItem{
+		views.SkillItem{Skill: config.Skill{ID: "s1", Name: "Skill 1"}},
+		views.SkillItem{Skill: config.Skill{ID: "s2", Name: "Skill 2"}},
 	})
 
 	// Toggle first item
-	list.cursor = 0
+	list.SetCursor(0)
 	list.ToggleSelected()
 
-	if !list.selected["s1"] {
+	if !list.IsSelectedList()["s1"] {
 		t.Error("s1 should be selected after toggle")
 	}
 
 	// Toggle again
 	list.ToggleSelected()
-	if list.selected["s1"] {
+	if list.IsSelectedList()["s1"] {
 		t.Error("s1 should be deselected after second toggle")
 	}
 }
 
 func TestCapabilityList_Search(t *testing.T) {
-	list := NewCapabilityList(CapabilityListConfig{Title: "Test"})
-	list.SetItems([]CapabilityItem{
-		skillItem{skill: config.Skill{ID: "s1", Name: "Alpha"}},
-		skillItem{skill: config.Skill{ID: "s2", Name: "Beta"}},
-		skillItem{skill: config.Skill{ID: "s3", Name: "Gamma"}},
+	list := views.NewCapabilityList(views.CapabilityListConfig{Title: "Test"})
+	list.SetItems([]views.CapabilityItem{
+		views.SkillItem{Skill: config.Skill{ID: "s1", Name: "Alpha"}},
+		views.SkillItem{Skill: config.Skill{ID: "s2", Name: "Beta"}},
+		views.SkillItem{Skill: config.Skill{ID: "s3", Name: "Gamma"}},
 	})
 
-	filtered := list.filteredItems()
+	filtered := list.FilteredItems()
 	if len(filtered) != 3 {
 		t.Errorf("Expected 3 items without filter, got %d", len(filtered))
 	}
 
 	list.SetSearchQuery("be")
-	filtered = list.filteredItems()
+	filtered = list.FilteredItems()
 	if len(filtered) != 1 {
 		t.Errorf("Expected 1 item matching 'be', got %d", len(filtered))
 	}
@@ -223,7 +236,7 @@ func TestCapabilityList_Search(t *testing.T) {
 }
 
 func TestCardEditor_View(t *testing.T) {
-	e := NewCardEditor(CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
 	e.SetSize(80, 40)
 
 	view := e.View()
@@ -231,36 +244,36 @@ func TestCardEditor_View(t *testing.T) {
 	if view == "" {
 		t.Error("View should not be empty")
 	}
-	if !containsString(view, "New ID Card") {
+	if !strings.Contains(view, "New ID Card") {
 		t.Error("View should contain title")
 	}
-	if !containsString(view, "Name:") {
+	if !strings.Contains(view, "Name:") {
 		t.Error("View should contain Name field")
 	}
-	if !containsString(view, "Skills") {
+	if !strings.Contains(view, "Skills") {
 		t.Error("View should contain Skills section")
 	}
 }
 
 func TestPuppetSelector_Navigation(t *testing.T) {
-	m := NewPuppetSelectorModal()
+	m := views.NewPuppetSelectorModal()
 	m.Open()
 
-	if m.cursor != 0 {
+	if m.Cursor() != 0 {
 		t.Error("Should start at cursor 0")
 	}
 
 	// Right arrow
-	m.Update(bubbletea.KeyMsg{Runes: []rune{}, Type: bubbletea.KeyRight})
-	if m.cursor != 1 {
-		t.Errorf("Expected cursor 1, got %d", m.cursor)
+	m.Update(tea.KeyMsg{Runes: []rune{}, Type: tea.KeyRight})
+	if m.Cursor() != 1 {
+		t.Errorf("Expected cursor 1, got %d", m.Cursor())
 	}
 
 	// Wrap around
-	for i := 0; i < len(puppetStyles)-1; i++ {
-		m.Update(bubbletea.KeyMsg{Runes: []rune{}, Type: bubbletea.KeyRight})
+	for range len(views.PuppetStyles) - 1 {
+		m.Update(tea.KeyMsg{Runes: []rune{}, Type: tea.KeyRight})
 	}
-	if m.cursor != 0 {
-		t.Errorf("Should wrap to 0, got %d", m.cursor)
+	if m.Cursor() != 0 {
+		t.Errorf("Should wrap to 0, got %d", m.Cursor())
 	}
 }

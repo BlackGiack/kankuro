@@ -1,15 +1,16 @@
-package views
+package views_test
 
 import (
 	"testing"
 
-	bubbletea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
 
 	"kankuro/internal/config"
+	"kankuro/internal/ui/views"
 )
 
 func TestSwitchModal_New(t *testing.T) {
-	m := NewSwitchModal()
+	m := views.NewSwitchModal()
 
 	if m == nil {
 		t.Fatal("NewSwitchModal returned nil")
@@ -21,7 +22,7 @@ func TestSwitchModal_New(t *testing.T) {
 }
 
 func TestSwitchModal_SetCards(t *testing.T) {
-	m := NewSwitchModal()
+	m := views.NewSwitchModal()
 
 	cards := []config.IDCard{
 		{ID: "c1", Name: "Card 1"},
@@ -30,13 +31,13 @@ func TestSwitchModal_SetCards(t *testing.T) {
 
 	m.SetCards(cards, nil, nil)
 
-	if len(m.list.Items()) != 2 {
-		t.Errorf("Expected 2 items, got %d", len(m.list.Items()))
+	if len(m.List().Items()) != 2 {
+		t.Errorf("Expected 2 items, got %d", len(m.List().Items()))
 	}
 }
 
 func TestSwitchModal_OpenClose(t *testing.T) {
-	m := NewSwitchModal()
+	m := views.NewSwitchModal()
 
 	m.Open()
 	if !m.IsOpen() {
@@ -50,7 +51,7 @@ func TestSwitchModal_OpenClose(t *testing.T) {
 }
 
 func TestSwitchModal_Confirmation(t *testing.T) {
-	m := NewSwitchModal()
+	m := views.NewSwitchModal()
 
 	cards := []config.IDCard{
 		{ID: "c1", Name: "Card 1"},
@@ -59,7 +60,7 @@ func TestSwitchModal_Confirmation(t *testing.T) {
 	m.Open()
 
 	// Simulate Enter key
-	keyMsg := bubbletea.KeyMsg{Type: bubbletea.KeyEnter}
+	keyMsg := tea.KeyMsg{Type: tea.KeyEnter}
 	m.Update(keyMsg)
 
 	if !m.Confirmed() {
@@ -72,7 +73,7 @@ func TestSwitchModal_Confirmation(t *testing.T) {
 }
 
 func TestSwitchModal_Cancellation(t *testing.T) {
-	m := NewSwitchModal()
+	m := views.NewSwitchModal()
 
 	cards := []config.IDCard{
 		{ID: "c1", Name: "Card 1"},
@@ -81,7 +82,7 @@ func TestSwitchModal_Cancellation(t *testing.T) {
 	m.Open()
 
 	// Simulate Esc key
-	keyMsg := bubbletea.KeyMsg{Type: bubbletea.KeyEsc}
+	keyMsg := tea.KeyMsg{Type: tea.KeyEsc}
 	m.Update(keyMsg)
 
 	if !m.Cancelled() {
@@ -94,14 +95,14 @@ func TestSwitchModal_Cancellation(t *testing.T) {
 }
 
 func TestSwitchModal_SelectedCardID(t *testing.T) {
-	m := NewSwitchModal()
+	m := views.NewSwitchModal()
 
 	cards := []config.IDCard{
 		{ID: "c1", Name: "Card 1"},
 		{ID: "c2", Name: "Card 2"},
 	}
 	m.SetCards(cards, nil, nil)
-	m.list.Select(1) // Select second card
+	m.Select(1) // Select second card
 
 	selectedID := m.SelectedCardID()
 	if selectedID != "c2" {

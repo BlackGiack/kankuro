@@ -41,10 +41,7 @@ const (
 // IDEConfigCallbacks defines callbacks for IDE config actions.
 type IDEConfigCallbacks struct {
 	// OnSave is called when the command is saved.
-	OnSave func(command string) error
-
-	// OnClose is called when user exits to dashboard.
-	OnClose func()
+	OnSave func(command string) (tea.Cmd, error)
 
 	// OnLaunch is called when user wants to launch IDE for a session.
 	// Optional - may be handled by Dashboard instead.
@@ -88,6 +85,22 @@ func (c *IDEConfig) Config() config.IDEConfig {
 	return c.config
 }
 
+// Mode returns the current configuration mode.
+func (c *IDEConfig) Mode() IDEConfigMode {
+	return c.mode
+}
+
+// Input returns the underlying text input model.
+func (c *IDEConfig) Input() *textinput.Model {
+	return &c.input
+}
+
+// SetData implements messages.DataReceiver to load IDE config.
+func (c *IDEConfig) SetData(_ messages.DataLoadedMsg) {
+	// IDE config is not in DataLoadedMsg, so we need to load it separately
+	// This is handled by the coordinator when opening the view
+}
+
 // Init initializes the component.
 func (c *IDEConfig) Init() tea.Cmd {
 	return nil
@@ -110,12 +123,7 @@ func (c *IDEConfig) updateDisplay(msg tea.Msg) (component.Model, tea.Cmd) {
 
 	switch keyMsg.String() {
 	case "esc":
-		if c.callbacks.OnClose != nil {
-			c.callbacks.OnClose()
-		}
-		return c, func() tea.Msg {
-			return messages.NavigateMsg{View: messages.ViewDashboard}
-		}
+		return c, func() tea.Msg { return messages.NavigateBackMsg{} }
 
 	case "enter", "e":
 		c.mode = IDEModeEdit
@@ -152,9 +160,15 @@ func (c *IDEConfig) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 		c.mode = IDEModeDisplay
 
 		if c.callbacks.OnSave != nil {
-			_ = c.callbacks.OnSave(c.config.Command)
+			saveCmd, saveErr := c.callbacks.OnSave(c.config.Command)
+			if saveErr != nil {
+				return c, func() tea.Msg {
+					return messages.ErrorMsg{Err: saveErr}
+				}
+			}
+			backCmd := func() tea.Msg { return messages.NavigateBackMsg{} }
+			return c, tea.Batch(saveCmd, backCmd)
 		}
-		return c, nil
 
 	case "ctrl+c":
 		return c, tea.Quit

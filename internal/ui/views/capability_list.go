@@ -10,6 +10,10 @@ import (
 	"kankuro/internal/ui/component"
 )
 
+const (
+	cursorCenterDivisor = 2
+)
+
 // CapabilityItem represents an item in a capability list.
 type CapabilityItem interface {
 	GetID() string
@@ -49,10 +53,14 @@ func NewCapabilityList(config CapabilityListConfig) *CapabilityList {
 	}
 }
 
+func (c *CapabilityList) Items() []CapabilityItem { return c.items }
+
 // SetItems updates the list items.
 func (c *CapabilityList) SetItems(items []CapabilityItem) {
 	c.items = items
 }
+
+func (c *CapabilityList) IsSelectedList() map[string]bool { return c.selected }
 
 // SetSelected sets the selected IDs.
 func (c *CapabilityList) SetSelected(ids []string) {
@@ -91,7 +99,7 @@ func (c *CapabilityList) Cursor() int {
 
 // SetCursor sets the cursor position.
 func (c *CapabilityList) SetCursor(pos int) {
-	filtered := c.filteredItems()
+	filtered := c.FilteredItems()
 	if pos < 0 {
 		pos = 0
 	}
@@ -103,7 +111,7 @@ func (c *CapabilityList) SetCursor(pos int) {
 
 // ToggleSelected toggles selection at cursor.
 func (c *CapabilityList) ToggleSelected() {
-	filtered := c.filteredItems()
+	filtered := c.FilteredItems()
 	if c.cursor < 0 || c.cursor >= len(filtered) {
 		return
 	}
@@ -118,7 +126,7 @@ func (c *CapabilityList) ToggleSelected() {
 
 // SelectedItem returns the item at cursor.
 func (c *CapabilityList) SelectedItem() (CapabilityItem, bool) {
-	filtered := c.filteredItems()
+	filtered := c.FilteredItems()
 	if c.cursor < 0 || c.cursor >= len(filtered) {
 		return nil, false
 	}
@@ -133,37 +141,40 @@ func (c *CapabilityList) Init() bubbletea.Cmd {
 // Update handles messages.
 func (c *CapabilityList) Update(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) {
 	if keyMsg, ok := msg.(bubbletea.KeyMsg); ok {
-		filtered := c.filteredItems()
+		c.handleKey(keyMsg)
+	}
+	return c, nil
+}
 
-		switch keyMsg.String() {
-		case "up":
-			if c.cursor > 0 {
-				c.cursor--
-			}
-		case "down":
-			if c.cursor < len(filtered)-1 {
-				c.cursor++
-			}
-		case " ":
-			c.ToggleSelected()
-		case "backspace":
-			if len(c.searchQuery) > 0 {
-				c.searchQuery = c.searchQuery[:len(c.searchQuery)-1]
-				c.cursor = 0
-			}
-		default:
-			// Handle search input
-			if len(keyMsg.Runes) > 0 {
-				ch := keyMsg.Runes[0]
-				if ch >= 33 && ch <= 126 {
-					c.searchQuery += string(ch)
-					c.cursor = 0
-				}
-			}
+func (c *CapabilityList) handleKey(keyMsg bubbletea.KeyMsg) {
+	filtered := c.FilteredItems()
+
+	switch keyMsg.String() {
+	case "up":
+		if c.cursor > 0 {
+			c.cursor--
+		}
+	case "down":
+		if c.cursor < len(filtered)-1 {
+			c.cursor++
+		}
+	case " ":
+		c.ToggleSelected()
+	case keyBackspace:
+		if len(c.searchQuery) > 0 {
+			c.searchQuery = c.searchQuery[:len(c.searchQuery)-1]
+			c.cursor = 0
 		}
 	}
 
-	return c, nil
+	// Handle search input
+	if len(keyMsg.Runes) > 0 {
+		ch := keyMsg.Runes[0]
+		if ch >= 33 && ch <= 126 {
+			c.searchQuery += string(ch)
+			c.cursor = 0
+		}
+	}
 }
 
 // View renders the capability list.
@@ -180,7 +191,7 @@ func (c *CapabilityList) View() string {
 	}
 	sb.WriteString(header + "\n")
 
-	filtered := c.filteredItems()
+	filtered := c.FilteredItems()
 
 	if len(filtered) == 0 {
 		text := "(no matching items)"
@@ -227,8 +238,8 @@ func (c *CapabilityList) View() string {
 	return sb.String()
 }
 
-// filteredItems returns items matching the search query.
-func (c *CapabilityList) filteredItems() []CapabilityItem {
+// FilteredItems returns items matching the search query.
+func (c *CapabilityList) FilteredItems() []CapabilityItem {
 	if c.searchQuery == "" {
 		return c.items
 	}
@@ -245,24 +256,18 @@ func (c *CapabilityList) filteredItems() []CapabilityItem {
 }
 
 // calculateWindow returns the visible window based on cursor position.
-func (c *CapabilityList) calculateWindow(total int) (start, end int) {
+func (c *CapabilityList) calculateWindow(total int) (int, int) {
 	if c.maxVisible <= 0 {
 		return 0, total
 	}
 
-	half := c.maxVisible / 2
-	start = c.cursor - half
-	if start < 0 {
-		start = 0
-	}
+	half := c.maxVisible / cursorCenterDivisor // Divide by 2 to center the cursor
+	start := max(c.cursor-half, 0)
 
-	end = start + c.maxVisible
+	end := start + c.maxVisible
 	if end > total {
 		end = total
-		start = end - c.maxVisible
-		if start < 0 {
-			start = 0
-		}
+		start = max(end-c.maxVisible, 0)
 	}
 
 	return start, end

@@ -25,6 +25,11 @@ func NewIDELauncher(command string) *IDELauncher {
 	return &IDELauncher{command: command}
 }
 
+// Command returns the underlying command.
+func (l *IDELauncher) Command() string {
+	return l.command
+}
+
 // Launch starts the IDE for the given workspace path.
 func (l *IDELauncher) Launch(workspacePath string) error {
 	if l.command == "" {
@@ -42,12 +47,12 @@ func (l *IDELauncher) Launch(workspacePath string) error {
 
 	cmd := strings.ReplaceAll(l.command, PathPlaceholder, absPath)
 
-	parts := splitCommand(cmd)
+	parts := SplitCommand(cmd)
 	if len(parts) == 0 {
 		return ErrInvalidCommand
 	}
 
-	execCmd := exec.CommandContext(context.Background(), parts[0], parts[1:]...)
+	execCmd := exec.CommandContext(context.Background(), parts[0], parts[1:]...) //nolint:gosec // user-configured command
 	execCmd.Dir = absPath
 	execCmd.Stdin = nil
 	execCmd.Stdout = nil
@@ -72,6 +77,11 @@ func resolvePath(path string) (string, error) {
 		return "", statErr
 	}
 	return abs, nil
+}
+
+// SplitCommand parses a command string with quote support.
+func SplitCommand(cmd string) []string {
+	return splitCommand(cmd)
 }
 
 // splitCommand parses a command string with quote support.
@@ -148,7 +158,7 @@ func (e *ideError) Unwrap() error {
 	return errors.New(e.msg)
 }
 
-// Format implements fmt.Formatter for better error messages.
+// Format implements [fmt.Formatter] for better error messages.
 func (e *ideError) Format(f fmt.State, verb rune) {
 	switch verb {
 	case 'v':

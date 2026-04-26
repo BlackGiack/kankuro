@@ -1,7 +1,8 @@
-package views
+package views_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,55 +11,56 @@ import (
 	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/messages"
+	"kankuro/internal/ui/views"
 )
 
 func TestSourceManager_New_Skills(t *testing.T) {
-	callbacks := SourceManagerCallbacks{}
-	sm := NewSourceManager(SourceTypeSkills, callbacks, &commands.Commands{})
+	callbacks := views.SourceManagerCallbacks{}
+	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks, &commands.Commands{})
 
 	if sm == nil {
 		t.Fatal("NewSourceManager returned nil")
 	}
 
-	if sm.sourceType != SourceTypeSkills {
-		t.Errorf("Expected SourceTypeSkills, got %s", sm.sourceType)
+	if sm.SourceType() != views.SourceTypeSkills {
+		t.Errorf("Expected SourceTypeSkills, got %s", sm.SourceType())
 	}
 
-	if sm.typeConfig.Title != "Manage Skill Sources" {
-		t.Errorf("Wrong title: %s", sm.typeConfig.Title)
+	if sm.TypeConfig().Title != "Manage Skill Sources" {
+		t.Errorf("Wrong title: %s", sm.TypeConfig().Title)
 	}
 
-	if sm.typeConfig.FormFields != 1 {
-		t.Errorf("Skills should have 1 form field, got %d", sm.typeConfig.FormFields)
+	if sm.TypeConfig().FormFields != 1 {
+		t.Errorf("Skills should have 1 form field, got %d", sm.TypeConfig().FormFields)
 	}
 }
 
 func TestSourceManager_New_Personas(t *testing.T) {
-	callbacks := SourceManagerCallbacks{}
-	sm := NewSourceManager(SourceTypePersonas, callbacks, &commands.Commands{})
+	callbacks := views.SourceManagerCallbacks{}
+	sm := views.NewSourceManager(views.SourceTypePersonas, callbacks, &commands.Commands{})
 
-	if sm.sourceType != SourceTypePersonas {
-		t.Errorf("Expected SourceTypePersonas, got %s", sm.sourceType)
+	if sm.SourceType() != views.SourceTypePersonas {
+		t.Errorf("Expected SourceTypePersonas, got %s", sm.SourceType())
 	}
 
-	if sm.typeConfig.FormFields != 1 {
-		t.Errorf("Personas should have 1 form field, got %d", sm.typeConfig.FormFields)
+	if sm.TypeConfig().FormFields != 1 {
+		t.Errorf("Personas should have 1 form field, got %d", sm.TypeConfig().FormFields)
 	}
 }
 
 func TestSourceManager_New_Workspaces(t *testing.T) {
-	callbacks := SourceManagerCallbacks{}
-	sm := NewSourceManager(SourceTypeWorkspaces, callbacks, &commands.Commands{})
+	callbacks := views.SourceManagerCallbacks{}
+	sm := views.NewSourceManager(views.SourceTypeWorkspaces, callbacks, &commands.Commands{})
 
-	if sm.sourceType != SourceTypeWorkspaces {
-		t.Errorf("Expected SourceTypeWorkspaces, got %s", sm.sourceType)
+	if sm.SourceType() != views.SourceTypeWorkspaces {
+		t.Errorf("Expected SourceTypeWorkspaces, got %s", sm.SourceType())
 	}
 
-	if sm.typeConfig.FormFields != 2 {
-		t.Errorf("Workspaces should have 2 form fields, got %d", sm.typeConfig.FormFields)
+	if sm.TypeConfig().FormFields != 2 {
+		t.Errorf("Workspaces should have 2 form fields, got %d", sm.TypeConfig().FormFields)
 	}
 
-	if sm.typeConfig.Legend == "" {
+	if sm.TypeConfig().Legend == "" {
 		t.Error("Workspaces should have a legend")
 	}
 }
@@ -66,7 +68,7 @@ func TestSourceManager_New_Workspaces(t *testing.T) {
 func TestSourceManager_SetData(t *testing.T) {
 	loaded := false
 
-	callbacks := SourceManagerCallbacks{
+	callbacks := views.SourceManagerCallbacks{
 		LoadSources: func() []components.SourceItem {
 			loaded = true
 			return []components.SourceItem{
@@ -75,7 +77,7 @@ func TestSourceManager_SetData(t *testing.T) {
 		},
 	}
 
-	sm := NewSourceManager(SourceTypeSkills, callbacks, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks, &commands.Commands{})
 	sm.SetData()
 
 	if !loaded {
@@ -83,18 +85,24 @@ func TestSourceManager_SetData(t *testing.T) {
 	}
 }
 
-func TestSourceManager_SetPrevView(t *testing.T) {
-	sm := NewSourceManager(SourceTypeSkills, SourceManagerCallbacks{}, &commands.Commands{})
+func TestSourceManager_Escape_NavigatesBack(t *testing.T) {
+	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{}, &commands.Commands{})
+	sm.Init()
 
-	sm.SetPrevView(messages.ViewCardEditor)
+	_, cmd := sm.Update(tea.KeyMsg{Type: tea.KeyEsc})
 
-	if sm.prevView != messages.ViewCardEditor {
-		t.Errorf("Expected ViewCardEditor, got %d", sm.prevView)
+	if cmd == nil {
+		t.Error("Should return a command on escape")
+	}
+
+	msg := cmd()
+	if _, ok := msg.(messages.NavigateBackMsg); !ok {
+		t.Errorf("Should emit NavigateBackMsg, got %T", msg)
 	}
 }
 
 func TestSourceManager_View(t *testing.T) {
-	callbacks := SourceManagerCallbacks{
+	callbacks := views.SourceManagerCallbacks{
 		LoadSources: func() []components.SourceItem {
 			return []components.SourceItem{
 				components.SimpleSourceItem("/path1"),
@@ -103,7 +111,7 @@ func TestSourceManager_View(t *testing.T) {
 		},
 	}
 
-	sm := NewSourceManager(SourceTypeSkills, callbacks, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks, &commands.Commands{})
 	sm.Init()
 
 	view := sm.View()
@@ -112,11 +120,11 @@ func TestSourceManager_View(t *testing.T) {
 		t.Error("View should not be empty")
 	}
 
-	if !containsString(view, "Manage Skill Sources") {
+	if !strings.Contains(view, "Manage Skill Sources") {
 		t.Error("View should contain title")
 	}
 
-	if !containsString(view, "/path1") {
+	if !strings.Contains(view, "/path1") {
 		t.Error("View should contain sources")
 	}
 }
@@ -125,18 +133,18 @@ func TestSourceManager_Save_Simple(t *testing.T) {
 	var savedPath string
 	var savedIndex int
 
-	callbacks := SourceManagerCallbacks{
-		SaveSimpleSource: func(path string, idx int) error {
+	callbacks := views.SourceManagerCallbacks{
+		SaveSimpleSource: func(path string, idx int) (tea.Cmd, error) {
 			savedPath = path
 			savedIndex = idx
-			return nil
+			return func() tea.Msg { return nil }, nil
 		},
-		Refresh: func() {},
+		Refresh: func() tea.Cmd { return nil },
 	}
 
 	item := components.SimpleSourceItem("/new/source")
 
-	err := handleSave(SourceTypeSkills, callbacks, item, -1)
+	_, err := views.HandleSave(views.SourceTypeSkills, callbacks, item, -1)
 
 	if err != nil {
 		t.Errorf("Save should not error: %v", err)
@@ -154,12 +162,12 @@ func TestSourceManager_Save_Simple(t *testing.T) {
 func TestSourceManager_Save_Workspace(t *testing.T) {
 	var savedSource config.WorkspaceSource
 
-	callbacks := SourceManagerCallbacks{
-		SaveWorkspaceSource: func(source config.WorkspaceSource, _ int) error {
+	callbacks := views.SourceManagerCallbacks{
+		SaveWorkspaceSource: func(source config.WorkspaceSource, _ int) (tea.Cmd, error) {
 			savedSource = source
-			return nil
+			return func() tea.Msg { return nil }, nil
 		},
-		Refresh: func() {},
+		Refresh: func() tea.Cmd { return nil },
 	}
 
 	item := components.WorkspaceSourceItem{
@@ -170,7 +178,7 @@ func TestSourceManager_Save_Workspace(t *testing.T) {
 		},
 	}
 
-	err := handleSave(SourceTypeWorkspaces, callbacks, item, 0)
+	_, err := views.HandleSave(views.SourceTypeWorkspaces, callbacks, item, 0)
 
 	if err != nil {
 		t.Errorf("Save should not error: %v", err)
@@ -186,18 +194,18 @@ func TestSourceManager_Save_Workspace(t *testing.T) {
 }
 
 func TestSourceManager_Delete(_ *testing.T) {
-	callbacks := SourceManagerCallbacks{
-		DeleteSource: func(_ int) error {
-			return nil
+	callbacks := views.SourceManagerCallbacks{
+		DeleteSource: func(_ int) (tea.Cmd, error) {
+			return func() tea.Msg { return nil }, errTest
 		},
-		Refresh: func() {},
+		Refresh: func() tea.Cmd { return nil },
 	}
 
-	sm := NewSourceManager(SourceTypeSkills, callbacks, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks, &commands.Commands{})
 
 	sm.SetData()
 
-	sm.sourceList.SetItems([]components.SourceItem{
+	sm.SourceList().SetItems([]components.SourceItem{
 		components.SimpleSourceItem("/path1"),
 		components.SimpleSourceItem("/path2"),
 	})
@@ -205,9 +213,8 @@ func TestSourceManager_Delete(_ *testing.T) {
 	_, _ = sm.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
 }
 
-func TestSourceManager_Escape_NavigatesBack(t *testing.T) {
-	sm := NewSourceManager(SourceTypeSkills, SourceManagerCallbacks{}, &commands.Commands{})
-	sm.SetPrevView(messages.ViewCardEditor)
+func TestSourceManager_EscapeInListMode_NavigatesBack(t *testing.T) {
+	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{}, &commands.Commands{})
 	sm.Init()
 
 	_, cmd := sm.Update(tea.KeyMsg{Type: tea.KeyEsc})
@@ -217,31 +224,27 @@ func TestSourceManager_Escape_NavigatesBack(t *testing.T) {
 	}
 
 	msg := cmd()
-	if navMsg, ok := msg.(messages.NavigateMsg); ok {
-		if navMsg.View != messages.ViewCardEditor {
-			t.Errorf("Should navigate to ViewCardEditor, got %d", navMsg.View)
-		}
-	} else {
-		t.Error("Should emit NavigateMsg")
+	if _, ok := msg.(messages.NavigateBackMsg); !ok {
+		t.Errorf("Should emit NavigateBackMsg, got %T", msg)
 	}
 }
 
 func TestSourceManager_Escape_InFormMode(t *testing.T) {
-	sm := NewSourceManager(SourceTypeSkills, SourceManagerCallbacks{}, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{}, &commands.Commands{})
 	sm.Init()
 
-	sm.sourceList.OpenForm(-1)
+	sm.SourceList().OpenForm(-1)
 
 	model, _ := sm.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	sm = model.(*SourceManager)
+	sm = model.(*views.SourceManager)
 
-	if sm.sourceList.Mode != components.SourceListModeList {
+	if sm.SourceList().Mode != components.SourceListModeList {
 		t.Error("Should return to list mode on escape in form")
 	}
 }
 
 func TestSourceManager_SetSize(t *testing.T) {
-	sm := NewSourceManager(SourceTypeSkills, SourceManagerCallbacks{}, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{}, &commands.Commands{})
 	sm.SetSize(80, 24)
 
 	if sm.Width != 80 {
@@ -254,36 +257,36 @@ func TestSourceManager_SetSize(t *testing.T) {
 }
 
 func TestSourceManager_Error(t *testing.T) {
-	callbacks := SourceManagerCallbacks{
-		SaveSimpleSource: func(_ string, _ int) error {
-			return errors.New("save failed")
+	callbacks := views.SourceManagerCallbacks{
+		SaveSimpleSource: func(_ string, _ int) (tea.Cmd, error) {
+			return nil, errors.New("save failed")
 		},
 	}
 
-	sm := NewSourceManager(SourceTypeSkills, callbacks, &commands.Commands{})
-	sm.err = errors.New("test error")
+	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks, &commands.Commands{})
+	sm.SetError(errors.New("test error"))
 
 	view := sm.View()
 
-	if !containsString(view, "Error:") {
+	if !strings.Contains(view, "Error:") {
 		t.Error("Should display error in view")
 	}
 }
 
 func TestGetSourceTypeConfig(t *testing.T) {
 	tests := []struct {
-		sourceType     SourceType
+		sourceType     views.SourceType
 		expectedTitle  string
 		expectedFields int
 	}{
-		{SourceTypeSkills, "Manage Skill Sources", 1},
-		{SourceTypePersonas, "Manage Persona Sources", 1},
-		{SourceTypeWorkspaces, "Manage Workspace Sources", 2},
+		{views.SourceTypeSkills, "Manage Skill Sources", 1},
+		{views.SourceTypePersonas, "Manage Persona Sources", 1},
+		{views.SourceTypeWorkspaces, "Manage Workspace Sources", 2},
 	}
 
 	for _, tt := range tests {
 		t.Run(string(tt.sourceType), func(t *testing.T) {
-			config := GetSourceTypeConfig(tt.sourceType)
+			config := views.GetSourceTypeConfig(tt.sourceType)
 
 			if config.Title != tt.expectedTitle {
 				t.Errorf("Expected title '%s', got '%s'", tt.expectedTitle, config.Title)
@@ -297,8 +300,8 @@ func TestGetSourceTypeConfig(t *testing.T) {
 }
 
 func TestGenerateID(t *testing.T) {
-	id1 := GenerateID()
-	id2 := GenerateID()
+	id1 := views.GenerateID()
+	id2 := views.GenerateID()
 
 	if id1 == id2 {
 		t.Error("IDs should be unique")

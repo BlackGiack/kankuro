@@ -1,20 +1,25 @@
-package components
+package components_test
 
 import (
 	"sort"
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
+	"kankuro/internal/ui/components"
 )
 
 func TestSessionList_New(t *testing.T) {
-	callbacks := SessionListCallbacks{
-		OnSelect:  func(session.Snapshot) {},
+	callbacks := components.SessionListCallbacks{
+		OnSelect: func(session.Snapshot) tea.Cmd {
+			return nil
+		},
 		OnAttach:  func(string) {},
 		OnKill:    func(string) {},
 		OnDelete:  func(string) {},
@@ -22,7 +27,7 @@ func TestSessionList_New(t *testing.T) {
 		OnPreview: func(string) {},
 	}
 
-	sl := NewSessionList(callbacks)
+	sl := components.NewSessionList(callbacks)
 	if sl == nil {
 		t.Fatal("NewSessionList returned nil")
 	}
@@ -33,8 +38,8 @@ func TestSessionList_New(t *testing.T) {
 }
 
 func TestSessionList_SetSessions(t *testing.T) {
-	callbacks := SessionListCallbacks{}
-	sl := NewSessionList(callbacks)
+	callbacks := components.SessionListCallbacks{}
+	sl := components.NewSessionList(callbacks)
 
 	sessions := []session.Snapshot{
 		{ID: "s1", Name: "Session 1", Status: session.StatusRunning, StartedAt: time.Now()},
@@ -47,8 +52,8 @@ func TestSessionList_SetSessions(t *testing.T) {
 	sl.SetSessions(sessions, cards)
 
 	// Verify internal state updated
-	if len(sl.sessions) != 2 {
-		t.Errorf("Expected 2 sessions, got %d", len(sl.sessions))
+	if len(sl.Sessions()) != 2 {
+		t.Errorf("Expected 2 sessions, got %d", len(sl.Sessions()))
 	}
 
 	// Verify sorting (newest first)
@@ -60,8 +65,8 @@ func TestSessionList_SetSessions(t *testing.T) {
 }
 
 func TestSessionList_SetSearchQuery(t *testing.T) {
-	callbacks := SessionListCallbacks{}
-	sl := NewSessionList(callbacks)
+	callbacks := components.SessionListCallbacks{}
+	sl := components.NewSessionList(callbacks)
 
 	sessions := []session.Snapshot{
 		{ID: "s1", Name: "Alpha Session"},
@@ -89,8 +94,8 @@ func TestSessionList_SetSearchQuery(t *testing.T) {
 }
 
 func TestSessionList_Selected(t *testing.T) {
-	callbacks := SessionListCallbacks{}
-	sl := NewSessionList(callbacks)
+	callbacks := components.SessionListCallbacks{}
+	sl := components.NewSessionList(callbacks)
 
 	// No selection
 	_, ok := sl.Selected()
@@ -103,7 +108,8 @@ func TestSessionList_Selected(t *testing.T) {
 		{ID: "s1", Name: "Test Session", StartedAt: time.Now()},
 	}
 	sl.SetSessions(sessions, nil)
-	sl.list.Select(0)
+	l := sl.List()
+	l.Select(0)
 
 	sess, ok := sl.Selected()
 	if !ok {
@@ -138,7 +144,7 @@ func TestSessionListItem_Title(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			item := SessionListItem{Session: tt.session}
+			item := components.SessionListItem{Session: tt.session}
 			title := item.Title()
 
 			if tt.session.Status != session.StatusWaiting {
@@ -172,7 +178,7 @@ func TestSessionListItem_Description(t *testing.T) {
 		FaceStyle: "happy",
 	}
 
-	item := SessionListItem{
+	item := components.SessionListItem{
 		Session: session,
 		Card:    card,
 	}
@@ -185,8 +191,8 @@ func TestSessionListItem_Description(t *testing.T) {
 }
 
 func TestSessionList_SetSelectedByID(t *testing.T) {
-	callbacks := SessionListCallbacks{}
-	sl := NewSessionList(callbacks)
+	callbacks := components.SessionListCallbacks{}
+	sl := components.NewSessionList(callbacks)
 
 	sessions := []session.Snapshot{
 		{ID: "s1", Name: "First", StartedAt: time.Now().Add(-2 * time.Hour)},
@@ -219,7 +225,7 @@ func TestSessionList_SetSelectedByID(t *testing.T) {
 
 func TestRenderAgentFace(t *testing.T) {
 	// Test that renderer works
-	face := RenderAgentFace("neutral")
+	face := components.RenderAgentFace("neutral")
 	if face == "" {
 		t.Error("RenderAgentFace should return non-empty string")
 	}
@@ -227,7 +233,7 @@ func TestRenderAgentFace(t *testing.T) {
 
 func TestRenderAgentPuppet(t *testing.T) {
 	// Test that renderer works
-	puppet := RenderAgentPuppet("kankuro")
+	puppet := components.RenderAgentPuppet("kankuro")
 	if puppet == "" {
 		t.Error("RenderAgentPuppet should return non-empty string")
 	}

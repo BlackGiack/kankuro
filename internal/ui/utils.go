@@ -2,7 +2,7 @@ package ui
 
 import "strings"
 
-func filterByQuery[T any](items []T, query string, matcher func(T, string) bool) []T {
+func FilterByQuery[T any](items []T, query string, matcher func(T, string) bool) []T {
 	if query == "" {
 		return items
 	}
@@ -16,7 +16,7 @@ func filterByQuery[T any](items []T, query string, matcher func(T, string) bool)
 	return filtered
 }
 
-func calculateWindow(cursor, total, viewHeight int) (int, int) {
+func CalculateWindow(cursor, total, viewHeight int) (int, int) {
 	if total == 0 {
 		return 0, 0
 	}

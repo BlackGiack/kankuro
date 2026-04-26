@@ -3,6 +3,8 @@ package components_test
 import (
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"kankuro/internal/config"
 	"kankuro/internal/ui/components"
 )
@@ -15,13 +17,14 @@ func TestCardListIntegration(t *testing.T) {
 	editedCard := ""
 	deletedCard := ""
 
-	var c *components.CardList
-	c = components.NewCardList(components.CardListCallbacks{
-		OnSelect: func(card config.IDCard) {
+	c := components.NewCardList(components.CardListCallbacks{
+		OnSelect: func(card config.IDCard) tea.Cmd {
 			selectedCard = card.ID
+			return nil
 		},
-		OnEdit: func(card config.IDCard) {
+		OnEdit: func(card config.IDCard) tea.Cmd {
 			editedCard = card.ID
+			return nil
 		},
 		OnDelete: func(cardID string) {
 			deletedCard = cardID
