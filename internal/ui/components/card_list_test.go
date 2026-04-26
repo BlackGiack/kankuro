@@ -1,6 +1,7 @@
 package components_test
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -140,5 +141,81 @@ func TestRenderCardItem(t *testing.T) {
 	// Selected should be different (different border color)
 	if output == outputSel {
 		t.Error("Selected and unselected should render differently")
+	}
+}
+
+func TestRenderCardItemWithPills(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	
+	// Test with skills and personas
+	card := config.IDCard{
+		ID:       "1",
+		Name:     "Test Card",
+		Driver:   "claude",
+		Model:    "claude-3",
+		Puppet:   "kankuro",
+		SkillIDs: []string{"s1", "s2"},
+		PersonaIDs: []string{"p1"},
+	}
+
+	skills := []config.Skill{
+		{ID: "s1", Name: "Skill1"},
+		{ID: "s2", Name: "Skill2"},
+	}
+	personas := []config.Persona{
+		{ID: "p1", Name: "Persona1"},
+	}
+
+	output := components.RenderCardItem(card, skills, personas, false)
+	
+	// Should contain skill and persona pills
+	if !strings.Contains(output, "Skill1") {
+		t.Error("Expected skill pill 'Skill1' in output")
+	}
+	if !strings.Contains(output, "Skill2") {
+		t.Error("Expected skill pill 'Skill2' in output")
+	}
+	if !strings.Contains(output, "Persona1") {
+		t.Error("Expected persona pill 'Persona1' in output")
+	}
+}
+
+func TestRenderCardItemWithEmptyPuppet(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	
+	// Test with empty puppet - should use default
+	card := config.IDCard{
+		ID:     "1",
+		Name:   "Test Card",
+		Driver: "claude",
+		Model:  "claude-3",
+		Puppet: "", // Empty puppet
+	}
+
+	output := components.RenderCardItem(card, nil, nil, false)
+	
+	// Should not be empty - should render default puppet
+	if output == "" {
+		t.Error("RenderCardItem with empty puppet should still render")
+	}
+}
+
+func TestRenderCardItemNoCapabilities(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	
+	card := config.IDCard{
+		ID:     "1",
+		Name:   "Test Card",
+		Driver: "claude",
+		Model:  "claude-3",
+		Puppet: "kankuro",
+	}
+
+	// Empty skills and personas
+	output := components.RenderCardItem(card, nil, nil, false)
+	
+	// Should show "no capabilities" message
+	if !strings.Contains(output, "no capabilities") {
+		t.Error("Expected 'no capabilities' message when no skills/personas")
 	}
 }

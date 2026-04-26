@@ -107,5 +107,5 @@ func (m *PuppetSelectorModal) View() string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#8E44AD")).
 		Padding(heightPadding, widthPadding).
-		Render("Select Puppet:\n\n" + row + "\n\n← → to navigate, Enter to confirm")
+		Render("Select Puppet:\n\n" + row + "\n\n← → to navigate, Enter to confirm, Esc=back")
 }

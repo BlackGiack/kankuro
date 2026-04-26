@@ -58,6 +58,7 @@ type CardList struct {
 	personas    []config.Persona
 	searchQuery string
 	callbacks   CardListCallbacks
+	delegate    cardDelegate
 }
 
 // NewCardList creates a new card list component.
@@ -72,6 +73,7 @@ func NewCardList(callbacks CardListCallbacks) *CardList {
 	return &CardList{
 		list:      l,
 		callbacks: callbacks,
+		delegate:  delegate,
 	}
 }
 
@@ -80,6 +82,8 @@ func (c *CardList) SetCards(cards []config.IDCard, skills []config.Skill, person
 	c.cards = cards
 	c.skills = skills
 	c.personas = personas
+	c.delegate = newCardDelegate(skills, personas)
+	c.list.SetDelegate(c.delegate)
 	c.refreshItems()
 }
 
