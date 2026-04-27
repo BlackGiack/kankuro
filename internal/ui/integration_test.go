@@ -31,8 +31,8 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 		t.Errorf("Expected ViewDashboard, got %v", coord.CurrentView())
 	}
 
-	if len(coord.Views()) != 8 {
-		t.Errorf("Expected 8 views, got %d", len(coord.Views()))
+	if len(coord.Views()) != 9 {
+		t.Errorf("Expected 9 views, got %d", len(coord.Views()))
 	}
 }
 

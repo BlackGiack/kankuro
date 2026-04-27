@@ -70,7 +70,6 @@ type Dashboard struct {
 	preview     *components.SessionPreview
 
 	deleteModal *components.Modal
-	switchModal *SwitchModal
 
 	focusedPane Pane
 	search      SearchState
@@ -97,14 +96,12 @@ func NewDashboard(callbacks DashboardCallbacks, cmds *commands.Commands) *Dashbo
 	preview := components.NewSessionPreview()
 
 	deleteModal := components.NewModal("Confirm Delete")
-	switchModal := NewSwitchModal()
 
 	d := &Dashboard{
 		cardList:    nil,
 		sessionList: nil,
 		preview:     preview,
 		deleteModal: deleteModal,
-		switchModal: switchModal,
 		focusedPane: PaneCards,
 		callbacks:   callbacks,
 		cmds:        cmds,
@@ -256,11 +253,6 @@ func (d *Dashboard) SessionList() *components.SessionList {
 	return d.sessionList
 }
 
-// SwitchModal returns the switch agent modal.
-func (d *Dashboard) SwitchModal() *SwitchModal {
-	return d.switchModal
-}
-
 // Preview returns the session preview component.
 func (d *Dashboard) Preview() *components.SessionPreview {
 	return d.preview
@@ -295,9 +287,6 @@ func (d *Dashboard) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	// Handle modals first
 	if d.deleteModal.IsOpen() {
 		return d.updateDeleteModal(msg)
-	}
-	if d.switchModal.IsOpen() {
-		return d.updateSwitchModal(msg)
 	}
 
 	// Handle key events
@@ -633,13 +622,12 @@ func (d *Dashboard) handleSwitch() (tea.Cmd, bool) {
 
 	if sess, ok := d.sessionList.Selected(); ok {
 		if sess.Status == session.StatusTerminated {
-			d.pending = PendingAction{
-				Type:      "switch",
-				SessionID: sess.ID,
-			}
-			d.switchModal.SetCards(d.cards, d.skills, d.personas)
-			d.switchModal.Open()
-			return nil, true
+			return func() tea.Msg {
+				return messages.AgentSwitchRequestedMsg{
+					SessionID:   sess.ID,
+					SessionName: sess.Name,
+				}
+			}, true
 		}
 	}
 
@@ -690,37 +678,6 @@ func (d *Dashboard) confirmDelete() (component.Model, tea.Cmd) {
 		}
 	}
 	return d, nil
-}
-
-// updateSwitchModal handles agent switch modal.
-func (d *Dashboard) updateSwitchModal(msg tea.Msg) (component.Model, tea.Cmd) {
-	model, cmd := d.switchModal.Update(msg)
-	//nolint:errcheck // Type assertion is safe - we know the type
-	d.switchModal = model.(*SwitchModal)
-
-	if d.switchModal.Confirmed() {
-		cardID := d.switchModal.SelectedCardID()
-		d.switchModal.Close()
-
-		if d.callbacks.OnSwitch != nil {
-			switchCmd, switchErr := d.callbacks.OnSwitch(d.pending.SessionID, cardID)
-			if switchErr != nil {
-				return d, func() tea.Msg {
-					return messages.ErrorMsg{Err: switchErr}
-				}
-			}
-			d.pending = PendingAction{}
-			return d, switchCmd
-		}
-		d.pending = PendingAction{}
-	}
-
-	if d.switchModal.Cancelled() {
-		d.switchModal.Close()
-		d.pending = PendingAction{}
-	}
-
-	return d, cmd
 }
 
 // updateFocusedPane routes update to focused pane.
@@ -789,9 +746,6 @@ func (d *Dashboard) View() string {
 	// Handle modal overlays
 	if d.deleteModal.IsOpen() {
 		return d.renderWithOverlay(d.deleteModal.View())
-	}
-	if d.switchModal.IsOpen() {
-		return d.renderWithOverlay(d.switchModal.View())
 	}
 
 	return d.renderBase()

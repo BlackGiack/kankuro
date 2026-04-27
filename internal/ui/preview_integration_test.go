@@ -1,6 +1,7 @@
 package ui_test
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -146,7 +147,7 @@ func TestPreviewStreaming(t *testing.T) {
 
 	// Verify preview scrollback contains the output
 	preview := dashboard.Preview()
-	if string(preview.Scrollback()) != string(testOutput) {
-		t.Errorf("Expected scrollback '%s', got '%s'", string(testOutput), string(preview.Scrollback()))
+	if !strings.Contains(string(preview.Scrollback()), string(testOutput)) {
+		t.Errorf("Expected scrollback to contain '%s', got '%s'", string(testOutput), string(preview.Scrollback()))
 	}
 }

@@ -24,6 +24,7 @@ const (
 	ViewIDEConfig
 	ViewMCPForm
 	ViewSessionLauncher
+	ViewAgentSwitch
 )
 
 type Coordinator struct {
@@ -141,6 +142,7 @@ func (c *Coordinator) initViews() {
 	c.views[ViewIDEConfig] = ideView
 	c.views[ViewMCPForm] = views.NewMCPForm(c.mcpCallbacks(), c.cmds)
 	c.views[ViewSessionLauncher] = views.NewSessionLauncher(c.sessionLauncherCallbacks(), c.cmds)
+	c.views[ViewAgentSwitch] = views.NewAgentSwitchView(c.agentSwitchCallbacks())
 }
 
 func (c *Coordinator) Init() tea.Cmd {
@@ -203,6 +205,13 @@ func (c *Coordinator) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			launcher.SetLaunchResult(m.SessionID, m.Err)
 		}
 		return c, c.refreshData()
+
+	case messages.AgentSwitchRequestedMsg:
+		switchView, ok := c.views[ViewAgentSwitch].(*views.AgentSwitchView)
+		if ok {
+			switchView.SetSession(m.SessionID, m.SessionName)
+		}
+		return c, c.navigateTo(ViewAgentSwitch)
 
 	case messages.SessionAttachRequestedMsg:
 		return c, c.attachSession(m.SessionID)
@@ -392,6 +401,8 @@ func convertViewType(vt messages.ViewType) ViewType {
 		return ViewIDEConfig
 	case messages.ViewSessionLauncher:
 		return ViewSessionLauncher
+	case messages.ViewAgentSwitch:
+		return ViewAgentSwitch
 	default:
 		return ViewDashboard
 	}

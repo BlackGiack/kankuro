@@ -399,6 +399,30 @@ func (c *Coordinator) sessionLauncherCallbacks() views.SessionLauncherCallbacks 
 	}
 }
 
+func (c *Coordinator) agentSwitchCallbacks() views.AgentSwitchCallbacks {
+	return views.AgentSwitchCallbacks{
+		OnSwitch: func(sessionID, cardID string) tea.Cmd {
+			refreshCmd, err := c.switchAgent(sessionID, cardID)
+			if err != nil {
+				return func() tea.Msg { return messages.ErrorMsg{Err: err} }
+			}
+			// After switch, attach to the session (it was restarted by switchAgent)
+			return tea.Batch(
+				refreshCmd,
+				c.attachSession(sessionID),
+				func() tea.Msg {
+					return messages.NavigateMsg{View: messages.ViewDashboard}
+				},
+			)
+		},
+		OnCancel: func() tea.Cmd {
+			return func() tea.Msg {
+				return messages.NavigateMsg{View: messages.ViewDashboard}
+			}
+		},
+	}
+}
+
 func (c *Coordinator) getCardByID(cardID string) (config.IDCard, error) {
 	cards, _ := c.repo.ListIDCards()
 	for _, card := range cards {

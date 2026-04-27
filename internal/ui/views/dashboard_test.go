@@ -161,66 +161,6 @@ func TestDashboard_DeleteModal(t *testing.T) {
 	}
 }
 
-func TestDashboard_SwitchModal(t *testing.T) {
-	var switchedSessionID string
-
-	callbacks := views.DashboardCallbacks{
-		OnSwitch: func(sessionID, _ string) (tea.Cmd, error) {
-			switchedSessionID = sessionID
-			return func() tea.Msg { return nil }, errTest
-		},
-	}
-
-	d := views.NewDashboard(callbacks, &commands.Commands{})
-	d.SetData(messages.DataLoadedMsg{
-		Cards:    []config.IDCard{{ID: "c1", Name: "Card 1"}},
-		Sessions: []session.Snapshot{{ID: "s1", Name: "Test Session", Status: session.StatusTerminated}},
-	})
-	if d.FocusedPane() == views.PaneCards {
-		d.TogglePane()
-	}
-
-	// Initialize and select the first session
-	d.Init()
-	d.SessionList().SetSelectedByID("s1")
-
-	// Trigger switch
-	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
-	d.Update(keyMsg)
-
-	if !d.SwitchModal().IsOpen() {
-		t.Error("Switch modal should be open")
-	}
-
-	// Check if the switch modal has items
-	if len(d.SwitchModal().List().Items()) == 0 {
-		t.Error("Switch modal should have items")
-	}
-
-	// Initialize the switch modal list
-	d.SwitchModal().Init()
-
-	// Select the first item in the switch modal
-	d.SwitchModal().Select(0)
-
-	// Confirm selection
-	keyMsg = tea.KeyMsg{Type: tea.KeyEnter}
-	model, _ := d.Update(keyMsg)
-	d = model.(*views.Dashboard)
-
-	// Check if the modal is confirmed
-	if !d.SwitchModal().Confirmed() {
-		t.Error("Switch modal should be confirmed")
-	}
-
-	if d.SwitchModal().IsOpen() {
-		t.Error("Switch modal should be closed after confirm")
-	}
-	if switchedSessionID != "s1" {
-		t.Errorf("Expected session 's1', got '%s'", switchedSessionID)
-	}
-}
-
 func TestDashboard_SetSize_Flexible(t *testing.T) {
 	d := views.NewDashboard(views.DashboardCallbacks{}, &commands.Commands{})
 

@@ -17,6 +17,7 @@ const (
 	ViewMCPForm
 	ViewIDEConfig
 	ViewSessionLauncher
+	ViewAgentSwitch
 )
 
 // ModalType represents modal overlays.
@@ -121,6 +122,12 @@ type SessionAttachRequestedMsg struct {
 type SessionLaunchCompletedMsg struct {
 	SessionID string
 	Err       error
+}
+
+// AgentSwitchRequestedMsg signals user wants to switch agent for a session.
+type AgentSwitchRequestedMsg struct {
+	SessionID   string
+	SessionName string
 }
 
 // MCPDeleteRequestedMsg signals user wants to delete an MCP from the card editor.
