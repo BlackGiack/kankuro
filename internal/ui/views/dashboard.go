@@ -122,9 +122,9 @@ func NewDashboard(callbacks DashboardCallbacks, cmds *commands.Commands) *Dashbo
 		OnAttach: func(_ string) {
 			// Parent handles via message
 		},
-		OnKill:    func(_ string) {},
-		OnDelete:  func(_ string) {},
-		OnSwitch:  func(_ string) {},
+		OnKill:   func(_ string) {},
+		OnDelete: func(_ string) {},
+		OnSwitch: func(_ string) {},
 		OnPreview: func(sessionID string) tea.Cmd {
 			return func() tea.Msg {
 				return messages.SessionPreviewRequestedMsg{SessionID: sessionID}
@@ -312,7 +312,7 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		return tea.Quit, true
 	case keyEsc:
 		return nil, true
-	case "tab", "shift+tab", "left", "right":
+	case keyTab, "shift+tab", "left", "right":
 		d.togglePane()
 		return nil, true
 	case "n":
@@ -333,7 +333,7 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		return d.handleAttach()
 	case "x":
 		return d.handleKill()
-	case "backspace", "delete":
+	case keyBackspace, keyDelete:
 		return d.handleDelete()
 	case "s":
 		return d.handleSwitch()
@@ -686,15 +686,13 @@ func (d *Dashboard) updateFocusedPane(msg tea.Msg) (component.Model, tea.Cmd) {
 
 	if d.focusedPane == PaneSessions {
 		model, c := d.sessionList.Update(msg)
-		//nolint:errcheck // Type assertion is safe - we know the type
-		d.sessionList = model.(*components.SessionList)
+		d.sessionList, _ = model.(*components.SessionList)
 		cmd = c
 
 		d.syncPreviewSelection()
 	} else {
 		model, c := d.cardList.Update(msg)
-		//nolint:errcheck // Type assertion is safe - we know the type
-		d.cardList = model.(*components.CardList)
+		d.cardList, _ = model.(*components.CardList)
 		cmd = c
 	}
 

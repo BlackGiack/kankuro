@@ -8,6 +8,7 @@ const (
 	keyBackspace = "backspace"
 	keyDelete    = "delete"
 	keyCtrlC     = "ctrl+c"
+	keySpace     = " "
 
 	// Defaults.
 	defaultPuppetStyle = "kankuro"
@@ -32,4 +33,10 @@ const (
 	workspacePickerWidth          = 50
 	workspacePickerHeight         = 30
 	workspacePickerDialogWidth    = 60
+
+	// List padding constants for workspace picker.
+	workspacePickerListWidthPadding  = 4
+	workspacePickerListHeightPadding = 8
+
+	agentSwitchListHeightPadding = 10
 )

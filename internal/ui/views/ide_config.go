@@ -122,16 +122,16 @@ func (c *IDEConfig) updateDisplay(msg tea.Msg) (component.Model, tea.Cmd) {
 	}
 
 	switch keyMsg.String() {
-	case "esc":
+	case keyEsc:
 		return c, func() tea.Msg { return messages.NavigateBackMsg{} }
 
-	case "enter", "e":
+	case keyEnter, "e":
 		c.mode = IDEModeEdit
 		c.input.SetValue(c.config.Command)
 		c.input.Focus()
 		return c, nil
 
-	case "ctrl+c":
+	case keyCtrlC:
 		return c, tea.Quit
 	}
 
@@ -149,12 +149,12 @@ func (c *IDEConfig) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 	}
 
 	switch keyMsg.String() {
-	case "esc":
+	case keyEsc:
 		c.mode = IDEModeDisplay
 		c.input.Blur()
 		return c, nil
 
-	case "enter":
+	case keyEnter:
 		c.config.Command = strings.TrimSpace(c.input.Value())
 		c.input.Blur()
 		c.mode = IDEModeDisplay
@@ -170,7 +170,7 @@ func (c *IDEConfig) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 			return c, tea.Batch(saveCmd, backCmd)
 		}
 
-	case "ctrl+c":
+	case keyCtrlC:
 		return c, tea.Quit
 	}
 

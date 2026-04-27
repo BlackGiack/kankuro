@@ -28,10 +28,6 @@ const (
 	FocusMCPs
 )
 
-const (
-	screenSplitDivisor = 2
-)
-
 // FocusCount is the total number of focusable elements.
 const FocusCount = 11
 
@@ -339,13 +335,13 @@ func (e *CardEditor) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		e.handleNav(true)
 		return nil, true
 
-	case " ":
+	case keySpace:
 		return nil, e.handleSpace()
 
 	case keyEnter:
 		return e.handleSubmit(), true
 
-	case "delete", "del":
+	case keyDelete, "del":
 		if e.focusIndex == FocusMCPs {
 			return e.deleteSelectedMCP(), true
 		}
@@ -611,7 +607,7 @@ func (e *CardEditor) updateInputs(msg tea.Msg) tea.Cmd {
 // updateWorkspacePicker handles workspace picker modal.
 func (e *CardEditor) updateWorkspacePicker(msg tea.Msg) (component.Model, tea.Cmd) {
 	model, cmd := e.workspacePicker.Update(msg)
-	e.workspacePicker = model.(*WorkspacePickerModal) //nolint:errcheck,forcetypeassert // safe type assertion
+	e.workspacePicker, _ = model.(*WorkspacePickerModal)
 
 	if e.workspacePicker.Confirmed() {
 		e.workspaceID = e.workspacePicker.SelectedID()
@@ -628,7 +624,7 @@ func (e *CardEditor) updateWorkspacePicker(msg tea.Msg) (component.Model, tea.Cm
 // updatePuppetSelector handles puppet selector modal.
 func (e *CardEditor) updatePuppetSelector(msg tea.Msg) (component.Model, tea.Cmd) {
 	model, cmd := e.puppetSelector.Update(msg)
-	e.puppetSelector = model.(*PuppetSelectorModal) //nolint:errcheck,forcetypeassert // safe type assertion
+	e.puppetSelector, _ = model.(*PuppetSelectorModal)
 
 	if e.puppetSelector.Confirmed() {
 		e.puppet = e.puppetSelector.Selected()
@@ -645,7 +641,7 @@ func (e *CardEditor) updatePuppetSelector(msg tea.Msg) (component.Model, tea.Cmd
 // updateAgentsMDEditor handles agents.md editor modal.
 func (e *CardEditor) updateAgentsMDEditor(msg tea.Msg) (component.Model, tea.Cmd) {
 	model, cmd := e.agentsMDEditor.Update(msg)
-	e.agentsMDEditor = model.(*AgentsMDEditorModal) //nolint:errcheck,forcetypeassert // safe type assertion
+	e.agentsMDEditor, _ = model.(*AgentsMDEditorModal)
 
 	if e.agentsMDEditor.Confirmed() {
 		e.agentsMD = e.agentsMDEditor.State()

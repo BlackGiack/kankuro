@@ -1,10 +1,11 @@
 package ui_test
 
 import (
-	"strings"
+	"bytes"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+
 	"kankuro/internal/config"
 	"kankuro/internal/session"
 	"kankuro/internal/ui"
@@ -31,10 +32,10 @@ func TestPreviewImmediateUpdate(t *testing.T) {
 	sessionID, _ := sm.Launch(card, nil, nil, nil)
 
 	coord := ui.NewCoordinator(repo, sm)
-	
+
 	// Execute refreshData from Init
 	_ = coord.Init()
-	// Init returns a batch, but we know refreshData is there. 
+	// Init returns a batch, but we know refreshData is there.
 	// For simplicity in test, let's just call RefreshData directly.
 	msg := coord.RefreshData()()
 	coord.Update(msg)
@@ -70,7 +71,7 @@ func TestPreviewAutoSelection(t *testing.T) {
 	sessionID, _ := sm.Launch(card, nil, nil, nil)
 
 	coord := ui.NewCoordinator(repo, sm)
-	
+
 	// Initial data load: refreshData will have PreviewSessionID="" because dashboard hasn't seen the session yet
 	msg := coord.RefreshData()()
 	dm := msg.(messages.DataLoadedMsg)
@@ -111,7 +112,7 @@ func TestPreviewStreaming(t *testing.T) {
 	sess, _ := sm.GetSession(sessionID)
 
 	coord := ui.NewCoordinator(repo, sm)
-	
+
 	// Initial data load
 	msg := coord.RefreshData()()
 	coord.Update(msg)
@@ -123,7 +124,7 @@ func TestPreviewStreaming(t *testing.T) {
 
 	// Simulate output from session
 	testOutput := []byte("hello world")
-	
+
 	// Re-trigger preview to get the cmd
 	var cmd tea.Cmd
 	_, cmd = coord.Update(messages.SessionPreviewRequestedMsg{SessionID: sessionID})
@@ -147,7 +148,7 @@ func TestPreviewStreaming(t *testing.T) {
 
 	// Verify preview scrollback contains the output
 	preview := dashboard.Preview()
-	if !strings.Contains(string(preview.Scrollback()), string(testOutput)) {
+	if !bytes.Contains(preview.Scrollback(), testOutput) {
 		t.Errorf("Expected scrollback to contain '%s', got '%s'", string(testOutput), string(preview.Scrollback()))
 	}
 }

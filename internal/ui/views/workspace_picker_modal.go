@@ -33,11 +33,47 @@ func NewWorkspacePickerModal() *WorkspacePickerModal {
 	l.SetShowTitle(true)
 	l.Title = "Select Workspace"
 	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
+	l.SetFilteringEnabled(false) // Use manual filtering
 
 	return &WorkspacePickerModal{
 		list: l,
 	}
+}
+
+// resetTransientState clears all transient state that should not survive between openings.
+func (m *WorkspacePickerModal) resetTransientState() {
+	m.searchQuery = ""
+	// Reset the list to clear any stale cursor/selection/paginator state
+	m.rebuildList()
+}
+
+// rebuildList recreates the list.Model to ensure clean state.
+func (m *WorkspacePickerModal) rebuildList() {
+	delegate := list.NewDefaultDelegate()
+	delegate.SetHeight(workspacePickerDelegateHeight)
+
+	items := make([]list.Item, len(m.workspaces))
+	for i, ws := range m.workspaces {
+		items[i] = workspaceItem{workspace: ws}
+	}
+
+	l := list.New(items, delegate, workspacePickerWidth, workspacePickerHeight)
+	l.SetShowTitle(true)
+	l.Title = "Select Workspace"
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false) // Use manual filtering
+
+	m.list = l
+
+	// Restore the current size to preserve terminal dimensions
+	if m.Width > 0 && m.Height > 0 {
+		listWidth := max(1, m.Width-widthPadding*2-workspacePickerListWidthPadding)
+		listHeight := max(1, m.Height-heightPadding*2-workspacePickerListHeightPadding)
+		m.list.SetSize(listWidth, listHeight)
+	}
+
+	// Restore selection if possible
+	m.SetSelectedID(m.selectedID)
 }
 
 func (m *WorkspacePickerModal) SetWorkspaces(workspaces []config.Workspace) {
@@ -47,11 +83,23 @@ func (m *WorkspacePickerModal) SetWorkspaces(workspaces []config.Workspace) {
 
 func (m *WorkspacePickerModal) SetSelectedID(id string) {
 	m.selectedID = id
-	for i, ws := range m.workspaces {
-		if ws.ID == id {
-			m.list.Select(i)
-			return
+	if id == "" {
+		return
+	}
+
+	// Find the workspace in the current list items (respects filtering)
+	items := m.list.Items()
+	for i, item := range items {
+		if wi, ok := item.(workspaceItem); ok {
+			if wi.workspace.ID == id {
+				m.list.Select(i)
+				return
+			}
 		}
+	}
+	// If not found in visible items, select first item if available
+	if len(items) > 0 {
+		m.list.Select(0)
 	}
 }
 
@@ -68,6 +116,8 @@ func (m *WorkspacePickerModal) Open() {
 	m.open = true
 	m.confirmed = false
 	m.cancelled = false
+	// Reset transient state to ensure clean state on reopen
+	m.resetTransientState()
 }
 
 func (m *WorkspacePickerModal) Close() {
@@ -85,7 +135,9 @@ func (m *WorkspacePickerModal) Init() tea.Cmd { return nil }
 func (m *WorkspacePickerModal) SetSize(width, height int) {
 	m.Base.SetSize(width, height)
 	// Adjust list size to fit within the box and leave room for help/search
-	m.list.SetSize(width-widthPadding*2-4, height-heightPadding*2-8)
+	listWidth := max(1, width-widthPadding*2-workspacePickerListWidthPadding)
+	listHeight := max(1, height-heightPadding*2-workspacePickerListHeightPadding)
+	m.list.SetSize(listWidth, listHeight)
 }
 
 func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
@@ -98,6 +150,10 @@ func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 		switch keyMsg.String() {
 		case keyEnter:
 			m.confirmed = true
+			// Save the currently selected workspace before resetting state
+			m.selectedID = m.SelectedID()
+			// Reset transient state before closing to prepare for next open
+			m.resetTransientState()
 			return m, nil
 		case keyEsc:
 			if m.searchQuery != "" {
@@ -106,6 +162,8 @@ func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.cancelled = true
+			// Reset transient state before closing to prepare for next open
+			m.resetTransientState()
 			return m, nil
 		case keyBackspace:
 			if len(m.searchQuery) > 0 {
@@ -135,8 +193,7 @@ func (m *WorkspacePickerModal) View() string {
 		Padding(heightPadding, widthPadding).
 		Width(m.Width).
 		Height(m.Height)
-
-	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	pickerHelpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	help := "Enter=select • Esc=back • Type to search"
 	if m.searchQuery != "" {
 		help = "Enter=select • Esc=clear search • Type to search"
@@ -150,10 +207,12 @@ func (m *WorkspacePickerModal) View() string {
 	}
 
 	return boxStyle.Render(
-		m.list.View() +
-			searchDisplay +
-			"\n\n" +
-			helpStyle.Render(help),
+		lipgloss.JoinVertical(lipgloss.Center,
+			m.list.View(),
+			searchDisplay,
+			"\n",
+			pickerHelpStyle.Render(help),
+		),
 	)
 }
 
@@ -164,6 +223,8 @@ func (m *WorkspacePickerModal) refreshItems() {
 		items[i] = workspaceItem{workspace: ws}
 	}
 	m.list.SetItems(items)
+	// Normalize selection after refreshing items
+	m.normalizeSelection()
 }
 
 func (m *WorkspacePickerModal) filterWorkspaces() []config.Workspace {
@@ -179,6 +240,19 @@ func (m *WorkspacePickerModal) filterWorkspaces() []config.Workspace {
 		}
 	}
 	return filtered
+}
+
+// normalizeSelection ensures the selected index is valid for the current filtered list.
+func (m *WorkspacePickerModal) normalizeSelection() {
+	items := m.list.Items()
+	if len(items) == 0 {
+		return
+	}
+
+	currentIndex := m.list.Index()
+	if currentIndex < 0 || currentIndex >= len(items) {
+		m.list.Select(0)
+	}
 }
 
 type workspaceItem struct {

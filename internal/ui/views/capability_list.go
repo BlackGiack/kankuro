@@ -158,7 +158,7 @@ func (c *CapabilityList) handleKey(keyMsg bubbletea.KeyMsg) {
 		if c.cursor < len(filtered)-1 {
 			c.cursor++
 		}
-	case " ":
+	case keySpace:
 		c.ToggleSelected()
 	case keyBackspace:
 		if len(c.searchQuery) > 0 {

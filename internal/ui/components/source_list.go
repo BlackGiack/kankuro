@@ -154,7 +154,7 @@ func (s *SourceList) updateList(msg tea.Msg) (component.Model, tea.Cmd) {
 			s.Callbacks.OnReload()
 		}
 		return s, refreshCmd
-	case "esc":
+	case keyEsc:
 		if s.Callbacks.OnClose != nil {
 			s.Callbacks.OnClose()
 		}

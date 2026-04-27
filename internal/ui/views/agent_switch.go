@@ -164,7 +164,7 @@ func (v *AgentSwitchView) View() string {
 	}
 	sb.WriteString(titleStyle.Render(headerText) + "\n\n")
 
-	searchDisplay := ""
+	var searchDisplay string
 	if v.searchQuery != "" {
 		searchDisplay = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#ADF")).
@@ -195,7 +195,7 @@ func (v *AgentSwitchView) View() string {
 // SetSize implements component.Model.
 func (v *AgentSwitchView) SetSize(width, height int) {
 	v.Base.SetSize(width, height)
-	v.list.SetSize(width-widthPadding*2, height-heightPadding*2-10)
+	v.list.SetSize(width-widthPadding*2, height-heightPadding*2-agentSwitchListHeightPadding)
 }
 
 // switchCardItem wraps a card for display in switch modal.

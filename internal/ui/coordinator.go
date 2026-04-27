@@ -153,29 +153,76 @@ func (c *Coordinator) Init() tea.Cmd {
 }
 
 func (c *Coordinator) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if handled, cmd := c.handleSpecialMessages(msg); handled {
+		return c, cmd
+	}
+
+	updated, cmd := c.updateCurrentView(msg)
+	if updated != nil {
+		c.views[c.currentView] = updated
+	}
+	return c, cmd
+}
+
+func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
 		c.width = m.Width
 		c.height = m.Height
 		c.resizeAll()
-		return c, nil
+		return true, nil
 
 	case tickMsg:
-		return c, tea.Batch(c.refreshData(), tick())
+		return true, tea.Batch(c.refreshData(), tick())
 
+	case messages.NavigateMsg:
+		return true, c.navigateTo(convertViewType(m.View))
+
+	case messages.NavigateBackMsg:
+		return true, c.navigateTo(c.prevView)
+
+	case messages.ErrorMsg:
+		c.err = m.Err
+		return true, nil
+
+	case messages.MCPDeleteRequestedMsg:
+		err := c.repo.DeleteMCP(m.MCPID)
+		if err != nil {
+			c.err = err
+			return true, nil
+		}
+		// Emit message to notify card editor
+		return true, func() tea.Msg {
+			return messages.MCPDeletedMsg(m)
+		}
+
+	case messages.MCPUpdatedMsg:
+		// Refresh data to update MCP list in card editor
+		return true, c.refreshData()
+
+	case messages.ClearErrorMsg:
+		c.err = nil
+		return true, nil
+	}
+
+	return c.handleSessionMessages(msg)
+}
+
+func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
+	switch m := msg.(type) {
 	case messages.DataLoadedMsg:
 		c.broadcastData(m)
 		// If the dashboard auto-selected a session (e.g. on first launch), subscribe immediately
 		if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
 			id := dashboard.PreviewSessionID()
 			if id != "" && id != c.previewSessionID {
-				return c, c.handlePreviewRequest(id)
+				return true, c.handlePreviewRequest(id)
 			}
 		}
-		return c, nil
+		return true, nil
 
 	case messages.SessionPreviewRequestedMsg:
-		return c, c.handlePreviewRequest(m.SessionID)
+		return true, c.handlePreviewRequest(m.SessionID)
 
 	case messages.SessionOutputMsg:
 		// Only forward if it's the currently previewed session
@@ -185,68 +232,35 @@ func (c *Coordinator) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				PreviewScrollback: m.Output,
 				IsIncremental:     true,
 			})
-			return c, c.waitForOutput(m.SessionID, c.previewSubChan)
+			return true, c.waitForOutput(m.SessionID, c.previewSubChan)
 		}
-		return c, nil
-
-	case messages.NavigateMsg:
-		return c, c.navigateTo(convertViewType(m.View))
-
-	case messages.NavigateBackMsg:
-		return c, c.navigateTo(c.prevView)
-
-	case messages.ErrorMsg:
-		c.err = m.Err
-		return c, nil
+		return true, nil
 
 	case messages.SessionLaunchCompletedMsg:
 		launcher, ok := c.views[ViewSessionLauncher].(*views.SessionLauncher)
 		if ok {
 			launcher.SetLaunchResult(m.SessionID, m.Err)
 		}
-		return c, c.refreshData()
+		return true, c.refreshData()
 
 	case messages.AgentSwitchRequestedMsg:
 		switchView, ok := c.views[ViewAgentSwitch].(*views.AgentSwitchView)
 		if ok {
 			switchView.SetSession(m.SessionID, m.SessionName)
 		}
-		return c, c.navigateTo(ViewAgentSwitch)
+		return true, c.navigateTo(ViewAgentSwitch)
 
 	case messages.SessionAttachRequestedMsg:
-		return c, c.attachSession(m.SessionID)
+		return true, c.attachSession(m.SessionID)
 
 	case messages.AttachFinishedMsg:
 		if m.Err != nil {
 			c.err = m.Err
 		}
-		return c, c.refreshData()
-
-	case messages.MCPDeleteRequestedMsg:
-		err := c.repo.DeleteMCP(m.MCPID)
-		if err != nil {
-			c.err = err
-			return c, nil
-		}
-		// Emit message to notify card editor
-		return c, func() tea.Msg {
-			return messages.MCPDeletedMsg(m)
-		}
-
-	case messages.MCPUpdatedMsg:
-		// Refresh data to update MCP list in card editor
-		return c, c.refreshData()
-
-	case messages.ClearErrorMsg:
-		c.err = nil
-		return c, nil
+		return true, c.refreshData()
 	}
 
-	updated, cmd := c.updateCurrentView(msg)
-	if updated != nil {
-		c.views[c.currentView] = updated
-	}
-	return c, cmd
+	return false, nil
 }
 
 func (c *Coordinator) View() string {

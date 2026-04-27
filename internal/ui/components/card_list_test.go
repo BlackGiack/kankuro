@@ -146,15 +146,15 @@ func TestRenderCardItem(t *testing.T) {
 
 func TestRenderCardItemWithPills(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
-	
+
 	// Test with skills and personas
 	card := config.IDCard{
-		ID:       "1",
-		Name:     "Test Card",
-		Driver:   "claude",
-		Model:    "claude-3",
-		Puppet:   "kankuro",
-		SkillIDs: []string{"s1", "s2"},
+		ID:         "1",
+		Name:       "Test Card",
+		Driver:     "claude",
+		Model:      "claude-3",
+		Puppet:     "kankuro",
+		SkillIDs:   []string{"s1", "s2"},
 		PersonaIDs: []string{"p1"},
 	}
 
@@ -167,7 +167,7 @@ func TestRenderCardItemWithPills(t *testing.T) {
 	}
 
 	output := components.RenderCardItem(card, skills, personas, false)
-	
+
 	// Should contain skill and persona pills
 	if !strings.Contains(output, "Skill1") {
 		t.Error("Expected skill pill 'Skill1' in output")
@@ -182,7 +182,7 @@ func TestRenderCardItemWithPills(t *testing.T) {
 
 func TestRenderCardItemWithEmptyPuppet(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
-	
+
 	// Test with empty puppet - should use default
 	card := config.IDCard{
 		ID:     "1",
@@ -193,7 +193,7 @@ func TestRenderCardItemWithEmptyPuppet(t *testing.T) {
 	}
 
 	output := components.RenderCardItem(card, nil, nil, false)
-	
+
 	// Should not be empty - should render default puppet
 	if output == "" {
 		t.Error("RenderCardItem with empty puppet should still render")
@@ -202,7 +202,7 @@ func TestRenderCardItemWithEmptyPuppet(t *testing.T) {
 
 func TestRenderCardItemNoCapabilities(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
-	
+
 	card := config.IDCard{
 		ID:     "1",
 		Name:   "Test Card",
@@ -213,7 +213,7 @@ func TestRenderCardItemNoCapabilities(t *testing.T) {
 
 	// Empty skills and personas
 	output := components.RenderCardItem(card, nil, nil, false)
-	
+
 	// Should show "no capabilities" message
 	if !strings.Contains(output, "no capabilities") {
 		t.Error("Expected 'no capabilities' message when no skills/personas")
