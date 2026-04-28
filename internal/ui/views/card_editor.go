@@ -94,7 +94,6 @@ type AgentsMDState struct {
 const (
 	inputCount     = 5
 	maxVisibleCaps = 5
-	inputWidth     = 60
 	summaryLimit   = 27
 )
 
@@ -112,7 +111,7 @@ func NewCardEditor(callbacks CardEditorCallbacks, cmds *commands.Commands) *Card
 	for i := range inputs {
 		inputs[i] = textinput.New()
 		inputs[i].Placeholder = placeholders[i]
-		inputs[i].Width = inputWidth
+		inputs[i].Width = 40 // Default width, will be updated in SetSize
 	}
 
 	// Initialize capability lists
@@ -827,8 +826,16 @@ func (e *CardEditor) SetSize(width, height int) {
 	e.skillList.SetSize(width, capListHeight)
 	e.personaList.SetSize(width, capListHeight)
 	e.mcpList.SetSize(width, capListHeight)
-	// Give workspace picker full dimensions
+	// Give modals full dimensions
 	e.workspacePicker.SetSize(width, height)
+	e.agentsMDEditor.SetSize(width, height)
+	e.puppetSelector.SetSize(width, height)
+
+	// Update input widths
+	calculatedWidth := max(40, width*3/5) //nolint:mnd // responsive sizing
+	for i := range e.inputs {
+		e.inputs[i].Width = calculatedWidth
+	}
 }
 
 // Capability item types

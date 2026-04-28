@@ -11,19 +11,27 @@ import (
 type Modal struct {
 	component.Base
 
-	title     string
-	content   string
-	open      bool
-	onConfirm func()
-	onCancel  func()
+	title      string
+	content    string
+	open       bool
+	onConfirm  func()
+	onCancel   func()
+	modalWidth int
 }
 
 // NewModal creates a new modal with the given title.
 func NewModal(title string) *Modal {
 	return &Modal{
-		title: title,
-		open:  false,
+		title:      title,
+		open:       false,
+		modalWidth: 50, //nolint:mnd // responsive sizing
 	}
+}
+
+// SetSize implements component.Model.
+func (m *Modal) SetSize(width, height int) {
+	m.Base.SetSize(width, height)
+	m.modalWidth = max(40, width*3/5) //nolint:mnd // responsive sizing
 }
 
 // SetContent sets the modal's content string.
@@ -78,7 +86,7 @@ func (m *Modal) View() string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#8E44AD")).
 		Padding(modalPaddingHeight, modalPaddingWidth).
-		Width(modalWidth)
+		Width(m.modalWidth)
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).

@@ -127,13 +127,13 @@ func TestRenderCardItem(t *testing.T) {
 	}
 
 	// Render unselected
-	output := components.RenderCardItem(card, skills, personas, false)
+	output := components.RenderCardItem(card, skills, personas, false, 50)
 	if output == "" {
 		t.Error("RenderCardItem returned empty string")
 	}
 
 	// Render selected
-	outputSel := components.RenderCardItem(card, skills, personas, true)
+	outputSel := components.RenderCardItem(card, skills, personas, true, 50)
 	if outputSel == "" {
 		t.Error("RenderCardItem (selected) returned empty string")
 	}
@@ -166,7 +166,7 @@ func TestRenderCardItemWithPills(t *testing.T) {
 		{ID: "p1", Name: "Persona1"},
 	}
 
-	output := components.RenderCardItem(card, skills, personas, false)
+	output := components.RenderCardItem(card, skills, personas, false, 50)
 
 	// Should contain skill and persona pills
 	if !strings.Contains(output, "Skill1") {
@@ -192,7 +192,7 @@ func TestRenderCardItemWithEmptyPuppet(t *testing.T) {
 		Puppet: "", // Empty puppet
 	}
 
-	output := components.RenderCardItem(card, nil, nil, false)
+	output := components.RenderCardItem(card, nil, nil, false, 50)
 
 	// Should not be empty - should render default puppet
 	if output == "" {
@@ -212,7 +212,7 @@ func TestRenderCardItemNoCapabilities(t *testing.T) {
 	}
 
 	// Empty skills and personas
-	output := components.RenderCardItem(card, nil, nil, false)
+	output := components.RenderCardItem(card, nil, nil, false, 50)
 
 	// Should show "no capabilities" message
 	if !strings.Contains(output, "no capabilities") {

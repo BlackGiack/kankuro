@@ -737,6 +737,7 @@ func (d *Dashboard) SetSize(width, height int) {
 	d.cardList.SetSize(d.cardsWidth, contentHeight)
 	d.sessionList.SetSize(d.sessionsWidth, contentHeight)
 	d.preview.SetSize(d.previewWidth, contentHeight)
+	d.deleteModal.SetSize(width, height)
 }
 
 // View renders the dashboard.

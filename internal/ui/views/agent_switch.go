@@ -30,6 +30,8 @@ type AgentSwitchView struct {
 	sessionID   string
 	sessionName string
 	searchQuery string
+	modalWidth  int
+	modalHeight int
 
 	callbacks AgentSwitchCallbacks
 }
@@ -45,8 +47,10 @@ func NewAgentSwitchView(callbacks AgentSwitchCallbacks) *AgentSwitchView {
 	l.SetFilteringEnabled(false)
 
 	return &AgentSwitchView{
-		list:      l,
-		callbacks: callbacks,
+		list:        l,
+		callbacks:   callbacks,
+		modalWidth:  40, //nolint:mnd // responsive sizing
+		modalHeight: 10, //nolint:mnd // responsive sizing
 	}
 }
 
@@ -187,15 +191,17 @@ func (v *AgentSwitchView) View() string {
 
 	return lipgloss.NewStyle().
 		Padding(heightPadding, widthPadding).
-		Width(v.Width).
-		Height(v.Height).
+		Width(v.modalWidth).
+		Height(v.modalHeight).
 		Render(sb.String())
 }
 
 // SetSize implements component.Model.
 func (v *AgentSwitchView) SetSize(width, height int) {
 	v.Base.SetSize(width, height)
-	v.list.SetSize(width-widthPadding*2, height-heightPadding*2-agentSwitchListHeightPadding)
+	v.modalWidth = max(35, width/2) //nolint:mnd // responsive sizing
+	v.modalHeight = max(8, height)  //nolint:mnd // responsive sizing
+	v.list.SetSize(v.modalWidth-widthPadding*2, v.modalHeight-heightPadding*2-agentSwitchListHeightPadding)
 }
 
 // switchCardItem wraps a card for display in switch modal.

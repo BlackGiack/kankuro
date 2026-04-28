@@ -16,16 +16,10 @@ import (
 const (
 	// boxPadding is the padding for boxes.
 	boxPadding = 2
-	// boxOffset is the offset for boxes.
-	boxOffset = 4
-	// inputMaxWidth is the maximum width for text input.
-	inputMaxWidth = 60
 	// boxMinWidth is the minimum width for boxes.
 	boxMinWidth = 30
 	// explanationMinWidth is the minimum width for explanation text.
 	explanationMinWidth = 40
-	// sizeOffset is the offset for size calculations.
-	sizeOffset = 10
 )
 
 // IDEConfigMode determines the current view mode.
@@ -64,7 +58,7 @@ type IDEConfig struct {
 func NewIDEConfig(callbacks IDEConfigCallbacks, cmds *commands.Commands) *IDEConfig {
 	input := textinput.New()
 	input.Placeholder = "e.g. code $PATH"
-	input.Width = inputMaxWidth
+	input.Width = 60
 
 	return &IDEConfig{
 		mode:      IDEModeDisplay,
@@ -194,7 +188,7 @@ func (c *IDEConfig) renderDisplay() string {
 		currentCmd = "(not configured)"
 	}
 
-	maxWidth := max(boxMinWidth, min(c.Width-boxOffset, inputMaxWidth+boxPadding*2))
+	maxWidth := max(boxMinWidth, c.input.Width+boxPadding*2)
 
 	currentBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -227,7 +221,7 @@ func (c *IDEConfig) renderDisplay() string {
 func (c *IDEConfig) renderEdit() string {
 	title := titleStyle.Padding(0, 1).Render("Edit IDE Command")
 
-	explanationWidth := max(explanationMinWidth, min(c.Width-boxOffset, inputMaxWidth))
+	explanationWidth := max(explanationMinWidth, c.input.Width)
 
 	explanation := lipgloss.NewStyle().
 		Foreground(secondaryColor).
@@ -260,5 +254,5 @@ func (c *IDEConfig) renderEdit() string {
 // SetSize implements component.Model.
 func (c *IDEConfig) SetSize(width, height int) {
 	c.Base.SetSize(width, height)
-	c.input.Width = min(inputMaxWidth, width-sizeOffset)
+	c.input.Width = min(width*9/10, 80) //nolint:mnd // responsive sizing
 }

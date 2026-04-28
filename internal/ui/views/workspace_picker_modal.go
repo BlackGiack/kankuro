@@ -22,6 +22,8 @@ type WorkspacePickerModal struct {
 	cancelled   bool
 	open        bool
 	searchQuery string
+	modalWidth  int
+	modalHeight int
 }
 
 // NewWorkspacePickerModal creates a new workspace picker.
@@ -29,14 +31,16 @@ func NewWorkspacePickerModal() *WorkspacePickerModal {
 	delegate := list.NewDefaultDelegate()
 	delegate.SetHeight(workspacePickerDelegateHeight)
 
-	l := list.New([]list.Item{}, delegate, workspacePickerWidth, workspacePickerHeight)
+	l := list.New([]list.Item{}, delegate, 50, 30) //nolint:mnd // responsive sizing
 	l.SetShowTitle(true)
 	l.Title = "Select Workspace"
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false) // Use manual filtering
 
 	return &WorkspacePickerModal{
-		list: l,
+		list:        l,
+		modalWidth:  50, //nolint:mnd // responsive sizing
+		modalHeight: 30, //nolint:mnd // responsive sizing
 	}
 }
 
@@ -57,7 +61,7 @@ func (m *WorkspacePickerModal) rebuildList() {
 		items[i] = workspaceItem{workspace: ws}
 	}
 
-	l := list.New(items, delegate, workspacePickerWidth, workspacePickerHeight)
+	l := list.New(items, delegate, 50, 30) //nolint:mnd // responsive sizing
 	l.SetShowTitle(true)
 	l.Title = "Select Workspace"
 	l.SetShowStatusBar(false)
@@ -66,9 +70,9 @@ func (m *WorkspacePickerModal) rebuildList() {
 	m.list = l
 
 	// Restore the current size to preserve terminal dimensions
-	if m.Width > 0 && m.Height > 0 {
-		listWidth := max(1, m.Width-widthPadding*2-workspacePickerListWidthPadding)
-		listHeight := max(1, m.Height-heightPadding*2-workspacePickerListHeightPadding)
+	if m.modalWidth > 0 && m.modalHeight > 0 {
+		listWidth := max(1, m.modalWidth-widthPadding*2-workspacePickerListWidthPadding)
+		listHeight := max(1, m.modalHeight-heightPadding*2-workspacePickerListHeightPadding)
 		m.list.SetSize(listWidth, listHeight)
 	}
 
@@ -134,9 +138,13 @@ func (m *WorkspacePickerModal) Init() tea.Cmd { return nil }
 
 func (m *WorkspacePickerModal) SetSize(width, height int) {
 	m.Base.SetSize(width, height)
+
+	m.modalWidth = max(40, width*2/3) //nolint:mnd // responsive sizing
+	m.modalHeight = max(15, height)   //nolint:mnd // responsive sizing
+
 	// Adjust list size to fit within the box and leave room for help/search
-	listWidth := max(1, width-widthPadding*2-workspacePickerListWidthPadding)
-	listHeight := max(1, height-heightPadding*2-workspacePickerListHeightPadding)
+	listWidth := max(1, m.modalWidth-widthPadding*2-workspacePickerListWidthPadding)
+	listHeight := max(1, m.modalHeight-heightPadding*2-workspacePickerListHeightPadding)
 	m.list.SetSize(listWidth, listHeight)
 }
 
@@ -191,8 +199,8 @@ func (m *WorkspacePickerModal) View() string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#8E44AD")).
 		Padding(heightPadding, widthPadding).
-		Width(m.Width).
-		Height(m.Height)
+		Width(m.modalWidth).
+		Height(m.modalHeight)
 	pickerHelpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	help := "Enter=select • Esc=back • Type to search"
 	if m.searchQuery != "" {

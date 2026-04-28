@@ -25,9 +25,8 @@ const (
 	FooterHeight = 1
 	WidthBorders = 6
 
-	previewTruncateLimit = 25
-	scrollbackHeightAdj  = 2
-	lineTruncateAdj      = 5
+	scrollbackHeightAdj = 2
+	lineTruncateAdj     = 5
 )
 
 // Regex patterns for text sanitization.
@@ -72,15 +71,24 @@ var (
 type SessionPreview struct {
 	component.Base
 
-	sessionID  string
-	snapshot   *session.Snapshot
-	card       *config.IDCard
-	scrollback []byte
+	sessionID     string
+	snapshot      *session.Snapshot
+	card          *config.IDCard
+	scrollback    []byte
+	truncateLimit int
 }
 
 // NewSessionPreview creates a new session preview component.
 func NewSessionPreview() *SessionPreview {
-	return &SessionPreview{}
+	return &SessionPreview{
+		truncateLimit: 25, //nolint:mnd // responsive sizing
+	}
+}
+
+// SetSize implements component.Model.
+func (p *SessionPreview) SetSize(width, height int) {
+	p.Base.SetSize(width, height)
+	p.truncateLimit = max(15, width/3) //nolint:mnd // responsive sizing
 }
 
 // SetSession updates the displayed session.
@@ -187,7 +195,7 @@ func (p *SessionPreview) renderPreview() string {
 		sessionName = p.snapshot.ID
 	}
 
-	wdStr := TruncatePath(p.snapshot.WorkingDir, previewTruncateLimit)
+	wdStr := TruncatePath(p.snapshot.WorkingDir, p.truncateLimit)
 	var startedStr string
 	if !p.snapshot.StartedAt.IsZero() {
 		startedStr = p.snapshot.StartedAt.Format("15:04:05")

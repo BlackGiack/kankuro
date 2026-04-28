@@ -73,6 +73,18 @@ func (m *AgentsMDEditorModal) Cancelled() bool { return m.cancelled }
 
 func (m *AgentsMDEditorModal) Init() tea.Cmd { return nil }
 
+// SetSize implements component.Model.
+func (m *AgentsMDEditorModal) SetSize(width, height int) {
+	m.Base.SetSize(width, height)
+
+	editorWidth := max(40, width*8/10) //nolint:mnd // responsive sizing
+	editorHeight := max(10, height/3)  //nolint:mnd // responsive sizing
+	m.editor.SetWidth(editorWidth)
+	m.editor.SetHeight(editorHeight)
+
+	m.pathInput.Width = max(30, width*3/5) //nolint:mnd // responsive sizing
+}
+
 func (m *AgentsMDEditorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
@@ -112,7 +124,7 @@ func (m *AgentsMDEditorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 }
 
 func (m *AgentsMDEditorModal) View() string {
-	const modalWidth = 70
+	modalWidth := max(50, m.Width*4/5) //nolint:mnd // responsive sizing
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#8E44AD")).

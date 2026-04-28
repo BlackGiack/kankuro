@@ -16,18 +16,15 @@ import (
 // Card styling .
 const (
 	CardDelegateHeight = 8
-	CardItemWidth      = 42
 	CardListMinWidth   = 46
 	CardListMinHeight  = 10
 
-	InfoBoxWidth  = 30
 	InfoBoxHeight = 4
 	FaceBoxWidth  = 11
 	FaceBoxHeight = 5
 
-	TruncateLength = 28
-	MaxPillsShown  = 4
-	PillTextLimit  = 10
+	MaxPillsShown = 4
+	PillTextLimit = 10
 )
 
 // CardListItem wraps IDCard for display in the list.
@@ -238,12 +235,17 @@ func (d cardDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		return
 	}
 	selected := index == m.Index()
-	content := RenderCardItem(cardItem.Card, d.skills, d.personas, selected)
+	content := RenderCardItem(cardItem.Card, d.skills, d.personas, selected, m.Width())
 	fmt.Fprint(w, content)
 }
 
 // RenderCardItem renders a single card's display.
-func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config.Persona, selected bool) string {
+func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config.Persona, selected bool, listWidth int) string {
+	const bordersPadding = 2
+	cardItemWidth := max(36, listWidth-bordersPadding-2) //nolint:mnd // to not stick to borders
+	infoBoxWidth := cardItemWidth - FaceBoxWidth - bordersPadding
+	truncateLen := max(20, cardItemWidth-FaceBoxWidth-bordersPadding-1) //nolint:mnd // puppet separator
+
 	skillNames := getSelectedNames(card.SkillIDs, func(id string) (string, bool) {
 		for _, s := range skills {
 			if s.ID == id {
@@ -284,14 +286,14 @@ func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config
 	}
 
 	infoLines := []string{
-		titleStyle.Render(truncate(card.Name, TruncateLength)),
-		descStyle.Render(truncate(driverLine, TruncateLength)),
+		titleStyle.Render(truncate(card.Name, truncateLen)),
+		descStyle.Render(truncate(driverLine, truncateLen)),
 		"",
 		skillsLine,
 	}
 
 	infoBox := lipgloss.NewStyle().
-		Width(InfoBoxWidth).
+		Width(infoBoxWidth).
 		Height(InfoBoxHeight).
 		Render(strings.Join(infoLines, "\n"))
 
@@ -323,7 +325,7 @@ func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor).
-		Width(CardItemWidth).
+		Width(cardItemWidth).
 		Render(content)
 }
 
