@@ -307,36 +307,46 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		return nil, true
 	}
 
-	switch keyMsg.String() {
-	case "q", keyCtrlC:
+	//nolint:exhaustive // not all keys need to be handled
+	switch keyMsg.Type {
+	case tea.KeyCtrlC:
 		return tea.Quit, true
-	case keyEsc:
+	case tea.KeyEsc:
 		return nil, true
-	case keyTab, "shift+tab", "left", "right":
+	case tea.KeyTab:
 		d.togglePane()
 		return nil, true
-	case "n":
-		return d.handleNewCard()
-	case "e":
-		return d.handleEdit()
-	case "m":
-		return d.handleOpenMCP()
-	case "w":
-		return d.handleOpenWorkspaces()
-	case "i":
-		return d.handleOpenIDE()
-	case "o":
-		return d.handleLaunchIDE()
-	case keyEnter:
+	case tea.KeyEnter:
 		return d.handleEnter()
-	case "a":
-		return d.handleAttach()
-	case "x":
-		return d.handleKill()
-	case keyBackspace, keyDelete:
+	case tea.KeyBackspace, tea.KeyDelete:
 		return d.handleDelete()
-	case "s":
-		return d.handleSwitch()
+	case tea.KeyRunes:
+		switch keyMsg.String() {
+		case "q":
+			return tea.Quit, true
+		case "n":
+			return d.handleNewCard()
+		case "e":
+			return d.handleEdit()
+		case "m":
+			return d.handleOpenMCP()
+		case "w":
+			return d.handleOpenWorkspaces()
+		case "i":
+			return d.handleOpenIDE()
+		case "o":
+			return d.handleLaunchIDE()
+		case "a":
+			return d.handleAttach()
+		case "x":
+			return d.handleKill()
+		case "s":
+			return d.handleSwitch()
+		}
+	case tea.KeyShiftTab, tea.KeyLeft, tea.KeyRight:
+		d.togglePane()
+		return nil, true
+	default:
 	}
 
 	return nil, false
@@ -406,9 +416,7 @@ func (d *Dashboard) handleLaunchIDE() (tea.Cmd, bool) {
 
 // handleSearch processes search input.
 func (d *Dashboard) handleSearch(keyMsg tea.KeyMsg) bool {
-	key := keyMsg.String()
-
-	if key == "/" && !d.search.IsActive {
+	if keyMsg.Type == tea.KeyRunes && keyMsg.String() == "/" && !d.search.IsActive {
 		d.search.IsActive = true
 		return true
 	}
@@ -417,22 +425,24 @@ func (d *Dashboard) handleSearch(keyMsg tea.KeyMsg) bool {
 		return false
 	}
 
-	switch key {
-	case keyEsc:
+	//nolint:exhaustive // not all keys need to be handled
+	switch keyMsg.Type {
+	case tea.KeyEsc:
 		d.cancelSearch()
 		return true
-	case keyEnter:
+	case tea.KeyEnter:
 		d.search.IsActive = false
 		d.syncPreviewSelection()
 		return true
-	case "backspace":
+	case tea.KeyBackspace:
 		d.handleSearchBackspace()
 		return true
-	}
-
-	if len(keyMsg.Runes) > 0 {
-		d.handleSearchRune(keyMsg.Runes[0])
+	case tea.KeyRunes:
+		for _, ch := range keyMsg.Runes {
+			d.handleSearchRune(ch)
+		}
 		return true
+	default:
 	}
 
 	return false
@@ -641,13 +651,24 @@ func (d *Dashboard) updateDeleteModal(msg tea.Msg) (component.Model, tea.Cmd) {
 		return d, nil
 	}
 
-	switch keyMsg.String() {
-	case keyEnter, "y":
+	//nolint:exhaustive // not all keys need to be handled
+	switch keyMsg.Type {
+	case tea.KeyEnter:
 		return d.confirmDelete()
-	case keyEsc, "n":
+	case tea.KeyEsc:
 		d.deleteModal.Close()
 		d.pending = PendingAction{}
 		return d, nil
+	case tea.KeyRunes:
+		switch keyMsg.String() {
+		case "y":
+			return d.confirmDelete()
+		case "n":
+			d.deleteModal.Close()
+			d.pending = PendingAction{}
+			return d, nil
+		}
+	default:
 	}
 
 	return d, nil

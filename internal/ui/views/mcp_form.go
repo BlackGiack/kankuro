@@ -121,15 +121,16 @@ func (f *MCPForm) Init() tea.Cmd {
 // Update handles messages.
 func (f *MCPForm) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.String() {
-		case keyCtrlC:
+		//nolint:exhaustive // not all keys need to be handled
+		switch keyMsg.Type {
+		case tea.KeyCtrlC:
 			return f, tea.Quit
-		case keyEsc:
+		case tea.KeyEsc:
 			return f, func() tea.Msg { return messages.NavigateBackMsg{} }
-		case keyTab:
+		case tea.KeyTab:
 			f.cycleFocus()
 			return f, nil
-		case keyEnter:
+		case tea.KeyEnter:
 			return f, f.handleSubmit()
 		}
 	}

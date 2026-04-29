@@ -161,6 +161,49 @@ func TestDashboard_DeleteModal(t *testing.T) {
 	}
 }
 
+func TestDashboard_DeleteModal_CancelWithEsc(t *testing.T) {
+	var deletedSessionID string
+
+	callbacks := views.DashboardCallbacks{
+		OnRemove: func(sessionID string) (tea.Cmd, error) {
+			deletedSessionID = sessionID
+			return func() tea.Msg { return nil }, errTest
+		},
+	}
+
+	d := views.NewDashboard(callbacks, &commands.Commands{})
+	d.SetData(messages.DataLoadedMsg{
+		Sessions: []session.Snapshot{
+			{ID: "s1", Name: "Test Session", UseTmpWorkspace: true, Status: session.StatusTerminated},
+		},
+	})
+	if d.FocusedPane() == views.PaneCards {
+		d.TogglePane()
+	}
+
+	d.Init()
+	d.SessionList().SetSelectedByID("s1")
+
+	// Trigger delete
+	keyMsg := tea.KeyMsg{Type: tea.KeyBackspace}
+	d.Update(keyMsg)
+
+	if !d.DeleteModal().IsOpen() {
+		t.Error("Delete modal should be open")
+	}
+
+	// Cancel with Esc
+	keyMsg = tea.KeyMsg{Type: tea.KeyEsc}
+	d.Update(keyMsg)
+
+	if d.DeleteModal().IsOpen() {
+		t.Error("Delete modal should be closed after Esc")
+	}
+	if deletedSessionID != "" {
+		t.Errorf("Expected no session deleted, got '%s'", deletedSessionID)
+	}
+}
+
 func TestDashboard_SetSize_Flexible(t *testing.T) {
 	d := views.NewDashboard(views.DashboardCallbacks{}, &commands.Commands{})
 

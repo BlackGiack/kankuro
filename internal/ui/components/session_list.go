@@ -168,15 +168,19 @@ func (s *SessionList) handleSelectionChange() tea.Cmd {
 }
 
 func (s *SessionList) handleKey(keyMsg tea.KeyMsg) {
-	switch keyMsg.String() {
-	case keyEnter:
+	//nolint:exhaustive // not all keys need to be handled
+	switch keyMsg.Type {
+	case tea.KeyEnter:
 		s.handleEnter()
-	case "x":
-		s.handleKill()
-	case keyDelete, keyBackspace:
+	case tea.KeyDelete, tea.KeyBackspace:
 		s.handleDelete()
-	case "s":
-		s.handleSwitch()
+	case tea.KeyRunes:
+		switch keyMsg.String() {
+		case "x":
+			s.handleKill()
+		case "s":
+			s.handleSwitch()
+		}
 	}
 }
 

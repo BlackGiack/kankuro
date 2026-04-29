@@ -150,20 +150,16 @@ func (m *WorkspacePickerModal) SetSize(width, height int) {
 
 func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		// Intercept 'q' to prevent quitting
-		if keyMsg.String() == "q" {
-			return m, nil
-		}
-
-		switch keyMsg.String() {
-		case keyEnter:
+		//nolint:exhaustive // not all keys need to be handled
+		switch keyMsg.Type {
+		case tea.KeyEnter:
 			m.confirmed = true
 			// Save the currently selected workspace before resetting state
 			m.selectedID = m.SelectedID()
 			// Reset transient state before closing to prepare for next open
 			m.resetTransientState()
 			return m, nil
-		case keyEsc:
+		case tea.KeyEsc:
 			if m.searchQuery != "" {
 				m.searchQuery = ""
 				m.refreshItems()
@@ -173,17 +169,14 @@ func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 			// Reset transient state before closing to prepare for next open
 			m.resetTransientState()
 			return m, nil
-		case keyBackspace:
+		case tea.KeyBackspace:
 			if len(m.searchQuery) > 0 {
 				m.searchQuery = m.searchQuery[:len(m.searchQuery)-1]
 				m.refreshItems()
 			}
 			return m, nil
-		}
-
-		// Handle search input
-		if len(keyMsg.Runes) > 0 {
-			m.searchQuery += string(keyMsg.Runes)
+		case tea.KeyRunes:
+			m.searchQuery += keyMsg.String()
 			m.refreshItems()
 			return m, nil
 		}

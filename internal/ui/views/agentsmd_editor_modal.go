@@ -87,21 +87,18 @@ func (m *AgentsMDEditorModal) SetSize(width, height int) {
 
 func (m *AgentsMDEditorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.String() {
-		case keyEnter:
+		//nolint:exhaustive // not all keys need to be handled
+		switch keyMsg.Type {
+		case tea.KeyEnter:
 			if m.mode == 1 { // Path mode - enter confirms
 				m.preferPath = true
 				m.confirmed = true
 				return m, nil
 			}
-		case "ctrl+enter":
-			m.preferPath = m.mode == 1
-			m.confirmed = true
-			return m, nil
-		case keyEsc:
+		case tea.KeyEsc:
 			m.cancelled = true
 			return m, nil
-		case keyTab:
+		case tea.KeyTab:
 			m.mode = 1 - m.mode
 			if m.mode == 0 {
 				m.editor.Focus()
@@ -110,6 +107,12 @@ func (m *AgentsMDEditorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 				m.editor.Blur()
 				m.pathInput.Focus()
 			}
+			return m, nil
+		}
+
+		if keyMsg.String() == "ctrl+enter" {
+			m.preferPath = m.mode == 1
+			m.confirmed = true
 			return m, nil
 		}
 	}

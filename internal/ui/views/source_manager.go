@@ -141,7 +141,7 @@ func (m *SourceManager) Init() tea.Cmd {
 // Update handles messages.
 func (m *SourceManager) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		if keyMsg.String() == keyEsc && m.sourceList.Mode == components.SourceListModeList {
+		if keyMsg.Type == tea.KeyEsc && m.sourceList.Mode == components.SourceListModeList {
 			return m, func() tea.Msg { return messages.NavigateBackMsg{} }
 		}
 	}

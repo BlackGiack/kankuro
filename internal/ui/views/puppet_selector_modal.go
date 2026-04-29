@@ -61,23 +61,26 @@ func (m *PuppetSelectorModal) Init() tea.Cmd { return nil }
 
 func (m *PuppetSelectorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.String() {
-		case "left":
+		//nolint:exhaustive // not all keys need to be handled
+		switch keyMsg.Type {
+		case tea.KeyLeft:
 			if m.cursor > 0 {
 				m.cursor--
 			} else {
 				m.cursor = len(m.styles) - 1
 			}
-		case "right":
+		case tea.KeyRight:
 			if m.cursor < len(m.styles)-1 {
 				m.cursor++
 			} else {
 				m.cursor = 0
 			}
-		case keyEnter:
+		case tea.KeyEnter:
 			m.confirmed = true
-		case keyEsc:
+		case tea.KeyEsc:
 			m.cancelled = true
+		default:
+			return m, nil
 		}
 	}
 	return m, nil

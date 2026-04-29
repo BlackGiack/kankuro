@@ -124,23 +124,26 @@ func (c *CardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 }
 
 func (c *CardList) handleKey(keyMsg tea.KeyMsg) tea.Cmd {
-	switch keyMsg.String() {
-	case keyEnter:
+	//nolint:exhaustive // not all keys need to be handled
+	switch keyMsg.Type {
+	case tea.KeyEnter:
 		if card, ok := c.Selected(); ok {
 			if c.callbacks.OnSelect != nil {
 				return c.callbacks.OnSelect(card)
 			}
 		}
-	case "e":
-		if card, ok := c.Selected(); ok {
-			if c.callbacks.OnEdit != nil {
-				return c.callbacks.OnEdit(card)
-			}
-		}
-	case keyDelete, keyBackspace:
+	case tea.KeyDelete, tea.KeyBackspace:
 		if card, ok := c.Selected(); ok {
 			if c.callbacks.OnDelete != nil {
 				c.callbacks.OnDelete(card.ID)
+			}
+		}
+	case tea.KeyRunes:
+		if keyMsg.String() == "e" {
+			if card, ok := c.Selected(); ok {
+				if c.callbacks.OnEdit != nil {
+					return c.callbacks.OnEdit(card)
+				}
 			}
 		}
 	}

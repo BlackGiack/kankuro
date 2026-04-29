@@ -149,30 +149,29 @@ func (c *CapabilityList) Update(msg bubbletea.Msg) (component.Model, bubbletea.C
 func (c *CapabilityList) handleKey(keyMsg bubbletea.KeyMsg) {
 	filtered := c.FilteredItems()
 
-	switch keyMsg.String() {
-	case "up":
+	//nolint:exhaustive // not all keys need to be handled
+	switch keyMsg.Type {
+	case bubbletea.KeyUp:
 		if c.cursor > 0 {
 			c.cursor--
 		}
-	case "down":
+	case bubbletea.KeyDown:
 		if c.cursor < len(filtered)-1 {
 			c.cursor++
 		}
-	case keySpace:
+	case bubbletea.KeySpace:
 		c.ToggleSelected()
-	case keyBackspace:
+	case bubbletea.KeyBackspace:
 		if len(c.searchQuery) > 0 {
 			c.searchQuery = c.searchQuery[:len(c.searchQuery)-1]
 			c.cursor = 0
 		}
-	}
-
-	// Handle search input
-	if len(keyMsg.Runes) > 0 {
-		ch := keyMsg.Runes[0]
-		if ch >= 33 && ch <= 126 {
-			c.searchQuery += string(ch)
-			c.cursor = 0
+	case bubbletea.KeyRunes:
+		for _, ch := range keyMsg.Runes {
+			if ch >= 33 && ch <= 126 {
+				c.searchQuery += string(ch)
+				c.cursor = 0
+			}
 		}
 	}
 }

@@ -1,15 +1,6 @@
 package views
 
 const (
-	// Keys.
-	keyEnter     = "enter"
-	keyEsc       = "esc"
-	keyTab       = "tab"
-	keyBackspace = "backspace"
-	keyDelete    = "delete"
-	keyCtrlC     = "ctrl+c"
-	keySpace     = " "
-
 	// Defaults.
 	defaultPuppetStyle = "kankuro"
 )

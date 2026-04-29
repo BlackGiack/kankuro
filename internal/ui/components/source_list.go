@@ -130,21 +130,49 @@ func (s *SourceList) updateList(msg tea.Msg) (component.Model, tea.Cmd) {
 		return s, nil
 	}
 
-	switch keyMsg.String() {
-	case "up", "k":
-		if s.Cursor > 0 {
-			s.Cursor--
+	//nolint:exhaustive // not all keys need to be handled
+	switch keyMsg.Type {
+	case tea.KeyUp:
+		s.moveUp()
+	case tea.KeyDown:
+		s.moveDown()
+	case tea.KeyEnter, tea.KeySpace:
+		s.OpenForm(s.Cursor)
+	case tea.KeyBackspace:
+		return s, s.HandleDelete()
+	case tea.KeyEsc:
+		if s.Callbacks.OnClose != nil {
+			s.Callbacks.OnClose()
 		}
-	case "down", "j":
-		if s.Cursor < len(s.Items) {
-			s.Cursor++
-		}
+	case tea.KeyRunes:
+		return s, s.handleListRune(keyMsg.String())
+	}
+
+	return s, nil
+}
+
+func (s *SourceList) moveUp() {
+	if s.Cursor > 0 {
+		s.Cursor--
+	}
+}
+
+func (s *SourceList) moveDown() {
+	if s.Cursor < len(s.Items) {
+		s.Cursor++
+	}
+}
+
+func (s *SourceList) handleListRune(r string) tea.Cmd {
+	switch r {
+	case "k":
+		s.moveUp()
+	case "j":
+		s.moveDown()
 	case "n":
 		s.OpenForm(-1) // New item
-	case keySpace, keyEnter:
-		s.OpenForm(s.Cursor)
-	case "d", keyBackspace:
-		return s, s.HandleDelete()
+	case "d":
+		return s.HandleDelete()
 	case "r":
 		var refreshCmd tea.Cmd
 		if s.Callbacks.OnRefresh != nil {
@@ -153,14 +181,9 @@ func (s *SourceList) updateList(msg tea.Msg) (component.Model, tea.Cmd) {
 		if s.Callbacks.OnReload != nil {
 			s.Callbacks.OnReload()
 		}
-		return s, refreshCmd
-	case keyEsc:
-		if s.Callbacks.OnClose != nil {
-			s.Callbacks.OnClose()
-		}
+		return refreshCmd
 	}
-
-	return s, nil
+	return nil
 }
 
 // updateForm handles form mode input.
@@ -178,17 +201,18 @@ func (s *SourceList) updateForm(msg tea.Msg) (component.Model, tea.Cmd) {
 		return s, cmd
 	}
 
-	switch keyMsg.String() {
-	case keyEnter:
+	//nolint:exhaustive // not all keys need to be handled
+	switch keyMsg.Type {
+	case tea.KeyEnter:
 		saveCmd := s.HandleSave()
 		// Mode is usually switched by callback/parent or here if successful
 		// For simplicity in generic component, we return to list mode
 		s.Mode = SourceListModeList
 		return s, tea.Batch(cmd, saveCmd)
-	case keyTab:
+	case tea.KeyTab:
 		s.cycleInputFocus()
 		return s, cmd
-	case keyEsc:
+	case tea.KeyEsc:
 		s.Mode = SourceListModeList
 	}
 

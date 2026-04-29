@@ -305,47 +305,55 @@ func (e *CardEditor) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 
 // handleKey processes global key events.
 func (e *CardEditor) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
-	switch keyMsg.String() {
-	case keyCtrlC:
+	//nolint:exhaustive // not all keys need to be handled
+	switch keyMsg.Type {
+	case tea.KeyCtrlC:
 		return tea.Quit, true
 
-	case keyEsc:
+	case tea.KeyEsc:
 		e.handleEscape()
 		if e.callbacks.OnCancel != nil {
 			return e.callbacks.OnCancel(), true
 		}
 		return nil, true
 
-	case keyTab:
+	case tea.KeyTab:
 		e.clearSearches()
 		e.CycleFocus(1)
 		return nil, true
 
-	case "shift+tab":
+	case tea.KeyShiftTab:
 		e.clearSearches()
 		e.CycleFocus(-1)
 		return nil, true
 
-	case "up":
+	case tea.KeyUp:
 		e.handleNav(false)
 		return nil, true
 
-	case "down":
+	case tea.KeyDown:
 		e.handleNav(true)
 		return nil, true
 
-	case keySpace:
+	case tea.KeySpace:
 		return nil, e.handleSpace()
 
-	case keyEnter:
+	case tea.KeyEnter:
 		return e.handleSubmit(), true
 
-	case keyDelete, "del":
+	case tea.KeyDelete:
 		if e.focusIndex == FocusMCPs {
 			return e.deleteSelectedMCP(), true
 		}
 
-	case "ctrl+e":
+	case tea.KeyRunes:
+		if keyMsg.String() == "del" {
+			if e.focusIndex == FocusMCPs {
+				return e.deleteSelectedMCP(), true
+			}
+		}
+
+	case tea.KeyCtrlE:
 		return e.handleCtrlE()
 	}
 
@@ -578,14 +586,15 @@ func (e *CardEditor) updateMCPList(msg tea.Msg) tea.Cmd {
 }
 
 func (e *CardEditor) handleListSearch(list *CapabilityList, keyMsg tea.KeyMsg) bool {
-	if len(keyMsg.Runes) > 0 {
-		ch := keyMsg.Runes[0]
-		if ch >= 33 && ch <= 126 {
-			list.SetSearchQuery(list.searchQuery + string(ch))
-			return true
+	if keyMsg.Type == tea.KeyRunes {
+		for _, ch := range keyMsg.Runes {
+			if ch >= 33 && ch <= 126 {
+				list.SetSearchQuery(list.searchQuery + string(ch))
+				return true
+			}
 		}
 	}
-	if keyMsg.String() == keyBackspace {
+	if keyMsg.Type == tea.KeyBackspace {
 		if len(list.searchQuery) > 0 {
 			list.SetSearchQuery(list.searchQuery[:len(list.searchQuery)-1])
 		}

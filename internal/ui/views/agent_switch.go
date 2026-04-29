@@ -116,8 +116,9 @@ func (v *AgentSwitchView) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 }
 
 func (v *AgentSwitchView) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
-	switch keyMsg.String() {
-	case keyEsc:
+	//nolint:exhaustive // not all keys need to be handled
+	switch keyMsg.Type {
+	case tea.KeyEsc:
 		if v.searchQuery != "" {
 			v.searchQuery = ""
 			v.refreshItems()
@@ -129,28 +130,25 @@ func (v *AgentSwitchView) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		return func() tea.Msg {
 			return messages.NavigateMsg{View: messages.ViewDashboard}
 		}, true
-	case "q":
-		// Block the list's default quit binding while in agent-switch view.
-		if v.searchQuery == "" {
-			return nil, true
-		}
-	case keyEnter:
+	case tea.KeyEnter:
 		if item := v.list.SelectedItem(); item != nil {
 			if si, ok := item.(switchCardItem); ok && v.callbacks.OnSwitch != nil {
 				return v.callbacks.OnSwitch(v.sessionID, si.card.ID), true
 			}
 		}
 		return nil, true
-	case keyBackspace:
+	case tea.KeyBackspace:
 		if len(v.searchQuery) > 0 {
 			v.searchQuery = v.searchQuery[:len(v.searchQuery)-1]
 			v.refreshItems()
 		}
 		return nil, true
-	}
-
-	if len(keyMsg.Runes) > 0 {
-		v.searchQuery += string(keyMsg.Runes)
+	case tea.KeyRunes:
+		if keyMsg.String() == "q" && v.searchQuery == "" {
+			// Block the list's default quit binding while in agent-switch view.
+			return nil, true
+		}
+		v.searchQuery += keyMsg.String()
 		v.refreshItems()
 		return nil, true
 	}

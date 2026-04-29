@@ -78,17 +78,19 @@ func (l *SessionLauncher) Init() tea.Cmd {
 func (l *SessionLauncher) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		if l.launchDone {
-			switch keyMsg.String() {
-			case keyEnter:
+			//nolint:exhaustive // not all keys need to be handled
+			switch keyMsg.Type {
+			case tea.KeyEnter:
 				return l, l.handleNameSubmit()
-			case keyEsc:
+			case tea.KeyEsc:
 				return l, func() tea.Msg { return messages.NavigateBackMsg{} }
 			}
 		} else {
-			switch keyMsg.String() {
-			case keyCtrlC:
+			//nolint:exhaustive // not all keys need to be handled
+			switch keyMsg.Type {
+			case tea.KeyCtrlC:
 				return l, tea.Quit
-			case keyEsc:
+			case tea.KeyEsc:
 				return l, func() tea.Msg { return messages.NavigateBackMsg{} }
 			}
 		}

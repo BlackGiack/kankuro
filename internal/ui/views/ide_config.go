@@ -115,17 +115,26 @@ func (c *IDEConfig) updateDisplay(msg tea.Msg) (component.Model, tea.Cmd) {
 		return c, nil
 	}
 
-	switch keyMsg.String() {
-	case keyEsc:
+	//nolint:exhaustive // not all keys need to be handled
+	switch keyMsg.Type {
+	case tea.KeyEsc:
 		return c, func() tea.Msg { return messages.NavigateBackMsg{} }
 
-	case keyEnter, "e":
+	case tea.KeyEnter:
 		c.mode = IDEModeEdit
 		c.input.SetValue(c.config.Command)
 		c.input.Focus()
 		return c, nil
 
-	case keyCtrlC:
+	case tea.KeyRunes:
+		if keyMsg.String() == "e" {
+			c.mode = IDEModeEdit
+			c.input.SetValue(c.config.Command)
+			c.input.Focus()
+			return c, nil
+		}
+
+	case tea.KeyCtrlC:
 		return c, tea.Quit
 	}
 
@@ -142,13 +151,14 @@ func (c *IDEConfig) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 		return c, cmd
 	}
 
-	switch keyMsg.String() {
-	case keyEsc:
+	//nolint:exhaustive // not all keys need to be handled
+	switch keyMsg.Type {
+	case tea.KeyEsc:
 		c.mode = IDEModeDisplay
 		c.input.Blur()
 		return c, nil
 
-	case keyEnter:
+	case tea.KeyEnter:
 		c.config.Command = strings.TrimSpace(c.input.Value())
 		c.input.Blur()
 		c.mode = IDEModeDisplay
@@ -160,18 +170,17 @@ func (c *IDEConfig) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 					return messages.ErrorMsg{Err: saveErr}
 				}
 			}
-			backCmd := func() tea.Msg { return messages.NavigateBackMsg{} }
-			return c, tea.Batch(saveCmd, backCmd)
+			return c, saveCmd
 		}
-
-	case keyCtrlC:
+		return c, nil
+	case tea.KeyCtrlC:
 		return c, tea.Quit
 	}
 
 	return c, cmd
 }
 
-// View renders the component.
+// View renders the view.
 func (c *IDEConfig) View() string {
 	if c.mode == IDEModeEdit {
 		return c.renderEdit()
