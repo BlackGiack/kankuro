@@ -31,7 +31,7 @@ func NewWorkspacePickerModal() *WorkspacePickerModal {
 	delegate := list.NewDefaultDelegate()
 	delegate.SetHeight(workspacePickerDelegateHeight)
 
-	l := list.New([]list.Item{}, delegate, 50, 30) //nolint:mnd // responsive sizing
+	l := list.New([]list.Item{}, delegate, 40, 30) //nolint:mnd // responsive sizing
 	l.SetShowTitle(true)
 	l.Title = "Select Workspace"
 	l.SetShowStatusBar(false)
@@ -39,7 +39,7 @@ func NewWorkspacePickerModal() *WorkspacePickerModal {
 
 	return &WorkspacePickerModal{
 		list:        l,
-		modalWidth:  50, //nolint:mnd // responsive sizing
+		modalWidth:  40, //nolint:mnd // responsive sizing
 		modalHeight: 30, //nolint:mnd // responsive sizing
 	}
 }
@@ -61,7 +61,7 @@ func (m *WorkspacePickerModal) rebuildList() {
 		items[i] = workspaceItem{workspace: ws}
 	}
 
-	l := list.New(items, delegate, 50, 30) //nolint:mnd // responsive sizing
+	l := list.New(items, delegate, 40, 30) //nolint:mnd // responsive sizing
 	l.SetShowTitle(true)
 	l.Title = "Select Workspace"
 	l.SetShowStatusBar(false)

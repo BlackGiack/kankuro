@@ -49,8 +49,8 @@ func NewAgentSwitchView(callbacks AgentSwitchCallbacks) *AgentSwitchView {
 	return &AgentSwitchView{
 		list:        l,
 		callbacks:   callbacks,
-		modalWidth:  40, //nolint:mnd // responsive sizing
-		modalHeight: 10, //nolint:mnd // responsive sizing
+		modalWidth:  35, //nolint:mnd // responsive sizing
+		modalHeight: 8,  //nolint:mnd // responsive sizing
 	}
 }
 

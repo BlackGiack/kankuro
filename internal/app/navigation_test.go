@@ -1,13 +1,13 @@
-package ui_test
+package app_test
 
 import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"kankuro/internal/app"
 	"kankuro/internal/config"
 	"kankuro/internal/session"
-	"kankuro/internal/ui"
 	"kankuro/internal/ui/messages"
 )
 
@@ -15,7 +15,7 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	sm := session.NewManager(repo.Dir(), repo)
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
 	// Test 'n' key - should navigate to CardEditor
@@ -27,7 +27,7 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 			coord.Update(navigateMsg)
 		}
 	}
-	if coord.CurrentView() != ui.ViewCardEditor {
+	if coord.CurrentView() != app.ViewCardEditor {
 		t.Errorf("Expected ViewCardEditor after 'n' key, got %v", coord.CurrentView())
 	}
 
@@ -43,7 +43,7 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 			coord.Update(navigateMsg)
 		}
 	}
-	if coord.CurrentView() != ui.ViewMCPForm {
+	if coord.CurrentView() != app.ViewMCPForm {
 		t.Errorf("Expected ViewMCPForm after 'm' key, got %v", coord.CurrentView())
 	}
 
@@ -59,7 +59,7 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 			coord.Update(navigateMsg)
 		}
 	}
-	if coord.CurrentView() != ui.ViewSourceManagerWorkspaces {
+	if coord.CurrentView() != app.ViewSourceManagerWorkspaces {
 		t.Errorf("Expected ViewSourceManagerWorkspaces after 'w' key, got %v", coord.CurrentView())
 	}
 
@@ -75,7 +75,7 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 			coord.Update(navigateMsg)
 		}
 	}
-	if coord.CurrentView() != ui.ViewIDEConfig {
+	if coord.CurrentView() != app.ViewIDEConfig {
 		t.Errorf("Expected ViewIDEConfig after 'i' key, got %v", coord.CurrentView())
 	}
 }

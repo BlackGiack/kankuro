@@ -1,26 +1,26 @@
-package ui_test
+package app_test
 
 import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"kankuro/internal/app"
 	"kankuro/internal/config"
 	"kankuro/internal/session"
-	"kankuro/internal/ui"
 )
 
 func TestCoordinator_New(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	sm := session.NewManager(repo.Dir(), repo)
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 
 	if coord == nil {
 		t.Fatal("NewCoordinator returned nil")
 	}
 
-	if coord.CurrentView() != ui.ViewDashboard {
+	if coord.CurrentView() != app.ViewDashboard {
 		t.Errorf("Expected initial view ViewDashboard, got %v", coord.CurrentView())
 	}
 
@@ -33,15 +33,15 @@ func TestCoordinator_Navigate(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	sm := session.NewManager(repo.Dir(), repo)
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
-	coord.NavigateTo(ui.ViewCardEditor)
+	coord.NavigateTo(app.ViewCardEditor)
 
-	if coord.CurrentView() != ui.ViewCardEditor {
+	if coord.CurrentView() != app.ViewCardEditor {
 		t.Errorf("Expected ViewCardEditor, got %v", coord.CurrentView())
 	}
-	if coord.PrevView() != ui.ViewDashboard {
+	if coord.PrevView() != app.ViewDashboard {
 		t.Errorf("Expected prevView ViewDashboard, got %v", coord.PrevView())
 	}
 }
@@ -50,7 +50,7 @@ func TestCoordinator_ResizeAll(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	sm := session.NewManager(repo.Dir(), repo)
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
 	// Since we can't directly set private width/height, we use Update with WindowSizeMsg
@@ -70,7 +70,7 @@ func TestCoordinator_WireCommands(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	sm := session.NewManager(repo.Dir(), repo)
 
-	cmds := ui.WireCommands(repo, sm)
+	cmds := app.WireCommands(repo, sm)
 
 	if cmds == nil {
 		t.Fatal("WireCommands returned nil")
@@ -88,7 +88,7 @@ func TestApp_BackwardsCompatibility(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	sm := session.NewManager(repo.Dir(), repo)
 
-	app, err := ui.New(repo, sm)
+	app, err := app.New(repo, sm)
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}

@@ -1,11 +1,11 @@
-package ui_test
+package app_test
 
 import (
 	"testing"
 
+	"kankuro/internal/app"
 	"kankuro/internal/config"
 	"kankuro/internal/session"
-	"kankuro/internal/ui"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
 )
@@ -23,11 +23,11 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 		Model:  "test",
 	})
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	msg := coord.RefreshData()()
 	coord.Update(msg)
 
-	if coord.CurrentView() != ui.ViewDashboard {
+	if coord.CurrentView() != app.ViewDashboard {
 		t.Errorf("Expected ViewDashboard, got %v", coord.CurrentView())
 	}
 
@@ -44,10 +44,10 @@ func TestCardCRUDFlow(t *testing.T) {
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
-	editor := coord.Views()[ui.ViewCardEditor]
+	editor := coord.Views()[app.ViewCardEditor]
 
 	testCard := config.IDCard{
 		Name:        "New Card",
@@ -82,11 +82,11 @@ func TestSourceManagementFlow(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	sm := session.NewManager(repo.Dir(), repo)
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
-	coord.NavigateTo(ui.ViewSourceManagerSkills)
-	sourceManager := coord.Views()[ui.ViewSourceManagerSkills].(*views.SourceManager)
+	coord.NavigateTo(app.ViewSourceManagerSkills)
+	sourceManager := coord.Views()[app.ViewSourceManagerSkills].(*views.SourceManager)
 
 	// In the original test it was sourceManager.SetData() but it requires an argument.
 	// We'll use the coordinator's DataLoadedMsg propagation.
@@ -119,7 +119,7 @@ func TestSessionManagementFlow(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	})
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
 	sessionID, err := sm.Launch(card, nil, nil, nil)
@@ -141,17 +141,17 @@ func TestNavigationFlow(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	sm := session.NewManager(repo.Dir(), repo)
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
-	viewsList := []ui.ViewType{
-		ui.ViewDashboard,
-		ui.ViewCardEditor,
-		ui.ViewSourceManagerSkills,
-		ui.ViewSourceManagerPersonas,
-		ui.ViewSourceManagerWorkspaces,
-		ui.ViewIDEConfig,
-		ui.ViewMCPForm,
+	viewsList := []app.ViewType{
+		app.ViewDashboard,
+		app.ViewCardEditor,
+		app.ViewSourceManagerSkills,
+		app.ViewSourceManagerPersonas,
+		app.ViewSourceManagerWorkspaces,
+		app.ViewIDEConfig,
+		app.ViewMCPForm,
 	}
 
 	for _, v := range viewsList {
@@ -166,39 +166,39 @@ func TestPreviousViewRestoration(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	sm := session.NewManager(repo.Dir(), repo)
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
 	// 1. Dashboard -> Source Manager -> Back to Dashboard
-	coord.NavigateTo(ui.ViewDashboard)
-	coord.NavigateTo(ui.ViewSourceManagerSkills)
-	if coord.CurrentView() != ui.ViewSourceManagerSkills {
+	coord.NavigateTo(app.ViewDashboard)
+	coord.NavigateTo(app.ViewSourceManagerSkills)
+	if coord.CurrentView() != app.ViewSourceManagerSkills {
 		t.Errorf("Expected ViewSourceManagerSkills, got %v", coord.CurrentView())
 	}
 	coord.Update(messages.NavigateBackMsg{})
-	if coord.CurrentView() != ui.ViewDashboard {
+	if coord.CurrentView() != app.ViewDashboard {
 		t.Errorf("Expected ViewDashboard after back from source manager, got %v", coord.CurrentView())
 	}
 
 	// 2. Card Editor -> Source Manager -> Back to Card Editor
-	coord.NavigateTo(ui.ViewCardEditor)
-	coord.NavigateTo(ui.ViewSourceManagerPersonas)
-	if coord.CurrentView() != ui.ViewSourceManagerPersonas {
+	coord.NavigateTo(app.ViewCardEditor)
+	coord.NavigateTo(app.ViewSourceManagerPersonas)
+	if coord.CurrentView() != app.ViewSourceManagerPersonas {
 		t.Errorf("Expected ViewSourceManagerPersonas, got %v", coord.CurrentView())
 	}
 	coord.Update(messages.NavigateBackMsg{})
-	if coord.CurrentView() != ui.ViewCardEditor {
+	if coord.CurrentView() != app.ViewCardEditor {
 		t.Errorf("Expected ViewCardEditor after back from source manager, got %v", coord.CurrentView())
 	}
 
 	// 3. Card Editor -> MCP Form -> Back to Card Editor
-	coord.NavigateTo(ui.ViewCardEditor)
-	coord.NavigateTo(ui.ViewMCPForm)
-	if coord.CurrentView() != ui.ViewMCPForm {
+	coord.NavigateTo(app.ViewCardEditor)
+	coord.NavigateTo(app.ViewMCPForm)
+	if coord.CurrentView() != app.ViewMCPForm {
 		t.Errorf("Expected ViewMCPForm, got %v", coord.CurrentView())
 	}
 	coord.Update(messages.NavigateBackMsg{})
-	if coord.CurrentView() != ui.ViewCardEditor {
+	if coord.CurrentView() != app.ViewCardEditor {
 		t.Errorf("Expected ViewCardEditor after back from MCP form, got %v", coord.CurrentView())
 	}
 }
@@ -218,7 +218,7 @@ func TestSessionActionsFlow(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	})
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
 	// Launch a session
@@ -297,7 +297,7 @@ func TestSourceSyncSideEffects(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	sm := session.NewManager(repo.Dir(), repo)
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
 	callbacks := coord.SourceManagerCallbacks(views.SourceTypeSkills)
@@ -321,7 +321,7 @@ func TestCoordinatorErrorHandling(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	sm := session.NewManager(repo.Dir(), repo)
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
 	coord.Update(messages.ErrorMsg{Err: errTest})
@@ -352,7 +352,7 @@ func TestCoordinatorDataPropagation(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	})
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
 	msg := coord.RefreshData()()
@@ -379,11 +379,11 @@ func TestSessionLauncherBehavior(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	})
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 
 	// Navigate to session launcher
-	launcher := coord.Views()[ui.ViewSessionLauncher].(*views.SessionLauncher)
+	launcher := coord.Views()[app.ViewSessionLauncher].(*views.SessionLauncher)
 	launcher.SetCard(card)
 	launcher.SetName("Test Session")
 

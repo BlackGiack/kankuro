@@ -1,4 +1,4 @@
-package ui
+package app
 
 import (
 	"errors"
@@ -167,9 +167,9 @@ func (c *Coordinator) launchIDE(sessionID string) error {
 
 			// Use the stored IDE config
 			if c.ideConfig.Command == "" {
-				return views.ErrIDENotConfigured
+				return session.ErrIDENotConfigured
 			}
-			launcher := views.NewIDELauncher(c.ideConfig.Command)
+			launcher := session.NewIDELauncher(c.ideConfig.Command)
 			return launcher.Launch(workspacePath)
 		}
 	}
@@ -361,9 +361,9 @@ func (c *Coordinator) ideCallbacks() views.IDEConfigCallbacks {
 
 		OnLaunch: func(sessionPath string) error {
 			if c.ideConfig.Command == "" {
-				return views.ErrIDENotConfigured
+				return session.ErrIDENotConfigured
 			}
-			launcher := views.NewIDELauncher(c.ideConfig.Command)
+			launcher := session.NewIDELauncher(c.ideConfig.Command)
 			return launcher.Launch(sessionPath)
 		},
 	}

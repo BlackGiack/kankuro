@@ -32,75 +32,7 @@ const (
 	ModalAgentsMDEditor
 )
 
-// ===== Data Loaded Messages (App → Components) =====
-
-// CardsLoadedMsg signals that cards have been loaded/refreshed.
-type CardsLoadedMsg struct {
-	Cards []config.IDCard
-}
-
-// SessionsLoadedMsg signals that sessions have been loaded/refreshed.
-type SessionsLoadedMsg struct {
-	Sessions []session.Snapshot
-}
-
-// SessionScrollbackLoadedMsg signals that a session's scrollback has been loaded.
-type SessionScrollbackLoadedMsg struct {
-	SessionID  string
-	Scrollback []byte
-}
-
-// SkillsLoadedMsg signals that skills have been loaded/refreshed.
-type SkillsLoadedMsg struct {
-	Skills []config.Skill
-}
-
-// PersonasLoadedMsg signals that personas have been loaded/refreshed.
-type PersonasLoadedMsg struct {
-	Personas []config.Persona
-}
-
-// MCPsLoadedMsg signals that MCPs have been loaded/refreshed.
-type MCPsLoadedMsg struct {
-	MCPs []config.MCPServer
-}
-
-// WorkspacesLoadedMsg signals that workspaces have been loaded/refreshed.
-type WorkspacesLoadedMsg struct {
-	Workspaces []config.Workspace
-}
-
 // ===== User Action Messages (Components → App) =====
-
-// CardSelectedMsg signals user selected a card in the list.
-type CardSelectedMsg struct {
-	Card config.IDCard
-}
-
-// CardEditRequestedMsg signals user wants to edit a card.
-type CardEditRequestedMsg struct {
-	Card config.IDCard
-}
-
-// CardDeleteRequestedMsg signals user wants to delete a card.
-type CardDeleteRequestedMsg struct {
-	CardID string
-}
-
-// CardCreatedMsg signals a new card was created.
-type CardCreatedMsg struct {
-	Card config.IDCard
-}
-
-// CardUpdatedMsg signals a card was updated.
-type CardUpdatedMsg struct {
-	Card config.IDCard
-}
-
-// SessionSelectedMsg signals user selected a session.
-type SessionSelectedMsg struct {
-	Session session.Snapshot
-}
 
 // SessionPreviewRequestedMsg signals that a specific session should be previewed immediately.
 type SessionPreviewRequestedMsg struct {
@@ -158,14 +90,6 @@ type NavigateMsg struct {
 
 // NavigateBackMsg signals the user wants to return to the previous view.
 type NavigateBackMsg struct{}
-
-// ShowModalMsg signals modal should be shown.
-type ShowModalMsg struct {
-	Modal ModalType
-}
-
-// CloseModalMsg signals modal should be closed.
-type CloseModalMsg struct{}
 
 // ErrorMsg signals an error occurred.
 type ErrorMsg struct {

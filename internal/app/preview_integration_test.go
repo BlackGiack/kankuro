@@ -1,4 +1,4 @@
-package ui_test
+package app_test
 
 import (
 	"bytes"
@@ -6,9 +6,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"kankuro/internal/app"
 	"kankuro/internal/config"
 	"kankuro/internal/session"
-	"kankuro/internal/ui"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
 )
@@ -31,7 +31,7 @@ func TestPreviewImmediateUpdate(t *testing.T) {
 	// Launch session
 	sessionID, _ := sm.Launch(card, nil, nil, nil)
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 
 	// Execute refreshData from Init
 	_ = coord.Init()
@@ -40,7 +40,7 @@ func TestPreviewImmediateUpdate(t *testing.T) {
 	msg := coord.RefreshData()()
 	coord.Update(msg)
 
-	dashboard := coord.Views()[ui.ViewDashboard].(*views.Dashboard)
+	dashboard := coord.Views()[app.ViewDashboard].(*views.Dashboard)
 
 	// Trigger preview request (simulate selection change)
 	msgReq := messages.SessionPreviewRequestedMsg{SessionID: sessionID}
@@ -70,7 +70,7 @@ func TestPreviewAutoSelection(t *testing.T) {
 	// Launch session
 	sessionID, _ := sm.Launch(card, nil, nil, nil)
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 
 	// Initial data load: refreshData will have PreviewSessionID="" because dashboard hasn't seen the session yet
 	msg := coord.RefreshData()()
@@ -86,7 +86,7 @@ func TestPreviewAutoSelection(t *testing.T) {
 		t.Fatal("Expected subscription command from Coordinator.Update(DataLoadedMsg)")
 	}
 
-	dashboard := coord.Views()[ui.ViewDashboard].(*views.Dashboard)
+	dashboard := coord.Views()[app.ViewDashboard].(*views.Dashboard)
 	if dashboard.PreviewSessionID() != sessionID {
 		t.Errorf("Expected dashboard to auto-select %s, got %s", sessionID, dashboard.PreviewSessionID())
 	}
@@ -111,7 +111,7 @@ func TestPreviewStreaming(t *testing.T) {
 	sessionID, _ := sm.Launch(card, nil, nil, nil)
 	sess, _ := sm.GetSession(sessionID)
 
-	coord := ui.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm)
 
 	// Initial data load
 	msg := coord.RefreshData()()
@@ -120,7 +120,7 @@ func TestPreviewStreaming(t *testing.T) {
 	// Select session for preview
 	coord.Update(messages.SessionPreviewRequestedMsg{SessionID: sessionID})
 
-	dashboard := coord.Views()[ui.ViewDashboard].(*views.Dashboard)
+	dashboard := coord.Views()[app.ViewDashboard].(*views.Dashboard)
 
 	// Simulate output from session
 	testOutput := []byte("hello world")

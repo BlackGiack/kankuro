@@ -24,7 +24,7 @@ func NewModal(title string) *Modal {
 	return &Modal{
 		title:      title,
 		open:       false,
-		modalWidth: 50, //nolint:mnd // responsive sizing
+		modalWidth: 40, //nolint:mnd // responsive sizing
 	}
 }
 

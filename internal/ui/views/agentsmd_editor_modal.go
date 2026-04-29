@@ -25,7 +25,7 @@ type AgentsMDEditorModal struct {
 // NewAgentsMDEditorModal creates a new agents.md editor.
 func NewAgentsMDEditorModal() *AgentsMDEditorModal {
 	const (
-		editorWidth  = 60
+		editorWidth  = 40
 		editorHeight = 10
 		modalPadding = 2
 	)
@@ -36,7 +36,7 @@ func NewAgentsMDEditorModal() *AgentsMDEditorModal {
 
 	pathInput := textinput.New()
 	pathInput.Placeholder = "Path to AGENTS.md file..."
-	pathInput.Width = 50
+	pathInput.Width = 30
 
 	return &AgentsMDEditorModal{
 		editor:    editor,

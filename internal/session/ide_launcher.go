@@ -1,4 +1,4 @@
-package views
+package session
 
 import (
 	"context"

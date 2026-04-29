@@ -1,4 +1,4 @@
-package views_test
+package session_test
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"kankuro/internal/ui/views"
+	"kankuro/internal/session"
 )
 
 func TestSplitCommand_Simple(t *testing.T) {
@@ -30,7 +30,7 @@ func TestSplitCommand_Simple(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			result := views.SplitCommand(tt.input)
+			result := session.SplitCommand(tt.input)
 
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d parts, got %d: %v", len(tt.expected), len(result), result)
@@ -71,7 +71,7 @@ func TestSplitCommand_Quotes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			result := views.SplitCommand(tt.input)
+			result := session.SplitCommand(tt.input)
 
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d parts, got %d: %v", len(tt.expected), len(result), result)
@@ -88,7 +88,7 @@ func TestSplitCommand_Quotes(t *testing.T) {
 }
 
 func TestSplitCommand_Empty(t *testing.T) {
-	result := views.SplitCommand("")
+	result := session.SplitCommand("")
 
 	if len(result) != 0 {
 		t.Errorf("Empty input should return empty slice, got %v", result)
@@ -96,7 +96,7 @@ func TestSplitCommand_Empty(t *testing.T) {
 }
 
 func TestSplitCommand_Whitespace(t *testing.T) {
-	result := views.SplitCommand("   ")
+	result := session.SplitCommand("   ")
 
 	if len(result) != 0 {
 		t.Errorf("Whitespace-only input should return empty slice, got %v", result)
@@ -104,7 +104,7 @@ func TestSplitCommand_Whitespace(t *testing.T) {
 }
 
 func TestSplitCommand_MultipleSpaces(t *testing.T) {
-	result := views.SplitCommand("cmd   arg1    arg2")
+	result := session.SplitCommand("cmd   arg1    arg2")
 	expected := []string{"cmd", "arg1", "arg2"}
 
 	if len(result) != len(expected) {
@@ -113,10 +113,10 @@ func TestSplitCommand_MultipleSpaces(t *testing.T) {
 }
 
 func TestIDELauncher_New(t *testing.T) {
-	launcher := views.NewIDELauncher("code $PATH")
+	launcher := session.NewIDELauncher("code $PATH")
 
 	if launcher == nil {
-		t.Fatal("NewIDELauncher returned nil")
+		t.Fatal("session.NewIDELauncher returned nil")
 	}
 
 	if launcher.Command() != "code $PATH" {
@@ -135,19 +135,19 @@ func TestIDELauncher_Errors(t *testing.T) {
 			name:    "no command configured",
 			command: "",
 			path:    "/tmp",
-			wantErr: views.ErrIDENotConfigured,
+			wantErr: session.ErrIDENotConfigured,
 		},
 		{
 			name:    "empty path",
 			command: "code $PATH",
 			path:    "",
-			wantErr: views.ErrWorkspacePathEmpty,
+			wantErr: session.ErrWorkspacePathEmpty,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			launcher := views.NewIDELauncher(tt.command)
+			launcher := session.NewIDELauncher(tt.command)
 			err := launcher.Launch(tt.path)
 
 			if !errors.Is(err, tt.wantErr) {
@@ -158,10 +158,10 @@ func TestIDELauncher_Errors(t *testing.T) {
 }
 
 func TestIDELauncher_PathReplacement(t *testing.T) {
-	launcher := views.NewIDELauncher("code $PATH")
+	launcher := session.NewIDELauncher("code $PATH")
 
 	expected := "code /home/user/project"
-	result := strings.ReplaceAll(launcher.Command(), views.PathPlaceholder, "/home/user/project")
+	result := strings.ReplaceAll(launcher.Command(), session.PathPlaceholder, "/home/user/project")
 
 	if result != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, result)
@@ -169,10 +169,10 @@ func TestIDELauncher_PathReplacement(t *testing.T) {
 }
 
 func TestIDELauncher_PathReplacement_Multiple(t *testing.T) {
-	launcher := views.NewIDELauncher("code $PATH --args $PATH")
+	launcher := session.NewIDELauncher("code $PATH --args $PATH")
 
 	expected := "code /home/user/project --args /home/user/project"
-	result := strings.ReplaceAll(launcher.Command(), views.PathPlaceholder, "/home/user/project")
+	result := strings.ReplaceAll(launcher.Command(), session.PathPlaceholder, "/home/user/project")
 
 	if result != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, result)
@@ -184,9 +184,9 @@ func TestIDEErrors(t *testing.T) {
 		err      error
 		expected string
 	}{
-		{views.ErrIDENotConfigured, "IDE command not configured"},
-		{views.ErrWorkspacePathEmpty, "workspace path is empty"},
-		{views.ErrInvalidCommand, "invalid IDE command"},
+		{session.ErrIDENotConfigured, "IDE command not configured"},
+		{session.ErrWorkspacePathEmpty, "workspace path is empty"},
+		{session.ErrInvalidCommand, "invalid IDE command"},
 	}
 
 	for _, tt := range tests {
@@ -207,19 +207,19 @@ func TestIDEErrors_Is(t *testing.T) {
 	}{
 		{
 			name:   "same error",
-			err:    views.ErrIDENotConfigured,
-			target: views.ErrIDENotConfigured,
+			err:    session.ErrIDENotConfigured,
+			target: session.ErrIDENotConfigured,
 			want:   true,
 		},
 		{
 			name:   "different error",
-			err:    views.ErrIDENotConfigured,
-			target: views.ErrWorkspacePathEmpty,
+			err:    session.ErrIDENotConfigured,
+			target: session.ErrWorkspacePathEmpty,
 			want:   false,
 		},
 		{
 			name:   "non-ide error",
-			err:    views.ErrIDENotConfigured,
+			err:    session.ErrIDENotConfigured,
 			target: errors.New("other error"),
 			want:   false,
 		},
@@ -244,13 +244,13 @@ func TestIDEErrors_Format(t *testing.T) {
 	}{
 		{
 			name:     "default format",
-			err:      views.ErrIDENotConfigured,
+			err:      session.ErrIDENotConfigured,
 			verb:     's',
 			expected: "IDE command not configured",
 		},
 		{
 			name:     "quoted format",
-			err:      views.ErrIDENotConfigured,
+			err:      session.ErrIDENotConfigured,
 			verb:     'q',
 			expected: `"IDE command not configured"`,
 		},
@@ -267,7 +267,7 @@ func TestIDEErrors_Format(t *testing.T) {
 }
 
 func TestIDELauncher_CommandWithFlags(t *testing.T) {
-	launcher := views.NewIDELauncher("code --new-window --wait $PATH")
+	launcher := session.NewIDELauncher("code --new-window --wait $PATH")
 
 	if launcher.Command() != "code --new-window --wait $PATH" {
 		t.Errorf("Expected command 'code --new-window --wait $PATH', got '%s'", launcher.Command())
@@ -275,7 +275,7 @@ func TestIDELauncher_CommandWithFlags(t *testing.T) {
 }
 
 func TestSplitCommand_Tabs(t *testing.T) {
-	result := views.SplitCommand("cmd\targ1\targ2")
+	result := session.SplitCommand("cmd\targ1\targ2")
 	expected := []string{"cmd", "arg1", "arg2"}
 
 	if len(result) != len(expected) {
@@ -290,7 +290,7 @@ func TestSplitCommand_Tabs(t *testing.T) {
 }
 
 func TestSplitCommand_MixedWhitespace(t *testing.T) {
-	result := views.SplitCommand("cmd arg1\targ2  arg3")
+	result := session.SplitCommand("cmd arg1\targ2  arg3")
 	expected := []string{"cmd", "arg1", "arg2", "arg3"}
 
 	if len(result) != len(expected) {
