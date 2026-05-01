@@ -1,0 +1,10 @@
+- preview doesn't change instantly when changing session item in the list, there is a lag, it should change instantly just like the header.
+- preview isn't "streaming" anymore, it feels as if it became a batch
+- workspace list is not searchable anymore
+- when showing workspace list in edit page, pressing 'q' quits the app, it should not
+- when showing workspace list in edit page, nothing tells the user that pressing esc == back
+- workspace list should have a dedicated view (should be the only thing displayed in screen), it shouldn't pop under the editor
+- when switching agent on an existing session, the selector should be rendered in a dedicated view, not under the main view (should be the only thing displayed in screen)
+- when switching agent on an existing session, when using the selector filter, we can't remove the filter with esc because it closes the whole selector instead of just cancel the search  
+- pills (skills, personas, mcp) not showing anymore on id cards
+- when showing puppet selector in edit page, nothing tells the user that pressing esc == back

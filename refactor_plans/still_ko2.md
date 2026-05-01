@@ -1,0 +1,1 @@
+- Workspaces selector => we can't see the right border
