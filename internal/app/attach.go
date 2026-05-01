@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -19,8 +20,6 @@ import (
 
 	"kankuro/internal/session"
 	"kankuro/internal/ui/messages"
-
-	"github.com/charmbracelet/lipgloss"
 )
 
 const (
@@ -115,16 +114,7 @@ func (e *attachExec) Run() error {
 	return e.pumpInput(stdinFile, resizeCh, writeErr)
 }
 
-const (
-	primaryColor = lipgloss.Color("#8E44AD")
-)
-
 func (e *attachExec) printHeader() error {
-	msg := fmt.Sprintf("\r\n[Attached to session %s. Ctrl+K detaches.]\r\n", e.sessionID)
-	styledMsg := lipgloss.NewStyle().Foreground(primaryColor).Bold(true).Render(msg)
-	if _, err := fmt.Fprint(e.stdout, styledMsg); err != nil {
-		return err
-	}
 	if len(e.handle.Scrollback) > 0 {
 		if _, err := e.stdout.Write(e.handle.Scrollback); err != nil {
 			return err
@@ -218,22 +208,37 @@ func (e *attachExec) pumpInput(stdinFile *os.File, resizeCh <-chan os.Signal, wr
 	}
 }
 
+func detectKittyDetach(buf []byte) int {
+	kittyPrefix := []byte("\x1b[107;")
+	i := bytes.Index(buf, kittyPrefix)
+	if i == -1 {
+		return -1
+	}
+	remaining := buf[i+len(kittyPrefix):]
+	modBytes, _, found := bytes.Cut(remaining, []byte("u"))
+	if !found {
+		return -1
+	}
+	mod, err := strconv.Atoi(string(modBytes))
+	if err != nil {
+		return -1
+	}
+	if (mod-1)&4 != 0 {
+		return i
+	}
+	return -1
+}
+
 func (e *attachExec) forwardInput(buf []byte) error {
-	idx := -1
+	// 1. Check for Kitty Protocol sequence: \x1b[107;<MODIFIER>u
+	idx := detectKittyDetach(buf)
 
-	// Standard legacy byte for Ctrl+K (11).
-	legacyDetach := []byte{byte(detachKey)}
-	// Kitty Protocol sequence for Ctrl+K (\x1b[107;5u).
-	kittyDetach := []byte("\x1b[107;5u")
-
-	// 1. Prioritize the modern sequence check.
-	if i := bytes.Index(buf, kittyDetach); i != -1 {
-		idx = i
-	} else if j := bytes.Index(buf, legacyDetach); j != -1 {
-		idx = j
+	// 2. Fallback to legacy Ctrl+K (0x0B / 11)
+	if idx == -1 {
+		idx = bytes.IndexByte(buf, byte(detachKey))
 	}
 
-	// 2. No signal? Send the whole buffer to the agent.
+	// 3. No signal? Send the whole buffer to the agent.
 	if idx == -1 {
 		if len(buf) > 0 {
 			_, err := e.handle.Input.Write(buf)
@@ -242,16 +247,16 @@ func (e *attachExec) forwardInput(buf []byte) error {
 		return nil
 	}
 
-	// 3. Signal found!
+	// 4. Signal found!
 	// Write only the bytes that came BEFORE the hotkey to the agent.
 	if idx > 0 {
 		if _, err := e.handle.Input.Write(buf[:idx]); err != nil {
-			e.stopOutput() // we still want to stop the output if we have an error
+			e.stopOutput()
 			return err
 		}
 	}
 
-	// 4. Trigger the detach logic immediately.
+	// 5. Trigger the detach logic immediately.
 	e.stopOutput()
 	return errDetach
 }

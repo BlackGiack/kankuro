@@ -2,6 +2,7 @@ package views
 
 import (
 	"errors"
+	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -763,6 +764,7 @@ func (d *Dashboard) SetSize(width, height int) {
 
 // View renders the dashboard.
 func (d *Dashboard) View() string {
+	fmt.Print("\x1b[=0u") //nolint:forbidigo // we need to be sure to disable kitty protocol when on kankuro side
 	// Handle modal overlays
 	if d.deleteModal.IsOpen() {
 		return d.renderWithOverlay(d.deleteModal.View())
