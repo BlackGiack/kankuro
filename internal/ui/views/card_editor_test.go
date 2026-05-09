@@ -255,6 +255,44 @@ func TestCardEditor_View(t *testing.T) {
 	}
 }
 
+func TestCardEditor_View_HidesOptionalSectionsFromSettings(t *testing.T) {
+	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e.SetSettings(config.AppSettings{
+		ShowPersonasInCardEditor: false,
+		ShowMCPsInCardEditor:     false,
+	})
+	e.SetSize(80, 40)
+
+	view := e.View()
+	if strings.Contains(view, "Personas") {
+		t.Error("view should hide Personas section when disabled")
+	}
+	if strings.Contains(view, "MCPs") {
+		t.Error("view should hide MCPs section when disabled")
+	}
+}
+
+func TestCardEditor_HiddenSectionsPreserveSelections(t *testing.T) {
+	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e.SetCard(config.IDCard{
+		ID:         "card-1",
+		PersonaIDs: []string{"p1"},
+		MCPIDs:     []string{"m1"},
+	})
+	e.SetSettings(config.AppSettings{
+		ShowPersonasInCardEditor: false,
+		ShowMCPsInCardEditor:     false,
+	})
+
+	card := e.Card()
+	if len(card.PersonaIDs) != 1 || card.PersonaIDs[0] != "p1" {
+		t.Fatalf("expected hidden persona selection to be preserved, got %+v", card.PersonaIDs)
+	}
+	if len(card.MCPIDs) != 1 || card.MCPIDs[0] != "m1" {
+		t.Fatalf("expected hidden MCP selection to be preserved, got %+v", card.MCPIDs)
+	}
+}
+
 func TestPuppetSelector_Navigation(t *testing.T) {
 	m := views.NewPuppetSelectorModal()
 	m.Open()

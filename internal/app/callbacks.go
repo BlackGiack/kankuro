@@ -64,14 +64,13 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 			}
 		},
 
-		OnOpenIDE: func() tea.Cmd {
-			// Set the IDE config on the view
-			ideConfig, ok := c.views[ViewType(messages.ViewIDEConfig)].(*views.IDEConfig)
+		OnOpenSettings: func() tea.Cmd {
+			settingsView, ok := c.views[ViewType(messages.ViewSettings)].(*views.SettingsView)
 			if ok {
-				ideConfig.SetConfig(c.ideConfig)
+				settingsView.SetSettings(c.settings)
 			}
 			return func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewIDEConfig}
+				return messages.NavigateMsg{View: messages.ViewSettings}
 			}
 		},
 
@@ -166,10 +165,10 @@ func (c *Coordinator) launchIDE(sessionID string) error {
 			}
 
 			// Use the stored IDE config
-			if c.ideConfig.Command == "" {
+			if c.settings.IDECommand == "" {
 				return session.ErrIDENotConfigured
 			}
-			launcher := session.NewIDELauncher(c.ideConfig.Command)
+			launcher := session.NewIDELauncher(c.settings.IDECommand)
 			return launcher.Launch(workspacePath)
 		}
 	}
@@ -348,23 +347,18 @@ func (c *Coordinator) deleteSource(sourceType views.SourceType, index int) (tea.
 	return nil, errors.New("unknown source type or invalid index")
 }
 
-func (c *Coordinator) ideCallbacks() views.IDEConfigCallbacks {
-	return views.IDEConfigCallbacks{
-		OnSave: func(command string) (tea.Cmd, error) {
-			cfg := config.IDEConfig{Command: command}
-			err := c.repo.SaveIDEConfig(cfg)
-			if err == nil {
-				c.ideConfig = cfg
+func (c *Coordinator) settingsCallbacks() views.SettingsCallbacks {
+	return views.SettingsCallbacks{
+		OnSave: func(settings config.AppSettings) (tea.Cmd, error) {
+			err := c.repo.SaveAppSettings(settings)
+			if err != nil {
+				return nil, err
 			}
-			return c.refreshData(), err
-		},
-
-		OnLaunch: func(sessionPath string) error {
-			if c.ideConfig.Command == "" {
-				return session.ErrIDENotConfigured
+			c.settings = settings
+			if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
+				editor.SetSettings(settings)
 			}
-			launcher := session.NewIDELauncher(c.ideConfig.Command)
-			return launcher.Launch(sessionPath)
+			return c.refreshData(), nil
 		},
 	}
 }

@@ -12,7 +12,7 @@ func WireCommands(repo config.Repository, sm *session.Manager) *commands.Command
 	wireCardCommands(cmds, repo)
 	wireMCPCommands(cmds, repo)
 	wireSourceCommands(cmds, repo)
-	wireIDECommands(cmds, repo)
+	wireSettingsCommands(cmds, repo)
 	cmds.RefreshData = func() {}
 	return cmds
 }
@@ -114,9 +114,9 @@ func wireSourceCommands(cmds *commands.Commands, repo config.Repository) {
 	}
 }
 
-func wireIDECommands(cmds *commands.Commands, repo config.Repository) {
-	cmds.SaveIDEConfig = func(cfg config.IDEConfig) error {
-		return repo.SaveIDEConfig(cfg)
+func wireSettingsCommands(cmds *commands.Commands, repo config.Repository) {
+	cmds.SaveAppSettings = func(cfg config.AppSettings) error {
+		return repo.SaveAppSettings(cfg)
 	}
 	cmds.OpenIDE = func(_ string) error {
 		return nil

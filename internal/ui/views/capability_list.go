@@ -149,8 +149,7 @@ func (c *CapabilityList) Update(msg bubbletea.Msg) (component.Model, bubbletea.C
 func (c *CapabilityList) handleKey(keyMsg bubbletea.KeyMsg) {
 	filtered := c.FilteredItems()
 
-	//nolint:exhaustive // not all keys need to be handled
-	switch keyMsg.Type {
+	switch keyMsg.Type { //nolint:exhaustive // list interaction intentionally ignores unrelated keys
 	case bubbletea.KeyUp:
 		if c.cursor > 0 {
 			c.cursor--
@@ -275,5 +274,5 @@ func (c *CapabilityList) calculateWindow(total int) (int, int) {
 // SetSize implements component.Model.
 func (c *CapabilityList) SetSize(width, height int) {
 	c.Base.SetSize(width, height)
-	c.maxVisible = height
+	c.maxVisible = height - 1 // ellipsis and newline after a cap list
 }

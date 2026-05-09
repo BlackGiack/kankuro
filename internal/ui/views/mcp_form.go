@@ -121,8 +121,7 @@ func (f *MCPForm) Init() tea.Cmd {
 // Update handles messages.
 func (f *MCPForm) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		//nolint:exhaustive // not all keys need to be handled
-		switch keyMsg.Type {
+		switch keyMsg.Type { //nolint:exhaustive // the form handles only submit, cancel, and focus traversal keys
 		case tea.KeyCtrlC:
 			return f, tea.Quit
 		case tea.KeyEsc:

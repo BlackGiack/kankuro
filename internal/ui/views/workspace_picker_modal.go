@@ -150,8 +150,7 @@ func (m *WorkspacePickerModal) SetSize(width, height int) {
 
 func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		//nolint:exhaustive // not all keys need to be handled
-		switch keyMsg.Type {
+		switch keyMsg.Type { //nolint:exhaustive // the picker only consumes navigation and confirm/cancel keys
 		case tea.KeyEnter:
 			m.confirmed = true
 			// Save the currently selected workspace before resetting state

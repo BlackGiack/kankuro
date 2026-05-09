@@ -116,8 +116,7 @@ func (v *AgentSwitchView) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 }
 
 func (v *AgentSwitchView) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
-	//nolint:exhaustive // not all keys need to be handled
-	switch keyMsg.Type {
+	switch keyMsg.Type { //nolint:exhaustive // this view only handles a narrow set of navigation keys
 	case tea.KeyEsc:
 		if v.searchQuery != "" {
 			v.searchQuery = ""

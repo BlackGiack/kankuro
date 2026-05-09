@@ -15,7 +15,7 @@ const (
 	MCPsFilename             = "mcps.yaml"
 	WorkspacesFilename       = "workspaces.yaml"
 	WorkspaceSourcesFilename = "workspace_sources.yaml"
-	IDEConfigFilename        = "ide_config.yaml"
+	AppSettingsFilename      = "app_settings.yaml"
 )
 
 // CardRepository defines persistence operations for ID cards.
@@ -63,10 +63,10 @@ type MCPRepository interface {
 	DeleteMCP(id string) error
 }
 
-// IDERepository defines persistence operations for IDE configuration.
-type IDERepository interface {
-	GetIDEConfig() (IDEConfig, error)
-	SaveIDEConfig(cfg IDEConfig) error
+// SettingsRepository defines persistence operations for global app settings.
+type SettingsRepository interface {
+	GetAppSettings() (AppSettings, error)
+	SaveAppSettings(cfg AppSettings) error
 }
 
 // Repository composes all domain repositories for convenience.
@@ -78,7 +78,7 @@ type Repository interface {
 	SkillRepository
 	PersonaRepository
 	MCPRepository
-	IDERepository
+	SettingsRepository
 	Dir() string
 }
 
@@ -159,28 +159,43 @@ func (r *FileRepository) EnsureFiles() error {
 		return err
 	}
 
-	ideConfigPath := filepath.Join(r.dir, IDEConfigFilename)
-	ideConfigDefault := IDEConfigFile{SchemaVersion: SchemaVersion, IDEConfig: IDEConfig{}}
-	if err := r.EnsureYAML(ideConfigPath, ideConfigDefault); err != nil {
+	settingsPath := filepath.Join(r.dir, AppSettingsFilename)
+	settingsDefault := AppSettingsFile{SchemaVersion: SchemaVersion, AppSettings: DefaultAppSettings()}
+	if err := r.EnsureYAML(settingsPath, settingsDefault); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// GetIDEConfig loads the IDE configuration from disk.
-func (r *FileRepository) GetIDEConfig() (IDEConfig, error) {
-	path := filepath.Join(r.dir, IDEConfigFilename)
-	var f IDEConfigFile
-	if err := ReadYAML(path, &f); err != nil {
-		return IDEConfig{}, err
+// GetAppSettings loads app settings from disk.
+func (r *FileRepository) GetAppSettings() (AppSettings, error) {
+	path := filepath.Join(r.dir, AppSettingsFilename)
+	var f struct {
+		SchemaVersion int `yaml:"schema_version"`
+		AppSettings   struct {
+			IDECommand               string `yaml:"ide_command"`
+			ShowPersonasInCardEditor *bool  `yaml:"show_personas_in_card_editor"`
+			ShowMCPsInCardEditor     *bool  `yaml:"show_mcps_in_card_editor"`
+		} `yaml:"app_settings"`
 	}
-	return f.IDEConfig, nil
+	if err := ReadYAML(path, &f); err != nil {
+		return AppSettings{}, err
+	}
+	settings := DefaultAppSettings()
+	settings.IDECommand = f.AppSettings.IDECommand
+	if f.AppSettings.ShowPersonasInCardEditor != nil {
+		settings.ShowPersonasInCardEditor = *f.AppSettings.ShowPersonasInCardEditor
+	}
+	if f.AppSettings.ShowMCPsInCardEditor != nil {
+		settings.ShowMCPsInCardEditor = *f.AppSettings.ShowMCPsInCardEditor
+	}
+	return settings, nil
 }
 
-// SaveIDEConfig persists the IDE configuration to disk.
-func (r *FileRepository) SaveIDEConfig(cfg IDEConfig) error {
-	path := filepath.Join(r.dir, IDEConfigFilename)
-	f := IDEConfigFile{SchemaVersion: SchemaVersion, IDEConfig: cfg}
+// SaveAppSettings persists app settings to disk.
+func (r *FileRepository) SaveAppSettings(cfg AppSettings) error {
+	path := filepath.Join(r.dir, AppSettingsFilename)
+	f := AppSettingsFile{SchemaVersion: SchemaVersion, AppSettings: cfg}
 	return r.WriteAtomic(path, f)
 }

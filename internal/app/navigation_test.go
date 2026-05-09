@@ -66,16 +66,15 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 	// Navigate back to dashboard
 	coord.Update(messages.NavigateMsg{View: messages.ViewDashboard})
 
-	// Test 'i' key - should navigate to IDEConfig
-	_, cmd = coord.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
-	// Execute the command to get the NavigateMsg
+	// Test 'c' key - should navigate to Settings
+	_, cmd = coord.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
 	if cmd != nil {
 		msg := cmd()
 		if navigateMsg, ok := msg.(messages.NavigateMsg); ok {
 			coord.Update(navigateMsg)
 		}
 	}
-	if coord.CurrentView() != app.ViewIDEConfig {
-		t.Errorf("Expected ViewIDEConfig after 'i' key, got %v", coord.CurrentView())
+	if coord.CurrentView() != app.ViewSettings {
+		t.Errorf("Expected ViewSettings after 'c' key, got %v", coord.CurrentView())
 	}
 }

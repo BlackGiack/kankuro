@@ -1,6 +1,7 @@
 package views
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -28,7 +29,7 @@ const (
 	FocusMCPs
 )
 
-// FocusCount is the total number of focusable elements.
+// FocusCount is the total number of potential focusable elements.
 const FocusCount = 11
 
 // Focus field constants for card editor layout.
@@ -73,12 +74,15 @@ type CardEditor struct {
 	puppet      string
 	workspaceID string
 	agentsMD    AgentsMDState
+	personaIDs  []string
+	mcpIDs      []string
 
 	// Data
 	workspaces []config.Workspace
 	skills     []config.Skill
 	personas   []config.Persona
 	mcps       []config.MCPServer
+	settings   config.AppSettings
 
 	callbacks CardEditorCallbacks
 	cmds      *commands.Commands
@@ -142,6 +146,7 @@ func NewCardEditor(callbacks CardEditorCallbacks, cmds *commands.Commands) *Card
 		puppetSelector:  NewPuppetSelectorModal(),
 		agentsMDEditor:  NewAgentsMDEditorModal(),
 		puppet:          "kankuro",
+		settings:        config.DefaultAppSettings(),
 		callbacks:       callbacks,
 		cmds:            cmds,
 	}
@@ -162,6 +167,26 @@ func (e *CardEditor) EditingID() string { return e.editingID }
 func (e *CardEditor) FocusIndex() int { return e.focusIndex }
 
 func (e *CardEditor) Inputs() []textinput.Model { return e.inputs }
+
+func (e *CardEditor) SetSettings(settings config.AppSettings) {
+	if e.settings.ShowPersonasInCardEditor && !settings.ShowPersonasInCardEditor {
+		if selected := e.personaList.SelectedIDs(); len(selected) > 0 {
+			e.personaIDs = selected
+		}
+	}
+	if e.settings.ShowMCPsInCardEditor && !settings.ShowMCPsInCardEditor {
+		if selected := e.mcpList.SelectedIDs(); len(selected) > 0 {
+			e.mcpIDs = selected
+		}
+	}
+	e.settings = settings
+	if !e.isFocusVisible(e.focusIndex) {
+		e.setFocus(e.visibleFocusOrder()[0])
+	}
+	if e.Width > 0 && e.Height > 0 {
+		e.SetSize(e.Width, e.Height)
+	}
+}
 
 // SetCard populates the form for editing an existing card.
 func (e *CardEditor) SetCard(card config.IDCard) {
@@ -187,6 +212,8 @@ func (e *CardEditor) SetCard(card config.IDCard) {
 	e.skillList.SetSelected(card.SkillIDs)
 	e.personaList.SetSelected(card.PersonaIDs)
 	e.mcpList.SetSelected(card.MCPIDs)
+	e.personaIDs = append([]string(nil), card.PersonaIDs...)
+	e.mcpIDs = append([]string(nil), card.MCPIDs...)
 
 	e.focusIndex = 0
 	e.setFocus(0)
@@ -202,6 +229,8 @@ func (e *CardEditor) Reset() {
 	e.workspaceID = ""
 	e.puppet = "kankuro"
 	e.agentsMD = AgentsMDState{}
+	e.personaIDs = nil
+	e.mcpIDs = nil
 	e.skillList.SetSelected(nil)
 	e.personaList.SetSelected(nil)
 	e.mcpList.SetSelected(nil)
@@ -253,8 +282,8 @@ func (e *CardEditor) Card() config.IDCard {
 		AgentsMDPath:       e.agentsMD.Path,
 		AgentsMDPreferPath: e.agentsMD.PreferPath,
 		SkillIDs:           e.skillList.SelectedIDs(),
-		PersonaIDs:         e.personaList.SelectedIDs(),
-		MCPIDs:             e.mcpList.SelectedIDs(),
+		PersonaIDs:         e.selectedPersonaIDs(),
+		MCPIDs:             e.selectedMCPIDs(),
 	}
 }
 
@@ -305,8 +334,7 @@ func (e *CardEditor) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 
 // handleKey processes global key events.
 func (e *CardEditor) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
-	//nolint:exhaustive // not all keys need to be handled
-	switch keyMsg.Type {
+	switch keyMsg.Type { //nolint:exhaustive // the form handles only its explicit shortcuts and navigation keys
 	case tea.KeyCtrlC:
 		return tea.Quit, true
 
@@ -405,10 +433,16 @@ func (e *CardEditor) handleSpace() bool {
 		return true
 
 	case FocusPersonas:
+		if !e.settings.ShowPersonasInCardEditor {
+			return false
+		}
 		e.personaList.ToggleSelected()
 		return true
 
 	case FocusMCPs:
+		if !e.settings.ShowMCPsInCardEditor {
+			return false
+		}
 		e.mcpList.ToggleSelected()
 		// Auto-select mcp-cli skill
 		e.autoSelectMCPCLISkill()
@@ -428,12 +462,18 @@ func (e *CardEditor) handleCtrlE() (tea.Cmd, bool) {
 		return nil, true
 
 	case FocusPersonas:
+		if !e.settings.ShowPersonasInCardEditor {
+			return nil, false
+		}
 		if e.callbacks.OnOpenSources != nil {
 			return e.callbacks.OnOpenSources("personas"), true
 		}
 		return nil, true
 
 	case FocusMCPs:
+		if !e.settings.ShowMCPsInCardEditor {
+			return nil, false
+		}
 		if e.callbacks.OnOpenMCPForm != nil {
 			return e.callbacks.OnOpenMCPForm(), true
 		}
@@ -454,6 +494,9 @@ func (e *CardEditor) handleNav(down bool) {
 		}
 
 	case FocusPersonas:
+		if !e.settings.ShowPersonasInCardEditor {
+			return
+		}
 		if down {
 			e.personaList.SetCursor(e.personaList.Cursor() + 1)
 		} else {
@@ -461,6 +504,9 @@ func (e *CardEditor) handleNav(down bool) {
 		}
 
 	case FocusMCPs:
+		if !e.settings.ShowMCPsInCardEditor {
+			return
+		}
 		if down {
 			e.mcpList.SetCursor(e.mcpList.Cursor() + 1)
 		} else {
@@ -505,16 +551,27 @@ func (e *CardEditor) clearSearches() {
 
 // CycleFocus moves focus forward or backward.
 func (e *CardEditor) CycleFocus(dir int) {
-	e.focusIndex = (e.focusIndex + dir + FocusCount) % FocusCount
-	e.setFocus(e.focusIndex)
+	order := e.visibleFocusOrder()
+	if len(order) == 0 {
+		return
+	}
+	current := 0
+	for i, focus := range order {
+		if focus == e.focusIndex {
+			current = i
+			break
+		}
+	}
+	next := (current + dir + len(order)) % len(order)
+	e.setFocus(order[next])
 }
 
 // setFocus updates focus state for inputs.
 func (e *CardEditor) setFocus(index int) {
 	e.focusIndex = index
 	e.skillList.SetFocused(index == FocusSkills)
-	e.personaList.SetFocused(index == FocusPersonas)
-	e.mcpList.SetFocused(index == FocusMCPs)
+	e.personaList.SetFocused(index == FocusPersonas && e.settings.ShowPersonasInCardEditor)
+	e.mcpList.SetFocused(index == FocusMCPs && e.settings.ShowMCPsInCardEditor)
 
 	// Map focus index to input index
 	inputIdx := e.mapFocusToInput(index)
@@ -547,8 +604,14 @@ func (e *CardEditor) updateFocusedInput(msg tea.Msg) (component.Model, tea.Cmd) 
 	case FocusSkills:
 		return e, e.updateSkillList(msg)
 	case FocusPersonas:
+		if !e.settings.ShowPersonasInCardEditor {
+			return e, nil
+		}
 		return e, e.updatePersonaList(msg)
 	case FocusMCPs:
+		if !e.settings.ShowMCPsInCardEditor {
+			return e, nil
+		}
 		return e, e.updateMCPList(msg)
 	default:
 		return e, e.updateInputs(msg)
@@ -725,8 +788,12 @@ func (e *CardEditor) renderForm() string {
 
 	// Capability lists
 	sb.WriteString(e.skillList.View() + "\n\n")
-	sb.WriteString(e.personaList.View() + "\n\n")
-	sb.WriteString(e.mcpList.View() + "\n\n")
+	if e.settings.ShowPersonasInCardEditor {
+		sb.WriteString(e.personaList.View() + "\n\n")
+	}
+	if e.settings.ShowMCPsInCardEditor {
+		sb.WriteString(e.mcpList.View() + "\n\n")
+	}
 
 	// Help
 	sb.WriteString("Enter=save Tab=next Esc=cancel")
@@ -827,11 +894,18 @@ func (e *CardEditor) renderWithOverlay(modalContent string) string {
 	return form + "\n" + overlayStyle.Render(modalContent)
 }
 
-const capListHeight = 5
-
 // SetSize implements component.Model.
 func (e *CardEditor) SetSize(width, height int) {
 	e.Base.SetSize(width, height)
+	upForm := e.renderForm()
+	part := 1
+	if e.settings.ShowPersonasInCardEditor {
+		part++
+	}
+	if e.settings.ShowMCPsInCardEditor {
+		part++
+	}
+	capListHeight := (height - lipgloss.Height(upForm)) * 1 / part
 	e.skillList.SetSize(width, capListHeight)
 	e.personaList.SetSize(width, capListHeight)
 	e.mcpList.SetSize(width, capListHeight)
@@ -845,6 +919,47 @@ func (e *CardEditor) SetSize(width, height int) {
 	for i := range e.inputs {
 		e.inputs[i].Width = calculatedWidth
 	}
+}
+
+func (e *CardEditor) visibleFocusOrder() []int {
+	order := []int{
+		FocusName,
+		FocusDriver,
+		FocusModel,
+		FocusWorkspace,
+		FocusFaceStyle,
+		FocusPuppet,
+		FocusUseTmp,
+		FocusAgentsMD,
+		FocusSkills,
+	}
+	if e.settings.ShowPersonasInCardEditor {
+		order = append(order, FocusPersonas)
+	}
+	if e.settings.ShowMCPsInCardEditor {
+		order = append(order, FocusMCPs)
+	}
+	return order
+}
+
+func (e *CardEditor) isFocusVisible(index int) bool {
+	return slices.Contains(e.visibleFocusOrder(), index)
+}
+
+func (e *CardEditor) selectedPersonaIDs() []string {
+	if e.settings.ShowPersonasInCardEditor {
+		e.personaIDs = e.personaList.SelectedIDs()
+		return e.personaIDs
+	}
+	return append([]string(nil), e.personaIDs...)
+}
+
+func (e *CardEditor) selectedMCPIDs() []string {
+	if e.settings.ShowMCPsInCardEditor {
+		e.mcpIDs = e.mcpList.SelectedIDs()
+		return e.mcpIDs
+	}
+	return append([]string(nil), e.mcpIDs...)
 }
 
 // Capability item types

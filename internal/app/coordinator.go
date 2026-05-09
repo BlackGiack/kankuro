@@ -21,7 +21,7 @@ const (
 	ViewSourceManagerSkills
 	ViewSourceManagerPersonas
 	ViewSourceManagerWorkspaces
-	ViewIDEConfig
+	ViewSettings
 	ViewMCPForm
 	ViewSessionLauncher
 	ViewAgentSwitch
@@ -41,7 +41,7 @@ type Coordinator struct {
 	height int
 	err    error
 
-	ideConfig config.IDEConfig
+	settings config.AppSettings
 
 	previewSubChan   chan []byte
 	previewSessionID string
@@ -58,12 +58,11 @@ func NewCoordinator(repo config.Repository, sm *session.Manager) *Coordinator {
 		currentView: ViewDashboard,
 	}
 
-	// Load IDE config
-	ideCfg, err := repo.GetIDEConfig()
+	settings, err := repo.GetAppSettings()
 	if err != nil {
-		ideCfg = config.IDEConfig{}
+		settings = config.DefaultAppSettings()
 	}
-	c.ideConfig = ideCfg
+	c.settings = settings
 
 	c.initViews()
 	return c
@@ -126,7 +125,9 @@ func (c *Coordinator) Err() error {
 
 func (c *Coordinator) initViews() {
 	c.views[ViewDashboard] = views.NewDashboard(c.dashboardCallbacks(), c.cmds)
-	c.views[ViewCardEditor] = views.NewCardEditor(c.cardEditorCallbacks(), c.cmds)
+	cardEditor := views.NewCardEditor(c.cardEditorCallbacks(), c.cmds)
+	cardEditor.SetSettings(c.settings)
+	c.views[ViewCardEditor] = cardEditor
 
 	smSkills := views.NewSourceManager(views.SourceTypeSkills, c.sourceManagerCallbacks(views.SourceTypeSkills), c.cmds)
 	c.views[ViewSourceManagerSkills] = smSkills
@@ -137,9 +138,9 @@ func (c *Coordinator) initViews() {
 	smWorkspaces := views.NewSourceManager(views.SourceTypeWorkspaces, c.sourceManagerCallbacks(views.SourceTypeWorkspaces), c.cmds)
 	c.views[ViewSourceManagerWorkspaces] = smWorkspaces
 
-	ideView := views.NewIDEConfig(c.ideCallbacks(), c.cmds)
-	ideView.SetConfig(c.ideConfig)
-	c.views[ViewIDEConfig] = ideView
+	settingsView := views.NewSettingsView(c.settingsCallbacks(), c.cmds)
+	settingsView.SetSettings(c.settings)
+	c.views[ViewSettings] = settingsView
 	c.views[ViewMCPForm] = views.NewMCPForm(c.mcpCallbacks(), c.cmds)
 	c.views[ViewSessionLauncher] = views.NewSessionLauncher(c.sessionLauncherCallbacks(), c.cmds)
 	c.views[ViewAgentSwitch] = views.NewAgentSwitchView(c.agentSwitchCallbacks())
@@ -411,8 +412,8 @@ func convertViewType(vt messages.ViewType) ViewType {
 		return ViewSourceManagerWorkspaces
 	case messages.ViewMCPForm:
 		return ViewMCPForm
-	case messages.ViewIDEConfig:
-		return ViewIDEConfig
+	case messages.ViewSettings:
+		return ViewSettings
 	case messages.ViewSessionLauncher:
 		return ViewSessionLauncher
 	case messages.ViewAgentSwitch:

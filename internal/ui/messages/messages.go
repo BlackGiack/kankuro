@@ -15,7 +15,7 @@ const (
 	ViewSourceManagerPersonas
 	ViewSourceManagerWorkspaces
 	ViewMCPForm
-	ViewIDEConfig
+	ViewSettings
 	ViewSessionLauncher
 	ViewAgentSwitch
 )

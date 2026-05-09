@@ -78,16 +78,14 @@ func (l *SessionLauncher) Init() tea.Cmd {
 func (l *SessionLauncher) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		if l.launchDone {
-			//nolint:exhaustive // not all keys need to be handled
-			switch keyMsg.Type {
+			switch keyMsg.Type { //nolint:exhaustive // completed state only needs attach-or-exit handling
 			case tea.KeyEnter:
 				return l, l.handleNameSubmit()
 			case tea.KeyEsc:
 				return l, func() tea.Msg { return messages.NavigateBackMsg{} }
 			}
 		} else {
-			//nolint:exhaustive // not all keys need to be handled
-			switch keyMsg.Type {
+			switch keyMsg.Type { //nolint:exhaustive // launch-pending state only supports quit and back
 			case tea.KeyCtrlC:
 				return l, tea.Quit
 			case tea.KeyEsc:

@@ -87,8 +87,7 @@ func (m *AgentsMDEditorModal) SetSize(width, height int) {
 
 func (m *AgentsMDEditorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		//nolint:exhaustive // not all keys need to be handled
-		switch keyMsg.Type {
+		switch keyMsg.Type { //nolint:exhaustive // the modal only reacts to the keys used for confirmation and mode switching
 		case tea.KeyEnter:
 			if m.mode == 1 { // Path mode - enter confirms
 				m.preferPath = true

@@ -150,7 +150,7 @@ func TestNavigationFlow(t *testing.T) {
 		app.ViewSourceManagerSkills,
 		app.ViewSourceManagerPersonas,
 		app.ViewSourceManagerWorkspaces,
-		app.ViewIDEConfig,
+		app.ViewSettings,
 		app.ViewMCPForm,
 	}
 

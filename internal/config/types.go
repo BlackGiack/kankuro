@@ -112,13 +112,22 @@ type WorkspaceSourcesFile struct {
 	Sources       []WorkspaceSource `yaml:"sources"`
 }
 
-// IDEConfig holds the user's IDE launch command configuration.
-type IDEConfig struct {
-	Command string `yaml:"command"`
+// AppSettings holds global user settings.
+type AppSettings struct {
+	IDECommand               string `yaml:"ide_command"`
+	ShowPersonasInCardEditor bool   `yaml:"show_personas_in_card_editor"`
+	ShowMCPsInCardEditor     bool   `yaml:"show_mcps_in_card_editor"`
 }
 
-// IDEConfigFile represents the persisted IDE configuration file.
-type IDEConfigFile struct {
-	SchemaVersion int       `yaml:"schema_version"`
-	IDEConfig     IDEConfig `yaml:"ide_config"`
+func DefaultAppSettings() AppSettings {
+	return AppSettings{
+		ShowPersonasInCardEditor: true,
+		ShowMCPsInCardEditor:     true,
+	}
+}
+
+// AppSettingsFile represents the persisted settings file.
+type AppSettingsFile struct {
+	SchemaVersion int         `yaml:"schema_version"`
+	AppSettings   AppSettings `yaml:"app_settings"`
 }

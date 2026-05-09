@@ -61,8 +61,7 @@ func (m *PuppetSelectorModal) Init() tea.Cmd { return nil }
 
 func (m *PuppetSelectorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		//nolint:exhaustive // not all keys need to be handled
-		switch keyMsg.Type {
+		switch keyMsg.Type { //nolint:exhaustive // the selector only responds to directional and confirm/cancel keys
 		case tea.KeyLeft:
 			if m.cursor > 0 {
 				m.cursor--

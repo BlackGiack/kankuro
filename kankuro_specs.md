@@ -127,11 +127,19 @@ type AgentDriver interface {
     * `s`: Switch agent on the selected terminated session.
     * `m`: Open the MCP registry form to add a new server.
     * `w`: Open the workspace source manager.
-    * `i`: Open the ide integration manager.
+    * `c`: Open the settings view.
     * `Backspace/Delete` (on Session): Trigger a **confirmation dialog** to remove a terminated session (and its temporary workspace).
+
+* **Settings View:**
+    * Lets the user configure the IDE launch command.
+    * Lets the user choose whether the Personas and MCPs capability lists are shown in the ID card editor.
+    * `Enter`: Save settings.
+    * `Space` (on Toggles): Toggle the highlighted option.
+    * `Esc`: Return to the previous view.
 
 * **Agent Card Editor Interactions:**
     * `Tab`: Cycle focus between fields (Name, Driver, Model, Workspace, Face, Tmp, AgentsMD, Skills, Personas, MCPs).
+      Persona and MCP sections are optional and disappear from focus order when disabled in Settings.
     * `Space` (on Workspace): Open the searchable workspace picker.
     * `Space` (on Lists): Toggle selection of the highlighted Skill, Persona, or MCP.
     * `ctrl+e` (on Lists): Open the specialized form to add a new Skill Source, Persona Source, or MCP Server.
@@ -156,7 +164,7 @@ type AgentDriver interface {
 * **Terminal Handling:** Use `creack/pty` or similar Go libraries to handle pseudo-terminal allocation, attach replay, and live terminal resizing for interactive CLIs.
 * **TUI Framework:** Built using [Bubble Tea](https://github.com/charmbracelet/bubbletea) for a modern, responsive terminal experience.
 * **Attach Mode:** Bubble Tea should temporarily release terminal control during session attach, then restore the dashboard on detach.
-* **Storage:** Configs are stored in YAML; Sessions are stored in JSON within the user's config directory.
+* **Storage:** Configs and application settings are stored in YAML; Sessions are stored in JSON within the user's config directory.
 * **Config Data:** ID cards store `workspace_id`; workspace paths are resolved through the workspace registry.
 * **Workspace Isolation:** Temporary workspaces are created using standard system copy tools to ensure attribute preservation.
 

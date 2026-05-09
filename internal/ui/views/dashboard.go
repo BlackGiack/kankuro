@@ -57,7 +57,7 @@ type DashboardCallbacks struct {
 	OnDeleteCard     func(cardID string) (tea.Cmd, error)
 	OnOpenMCP        func() tea.Cmd
 	OnOpenWorkspaces func() tea.Cmd
-	OnOpenIDE        func() tea.Cmd
+	OnOpenSettings   func() tea.Cmd
 	OnOpenCardEditor func() tea.Cmd
 	OnLaunchIDE      func(sessionID string) error
 }
@@ -308,8 +308,7 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		return nil, true
 	}
 
-	//nolint:exhaustive // not all keys need to be handled
-	switch keyMsg.Type {
+	switch keyMsg.Type { //nolint:exhaustive // dashboard behavior is defined only for a small shortcut set
 	case tea.KeyCtrlC:
 		return tea.Quit, true
 	case tea.KeyEsc:
@@ -333,8 +332,8 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 			return d.handleOpenMCP()
 		case "w":
 			return d.handleOpenWorkspaces()
-		case "i":
-			return d.handleOpenIDE()
+		case "c":
+			return d.handleOpenSettings()
 		case "o":
 			return d.handleLaunchIDE()
 		case "a":
@@ -385,9 +384,9 @@ func (d *Dashboard) handleOpenWorkspaces() (tea.Cmd, bool) {
 	return nil, true
 }
 
-func (d *Dashboard) handleOpenIDE() (tea.Cmd, bool) {
-	if d.callbacks.OnOpenIDE != nil {
-		return d.callbacks.OnOpenIDE(), true
+func (d *Dashboard) handleOpenSettings() (tea.Cmd, bool) {
+	if d.callbacks.OnOpenSettings != nil {
+		return d.callbacks.OnOpenSettings(), true
 	}
 	return nil, true
 }
@@ -426,8 +425,7 @@ func (d *Dashboard) handleSearch(keyMsg tea.KeyMsg) bool {
 		return false
 	}
 
-	//nolint:exhaustive // not all keys need to be handled
-	switch keyMsg.Type {
+	switch keyMsg.Type { //nolint:exhaustive // search mode only consumes search-specific keys
 	case tea.KeyEsc:
 		d.cancelSearch()
 		return true
@@ -652,8 +650,7 @@ func (d *Dashboard) updateDeleteModal(msg tea.Msg) (component.Model, tea.Cmd) {
 		return d, nil
 	}
 
-	//nolint:exhaustive // not all keys need to be handled
-	switch keyMsg.Type {
+	switch keyMsg.Type { //nolint:exhaustive // confirmation modal only cares about confirm/cancel keys
 	case tea.KeyEnter:
 		return d.confirmDelete()
 	case tea.KeyEsc:
@@ -873,7 +870,7 @@ func (d *Dashboard) renderSessionsPane() string {
 	var content string
 	if len(d.sessions) == 0 && !d.search.IsActive && d.search.SessionsQuery == "" {
 		// Empty state
-		content = renderEmptySessionsState(d.sessionsWidth)
+		content = renderEmptySessionsState(d.sessionsWidth, d.sessionList.Height)
 	} else {
 		content = d.sessionList.View()
 	}
@@ -892,7 +889,7 @@ func (d *Dashboard) renderFooter() string {
 		lipgloss.NewStyle().Foreground(gray).Render("[Nav] Tab "),
 		lipgloss.NewStyle().Foreground(gray).Render(" [Card] Enter=Launch n=New e=Edit "),
 		lipgloss.NewStyle().Foreground(gray).Render(" [Session] Enter=Attach/Relaunch s=Switch x=Kill Del=Remove "),
-		lipgloss.NewStyle().Foreground(gray).Render(" [Global] m=MCP w=Workspaces i=IDE q=Quit"),
+		lipgloss.NewStyle().Foreground(gray).Render(" [Global] m=MCP w=Workspaces c=Settings q=Quit"),
 	)
 }
 
@@ -908,20 +905,20 @@ func (d *Dashboard) renderWithOverlay(modalContent string) string {
 }
 
 // renderEmptySessionsState renders the empty state artwork.
-func renderEmptySessionsState(width int) string {
+func renderEmptySessionsState(width, height int) string {
 	crowASCII := `
-    ,   ,
+      ,   ,
      / \_/ \
-    ( o . o )
+     ( o . o )
      \  ^  /
-    |||||
+      |||||
 
    The puppets
    are resting
 `
 	return lipgloss.NewStyle().
 		Width(width).
-		Height(dashboardDeleteModalHeight).
+		Height(height).
 		Align(lipgloss.Center, lipgloss.Center).
 		Foreground(gray).
 		Render(crowASCII)

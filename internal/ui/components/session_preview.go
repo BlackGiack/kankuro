@@ -21,8 +21,6 @@ const (
 	PreviewBorderLines        = 2
 	PreviewMaxScrollbackBytes = 8 * 1024 // 8KB cap
 
-	HeaderHeight = 2 // title + margin
-	FooterHeight = 1
 	WidthBorders = 6
 
 	scrollbackHeightAdj = 2
@@ -88,7 +86,7 @@ func NewSessionPreview() *SessionPreview {
 // SetSize implements component.Model.
 func (p *SessionPreview) SetSize(width, height int) {
 	p.Base.SetSize(width, height)
-	p.truncateLimit = max(15, width/3) //nolint:mnd // responsive sizing
+	p.truncateLimit = max(10, width/3) //nolint:mnd // responsive sizing
 }
 
 // SetSession updates the displayed session.
@@ -178,9 +176,12 @@ func (p *SessionPreview) renderPlaceholder() string {
    from the list to
    see a preview here.
 `
+
+	const titleOffset = 2
+
 	return lipgloss.NewStyle().
 		Width(p.Width-WidthBorders).
-		Height(p.Height).
+		Height(p.Height+titleOffset).
 		Align(lipgloss.Center, lipgloss.Center).
 		Foreground(ColorGray).
 		Render(placeholder)
