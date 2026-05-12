@@ -34,14 +34,14 @@ func (m *Manager) trackOutput(sessionID string, output <-chan []byte) {
 }
 
 func appendScrollback(existing, chunk []byte) []byte {
-	if len(chunk) >= scrollbackLimit {
-		return bytes.Clone(chunk[len(chunk)-scrollbackLimit:])
+	if len(chunk) >= ScrollbackLimit {
+		return bytes.Clone(chunk[len(chunk)-ScrollbackLimit:])
 	}
-	if len(existing)+len(chunk) <= scrollbackLimit {
+	if len(existing)+len(chunk) <= ScrollbackLimit {
 		return append(existing, chunk...)
 	}
-	trim := len(existing) + len(chunk) - scrollbackLimit
-	next := make([]byte, len(existing)-trim, scrollbackLimit)
+	trim := len(existing) + len(chunk) - ScrollbackLimit
+	next := make([]byte, len(existing)-trim, ScrollbackLimit)
 	copy(next, existing[trim:])
 	return append(next, chunk...)
 }

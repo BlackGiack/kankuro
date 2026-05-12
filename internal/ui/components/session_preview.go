@@ -1,12 +1,14 @@
 package components
 
 import (
-	"regexp"
+	"bytes"
 	"strings"
 	"unicode"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/mattn/go-runewidth"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
@@ -20,18 +22,9 @@ const (
 	PreviewEllipsisLen        = 3
 	PreviewBorderLines        = 2
 	PreviewMaxScrollbackBytes = 8 * 1024 // 8KB cap
+	PreviewContentHPadding    = 2
 
 	WidthBorders = 6
-
-	scrollbackHeightAdj = 2
-	lineTruncateAdj     = 5
-)
-
-// Regex patterns for text sanitization.
-var (
-	ansiEscapeRE    = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
-	controlCharRE   = regexp.MustCompile(`[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]`)
-	kittyProtocolRE = regexp.MustCompile(`(?:\x1b_|\x1b\[|\x1b\]|\x1bP).*?(\x1b\\|[\x07\x40-\x7e])`)
 )
 
 // Theme colors (local copies to keep component self-contained for now, or use styles.go).
@@ -69,12 +62,20 @@ var (
 type SessionPreview struct {
 	component.Base
 
-	sessionID     string
-	snapshot      *session.Snapshot
-	card          *config.IDCard
-	scrollback    []byte
-	puppets       []config.Puppet
-	truncateLimit int
+	sessionID           string
+	snapshot            *session.Snapshot
+	card                *config.IDCard
+	scrollback          []byte
+	puppets             []config.Puppet
+	truncateLimit       int
+	lastMeaningfulLines []string
+	lastSessionID       string
+
+	// Stateful parser
+	parserState parserState
+	escBuf      []byte
+	sanitized   []byte
+	lineBuf     strings.Builder
 }
 
 // NewSessionPreview creates a new session preview component.
@@ -97,6 +98,17 @@ func (p *SessionPreview) SetPuppets(puppets []config.Puppet) {
 
 // SetSession updates the displayed session.
 func (p *SessionPreview) SetSession(snap *session.Snapshot, card *config.IDCard) {
+	// If the session changed, reset the internal state to avoid stale content
+	if snap == nil || snap.ID != p.sessionID {
+		p.lastMeaningfulLines = nil
+		p.lastSessionID = p.sessionID
+		p.parserState = stateNormal
+		p.escBuf = nil
+		p.sanitized = nil
+		p.scrollback = nil
+		p.lineBuf.Reset()
+	}
+
 	p.snapshot = snap
 	p.card = card
 	if snap != nil {
@@ -109,6 +121,53 @@ func (p *SessionPreview) SetSession(snap *session.Snapshot, card *config.IDCard)
 // SetScrollback updates the scrollback buffer.
 func (p *SessionPreview) SetScrollback(data []byte) {
 	p.scrollback = data
+	// Reset parser state for full set
+	p.parserState = stateNormal
+	p.escBuf = nil
+	p.sanitized = nil
+	p.lineBuf.Reset()
+
+	// If the buffer is at the session manager's limit, it was likely truncated.
+	// We probe the first partial line for residue to avoid misinterpreting
+	// don't misinterpret mid-sequence residue as normal text.
+	if len(data) >= session.ScrollbackLimit {
+		if i := bytes.IndexByte(data, '\n'); i != -1 {
+			firstLine := data[:i]
+			if isLikelyResidue(string(firstLine)) {
+				data = data[i+1:]
+			}
+		} else if isLikelyResidue(string(data)) {
+			// Giant line/payload with no newlines that looks like residue; drop it.
+			data = nil
+		}
+	}
+
+	p.processData(data)
+}
+
+func isLikelyResidue(s string) bool {
+	// If it's short, we don't treat it as problematic residue.
+	// Legitimate hashes (up to 128 chars for SHA512) and tokens are preserved.
+	const minResidueLen = 129
+	if len(s) < minResidueLen {
+		return false
+	}
+
+	// If it contains spaces, it's likely real human-readable text or structured code.
+	if strings.Contains(s, " ") {
+		return false
+	}
+
+	// If it contains "safe" symbols common in paths, URLs, and code but absent
+	// in standard Base64 data (used by Kitty), it's likely legitimate content.
+	// Base64 uses [A-Za-z0-9+/=]. We check for common delimiters like '.', ':', '_', '-'.
+	if strings.ContainsAny(s, ".:_-") {
+		return false
+	}
+
+	// If it's very long, has no spaces, and no common human/path delimiters,
+	// it's very likely a truncated protocol payload.
+	return true
 }
 
 // AppendScrollback appends data to the scrollback buffer.
@@ -116,6 +175,34 @@ func (p *SessionPreview) AppendScrollback(data []byte) {
 	p.scrollback = append(p.scrollback, data...)
 	if len(p.scrollback) > PreviewMaxScrollbackBytes {
 		p.scrollback = p.scrollback[len(p.scrollback)-PreviewMaxScrollbackBytes:]
+	}
+	p.processData(data)
+}
+
+func (p *SessionPreview) processData(data []byte) {
+	for _, b := range data {
+		switch p.parserState {
+		case stateNormal:
+			p.parserState, p.escBuf = p.handleStateNormal(b)
+		case stateESC:
+			p.parserState, p.escBuf = handleStateESC(b)
+		case stateCSI:
+			p.parserState, p.escBuf = p.handleStateCSI(b, p.escBuf)
+		case stateOSC:
+			p.parserState, p.escBuf = handleStateOSC(b, p.escBuf)
+		case stateDCS:
+			p.parserState, p.escBuf = handleStateDCS(b, p.escBuf)
+		case stateAPC:
+			p.parserState, p.escBuf = handleStateAPC(b, p.escBuf)
+		case stateCR:
+			p.parserState, p.escBuf = p.handleStateCR(b)
+		}
+	}
+
+	// Cap sanitized buffer to avoid memory leaks.
+	const capLimit = PreviewMaxScrollbackBytes * 2
+	if len(p.sanitized) > capLimit {
+		p.sanitized = p.sanitized[len(p.sanitized)-capLimit:]
 	}
 }
 
@@ -130,6 +217,12 @@ func (p *SessionPreview) Clear() {
 	p.snapshot = nil
 	p.card = nil
 	p.scrollback = nil
+	p.lastMeaningfulLines = nil
+	p.lastSessionID = ""
+	p.parserState = stateNormal
+	p.escBuf = nil
+	p.sanitized = nil
+	p.lineBuf.Reset()
 }
 
 // SessionID returns the current session ID.
@@ -183,14 +276,15 @@ func (p *SessionPreview) renderPlaceholder() string {
    see a preview here.
 `
 
-	const titleOffset = 2
-
-	return lipgloss.NewStyle().
-		Width(p.Width-WidthBorders).
-		Height(p.Height+titleOffset).
-		Align(lipgloss.Center, lipgloss.Center).
-		Foreground(ColorGray).
-		Render(placeholder)
+	return clampToSize(
+		lipgloss.NewStyle().
+			Width(p.Width-WidthBorders).
+			Height(p.Height).
+			Align(lipgloss.Center, lipgloss.Center).
+			Foreground(ColorGray).
+			Render(placeholder),
+		p.Width, p.Height,
+	)
 }
 
 // renderPreview renders the full session preview.
@@ -239,14 +333,10 @@ func (p *SessionPreview) renderPreview() string {
 
 	header := strings.Join(headerLines, "\n")
 
-	// Calculate scrollback height
-	// Approximate header height: len(headerLines) + some padding
-	// But let's use a fixed offset for now or calculate it
-	actualHeaderHeight := lipgloss.Height(header)
-	scrollbackHeight := p.Height - actualHeaderHeight + scrollbackHeightAdj
-
 	// Combine header with puppet
 	headerWithPuppet := lipgloss.JoinHorizontal(lipgloss.Top, header, "   ", puppetStr)
+	topHeight := lipgloss.Height(headerWithPuppet)
+	scrollbackHeight := max(1, p.Height-topHeight)
 
 	scrollbackContent := p.renderScrollback(scrollbackHeight)
 
@@ -256,71 +346,138 @@ func (p *SessionPreview) renderPreview() string {
 		scrollbackContent,
 	)
 
-	return lipgloss.NewStyle().Render(body)
+	// Defensive assertion: if the body is still too tall, trim meaningful lines
+	// and re-render. This handles unknown unknowns or weird lipgloss interactions.
+	if lipgloss.Height(body) > p.Height && len(p.lastMeaningfulLines) > 0 {
+		lines := append([]string(nil), p.lastMeaningfulLines...)
+		// We stop at 1 line so that the preview is never completely empty if there
+		// is at least one meaningful line. The outer MaxHeight clamp handles any
+		// remaining overflow.
+		for lipgloss.Height(body) > p.Height && len(lines) > 1 {
+			lines = lines[1:]
+			content := strings.Join(lines, "\n")
+			scrollbackContent = p.renderScrollbackStyle(content, scrollbackHeight)
+			body = lipgloss.JoinVertical(lipgloss.Left,
+				headerWithPuppet,
+				scrollbackContent,
+			)
+		}
+	}
+
+	// Final hard clamp: split into visual lines, cap to p.Height rows, and
+	// ANSI-aware truncate each row to p.Width visible columns. This is the
+	// post-sanitization guarantee that the View() output never exceeds the
+	// allotted size, even if lipgloss soft-wraps or pads content unexpectedly.
+	return clampToSize(body, p.Width, p.Height)
+}
+
+// ClampToSize hard-truncates a rendered string to at most maxHeight rows and
+// at most maxWidth visual columns per row, preserving ANSI escape sequences
+// when possible. As a last-resort safety net, if any line is still wider than
+// maxWidth after ANSI-aware truncation (e.g. malformed escapes, exotic
+// graphemes), it is replaced by a plain-text truncation that strips styling
+// rather than risk layout overflow.
+func ClampToSize(s string, maxWidth, maxHeight int) string {
+	return clampToSize(s, maxWidth, maxHeight)
+}
+
+func clampToSize(s string, maxWidth, maxHeight int) string {
+	if maxWidth <= 0 || maxHeight <= 0 {
+		return ""
+	}
+	lines := strings.Split(s, "\n")
+	if len(lines) > maxHeight {
+		lines = lines[:maxHeight]
+	}
+	for i, line := range lines {
+		if ansi.StringWidth(line) <= maxWidth {
+			continue
+		}
+		clamped := ansi.Truncate(line, maxWidth, "")
+		if ansi.StringWidth(clamped) > maxWidth {
+			// Defensive fallback: strip ANSI and hard-truncate by visual width.
+			clamped = truncateToVisibleWidth(ansi.Strip(line), maxWidth)
+		}
+		lines[i] = clamped
+	}
+	return strings.Join(lines, "\n")
+}
+
+type parserState int
+
+const (
+	stateNormal parserState = iota
+	stateESC
+	stateCSI
+	stateOSC
+	stateDCS
+	stateAPC
+	stateCR
+)
+
+func (p *SessionPreview) renderScrollbackStyle(content string, height int) string {
+	// Content area = height-1 to leave 1 row for the top border, so the total
+	// rendered box is exactly `height` rows. MaxHeight clamps the *total*
+	// rendered size (border included), so it must be `height`, not `height-1`.
+	contentH := max(1, height-1)
+	return lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder(), true, false, false, false).
+		BorderForeground(ColorGray).
+		Width(p.Width).
+		Height(contentH).
+		MaxWidth(p.Width).
+		MaxHeight(max(1, height)).
+		Render(content)
 }
 
 // renderScrollback renders the scrollback buffer area.
 func (p *SessionPreview) renderScrollback(height int) string {
-	if len(p.scrollback) == 0 {
-		return lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), true, false, false, false).
-			BorderForeground(ColorGray).
-			Width(p.Width).
-			Height(max(1, height-1)).
-			Align(lipgloss.Center, lipgloss.Center).
-			Foreground(ColorGray).
-			Render("(no output yet)")
+	// Reset sticky cache if session changed
+	if p.sessionID != p.lastSessionID {
+		p.lastMeaningfulLines = nil
+		p.lastSessionID = p.sessionID
 	}
 
-	// Cap scrollback size
-	scrollback := p.scrollback
-	if len(scrollback) > PreviewMaxScrollbackBytes {
-		scrollback = scrollback[len(scrollback)-PreviewMaxScrollbackBytes:]
+	if len(p.sanitized) == 0 && p.lineBuf.Len() == 0 && len(p.lastMeaningfulLines) == 0 {
+		return p.renderNoOutput(height)
 	}
 
-	// Sanitize text
-	text := SanitizeScrollback(scrollback)
+	// 1. Use already sanitized text from stateful parser, combining committed lines
+	// and the currently active line.
+	text := string(p.sanitized) + p.lineBuf.String()
 
-	// Split and limit lines
-	lines := strings.Split(text, "\n")
-	maxLines := max(1, height-PreviewBorderLines)
-	if len(lines) > maxLines {
-		lines = lines[len(lines)-maxLines:]
+	// 2. Extract meaningful lines from sanitized text
+	lines := ExtractMeaningfulLines(text, p.Width, height)
+
+	// 3. Update sticky cache ONLY if new meaningful lines found
+	if len(lines) > 0 {
+		p.lastMeaningfulLines = lines
 	}
 
-	// Process lines
-	var truncated []string
-	for _, line := range lines {
-		clean := strings.TrimSpace(line)
-		if clean == "" {
-			continue
-		}
-		if len(clean) > p.Width-2 {
-			truncated = append(truncated, clean[:p.Width-lineTruncateAdj]+"...")
-		} else {
-			truncated = append(truncated, clean)
-		}
+	// 4. If we have NO meaningful content ever, show "no output"
+	if len(p.lastMeaningfulLines) == 0 {
+		return p.renderNoOutput(height)
 	}
 
-	if len(truncated) == 0 {
-		return lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), true, false, false, false).
-			BorderForeground(ColorGray).
-			Width(p.Width).
-			Height(max(1, height-1)).
-			Align(lipgloss.Center, lipgloss.Center).
-			Foreground(ColorGray).
-			Render("(no output yet)")
-	}
+	// 5. Use cached lines (either from this pass or previous ones)
+	content := strings.Join(p.lastMeaningfulLines, "\n")
 
-	content := strings.Join(truncated, "\n")
+	return p.renderScrollbackStyle(content, height)
+}
 
+func (p *SessionPreview) renderNoOutput(height int) string {
+	// Width/Height are required here so Align(Center) works correctly.
+	// See renderScrollbackStyle for why MaxHeight is `height`, not `height-1`.
 	return lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), true, false, false, false).
 		BorderForeground(ColorGray).
 		Width(p.Width).
 		Height(max(1, height-1)).
-		Render(content)
+		MaxWidth(p.Width).
+		MaxHeight(max(1, height)).
+		Align(lipgloss.Center, lipgloss.Center).
+		Foreground(ColorGray).
+		Render("(no output yet)")
 }
 
 // RenderStatusBadge renders the status badge.
@@ -337,24 +494,176 @@ func RenderStatusBadge(status session.Status) string {
 	}
 }
 
-// SanitizeScrollback strips ANSI codes and control characters.
-func SanitizeScrollback(data []byte) string {
-	// Strip ANSI sequences
-	stripped := ansiEscapeRE.ReplaceAll(data, []byte{})
+const (
+	charBEL = 0x07
+	charESC = 0x1b
+)
 
-	// Strip control characters
-	stripped = controlCharRE.ReplaceAll(stripped, []byte{})
+func (p *SessionPreview) handleStateNormal(b byte) (parserState, []byte) {
+	switch {
+	case b == charESC:
+		return stateESC, []byte{b}
+	case b == '\r':
+		// Defer decision on \r until next byte (CRLF vs Redraw)
+		return stateCR, nil
+	case b == '\n':
+		// Commit current line to sanitized buffer.
+		p.lineBuf.WriteByte('\n')
+		p.sanitized = append(p.sanitized, []byte(p.lineBuf.String())...)
+		p.lineBuf.Reset()
+		return stateNormal, nil
+	case b == '\t' || (b >= 0x20 && b <= 0x7e) || b >= 0x80:
+		p.lineBuf.WriteByte(b)
+		return stateNormal, nil
+	default:
+		return stateNormal, nil
+	}
+}
 
-	// Strip Kitty protocol sequences
-	stripped = kittyProtocolRE.ReplaceAll(stripped, []byte{})
+func (p *SessionPreview) handleStateCR(b byte) (parserState, []byte) {
+	switch {
+	case b == '\n':
+		// CRLF sequence: commit current line as newline.
+		p.lineBuf.WriteByte('\n')
+		p.sanitized = append(p.sanitized, []byte(p.lineBuf.String())...)
+		p.lineBuf.Reset()
+		return stateNormal, nil
+	case b == '\r':
+		// Repeated \r: still in CR state, treat as one overwrite.
+		return stateCR, nil
+	case b == charESC:
+		// Redraw overwrite followed by ESC sequence
+		p.lineBuf.Reset()
+		return stateESC, []byte{charESC, b}
+	case b == '\t' || (b >= 0x20 && b <= 0x7e) || b >= 0x80:
+		// Redraw overwrite followed by printable text
+		p.lineBuf.Reset()
+		p.lineBuf.WriteByte(b)
+		return stateNormal, nil
+	default:
+		// Other control chars: ignore but reset lineBuf as it's an overwrite attempt
+		p.lineBuf.Reset()
+		return stateNormal, nil
+	}
+}
 
-	// Remove carriage returns
-	text := strings.ReplaceAll(string(stripped), "\r", "")
+func handleStateESC(b byte) (parserState, []byte) {
+	escBuf := []byte{charESC, b}
+	switch b {
+	case '[':
+		return stateCSI, escBuf
+	case ']':
+		return stateOSC, escBuf
+	case 'P':
+		return stateDCS, escBuf
+	case '_':
+		return stateAPC, escBuf
+	default:
+		return stateNormal, nil
+	}
+}
 
-	// Strip remaining non-printable characters
-	text = StripAllControlCodes(text)
+func (p *SessionPreview) handleStateCSI(b byte, escBuf []byte) (parserState, []byte) {
+	escBuf = append(escBuf, b)
+	if b >= 0x40 && b <= 0x7e {
+		// CSI sequence terminated; discard. Previously the 'u' terminator was
+		// translated to printable text (Kitty keyboard protocol), but that
+		// produced noisy strings like "^K" / "<backspace>" in the preview, so
+		// we now drop these silently.
+		return stateNormal, nil
+	}
+	return stateCSI, escBuf
+}
 
-	return text
+func handleStateOSC(b byte, escBuf []byte) (parserState, []byte) {
+	escBuf = append(escBuf, b)
+	if b == charBEL {
+		return stateNormal, nil
+	}
+	if b == '\\' && len(escBuf) >= 2 && escBuf[len(escBuf)-2] == charESC {
+		return stateNormal, nil
+	}
+	return stateOSC, escBuf
+}
+
+func handleStateDCS(b byte, escBuf []byte) (parserState, []byte) {
+	escBuf = append(escBuf, b)
+	if b == '\\' && len(escBuf) >= 2 && escBuf[len(escBuf)-2] == charESC {
+		return stateNormal, nil
+	}
+	return stateDCS, escBuf
+}
+
+func handleStateAPC(b byte, escBuf []byte) (parserState, []byte) {
+	escBuf = append(escBuf, b)
+	// APC (including Kitty graphics G payloads) are swallowed wholesale until
+	// terminator. We intentionally do not surface "[image]" or any other
+	// placeholder text — those previously caused noisy preview output and
+	// risk widening lines past the pane.
+	if b == charBEL {
+		return stateNormal, nil
+	}
+	if b == '\\' && len(escBuf) >= 2 && escBuf[len(escBuf)-2] == charESC {
+		return stateNormal, nil
+	}
+	return stateAPC, escBuf
+}
+
+// ExtractMeaningfulLines processes sanitized text into a window of meaningful preview lines.
+func ExtractMeaningfulLines(text string, width, height int) []string {
+	rawLines := strings.Split(text, "\n")
+	var meaningful []string
+
+	maxLines := max(1, height-PreviewBorderLines)
+
+	for _, line := range rawLines {
+		// Drop any non-printable bytes/runes that the streaming parser may have
+		// passed through (e.g. raw >=0x80 bytes that aren't valid UTF-8). This
+		// is the same conservative filter the pre-c1df769 sanitizer applied
+		// and prevents the terminal from rendering replacement-char rectangles
+		// or other unpredictable glyphs.
+		trimmed := strings.TrimSpace(StripAllControlCodes(line))
+		if trimmed == "" {
+			continue
+		}
+
+		if !isMeaningful(trimmed) {
+			continue
+		}
+
+		// Width truncation: show the TAIL of long lines in the preview
+		// so that incremental updates to a single long line are visible.
+		if width > 5 && lipgloss.Width(trimmed) > width-PreviewContentHPadding {
+			meaningful = append(meaningful, truncateToVisibleWidth(trimmed, width-PreviewContentHPadding))
+		} else {
+			meaningful = append(meaningful, trimmed)
+		}
+	}
+
+	if len(meaningful) > maxLines {
+		meaningful = meaningful[len(meaningful)-maxLines:]
+	}
+
+	return meaningful
+}
+
+func isMeaningful(s string) bool {
+	// Heuristic: requires at least 2 letters to be considered meaningful.
+	// If digits are present, it requires more letters than digits to avoid
+	// terminal residue like "5;75HI".
+	const minLetters = 2
+	letterCount := 0
+	digitCount := 0
+
+	for _, r := range s {
+		if unicode.IsLetter(r) {
+			letterCount++
+		} else if unicode.IsDigit(r) {
+			digitCount++
+		}
+	}
+
+	return letterCount >= minLetters && letterCount > digitCount
 }
 
 // StripAllControlCodes removes all non-printable characters except newlines and tabs.
@@ -381,4 +690,34 @@ func truncateString(s string, w int) string {
 		return s[:w-3] + "..."
 	}
 	return s
+}
+
+// truncateToVisibleWidth trims s so that lipgloss.Width(result) <= maxWidth.
+// If truncation happens, the result is prefixed with "..." (matching the
+// existing tail-preserving behavior so the newest characters stay visible).
+func truncateToVisibleWidth(s string, maxWidth int) string {
+	if maxWidth <= PreviewEllipsisLen {
+		return s
+	}
+
+	runes := []rune(s)
+	budget := maxWidth - PreviewEllipsisLen
+	w := 0
+	i := len(runes)
+
+	// Walk from the tail computing width
+	for i > 0 {
+		rw := runewidth.RuneWidth(runes[i-1])
+		if w+rw > budget {
+			break
+		}
+		w += rw
+		i--
+	}
+
+	if i == 0 {
+		return s
+	}
+
+	return "..." + string(runes[i:])
 }

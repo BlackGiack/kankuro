@@ -21,7 +21,7 @@ const (
 	StatusWaiting    = driver.StatusWaiting
 	StatusTerminated = driver.StatusTerminated
 
-	scrollbackLimit  = 256 * 1024
+	ScrollbackLimit  = 256 * 1024
 	pendingLineLimit = 8 * 1024
 	outputChanSize   = 128
 	watchInterval    = 2 * time.Second

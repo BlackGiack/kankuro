@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -32,6 +33,7 @@ func TestPreviewImmediateUpdate(t *testing.T) {
 	sessionID, _ := sm.Launch(card, nil, nil, nil)
 
 	coord := app.NewCoordinator(repo, sm)
+	coord.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
 	// Execute refreshData from Init
 	_ = coord.Init()
@@ -71,6 +73,7 @@ func TestPreviewAutoSelection(t *testing.T) {
 	sessionID, _ := sm.Launch(card, nil, nil, nil)
 
 	coord := app.NewCoordinator(repo, sm)
+	coord.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
 	// Initial data load: refreshData will have PreviewSessionID="" because dashboard hasn't seen the session yet
 	msg := coord.RefreshData()()
@@ -112,6 +115,7 @@ func TestPreviewStreaming(t *testing.T) {
 	sess, _ := sm.GetSession(sessionID)
 
 	coord := app.NewCoordinator(repo, sm)
+	coord.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
 	// Initial data load
 	msg := coord.RefreshData()()
@@ -150,5 +154,76 @@ func TestPreviewStreaming(t *testing.T) {
 	preview := dashboard.Preview()
 	if !bytes.Contains(preview.Scrollback(), testOutput) {
 		t.Errorf("Expected scrollback to contain '%s', got '%s'", string(testOutput), string(preview.Scrollback()))
+	}
+}
+
+func TestPreviewStreamingKitty(t *testing.T) {
+	repo, _ := config.NewFileRepository(t.TempDir())
+	sm := session.NewManager(repo.Dir(), repo)
+
+	wd := t.TempDir()
+	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	card, _ := repo.CreateIDCard(config.IDCard{
+		Name:        "Test Card",
+		Driver:      "echo",
+		Model:       "test",
+		WorkspaceID: workspaces[0].ID,
+	})
+
+	// Launch session
+	sessionID, _ := sm.Launch(card, nil, nil, nil)
+	sess, _ := sm.GetSession(sessionID)
+
+	coord := app.NewCoordinator(repo, sm)
+	coord.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+
+	// Initial data load
+	msg := coord.RefreshData()()
+	coord.Update(msg)
+
+	// Select session for preview
+	coord.Update(messages.SessionPreviewRequestedMsg{SessionID: sessionID})
+
+	dashboard := coord.Views()[app.ViewDashboard].(*views.Dashboard)
+
+	// Simulate Kitty output from session
+	kittyKeyboard := []byte("\x1b[97u") // 'a'
+	kittyGraphics := []byte("\x1b_Ga=d;PAYLOAD\x07")
+
+	testOutput := make([]byte, 0, len(kittyKeyboard)+len(kittyGraphics))
+	testOutput = append(testOutput, kittyKeyboard...)
+	testOutput = append(testOutput, kittyGraphics...)
+
+	// Re-trigger preview to get the cmd
+	var cmd tea.Cmd
+	_, cmd = coord.Update(messages.SessionPreviewRequestedMsg{SessionID: sessionID})
+
+	// Send output to session subscribers
+	for ch := range sess.Subscribers {
+		ch <- testOutput
+	}
+
+	// Execute cmd to get SessionOutputMsg
+	outputMsg := cmd()
+	coord.Update(outputMsg)
+
+	// Verify RAW scrollback in preview component (before sanitization for view)
+	preview := dashboard.Preview()
+	if !bytes.Contains(preview.Scrollback(), testOutput) {
+		t.Errorf("Expected RAW scrollback to contain %q, got %q", testOutput, preview.Scrollback())
+	}
+
+	// Kitty sequences are now silently swallowed: no translation to 'a' from
+	// keyboard sequences, no "[image]" placeholder from graphics. The only
+	// requirement is that nothing leaks into the preview, neither the raw
+	// escape payload nor old placeholder strings.
+	view := preview.View()
+	if strings.Contains(view, "[image]") {
+		t.Errorf("View should no longer contain [image] placeholder, got:\n%s", view)
+	}
+	if strings.Contains(view, "PAYLOAD") || strings.Contains(view, "\x1b_") || strings.Contains(view, "\x07") {
+		t.Errorf("View should not contain raw Kitty payload, got:\n%s", view)
 	}
 }

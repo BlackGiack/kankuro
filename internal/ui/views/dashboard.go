@@ -91,6 +91,7 @@ type Dashboard struct {
 	cardsWidth    int
 	sessionsWidth int
 	previewWidth  int
+	contentHeight int
 }
 
 // NewDashboard creates a new dashboard view.
@@ -759,10 +760,13 @@ func (d *Dashboard) SetSize(width, height int) {
 
 	// Account for header (2 lines) + footer (1 line)
 	contentHeight := height - headerFooter
+	d.contentHeight = contentHeight
 
 	d.cardList.SetSize(d.cardsWidth, contentHeight)
 	d.sessionList.SetSize(d.sessionsWidth, contentHeight)
-	d.preview.SetSize(d.previewWidth, contentHeight)
+	// Preview's inner area = cards/sessions list area + their title block, so
+	// the three bordered panes have identical total heights.
+	d.preview.SetSize(d.previewWidth, contentHeight+previewTitleBlock)
 	d.deleteModal.SetSize(width, height)
 }
 
@@ -841,13 +845,42 @@ func (d *Dashboard) renderCardsPane() string {
 
 // renderPreviewPane renders the center pane.
 func (d *Dashboard) renderPreviewPane() string {
+	// Note: MaxWidth/MaxHeight here would clip the right/bottom borders because
+	// they cap the total rendered size *including* the border ring. The inner
+	// SessionPreview already hard-clamps its own output to previewWidth ×
+	// contentHeight via clampToSize, so the bordered pane below is guaranteed
+	// to be exactly previewWidth+2 × contentHeight+2.
 	style := lipgloss.NewStyle().
 		Width(d.previewWidth).
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(normalBorderColor)
 
-	return style.Render(d.preview.View())
+	// Final defensive clamp: even though SessionPreview clamps its own View()
+	// and the bordered style above adds exactly 2 cells in each dimension,
+	// hard-truncate the rendered pane to the expected outer size as a last
+	// safety net. This is what prevents punctual overflow from a single
+	// unforeseen content shape (malformed escapes, exotic graphemes, etc.)
+	// from breaking the whole dashboard layout.
+	// The preview was sized to (previewWidth, contentHeight + previewTitleBlock)
+	// in SetSize, so its body is up to contentHeight + previewTitleBlock rows.
+	// Adding the 2-cell border ring gives the expected bordered pane height.
+	// Cutting this short would shave the bottom border off.
+	rendered := style.Render(d.preview.View())
+	maxW := d.previewWidth + paneBorderRing
+	maxH := d.contentHeight + previewTitleBlock + paneBorderRing
+	return components.ClampToSize(rendered, maxW, maxH)
 }
+
+// paneBorderRing is the number of rows/columns added by a 4-side lipgloss
+// border around a pane (1 top + 1 bottom, 1 left + 1 right).
+// previewTitleBlock is the number of rows the cards/sessions panes spend on
+// their internal title + filter/spacer line before the list. The preview pane
+// has no such title block, so we extend its inner height by the same amount
+// to keep the three panes' bottom borders aligned.
+const (
+	paneBorderRing    = 2
+	previewTitleBlock = 2
+)
 
 // renderSessionsPane renders the right pane.
 func (d *Dashboard) renderSessionsPane() string {

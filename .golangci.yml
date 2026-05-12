@@ -472,3 +472,4 @@ linters:
           - gosec
           - noctx
           - wrapcheck
+          - staticcheck
