@@ -126,7 +126,25 @@ func DefaultAppSettings() AppSettings {
 	}
 }
 
-// AppSettingsFile represents the persisted settings file.
+// Puppet represents a custom or built-in ASCII puppet character.
+type Puppet struct {
+	ID      string   `yaml:"id"`
+	Name    string   `yaml:"name"`
+	Source  string   `yaml:"source"`
+	Builtin bool     `yaml:"builtin,omitempty"`
+	Lines   []string `yaml:"lines"`
+}
+
+type PuppetsFile struct {
+	SchemaVersion int      `yaml:"schema_version"`
+	Puppets       []Puppet `yaml:"puppets"`
+}
+
+type PuppetSourcesFile struct {
+	SchemaVersion int      `yaml:"schema_version"`
+	Paths         []string `yaml:"paths"`
+}
+
 type AppSettingsFile struct {
 	SchemaVersion int         `yaml:"schema_version"`
 	AppSettings   AppSettings `yaml:"app_settings"`

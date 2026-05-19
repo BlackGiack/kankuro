@@ -3,9 +3,9 @@ package components
 import (
 	"kankuro/internal/ascii"
 	"kankuro/internal/ascii/characters"
+	"kankuro/internal/config"
 )
 
-// RenderAgentFace renders ASCII face for a session/card.
 func RenderAgentFace(faceStyle string) string {
 	if faceStyle == "" {
 		faceStyle = "neutral"
@@ -18,15 +18,41 @@ func RenderAgentFace(faceStyle string) string {
 	return canvas.String()
 }
 
-// RenderAgentPuppet renders ASCII puppet for a card.
-func RenderAgentPuppet(puppetStyle string) string {
-	if puppetStyle == "" {
-		puppetStyle = "kankuro"
+func RenderAgentPuppet(puppetName string, puppets []config.Puppet) string {
+	if puppetName == "" {
+		puppetName = "kankuro"
 	}
 
-	puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", puppetStyle) })
+	for _, p := range puppets {
+		if p.Name == puppetName {
+			if p.Builtin {
+				puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", puppetName) })
+				w, h := puppet.Bounds()
+				canvas := ascii.NewCanvas(w, h)
+				puppet.Render(canvas, 0, 0)
+				return canvas.String()
+			}
+			canvas := ascii.NewCanvas(maxLineWidth(p.Lines), len(p.Lines))
+			for i, line := range p.Lines {
+				canvas.DrawText(0, i, line)
+			}
+			return canvas.String()
+		}
+	}
+
+	puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", "kankuro") })
 	w, h := puppet.Bounds()
 	canvas := ascii.NewCanvas(w, h)
 	puppet.Render(canvas, 0, 0)
 	return canvas.String()
+}
+
+func maxLineWidth(lines []string) int {
+	w := 0
+	for _, l := range lines {
+		if len(l) > w {
+			w = len(l)
+		}
+	}
+	return w
 }

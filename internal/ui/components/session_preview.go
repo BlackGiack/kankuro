@@ -73,6 +73,7 @@ type SessionPreview struct {
 	snapshot      *session.Snapshot
 	card          *config.IDCard
 	scrollback    []byte
+	puppets       []config.Puppet
 	truncateLimit int
 }
 
@@ -87,6 +88,11 @@ func NewSessionPreview() *SessionPreview {
 func (p *SessionPreview) SetSize(width, height int) {
 	p.Base.SetSize(width, height)
 	p.truncateLimit = max(10, width/3) //nolint:mnd // responsive sizing
+}
+
+// SetPuppets sets the puppet catalog for rendering.
+func (p *SessionPreview) SetPuppets(puppets []config.Puppet) {
+	p.puppets = puppets
 }
 
 // SetSession updates the displayed session.
@@ -209,7 +215,7 @@ func (p *SessionPreview) renderPreview() string {
 	if p.card != nil && p.card.Puppet != "" {
 		puppetStyle = p.card.Puppet
 	}
-	puppetStr := RenderAgentPuppet(puppetStyle)
+	puppetStr := RenderAgentPuppet(puppetStyle, p.puppets)
 
 	// Build header
 	headerLines := []string{

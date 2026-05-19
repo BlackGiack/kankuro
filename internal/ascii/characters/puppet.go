@@ -4,6 +4,25 @@ import (
 	"kankuro/internal/ascii"
 )
 
+// BuiltinPuppetDef represents a built-in puppet definition with its name and lines.
+type BuiltinPuppetDef struct {
+	Name  string
+	Lines []string
+}
+
+// BuiltinPuppetLines returns definitions for all built-in puppets.
+// This is the single source of truth for built-in ASCII art.
+func BuiltinPuppetLines() []BuiltinPuppetDef {
+	return []BuiltinPuppetDef{
+		{Name: "default", Lines: []string{"  ___  ", " (o o) ", "/|_=_|\\", " /   \\ "}},
+		{Name: "kankuro", Lines: []string{" /\\_/\\ ", "( -.- )  ", " >(T)<   ", "/|||||\\ ", " || ||   "}},
+		{Name: "cat", Lines: []string{"  /\\___/\\ ", " (  o o  )", "  |  ^  | ", "  | \\_/ | ", "   -----  "}},
+		{Name: "strawhat", Lines: []string{"  _...._  ", " /  __  \\", "(  (oo)  )", " \\__--__/ ", "   /||\\  "}},
+		{Name: "darth", Lines: []string{"  .---.  ", " /_|_|_\\", " / \\_/ \\", "| >[#]< |", " \\_____/ "}},
+		{Name: "totoro", Lines: []string{"  ^---^  ", " ( o o ) ", "(  vvv  )", " \\_____/", ""}},
+	}
+}
+
 func NewPuppet(opts ...ascii.Option) ascii.Shape {
 	config := ascii.NewConfig()
 	for _, opt := range opts {
@@ -11,29 +30,10 @@ func NewPuppet(opts ...ascii.Option) ascii.Shape {
 	}
 
 	style := config.GetString("style", "default")
-	switch style {
-	case "cat":
-		return NewPuppetCat(opts...)
-	case "strawhat":
-		return NewPuppetStrawhat(opts...)
-	case "kankuro":
-		return NewPuppetKankuro(opts...)
-	case "darth":
-		return NewPuppetDarth(opts...)
-	case "totoro":
-		return NewPuppetTotoro(opts...)
-	default:
-		return NewBasePuppet(opts...)
+	for _, def := range BuiltinPuppetLines() {
+		if def.Name == style {
+			return NewTextPuppet(def.Lines, opts...)
+		}
 	}
-}
-
-// NewBasePuppet returns a TextPuppet for the cat design.
-func NewBasePuppet(opts ...ascii.Option) ascii.Shape {
-	lines := []string{
-		"  ___  ",
-		" (o o) ",
-		"/|_=_|\\",
-		" /   \\ ",
-	}
-	return NewTextPuppet(lines, opts...)
+	return NewTextPuppet(BuiltinPuppetLines()[0].Lines, opts...)
 }

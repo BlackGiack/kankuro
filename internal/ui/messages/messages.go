@@ -14,6 +14,7 @@ const (
 	ViewSourceManagerSkills
 	ViewSourceManagerPersonas
 	ViewSourceManagerWorkspaces
+	ViewSourceManagerPuppets
 	ViewMCPForm
 	ViewSettings
 	ViewSessionLauncher
@@ -107,6 +108,7 @@ type DataLoadedMsg struct {
 	Personas   []config.Persona
 	MCPs       []config.MCPServer
 	Workspaces []config.Workspace
+	Puppets    []config.Puppet
 
 	PreviewSessionID  string
 	PreviewScrollback []byte

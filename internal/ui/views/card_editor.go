@@ -44,11 +44,12 @@ const (
 
 // CardEditorCallbacks defines callbacks for card editor actions.
 type CardEditorCallbacks struct {
-	OnSave           func(card config.IDCard) (config.IDCard, tea.Cmd, error)
-	OnCancel         func() tea.Cmd
-	OnOpenSources    func(sourceType string) tea.Cmd
-	OnOpenMCPForm    func() tea.Cmd
-	OnOpenWorkspaces func() tea.Cmd
+	OnSave              func(card config.IDCard) (config.IDCard, tea.Cmd, error)
+	OnCancel            func() tea.Cmd
+	OnOpenSources       func(sourceType string) tea.Cmd
+	OnOpenMCPForm       func() tea.Cmd
+	OnOpenWorkspaces    func() tea.Cmd
+	OnOpenPuppetSources func() tea.Cmd
 }
 
 // CardEditor is the form for creating/editing ID cards.
@@ -82,6 +83,7 @@ type CardEditor struct {
 	skills     []config.Skill
 	personas   []config.Persona
 	mcps       []config.MCPServer
+	puppets    []config.Puppet
 	settings   config.AppSettings
 
 	callbacks CardEditorCallbacks
@@ -153,6 +155,12 @@ func NewCardEditor(callbacks CardEditorCallbacks, cmds *commands.Commands) *Card
 }
 
 func (e *CardEditor) SkillList() *CapabilityList { return e.skillList }
+
+func (e *CardEditor) PersonaList() *CapabilityList { return e.personaList }
+
+func (e *CardEditor) MCPList() *CapabilityList { return e.mcpList }
+
+func (e *CardEditor) Settings() config.AppSettings { return e.settings }
 
 func (e *CardEditor) Workspaces() []config.Workspace { return e.workspaces }
 
@@ -263,6 +271,9 @@ func (e *CardEditor) SetData(msg messages.DataLoadedMsg) {
 		mcpItems[i] = mcpItem{mcp: m}
 	}
 	e.mcpList.SetItems(mcpItems)
+
+	e.puppets = msg.Puppets
+	e.puppetSelector.SetPuppets(e.puppets)
 
 	e.workspacePicker.SetWorkspaces(e.workspaces)
 }
@@ -467,6 +478,12 @@ func (e *CardEditor) handleCtrlE() (tea.Cmd, bool) {
 		}
 		if e.callbacks.OnOpenSources != nil {
 			return e.callbacks.OnOpenSources("personas"), true
+		}
+		return nil, true
+
+	case FocusPuppet:
+		if e.callbacks.OnOpenPuppetSources != nil {
+			return e.callbacks.OnOpenPuppetSources(), true
 		}
 		return nil, true
 
@@ -764,8 +781,8 @@ func (e *CardEditor) View() string {
 	return e.renderForm()
 }
 
-// renderForm renders the main form.
-func (e *CardEditor) renderForm() string {
+// renderFormAboveLists renders the form parts that appear before the capability lists.
+func (e *CardEditor) renderFormAboveLists() string {
 	title := "New ID Card"
 	if e.editingID != "" {
 		title = "Edit ID Card"
@@ -785,6 +802,14 @@ func (e *CardEditor) renderForm() string {
 
 	// Agents.md
 	sb.WriteString("AGENTS.md:\n" + e.renderAgentsMDRow() + "\n\n")
+
+	return sb.String()
+}
+
+// renderForm renders the main form.
+func (e *CardEditor) renderForm() string {
+	var sb strings.Builder
+	sb.WriteString(e.renderFormAboveLists())
 
 	// Capability lists
 	sb.WriteString(e.skillList.View() + "\n\n")
@@ -894,10 +919,18 @@ func (e *CardEditor) renderWithOverlay(modalContent string) string {
 	return form + "\n" + overlayStyle.Render(modalContent)
 }
 
+const (
+	helpLineHeight    = 1
+	listSeparatorRows = 2
+	minCapListHeight  = 2
+)
+
 // SetSize implements component.Model.
 func (e *CardEditor) SetSize(width, height int) {
 	e.Base.SetSize(width, height)
-	upForm := e.renderForm()
+
+	headerHeight := lipgloss.Height(e.renderFormAboveLists())
+
 	part := 1
 	if e.settings.ShowPersonasInCardEditor {
 		part++
@@ -905,10 +938,16 @@ func (e *CardEditor) SetSize(width, height int) {
 	if e.settings.ShowMCPsInCardEditor {
 		part++
 	}
-	capListHeight := (height - lipgloss.Height(upForm)) * 1 / part
+
+	separatorsAndHelp := (part * listSeparatorRows) + helpLineHeight
+	available := height - headerHeight - separatorsAndHelp
+
+	capListHeight := max(minCapListHeight, available/part)
+
 	e.skillList.SetSize(width, capListHeight)
 	e.personaList.SetSize(width, capListHeight)
 	e.mcpList.SetSize(width, capListHeight)
+
 	// Give modals full dimensions
 	e.workspacePicker.SetSize(width, height)
 	e.agentsMDEditor.SetSize(width, height)

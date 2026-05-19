@@ -53,6 +53,7 @@ type CardList struct {
 	cards       []config.IDCard
 	skills      []config.Skill
 	personas    []config.Persona
+	puppets     []config.Puppet
 	searchQuery string
 	callbacks   CardListCallbacks
 	delegate    cardDelegate
@@ -60,7 +61,7 @@ type CardList struct {
 
 // NewCardList creates a new card list component.
 func NewCardList(callbacks CardListCallbacks) *CardList {
-	delegate := newCardDelegate(nil, nil)
+	delegate := newCardDelegate(nil, nil, nil)
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
 	l.SetShowTitle(false)
@@ -74,12 +75,19 @@ func NewCardList(callbacks CardListCallbacks) *CardList {
 	}
 }
 
+// SetPuppets updates the puppet catalog.
+func (c *CardList) SetPuppets(puppets []config.Puppet) {
+	c.puppets = puppets
+	c.delegate = newCardDelegate(c.skills, c.personas, c.puppets)
+	c.list.SetDelegate(c.delegate)
+}
+
 // SetCards updates the card list data.
 func (c *CardList) SetCards(cards []config.IDCard, skills []config.Skill, personas []config.Persona) {
 	c.cards = cards
 	c.skills = skills
 	c.personas = personas
-	c.delegate = newCardDelegate(skills, personas)
+	c.delegate = newCardDelegate(skills, personas, c.puppets)
 	c.list.SetDelegate(c.delegate)
 	c.refreshItems()
 }
@@ -218,13 +226,15 @@ type cardDelegate struct {
 	height   int
 	skills   []config.Skill
 	personas []config.Persona
+	puppets  []config.Puppet
 }
 
-func newCardDelegate(skills []config.Skill, personas []config.Persona) cardDelegate {
+func newCardDelegate(skills []config.Skill, personas []config.Persona, puppets []config.Puppet) cardDelegate {
 	return cardDelegate{
 		height:   CardDelegateHeight,
 		skills:   skills,
 		personas: personas,
+		puppets:  puppets,
 	}
 }
 
@@ -238,12 +248,13 @@ func (d cardDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		return
 	}
 	selected := index == m.Index()
-	content := RenderCardItem(cardItem.Card, d.skills, d.personas, selected, m.Width())
+	content := RenderCardItem(cardItem.Card, d.skills, d.personas, d.puppets, selected, m.Width())
 	fmt.Fprint(w, content)
 }
 
 // RenderCardItem renders a single card's display.
-func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config.Persona, selected bool, listWidth int) string {
+func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config.Persona,
+	puppets []config.Puppet, selected bool, listWidth int) string {
 	const bordersPadding = 2
 	cardItemWidth := max(36, listWidth-bordersPadding-2) //nolint:mnd // to not stick to borders
 	infoBoxWidth := cardItemWidth - FaceBoxWidth - bordersPadding
@@ -270,7 +281,7 @@ func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config
 	pills := renderPills(skillNames, personaNames)
 	skillsLine := lipgloss.JoinHorizontal(lipgloss.Top, pills...)
 
-	puppetStr := RenderAgentPuppet(card.Puppet)
+	puppetStr := RenderAgentPuppet(card.Puppet, puppets)
 
 	driverLine := fmt.Sprintf("%s | %s", card.Driver, card.Model)
 

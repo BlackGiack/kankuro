@@ -232,8 +232,7 @@ func TestRenderAgentFace(t *testing.T) {
 }
 
 func TestRenderAgentPuppet(t *testing.T) {
-	// Test that renderer works
-	puppet := components.RenderAgentPuppet("kankuro")
+	puppet := components.RenderAgentPuppet("kankuro", nil)
 	if puppet == "" {
 		t.Error("RenderAgentPuppet should return non-empty string")
 	}

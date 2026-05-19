@@ -16,6 +16,8 @@ const (
 	WorkspacesFilename       = "workspaces.yaml"
 	WorkspaceSourcesFilename = "workspace_sources.yaml"
 	AppSettingsFilename      = "app_settings.yaml"
+	PuppetsFilename          = "puppets.yaml"
+	PuppetSourcesFilename    = "puppet_sources.yaml"
 )
 
 // CardRepository defines persistence operations for ID cards.
@@ -69,6 +71,14 @@ type SettingsRepository interface {
 	SaveAppSettings(cfg AppSettings) error
 }
 
+// PuppetRepository defines persistence operations for puppets.
+type PuppetRepository interface {
+	ListPuppetSources() ([]string, error)
+	SavePuppetSources(paths []string) error
+	SyncPuppetsFromSources() error
+	ListPuppets() ([]Puppet, error)
+}
+
 // Repository composes all domain repositories for convenience.
 // Use individual sub-interfaces (CardRepository, etc.) when you only need
 // operations for a specific domain.
@@ -79,6 +89,7 @@ type Repository interface {
 	PersonaRepository
 	MCPRepository
 	SettingsRepository
+	PuppetRepository
 	Dir() string
 }
 
@@ -162,6 +173,18 @@ func (r *FileRepository) EnsureFiles() error {
 	settingsPath := filepath.Join(r.dir, AppSettingsFilename)
 	settingsDefault := AppSettingsFile{SchemaVersion: SchemaVersion, AppSettings: DefaultAppSettings()}
 	if err := r.EnsureYAML(settingsPath, settingsDefault); err != nil {
+		return err
+	}
+
+	puppetsPath := filepath.Join(r.dir, PuppetsFilename)
+	puppetsDefault := PuppetsFile{SchemaVersion: SchemaVersion, Puppets: []Puppet{}}
+	if err := r.EnsureYAML(puppetsPath, puppetsDefault); err != nil {
+		return err
+	}
+
+	puppetSourcesPath := filepath.Join(r.dir, PuppetSourcesFilename)
+	puppetSourcesDefault := PuppetSourcesFile{SchemaVersion: SchemaVersion, Paths: []string{}}
+	if err := r.EnsureYAML(puppetSourcesPath, puppetSourcesDefault); err != nil {
 		return err
 	}
 

@@ -121,6 +121,8 @@ func TestRepositoryBootstrapsFiles(t *testing.T) {
 		filepath.Join(repo.Dir(), "mcps.yaml"),
 		filepath.Join(repo.Dir(), "workspaces.yaml"),
 		filepath.Join(repo.Dir(), "workspace_sources.yaml"),
+		filepath.Join(repo.Dir(), "puppets.yaml"),
+		filepath.Join(repo.Dir(), "puppet_sources.yaml"),
 	}
 	for _, p := range paths {
 		if _, errStat := os.Stat(p); errStat != nil {

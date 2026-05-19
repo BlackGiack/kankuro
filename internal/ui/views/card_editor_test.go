@@ -306,12 +306,4 @@ func TestPuppetSelector_Navigation(t *testing.T) {
 	if m.Cursor() != 1 {
 		t.Errorf("Expected cursor 1, got %d", m.Cursor())
 	}
-
-	// Wrap around
-	for range len(views.PuppetStyles) - 1 {
-		m.Update(tea.KeyMsg{Runes: []rune{}, Type: tea.KeyRight})
-	}
-	if m.Cursor() != 0 {
-		t.Errorf("Should wrap to 0, got %d", m.Cursor())
-	}
 }

@@ -85,6 +85,7 @@ type Dashboard struct {
 	skills   []config.Skill
 	personas []config.Persona
 	mcps     []config.MCPServer
+	puppets  []config.Puppet
 
 	// Layout (computed from size)
 	cardsWidth    int
@@ -108,6 +109,7 @@ func NewDashboard(callbacks DashboardCallbacks, cmds *commands.Commands) *Dashbo
 		cmds:        cmds,
 	}
 
+	d.puppets = []config.Puppet{}
 	d.cardList = components.NewCardList(components.CardListCallbacks{
 		OnSelect: d.callbacks.OnLaunchCard,
 		OnEdit:   d.callbacks.OnEditCard,
@@ -160,6 +162,11 @@ func (d *Dashboard) SetData(msg messages.DataLoadedMsg) {
 	}
 	if msg.MCPs != nil {
 		d.mcps = msg.MCPs
+	}
+	if msg.Puppets != nil {
+		d.puppets = msg.Puppets
+		d.cardList.SetPuppets(d.puppets)
+		d.preview.SetPuppets(d.puppets)
 	}
 
 	d.syncPreviewSelection()

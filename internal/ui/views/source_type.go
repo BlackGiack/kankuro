@@ -12,6 +12,8 @@ const (
 	SourceTypePersonas SourceType = "personas"
 	// SourceTypeWorkspaces manages workspace sources.
 	SourceTypeWorkspaces SourceType = "workspaces"
+	// SourceTypePuppets manages puppet sources.
+	SourceTypePuppets SourceType = "puppets"
 )
 
 const (
@@ -45,6 +47,13 @@ func GetSourceTypeConfig(st SourceType) SourceTypeConfig {
 		return SourceTypeConfig{
 			Title:      "Manage Persona Sources",
 			FormPrompt: "Path to persona source...",
+			FormFields: formFieldsSimple,
+			ReturnType: messages.ViewCardEditor,
+		}
+	case SourceTypePuppets:
+		return SourceTypeConfig{
+			Title:      "Manage Puppet Sources",
+			FormPrompt: "Path to puppet source...",
 			FormFields: formFieldsSimple,
 			ReturnType: messages.ViewCardEditor,
 		}

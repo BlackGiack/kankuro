@@ -281,6 +281,7 @@ func TestGetSourceTypeConfig(t *testing.T) {
 	}{
 		{views.SourceTypeSkills, "Manage Skill Sources", 1},
 		{views.SourceTypePersonas, "Manage Persona Sources", 1},
+		{views.SourceTypePuppets, "Manage Puppet Sources", 1},
 		{views.SourceTypeWorkspaces, "Manage Workspace Sources", 2},
 	}
 

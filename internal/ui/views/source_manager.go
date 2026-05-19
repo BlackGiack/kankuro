@@ -97,7 +97,7 @@ func handleSave(
 	editingIndex int,
 ) (tea.Cmd, error) {
 	switch sourceType {
-	case SourceTypeSkills, SourceTypePersonas:
+	case SourceTypeSkills, SourceTypePersonas, SourceTypePuppets:
 		if callbacks.SaveSimpleSource != nil {
 			return callbacks.SaveSimpleSource(item.Display(), editingIndex)
 		}

@@ -112,6 +112,21 @@ func wireSourceCommands(cmds *commands.Commands, repo config.Repository) {
 		}
 		return repo.SaveWorkspaceSources(filtered)
 	}
+	cmds.SavePuppetSource = func(path string) error {
+		sources, _ := repo.ListPuppetSources()
+		sources = append(sources, path)
+		return repo.SavePuppetSources(sources)
+	}
+	cmds.DeletePuppetSource = func(path string) error {
+		sources, _ := repo.ListPuppetSources()
+		var filtered []string
+		for _, s := range sources {
+			if s != path {
+				filtered = append(filtered, s)
+			}
+		}
+		return repo.SavePuppetSources(filtered)
+	}
 }
 
 func wireSettingsCommands(cmds *commands.Commands, repo config.Repository) {

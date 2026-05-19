@@ -149,15 +149,20 @@ func TestSettingsView_CancelEdit(t *testing.T) {
 	}
 }
 
-func TestSettingsView_NavigateBack(t *testing.T) {
+func TestSettingsView_NavigateDashboard(t *testing.T) {
 	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
 	_, cmd := v.Update(tea.KeyMsg{Type: tea.KeyEsc})
 
 	if cmd == nil {
-		t.Fatal("expected NavigateBackMsg command")
+		t.Fatal("expected NavigateMsg command")
 	}
-	if _, ok := cmd().(messages.NavigateBackMsg); !ok {
-		t.Fatalf("expected NavigateBackMsg, got %T", cmd())
+	msg := cmd()
+	nav, ok := msg.(messages.NavigateMsg)
+	if !ok {
+		t.Fatalf("expected NavigateMsg, got %T", msg)
+	}
+	if nav.View != messages.ViewDashboard {
+		t.Fatalf("expected ViewDashboard, got %v", nav.View)
 	}
 }
 

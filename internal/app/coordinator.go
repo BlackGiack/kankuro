@@ -21,6 +21,7 @@ const (
 	ViewSourceManagerSkills
 	ViewSourceManagerPersonas
 	ViewSourceManagerWorkspaces
+	ViewSourceManagerPuppets
 	ViewSettings
 	ViewMCPForm
 	ViewSessionLauncher
@@ -137,6 +138,9 @@ func (c *Coordinator) initViews() {
 
 	smWorkspaces := views.NewSourceManager(views.SourceTypeWorkspaces, c.sourceManagerCallbacks(views.SourceTypeWorkspaces), c.cmds)
 	c.views[ViewSourceManagerWorkspaces] = smWorkspaces
+
+	smPuppets := views.NewSourceManager(views.SourceTypePuppets, c.sourceManagerCallbacks(views.SourceTypePuppets), c.cmds)
+	c.views[ViewSourceManagerPuppets] = smPuppets
 
 	settingsView := views.NewSettingsView(c.settingsCallbacks(), c.cmds)
 	settingsView.SetSettings(c.settings)
@@ -313,12 +317,14 @@ func (c *Coordinator) resizeAll() {
 
 func (c *Coordinator) refreshData() tea.Cmd {
 	return func() tea.Msg {
+		_ = c.repo.SyncPuppetsFromSources()
 		cards, _ := c.repo.ListIDCards()
 		sessions := c.session.List()
 		skills, _ := c.repo.ListSkills()
 		personas, _ := c.repo.ListPersonas()
 		mcps, _ := c.repo.ListMCPs()
 		workspaces, _ := c.repo.ListWorkspaces()
+		puppets, _ := c.repo.ListPuppets()
 
 		var previewID string
 		var scrollback []byte
@@ -336,6 +342,7 @@ func (c *Coordinator) refreshData() tea.Cmd {
 			Personas:          personas,
 			MCPs:              mcps,
 			Workspaces:        workspaces,
+			Puppets:           puppets,
 			PreviewSessionID:  previewID,
 			PreviewScrollback: scrollback,
 		}
@@ -410,6 +417,8 @@ func convertViewType(vt messages.ViewType) ViewType {
 		return ViewSourceManagerPersonas
 	case messages.ViewSourceManagerWorkspaces:
 		return ViewSourceManagerWorkspaces
+	case messages.ViewSourceManagerPuppets:
+		return ViewSourceManagerPuppets
 	case messages.ViewMCPForm:
 		return ViewMCPForm
 	case messages.ViewSettings:

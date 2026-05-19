@@ -31,8 +31,8 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 		t.Errorf("Expected ViewDashboard, got %v", coord.CurrentView())
 	}
 
-	if len(coord.Views()) != 9 {
-		t.Errorf("Expected 9 views, got %d", len(coord.Views()))
+	if len(coord.Views()) != 10 {
+		t.Errorf("Expected 10 views, got %d", len(coord.Views()))
 	}
 }
 
@@ -149,6 +149,7 @@ func TestNavigationFlow(t *testing.T) {
 		app.ViewCardEditor,
 		app.ViewSourceManagerSkills,
 		app.ViewSourceManagerPersonas,
+		app.ViewSourceManagerPuppets,
 		app.ViewSourceManagerWorkspaces,
 		app.ViewSettings,
 		app.ViewMCPForm,

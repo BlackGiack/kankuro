@@ -226,6 +226,12 @@ func (c *Coordinator) cardEditorCallbacks() views.CardEditorCallbacks {
 				return messages.NavigateMsg{View: messages.ViewSourceManagerWorkspaces}
 			}
 		},
+
+		OnOpenPuppetSources: func() tea.Cmd {
+			return func() tea.Msg {
+				return messages.NavigateMsg{View: messages.ViewSourceManagerPuppets}
+			}
+		},
 	}
 }
 
@@ -261,6 +267,8 @@ func (c *Coordinator) sourceManagerCallbacks(sourceType views.SourceType) views.
 				_ = c.repo.SyncWorkspacesFromSources()
 			case views.SourceTypeSkills, views.SourceTypePersonas:
 				// No specific refresh needed for skills and personas
+			case views.SourceTypePuppets:
+				_ = c.repo.SyncPuppetsFromSources()
 			}
 			return c.refreshData()
 		},
@@ -274,6 +282,9 @@ func (c *Coordinator) loadSources(sourceType views.SourceType) []components.Sour
 		return components.ToSimpleItems(sources)
 	case views.SourceTypePersonas:
 		sources, _ := c.repo.ListPersonaSources()
+		return components.ToSimpleItems(sources)
+	case views.SourceTypePuppets:
+		sources, _ := c.repo.ListPuppetSources()
 		return components.ToSimpleItems(sources)
 	case views.SourceTypeWorkspaces:
 		sources, _ := c.repo.ListWorkspaceSources()
@@ -308,6 +319,18 @@ func (c *Coordinator) saveSimpleSource(sourceType views.SourceType, path string,
 			_ = c.repo.SyncPersonasFromSources()
 		}
 		return c.refreshData(), err
+	case views.SourceTypePuppets:
+		sources, _ := c.repo.ListPuppetSources()
+		if editingIndex >= 0 && editingIndex < len(sources) {
+			sources[editingIndex] = path
+		} else {
+			sources = append(sources, path)
+		}
+		err := c.repo.SavePuppetSources(sources)
+		if err == nil {
+			_ = c.repo.SyncPuppetsFromSources()
+		}
+		return c.refreshData(), err
 	case views.SourceTypeWorkspaces:
 		return nil, errors.New("unsupported source type for simple save")
 	}
@@ -317,25 +340,11 @@ func (c *Coordinator) saveSimpleSource(sourceType views.SourceType, path string,
 func (c *Coordinator) deleteSource(sourceType views.SourceType, index int) (tea.Cmd, error) {
 	switch sourceType {
 	case views.SourceTypeSkills:
-		sources, _ := c.repo.ListSkillSources()
-		if index >= 0 && index < len(sources) {
-			sources = append(sources[:index], sources[index+1:]...)
-			err := c.repo.SaveSkillSources(sources)
-			if err == nil {
-				_ = c.repo.SyncSkillsFromSources()
-			}
-			return c.refreshData(), err
-		}
+		return c.deleteStringSource(c.repo.ListSkillSources, c.repo.SaveSkillSources, c.repo.SyncSkillsFromSources, index)
 	case views.SourceTypePersonas:
-		sources, _ := c.repo.ListPersonaSources()
-		if index >= 0 && index < len(sources) {
-			sources = append(sources[:index], sources[index+1:]...)
-			err := c.repo.SavePersonaSources(sources)
-			if err == nil {
-				_ = c.repo.SyncPersonasFromSources()
-			}
-			return c.refreshData(), err
-		}
+		return c.deleteStringSource(c.repo.ListPersonaSources, c.repo.SavePersonaSources, c.repo.SyncPersonasFromSources, index)
+	case views.SourceTypePuppets:
+		return c.deleteStringSource(c.repo.ListPuppetSources, c.repo.SavePuppetSources, c.repo.SyncPuppetsFromSources, index)
 	case views.SourceTypeWorkspaces:
 		sources, _ := c.repo.ListWorkspaceSources()
 		if index >= 0 && index < len(sources) {
@@ -343,8 +352,27 @@ func (c *Coordinator) deleteSource(sourceType views.SourceType, index int) (tea.
 			err := c.repo.SaveWorkspaceSources(sources)
 			return c.refreshData(), err
 		}
+		return nil, errors.New("invalid index")
 	}
-	return nil, errors.New("unknown source type or invalid index")
+	return nil, errors.New("unknown source type")
+}
+
+func (c *Coordinator) deleteStringSource(
+	listFn func() ([]string, error),
+	saveFn func([]string) error,
+	syncFn func() error,
+	index int,
+) (tea.Cmd, error) {
+	sources, _ := listFn()
+	if index < 0 || index >= len(sources) {
+		return nil, errors.New("invalid index")
+	}
+	sources = append(sources[:index], sources[index+1:]...)
+	err := saveFn(sources)
+	if err == nil && syncFn != nil {
+		_ = syncFn()
+	}
+	return c.refreshData(), err
 }
 
 func (c *Coordinator) settingsCallbacks() views.SettingsCallbacks {
@@ -359,6 +387,11 @@ func (c *Coordinator) settingsCallbacks() views.SettingsCallbacks {
 				editor.SetSettings(settings)
 			}
 			return c.refreshData(), nil
+		},
+		OnOpenPuppetSources: func() tea.Cmd {
+			return func() tea.Msg {
+				return messages.NavigateMsg{View: messages.ViewSourceManagerPuppets}
+			}
 		},
 	}
 }

@@ -10,8 +10,11 @@ import (
 	"kankuro/internal/ui/component"
 )
 
+// TODO move file in components package
+
 const (
 	cursorCenterDivisor = 2
+	viewHeightOffset    = 2 // header and potential footer (ellipsis)
 )
 
 // CapabilityItem represents an item in a capability list.
@@ -48,7 +51,7 @@ func NewCapabilityList(config CapabilityListConfig) *CapabilityList {
 	return &CapabilityList{
 		title:      config.Title,
 		sourceHint: config.SourceHint,
-		maxVisible: config.MaxVisible,
+		maxVisible: max(1, config.MaxVisible),
 		selected:   make(map[string]bool),
 	}
 }
@@ -255,10 +258,6 @@ func (c *CapabilityList) FilteredItems() []CapabilityItem {
 
 // calculateWindow returns the visible window based on cursor position.
 func (c *CapabilityList) calculateWindow(total int) (int, int) {
-	if c.maxVisible <= 0 {
-		return 0, total
-	}
-
 	half := c.maxVisible / cursorCenterDivisor // Divide by 2 to center the cursor
 	start := max(c.cursor-half, 0)
 
@@ -274,5 +273,8 @@ func (c *CapabilityList) calculateWindow(total int) (int, int) {
 // SetSize implements component.Model.
 func (c *CapabilityList) SetSize(width, height int) {
 	c.Base.SetSize(width, height)
-	c.maxVisible = height - 1 // ellipsis and newline after a cap list
+	// Clamp to ensure a finite window. We subtract viewHeightOffset to
+	// account for the header and a conservative budget for at least one
+	// ellipsis ("...") line to prevent overflow.
+	c.maxVisible = max(1, height-viewHeightOffset)
 }

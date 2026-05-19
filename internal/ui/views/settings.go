@@ -31,11 +31,13 @@ const (
 	settingsFocusIDECommand = iota
 	settingsFocusPersonas
 	settingsFocusMCPs
+	settingsFocusPuppetSources
 	settingsFocusCount
 )
 
 type SettingsCallbacks struct {
-	OnSave func(settings config.AppSettings) (tea.Cmd, error)
+	OnSave              func(settings config.AppSettings) (tea.Cmd, error)
+	OnOpenPuppetSources func() tea.Cmd
 }
 
 type SettingsView struct {
@@ -105,16 +107,21 @@ func (s *SettingsView) updateDisplay(msg tea.Msg) (component.Model, tea.Cmd) {
 
 	switch keyMsg.Type { //nolint:exhaustive // display mode only handles enter, quit, and back actions
 	case tea.KeyEsc:
-		return s, func() tea.Msg { return messages.NavigateBackMsg{} }
+		return s, func() tea.Msg { return messages.NavigateMsg{View: messages.ViewDashboard} }
 	case tea.KeyEnter:
 		s.startEdit()
 		return s, nil
 	case tea.KeyCtrlC:
 		return s, tea.Quit
 	case tea.KeyRunes:
-		if keyMsg.String() == "e" {
+		switch keyMsg.String() {
+		case "e":
 			s.startEdit()
 			return s, nil
+		case "p":
+			if s.callbacks.OnOpenPuppetSources != nil {
+				return s, s.callbacks.OnOpenPuppetSources()
+			}
 		}
 	}
 
@@ -149,29 +156,49 @@ func (s *SettingsView) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 		s.syncFocus()
 		return s, nil
 	case tea.KeySpace:
-		if s.focus == settingsFocusPersonas {
-			s.settings.ShowPersonasInCardEditor = !s.settings.ShowPersonasInCardEditor
-			return s, nil
-		}
-		if s.focus == settingsFocusMCPs {
-			s.settings.ShowMCPsInCardEditor = !s.settings.ShowMCPsInCardEditor
-			return s, nil
-		}
+		return s.handleEditSpace()
 	case tea.KeyEnter:
-		s.settings.IDECommand = strings.TrimSpace(s.input.Value())
-		s.input.Blur()
-		s.mode = SettingsModeDisplay
-		if s.callbacks.OnSave != nil {
-			saveCmd, saveErr := s.callbacks.OnSave(s.settings)
-			if saveErr != nil {
-				return s, func() tea.Msg { return messages.ErrorMsg{Err: saveErr} }
-			}
-			return s, saveCmd
-		}
-		return s, nil
+		return s.handleEditEnter()
 	}
 
 	return s, cmd
+}
+
+func (s *SettingsView) handleEditSpace() (component.Model, tea.Cmd) {
+	switch s.focus {
+	case settingsFocusPersonas:
+		s.settings.ShowPersonasInCardEditor = !s.settings.ShowPersonasInCardEditor
+		return s, nil
+	case settingsFocusMCPs:
+		s.settings.ShowMCPsInCardEditor = !s.settings.ShowMCPsInCardEditor
+		return s, nil
+	case settingsFocusPuppetSources:
+		if s.callbacks.OnOpenPuppetSources != nil {
+			return s, s.callbacks.OnOpenPuppetSources()
+		}
+		return s, nil
+	}
+	return s, nil
+}
+
+func (s *SettingsView) handleEditEnter() (component.Model, tea.Cmd) {
+	if s.focus == settingsFocusPuppetSources {
+		if s.callbacks.OnOpenPuppetSources != nil {
+			return s, s.callbacks.OnOpenPuppetSources()
+		}
+		return s, nil
+	}
+	s.settings.IDECommand = strings.TrimSpace(s.input.Value())
+	s.input.Blur()
+	s.mode = SettingsModeDisplay
+	if s.callbacks.OnSave != nil {
+		saveCmd, saveErr := s.callbacks.OnSave(s.settings)
+		if saveErr != nil {
+			return s, func() tea.Msg { return messages.ErrorMsg{Err: saveErr} }
+		}
+		return s, saveCmd
+	}
+	return s, nil
 }
 
 func (s *SettingsView) startEdit() {
@@ -215,16 +242,19 @@ func (s *SettingsView) renderDisplay() string {
 			fmt.Sprintf("Show MCPs In Card Editor: %s", enabledLabel(s.settings.ShowMCPsInCardEditor)),
 		}, "\n"))
 
+	actionStyle := lipgloss.NewStyle().Foreground(highlightColor).Bold(true)
+	puppetAction := actionStyle.Render("→ Manage Puppet Sources")
+
 	helpText := lipgloss.NewStyle().
 		Foreground(gray).
 		Padding(1, 0).
-		Render("Press e or Enter to edit • Esc to go back")
+		Render("e=edit • p=puppet sources • Esc=go back")
 
 	pathHelp := lipgloss.NewStyle().
 		Foreground(secondaryColor).
 		Render("Use $PATH in your IDE command to reference the session workspace path")
 
-	return lipgloss.JoinVertical(lipgloss.Left, title, "", currentBox, "", pathHelp, "", helpText)
+	return lipgloss.JoinVertical(lipgloss.Left, title, "", currentBox, "", puppetAction, "", pathHelp, "", helpText)
 }
 
 func (s *SettingsView) renderEdit() string {
@@ -244,10 +274,11 @@ func (s *SettingsView) renderEdit() string {
 
 	personasLine := s.renderToggleLine(settingsFocusPersonas, "Show Personas In Card Editor", s.settings.ShowPersonasInCardEditor)
 	mcpsLine := s.renderToggleLine(settingsFocusMCPs, "Show MCPs In Card Editor", s.settings.ShowMCPsInCardEditor)
+	puppetSourcesLine := s.renderActionLine(settingsFocusPuppetSources, "Manage Puppet Sources")
 
 	footer := lipgloss.NewStyle().
 		Foreground(gray).
-		Render("Tab=next Shift+Tab=prev Space=toggle Enter=save Esc=cancel")
+		Render("Tab=next Shift+Tab=prev Space=toggle Enter=select Esc=cancel")
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -261,6 +292,8 @@ func (s *SettingsView) renderEdit() string {
 		personasLine,
 		mcpsLine,
 		"",
+		puppetSourcesLine,
+		"",
 		footer,
 	)
 }
@@ -273,6 +306,16 @@ func (s *SettingsView) renderToggleLine(index int, label string, enabled bool) s
 		style = style.Foreground(highlightColor).Bold(true)
 	}
 	return style.Render(fmt.Sprintf("%s[%s] %s", prefix, enabledLabel(enabled), label))
+}
+
+func (s *SettingsView) renderActionLine(index int, label string) string {
+	prefix := "  "
+	style := lipgloss.NewStyle()
+	if s.focus == index {
+		prefix = "> "
+		style = style.Foreground(highlightColor).Bold(true)
+	}
+	return style.Render(fmt.Sprintf("%s→ %s", prefix, label))
 }
 
 func (s *SettingsView) focusBorderColor(index int) lipgloss.Color {

@@ -27,6 +27,9 @@ type Commands struct {
 	SaveWorkspaceSource   func(src config.WorkspaceSource) error
 	DeleteWorkspaceSource func(id string) error
 
+	SavePuppetSource   func(path string) error
+	DeletePuppetSource func(path string) error
+
 	SaveAppSettings func(config.AppSettings) error
 	OpenIDE         func(sessionID string) error
 
