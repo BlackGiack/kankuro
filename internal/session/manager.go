@@ -48,6 +48,10 @@ type Session struct {
 	Scrollback      []byte
 	PendingLine     []byte
 	Subscribers     map[chan []byte]struct{}
+	// PendingAttachHeader is a one-shot banner (e.g. "Relaunched at ...")
+	// shown to the next attacher and then cleared, so it doesn't re-appear on
+	// subsequent reattaches via scrollback replay.
+	PendingAttachHeader []byte
 }
 
 type AttachHandle struct {
@@ -55,8 +59,12 @@ type AttachHandle struct {
 	PTY        *os.File
 	Output     <-chan []byte
 	Scrollback []byte
-	Done       <-chan struct{}
-	Close      func()
+	// Header is a one-shot banner (e.g. a relaunch / agent-switch marker) to
+	// emit before the scrollback. It is consumed by the manager when the
+	// handle is created and will not appear on subsequent attaches.
+	Header []byte
+	Done   <-chan struct{}
+	Close  func()
 }
 
 var (

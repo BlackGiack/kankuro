@@ -133,7 +133,7 @@ func (m *Manager) SwitchAgent(
 	}
 
 	m.activateSessionLocked(s, card, d, h, pid, now)
-	s.Scrollback = fmt.Appendf(s.Scrollback, "\n\n--- Switched agent to %s at %s ---\n\n",
+	s.PendingAttachHeader = fmt.Appendf(nil, "\r\n--- Switched agent to %s at %s ---\r\n\r\n",
 		card.Name, now.Format(time.RFC3339))
 
 	go m.trackOutput(id, h.Output)
@@ -222,8 +222,11 @@ func (m *Manager) startSession(
 	s.UseTmpWorkspace = card.UseTmpWorkspace
 	if isNew {
 		s.Scrollback = nil
+		s.PendingAttachHeader = nil
 	} else {
-		s.Scrollback = fmt.Appendf(s.Scrollback, "\n\n--- Relaunched at %s ---\n\n",
+		// Show the relaunch marker only to the next attacher (not stored in
+		// scrollback so it doesn't replay on every subsequent reattach).
+		s.PendingAttachHeader = fmt.Appendf(nil, "\r\n--- Relaunched at %s ---\r\n\r\n",
 			now.Format(time.RFC3339))
 	}
 

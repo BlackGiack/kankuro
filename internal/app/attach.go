@@ -125,6 +125,11 @@ func (e *attachExec) printHeader() error {
 			}
 		}
 	}
+	if len(e.handle.Header) > 0 {
+		if _, err := e.stdout.Write(e.handle.Header); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

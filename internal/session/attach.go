@@ -20,11 +20,14 @@ func (m *Manager) Attach(id string) (*AttachHandle, error) {
 	ch := make(chan []byte, outputChanSize)
 	s.Subscribers[ch] = struct{}{}
 	ptyFile, _ := s.Input.(*os.File)
+	header := s.PendingAttachHeader
+	s.PendingAttachHeader = nil
 	return &AttachHandle{
 		Input:      s.Input,
 		PTY:        ptyFile,
 		Output:     ch,
 		Scrollback: bytes.Clone(s.Scrollback),
+		Header:     header,
 		Done:       s.Done,
 		Close: func() {
 			m.removeSubscriber(id, ch)
