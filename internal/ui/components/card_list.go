@@ -2,12 +2,13 @@ package components
 
 import (
 	"fmt"
+	"image/color"
 	"io"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/component"
@@ -123,7 +124,7 @@ func (c *CardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	c.list, cmd = c.list.Update(msg)
 
 	// Handle selection events
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		keyCmd := c.handleKey(keyMsg)
 		return c, tea.Batch(cmd, keyCmd)
 	}
@@ -131,9 +132,8 @@ func (c *CardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	return c, cmd
 }
 
-func (c *CardList) handleKey(keyMsg tea.KeyMsg) tea.Cmd {
-	//nolint:exhaustive // not all keys need to be handled
-	switch keyMsg.Type {
+func (c *CardList) handleKey(keyMsg tea.KeyPressMsg) tea.Cmd {
+	switch keyMsg.Code {
 	case tea.KeyEnter:
 		if card, ok := c.Selected(); ok {
 			if c.callbacks.OnSelect != nil {
@@ -146,8 +146,8 @@ func (c *CardList) handleKey(keyMsg tea.KeyMsg) tea.Cmd {
 				c.callbacks.OnDelete(card.ID)
 			}
 		}
-	case tea.KeyRunes:
-		if keyMsg.String() == "e" {
+	default:
+		if keyMsg.Text == "e" {
 			if card, ok := c.Selected(); ok {
 				if c.callbacks.OnEdit != nil {
 					return c.callbacks.OnEdit(card)
@@ -415,7 +415,7 @@ func renderPills(skillNames, personaNames []string) []string {
 	return pills
 }
 
-func pillStyle(bg, fg lipgloss.Color) lipgloss.Style {
+func pillStyle(bg, fg color.Color) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(fg).
 		Background(bg).

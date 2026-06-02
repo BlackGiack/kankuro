@@ -1,8 +1,8 @@
 package components
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/ui/component"
 )
@@ -13,6 +13,7 @@ type Modal struct {
 
 	title      string
 	content    string
+	legend     string
 	open       bool
 	onConfirm  func()
 	onCancel   func()
@@ -37,6 +38,11 @@ func (m *Modal) SetSize(width, height int) {
 // SetContent sets the modal's content string.
 func (m *Modal) SetContent(content string) {
 	m.content = content
+}
+
+// SetLegend sets the modal's legend help text.
+func (m *Modal) SetLegend(legend string) {
+	m.legend = legend
 }
 
 // Open makes the modal visible.
@@ -95,6 +101,12 @@ func (m *Modal) View() string {
 	content := titleStyle.Render(m.title)
 	if m.content != "" {
 		content += "\n\n" + m.content
+	}
+
+	if m.legend != "" {
+		legendStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240"))
+		content += "\n\n" + legendStyle.Render(m.legend)
 	}
 
 	return dialog.Render(content)

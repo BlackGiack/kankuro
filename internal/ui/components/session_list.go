@@ -2,12 +2,13 @@ package components
 
 import (
 	"fmt"
+	"image/color"
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
@@ -46,9 +47,9 @@ type SessionList struct {
 	callbacks   SessionListCallbacks
 
 	// Theme colors (should come from shared styles)
-	primaryColor   lipgloss.Color
-	highlightColor lipgloss.Color
-	gray           lipgloss.Color
+	primaryColor   color.Color
+	highlightColor color.Color
+	gray           color.Color
 }
 
 // NewSessionList creates a new session list component.
@@ -151,7 +152,7 @@ func (s *SessionList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	}
 
 	// Handle key events
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		s.handleKey(keyMsg)
 	}
 
@@ -167,15 +168,14 @@ func (s *SessionList) handleSelectionChange() tea.Cmd {
 	return nil
 }
 
-func (s *SessionList) handleKey(keyMsg tea.KeyMsg) {
-	//nolint:exhaustive // not all keys need to be handled
-	switch keyMsg.Type {
+func (s *SessionList) handleKey(keyMsg tea.KeyPressMsg) {
+	switch keyMsg.Code {
 	case tea.KeyEnter:
 		s.handleEnter()
 	case tea.KeyDelete, tea.KeyBackspace:
 		s.handleDelete()
-	case tea.KeyRunes:
-		switch keyMsg.String() {
+	default:
+		switch keyMsg.Text {
 		case "x":
 			s.handleKill()
 		case "s":
@@ -221,12 +221,10 @@ func (s *SessionList) View() string {
 	return s.list.View()
 }
 
-const listWidthOffset = 2
-
 // SetSize implements component.Model.
 func (s *SessionList) SetSize(width, height int) {
 	s.Base.SetSize(width, height)
-	s.list.SetSize(width-listWidthOffset, height)
+	s.list.SetSize(width, height)
 }
 
 // refreshItems rebuilds the list items from sessions.

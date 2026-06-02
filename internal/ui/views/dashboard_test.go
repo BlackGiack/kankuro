@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
@@ -88,7 +88,7 @@ func TestDashboard_Search(t *testing.T) {
 	d.Init()
 
 	// Activate search
-	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	keyMsg := tea.KeyPressMsg{Code: 0, Text: "/"}
 	d.Update(keyMsg)
 
 	if !d.Search().IsActive {
@@ -98,7 +98,7 @@ func TestDashboard_Search(t *testing.T) {
 	// Type search query
 	testChars := []rune{'t', 'e', 's', 't'}
 	for _, r := range testChars {
-		charMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}
+		charMsg := tea.KeyPressMsg{Code: 0, Text: string(r)}
 		d.Update(charMsg)
 	}
 
@@ -107,7 +107,7 @@ func TestDashboard_Search(t *testing.T) {
 	}
 
 	// Exit search
-	keyMsg = tea.KeyMsg{Type: tea.KeyEsc}
+	keyMsg = tea.KeyPressMsg{Code: tea.KeyEsc}
 	d.Update(keyMsg)
 
 	if d.Search().IsActive {
@@ -142,7 +142,7 @@ func TestDashboard_DeleteModal(t *testing.T) {
 	d.SessionList().SetSelectedByID("s1")
 
 	// Trigger delete
-	keyMsg := tea.KeyMsg{Type: tea.KeyBackspace}
+	keyMsg := tea.KeyPressMsg{Code: tea.KeyBackspace}
 	d.Update(keyMsg)
 
 	if !d.DeleteModal().IsOpen() {
@@ -150,7 +150,7 @@ func TestDashboard_DeleteModal(t *testing.T) {
 	}
 
 	// Confirm delete
-	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}}
+	keyMsg = tea.KeyPressMsg{Code: 0, Text: "y"}
 	d.Update(keyMsg)
 
 	if d.DeleteModal().IsOpen() {
@@ -185,7 +185,7 @@ func TestDashboard_DeleteModal_CancelWithEsc(t *testing.T) {
 	d.SessionList().SetSelectedByID("s1")
 
 	// Trigger delete
-	keyMsg := tea.KeyMsg{Type: tea.KeyBackspace}
+	keyMsg := tea.KeyPressMsg{Code: tea.KeyBackspace}
 	d.Update(keyMsg)
 
 	if !d.DeleteModal().IsOpen() {
@@ -193,7 +193,7 @@ func TestDashboard_DeleteModal_CancelWithEsc(t *testing.T) {
 	}
 
 	// Cancel with Esc
-	keyMsg = tea.KeyMsg{Type: tea.KeyEsc}
+	keyMsg = tea.KeyPressMsg{Code: tea.KeyEsc}
 	d.Update(keyMsg)
 
 	if d.DeleteModal().IsOpen() {
@@ -208,18 +208,31 @@ func TestDashboard_SetSize_Flexible(t *testing.T) {
 	d := views.NewDashboard(views.DashboardCallbacks{}, &commands.Commands{})
 
 	// Test wide terminal
+	// width=200, dashboardSessionsWidthRatio=4, dashboardPreviewWidthRatio=2
+	// sessionsWidth = 200 / 4 = 50
+	// previewWidth = 50 * 2 = 100
+	// cardsWidth = 200 - 50 - 100 = 50
+	// cardsWidth (50) >= 46, so no diff adjustment.
 	d.SetSize(200, 40)
-	if d.CardsWidth() != 48 {
-		t.Errorf("Expected cards width 48, got %d", d.CardsWidth())
+	if d.CardsWidth() != 50 {
+		t.Errorf("Expected cards width 50, got %d", d.CardsWidth())
 	}
 
 	// Test narrow terminal
+	// width=80
+	// sessionsWidth = 80 / 4 = 20
+	// previewWidth = 20 * 2 = 40
+	// cardsWidth = 80 - 20 - 40 = 20
+	// cardsWidth (20) < 46, so:
+	// diff = 46 - 20 = 26
+	// cardsWidth = 20 + 26 = 46
+	// previewWidth = 40 - 26 = 14
 	d.SetSize(80, 40)
 	if d.CardsWidth() != 46 {
 		t.Errorf("Expected cards width 46, got %d", d.CardsWidth())
 	}
-	if d.PreviewWidth() != 8 {
-		t.Errorf("Expected preview width 8, got %d", d.PreviewWidth())
+	if d.PreviewWidth() != 14 {
+		t.Errorf("Expected preview width 14, got %d", d.PreviewWidth())
 	}
 }
 
@@ -292,7 +305,7 @@ func TestDashboard_MCPActions(t *testing.T) {
 	d.Init()
 
 	// Press 'm' to open MCP
-	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}}
+	keyMsg := tea.KeyPressMsg{Code: 0, Text: "m"}
 	d.Update(keyMsg)
 
 	if !mcpOpened {

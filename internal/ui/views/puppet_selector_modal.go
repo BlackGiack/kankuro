@@ -1,8 +1,8 @@
 package views
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/ascii"
 	"kankuro/internal/ascii/characters"
@@ -86,8 +86,8 @@ func (m *PuppetSelectorModal) Cancelled() bool { return m.cancelled }
 func (m *PuppetSelectorModal) Init() tea.Cmd { return nil }
 
 func (m *PuppetSelectorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.Type { //nolint:exhaustive // the selector only responds to directional and confirm/cancel keys
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.Code {
 		case tea.KeyLeft:
 			if m.cursor > 0 {
 				m.cursor--

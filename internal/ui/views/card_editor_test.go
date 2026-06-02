@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
@@ -302,7 +302,7 @@ func TestPuppetSelector_Navigation(t *testing.T) {
 	}
 
 	// Right arrow
-	m.Update(tea.KeyMsg{Runes: []rune{}, Type: tea.KeyRight})
+	m.Update(tea.KeyPressMsg{Text: "", Code: tea.KeyRight})
 	if m.Cursor() != 1 {
 		t.Errorf("Expected cursor 1, got %d", m.Cursor())
 	}

@@ -3,9 +3,9 @@ package views
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/component"
@@ -149,8 +149,8 @@ func (m *WorkspacePickerModal) SetSize(width, height int) {
 }
 
 func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.Type { //nolint:exhaustive // the picker only consumes navigation and confirm/cancel keys
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.Code {
 		case tea.KeyEnter:
 			m.confirmed = true
 			// Save the currently selected workspace before resetting state
@@ -174,10 +174,12 @@ func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 				m.refreshItems()
 			}
 			return m, nil
-		case tea.KeyRunes:
-			m.searchQuery += keyMsg.String()
-			m.refreshItems()
-			return m, nil
+		default:
+			if len(keyMsg.Text) > 0 {
+				m.searchQuery += keyMsg.Text
+				m.refreshItems()
+				return m, nil
+			}
 		}
 	}
 

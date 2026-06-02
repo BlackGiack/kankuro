@@ -3,7 +3,7 @@ package components_test
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/components"

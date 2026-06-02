@@ -3,7 +3,7 @@ package app_test
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/app"
 	"kankuro/internal/config"
@@ -19,7 +19,7 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 	coord.Init()
 
 	// Test 'n' key - should navigate to CardEditor
-	_, cmd := coord.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	_, cmd := coord.Update(tea.KeyPressMsg{Code: 0, Text: "n"})
 	// Execute the command to get the NavigateMsg
 	if cmd != nil {
 		msg := cmd()
@@ -35,7 +35,7 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 	coord.Update(messages.NavigateMsg{View: messages.ViewDashboard})
 
 	// Test 'm' key - should navigate to MCPForm
-	_, cmd = coord.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	_, cmd = coord.Update(tea.KeyPressMsg{Code: 0, Text: "m"})
 	// Execute the command to get the NavigateMsg
 	if cmd != nil {
 		msg := cmd()
@@ -51,7 +51,7 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 	coord.Update(messages.NavigateMsg{View: messages.ViewDashboard})
 
 	// Test 'w' key - should navigate to SourceManagerWorkspaces
-	_, cmd = coord.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	_, cmd = coord.Update(tea.KeyPressMsg{Code: 0, Text: "w"})
 	// Execute the command to get the NavigateMsg
 	if cmd != nil {
 		msg := cmd()
@@ -67,7 +67,7 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 	coord.Update(messages.NavigateMsg{View: messages.ViewDashboard})
 
 	// Test 'c' key - should navigate to Settings
-	_, cmd = coord.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	_, cmd = coord.Update(tea.KeyPressMsg{Code: 0, Text: "c"})
 	if cmd != nil {
 		msg := cmd()
 		if navigateMsg, ok := msg.(messages.NavigateMsg); ok {

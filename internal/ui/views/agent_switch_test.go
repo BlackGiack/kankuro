@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/messages"
@@ -36,7 +36,7 @@ func TestAgentSwitchView_SearchAndFilter(t *testing.T) {
 	})
 
 	// Type 'a'
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	v.Update(tea.KeyPressMsg{Code: 0, Text: "a"})
 	view := v.View()
 	if !strings.Contains(view, "Search: a") {
 		t.Error("View should show current search")
@@ -58,8 +58,8 @@ func TestAgentSwitchView_EscapeBehavior(t *testing.T) {
 	})
 
 	// 1. With search active
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
-	_, cmd := v.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	v.Update(tea.KeyPressMsg{Code: 0, Text: "a"})
+	_, cmd := v.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if cancelCmdCalled {
 		t.Error("Esc should not cancel while search is active")
 	}
@@ -71,7 +71,7 @@ func TestAgentSwitchView_EscapeBehavior(t *testing.T) {
 	}
 
 	// 2. Without search active
-	_, cmd = v.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	_, cmd = v.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if cmd == nil {
 		t.Fatal("Esc with empty search should emit cancel command")
 	}
@@ -96,7 +96,7 @@ func TestAgentSwitchView_Switch(t *testing.T) {
 	})
 
 	// Press Enter
-	v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	if switchedSessionID != "s1" || switchedCardID != "c1" {
 		t.Errorf("Expected switch(s1, c1), got (%s, %s)", switchedSessionID, switchedCardID)

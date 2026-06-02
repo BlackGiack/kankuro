@@ -3,8 +3,8 @@ package views
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
@@ -38,7 +38,7 @@ type SessionLauncher struct {
 func NewSessionLauncher(callbacks SessionLauncherCallbacks, cmds *commands.Commands) *SessionLauncher {
 	input := textinput.New()
 	input.Placeholder = "Session name (Enter to confirm)"
-	input.Width = 60
+	input.SetWidth(defaultInputWidth)
 	input.Focus()
 
 	return &SessionLauncher{
@@ -76,27 +76,37 @@ func (l *SessionLauncher) Init() tea.Cmd {
 
 // Update handles messages.
 func (l *SessionLauncher) Update(msg tea.Msg) (component.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		if l.launchDone {
-			switch keyMsg.Type { //nolint:exhaustive // completed state only needs attach-or-exit handling
-			case tea.KeyEnter:
-				return l, l.handleNameSubmit()
-			case tea.KeyEsc:
-				return l, func() tea.Msg { return messages.NavigateBackMsg{} }
-			}
-		} else {
-			switch keyMsg.Type { //nolint:exhaustive // launch-pending state only supports quit and back
-			case tea.KeyCtrlC:
-				return l, tea.Quit
-			case tea.KeyEsc:
-				return l, func() tea.Msg { return messages.NavigateBackMsg{} }
-			}
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		if cmd, handled := l.handleKey(keyMsg); handled {
+			return l, cmd
 		}
 	}
 
 	var cmd tea.Cmd
 	l.input, cmd = l.input.Update(msg)
 	return l, cmd
+}
+
+func (l *SessionLauncher) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
+	if keyMsg.String() == keyCtrlC {
+		return tea.Quit, true
+	}
+
+	if l.launchDone {
+		switch keyMsg.Code {
+		case tea.KeyEnter:
+			return l.handleNameSubmit(), true
+		case tea.KeyEsc:
+			return func() tea.Msg { return messages.NavigateBackMsg{} }, true
+		}
+		return nil, false
+	}
+
+	if keyMsg.Code == tea.KeyEsc {
+		return func() tea.Msg { return messages.NavigateBackMsg{} }, true
+	}
+
+	return nil, false
 }
 
 // View renders the launcher.

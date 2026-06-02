@@ -1,6 +1,6 @@
 package views
 
-import "github.com/charmbracelet/lipgloss"
+import "charm.land/lipgloss/v2"
 
 // Theme colors shared across views.
 var (

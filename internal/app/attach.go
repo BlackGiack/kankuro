@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	cterm "github.com/charmbracelet/x/term"
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"

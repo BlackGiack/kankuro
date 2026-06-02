@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"

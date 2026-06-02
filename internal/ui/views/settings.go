@@ -2,11 +2,12 @@ package views
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
@@ -54,7 +55,7 @@ type SettingsView struct {
 func NewSettingsView(callbacks SettingsCallbacks, cmds *commands.Commands) *SettingsView {
 	input := textinput.New()
 	input.Placeholder = "e.g. code $PATH"
-	input.Width = 60
+	input.SetWidth(defaultInputWidth)
 
 	return &SettingsView{
 		mode:      SettingsModeDisplay,
@@ -100,27 +101,31 @@ func (s *SettingsView) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 }
 
 func (s *SettingsView) updateDisplay(msg tea.Msg) (component.Model, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyMsg)
+	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return s, nil
 	}
 
-	switch keyMsg.Type { //nolint:exhaustive // display mode only handles enter, quit, and back actions
+	if keyMsg.String() == keyCtrlC {
+		return s, tea.Quit
+	}
+
+	switch keyMsg.Code {
 	case tea.KeyEsc:
 		return s, func() tea.Msg { return messages.NavigateMsg{View: messages.ViewDashboard} }
 	case tea.KeyEnter:
 		s.startEdit()
 		return s, nil
-	case tea.KeyCtrlC:
-		return s, tea.Quit
-	case tea.KeyRunes:
-		switch keyMsg.String() {
-		case "e":
-			s.startEdit()
-			return s, nil
-		case "p":
-			if s.callbacks.OnOpenPuppetSources != nil {
-				return s, s.callbacks.OnOpenPuppetSources()
+	default:
+		if len(keyMsg.Text) > 0 {
+			switch keyMsg.String() {
+			case "e":
+				s.startEdit()
+				return s, nil
+			case "p":
+				if s.callbacks.OnOpenPuppetSources != nil {
+					return s, s.callbacks.OnOpenPuppetSources()
+				}
 			}
 		}
 	}
@@ -134,24 +139,32 @@ func (s *SettingsView) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 		s.input, cmd = s.input.Update(msg)
 	}
 
-	keyMsg, ok := msg.(tea.KeyMsg)
+	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return s, cmd
 	}
 
-	switch keyMsg.Type { //nolint:exhaustive // edit mode only handles the settings form interaction keys
+	if keyMsg.String() == keyCtrlC {
+		return s, tea.Quit
+	}
+
+	if keyMsg.String() == keyShiftTab {
+		s.focus = (s.focus - 1 + settingsFocusCount) % settingsFocusCount
+		s.syncFocus()
+		return s, nil
+	}
+
+	switch keyMsg.Code {
 	case tea.KeyEsc:
 		s.mode = SettingsModeDisplay
 		s.input.Blur()
 		s.input.SetValue(s.settings.IDECommand)
 		return s, nil
-	case tea.KeyCtrlC:
-		return s, tea.Quit
 	case tea.KeyTab, tea.KeyDown:
 		s.focus = (s.focus + 1) % settingsFocusCount
 		s.syncFocus()
 		return s, nil
-	case tea.KeyShiftTab, tea.KeyUp:
+	case tea.KeyUp:
 		s.focus = (s.focus - 1 + settingsFocusCount) % settingsFocusCount
 		s.syncFocus()
 		return s, nil
@@ -230,7 +243,7 @@ func (s *SettingsView) renderDisplay() string {
 		currentCmd = "(not configured)"
 	}
 
-	maxWidth := max(settingsBoxMinWidth, s.input.Width+settingsBoxPadding*2)
+	maxWidth := max(settingsBoxMinWidth, s.input.Width()+settingsBoxPadding*2)
 	currentBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(gray).
@@ -259,7 +272,7 @@ func (s *SettingsView) renderDisplay() string {
 
 func (s *SettingsView) renderEdit() string {
 	title := titleStyle.Padding(0, 1).Render("Edit Settings")
-	explanationWidth := max(settingsExplanationWide, s.input.Width)
+	explanationWidth := max(settingsExplanationWide, s.input.Width())
 
 	explanation := lipgloss.NewStyle().
 		Foreground(secondaryColor).
@@ -318,7 +331,7 @@ func (s *SettingsView) renderActionLine(index int, label string) string {
 	return style.Render(fmt.Sprintf("%s→ %s", prefix, label))
 }
 
-func (s *SettingsView) focusBorderColor(index int) lipgloss.Color {
+func (s *SettingsView) focusBorderColor(index int) color.Color {
 	if s.focus == index {
 		return focusedBorderColor
 	}
@@ -334,5 +347,5 @@ func enabledLabel(enabled bool) string {
 
 func (s *SettingsView) SetSize(width, height int) {
 	s.Base.SetSize(width, height)
-	s.input.Width = min(width*9/10, 80) //nolint:mnd // responsive width keeps the field usable without overflowing narrow terminals
+	s.input.SetWidth(min(width*9/10, 80)) //nolint:mnd // responsive width keeps the field usable without overflowing narrow terminals
 }

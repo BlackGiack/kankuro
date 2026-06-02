@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
@@ -140,8 +140,8 @@ func (m *SourceManager) Init() tea.Cmd {
 
 // Update handles messages.
 func (m *SourceManager) Update(msg tea.Msg) (component.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		if keyMsg.Type == tea.KeyEsc && m.sourceList.Mode == components.SourceListModeList {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		if keyMsg.Code == tea.KeyEsc && m.sourceList.Mode == components.SourceListModeList {
 			return m, func() tea.Msg { return messages.NavigateBackMsg{} }
 		}
 	}

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
@@ -23,7 +23,7 @@ func TestWorkspacePicker_SearchAndFilter(t *testing.T) {
 
 	// Open picker (simulated by focusing workspace and pressing space)
 	e.CycleFocus(3) // FocusWorkspace is 3
-	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	view := e.View()
 	if !strings.Contains(view, "Alpha Project") || !strings.Contains(view, "Beta Project") {
@@ -31,7 +31,7 @@ func TestWorkspacePicker_SearchAndFilter(t *testing.T) {
 	}
 
 	// Type 'b' to filter
-	e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+	e.Update(tea.KeyPressMsg{Code: 0, Text: "b"})
 	view = e.View()
 	if !strings.Contains(view, "Beta Project") {
 		t.Error("View should contain Beta Project")
@@ -44,7 +44,7 @@ func TestWorkspacePicker_SearchAndFilter(t *testing.T) {
 	}
 
 	// Backspace to clear 'b'
-	e.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	view = e.View()
 	if !strings.Contains(view, "Alpha Project") || !strings.Contains(view, "Beta Project") {
 		t.Error("Picker should show all workspaces after clearing filter with backspace")
@@ -57,16 +57,16 @@ func TestWorkspacePicker_EscapeBehavior(t *testing.T) {
 
 	// Open picker
 	e.CycleFocus(3)
-	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// Type 'a'
-	e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	e.Update(tea.KeyPressMsg{Code: 0, Text: "a"})
 	if !strings.Contains(e.View(), "Search: a") {
 		t.Fatal("Search should be active")
 	}
 
 	// First Esc should clear search
-	e.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if strings.Contains(e.View(), "Search: a") {
 		t.Error("Esc should have cleared search")
 	}
@@ -75,7 +75,7 @@ func TestWorkspacePicker_EscapeBehavior(t *testing.T) {
 	}
 
 	// Second Esc should close picker
-	e.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if strings.Contains(e.View(), "Select Workspace") {
 		t.Error("Second Esc should have closed picker")
 	}
@@ -87,10 +87,10 @@ func TestWorkspacePicker_QNonQuit(t *testing.T) {
 
 	// Open picker
 	e.CycleFocus(3)
-	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// Press 'q'
-	_, cmd := e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	_, cmd := e.Update(tea.KeyPressMsg{Code: 0, Text: "q"})
 	if cmd != nil {
 		t.Error("Pressing 'q' in picker should not return any command (like tea.Quit)")
 	}
@@ -105,7 +105,7 @@ func TestWorkspacePicker_DedicatedRendering(t *testing.T) {
 
 	// Open picker
 	e.CycleFocus(3)
-	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	view := e.View()
 	// It should NOT contain the "New ID Card" title from the form
@@ -135,17 +135,17 @@ func TestWorkspacePicker_ReopenAfterSearch(t *testing.T) {
 
 	// First open
 	e.CycleFocus(3) // FocusWorkspace
-	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// Search for 'a' to filter results
-	e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	e.Update(tea.KeyPressMsg{Code: 0, Text: "a"})
 	view := e.View()
 	if !strings.Contains(view, "Search: a") {
 		t.Error("Search should be active")
 	}
 
 	// Select first filtered item
-	e.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	// Verify selection was saved
 	if e.WorkspaceID() == "" {
@@ -153,7 +153,7 @@ func TestWorkspacePicker_ReopenAfterSearch(t *testing.T) {
 	}
 
 	// Reopen picker - this is where the crash would occur
-	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// This should not panic - if it does, the test will fail
 	view = e.View()
@@ -185,14 +185,14 @@ func TestWorkspacePicker_SizeRestoration(t *testing.T) {
 
 	// Open picker
 	e.CycleFocus(3)
-	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// Get the view from the first open
 	view1 := e.View()
 
 	// Close and reopen
-	e.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// Get the view from the second open
 	view2 := e.View()
@@ -224,7 +224,7 @@ func TestWorkspacePicker_SmallTerminal(t *testing.T) {
 
 	// Open picker on small terminal
 	e.CycleFocus(3)
-	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// This should not panic even with tiny dimensions
 	view := e.View()
@@ -255,12 +255,12 @@ func TestWorkspacePicker_SelectionRestoration(t *testing.T) {
 
 	// Open picker
 	e.CycleFocus(3)
-	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// Navigate to Gamma and select it
-	e.Update(tea.KeyMsg{Type: tea.KeyDown})  // Move to Beta
-	e.Update(tea.KeyMsg{Type: tea.KeyDown})  // Move to Gamma
-	e.Update(tea.KeyMsg{Type: tea.KeyEnter}) // Select Gamma
+	e.Update(tea.KeyPressMsg{Code: tea.KeyDown})  // Move to Beta
+	e.Update(tea.KeyPressMsg{Code: tea.KeyDown})  // Move to Gamma
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEnter}) // Select Gamma
 
 	// Verify that Gamma was actually selected, not the original Alpha
 	if e.WorkspaceID() != "ws-3" {
@@ -268,7 +268,7 @@ func TestWorkspacePicker_SelectionRestoration(t *testing.T) {
 	}
 
 	// Reopen picker and verify Gamma is still selected
-	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	view := e.View()
 	if !strings.Contains(view, "Gamma Project") {
 		t.Error("Gamma should still be selected after reopening")
@@ -289,7 +289,7 @@ func TestWorkspacePicker_Filtering(t *testing.T) {
 
 	// Open picker
 	e.CycleFocus(3)
-	e.Update(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// All workspaces should be visible initially
 	view := e.View()
@@ -298,9 +298,9 @@ func TestWorkspacePicker_Filtering(t *testing.T) {
 	}
 
 	// Search for 'lph' to filter to Alpha only (unique part of Alpha)
-	e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
-	e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
-	e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	e.Update(tea.KeyPressMsg{Code: 0, Text: "l"})
+	e.Update(tea.KeyPressMsg{Code: 0, Text: "p"})
+	e.Update(tea.KeyPressMsg{Code: 0, Text: "h"})
 
 	view = e.View()
 	if !strings.Contains(view, "Search: lph") {
@@ -318,7 +318,7 @@ func TestWorkspacePicker_Filtering(t *testing.T) {
 	}
 
 	// Clear search
-	e.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	view = e.View()
 
 	// All workspaces should be visible again

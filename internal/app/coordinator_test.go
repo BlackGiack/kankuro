@@ -3,7 +3,7 @@ package app_test
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/app"
 	"kankuro/internal/config"
@@ -108,7 +108,7 @@ func TestApp_BackwardsCompatibility(t *testing.T) {
 	}
 
 	view := app.View()
-	if view == "" {
+	if view.Content == "" {
 		t.Error("View should not be empty")
 	}
 }

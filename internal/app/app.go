@@ -1,7 +1,7 @@
 package app
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
@@ -25,11 +25,14 @@ func (a *App) Init() tea.Cmd {
 }
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	return a.coordinator.Update(msg)
+	_, cmd := a.coordinator.Update(msg)
+	return a, cmd
 }
 
-func (a *App) View() string {
-	return a.coordinator.View()
+func (a *App) View() tea.View {
+	view := tea.NewView(a.coordinator.View())
+	view.AltScreen = true
+	return view
 }
 
 func (a *App) SetSize(width, height int) {

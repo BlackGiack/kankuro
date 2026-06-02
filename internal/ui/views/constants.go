@@ -24,4 +24,16 @@ const (
 	workspacePickerListHeightPadding = 8
 
 	agentSwitchListHeightPadding = 10
+
+	// Input widths.
+	defaultInputWidth = 60
+	smallInputWidth   = 30
+	mediumInputWidth  = 40
+)
+
+const (
+	// Key strings.
+	keyCtrlC    = "ctrl+c"
+	keyShiftTab = "shift+tab"
+	keyCtrlE    = "ctrl+e"
 )

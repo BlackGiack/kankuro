@@ -3,8 +3,8 @@ package views
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
@@ -44,31 +44,31 @@ func NewMCPForm(callbacks MCPFormCallbacks, cmds *commands.Commands) *MCPForm {
 
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "Name"
-	inputs[0].Width = 60
+	inputs[0].SetWidth(defaultInputWidth)
 
 	inputs[1] = textinput.New()
 	inputs[1].Placeholder = "Command"
-	inputs[1].Width = 60
+	inputs[1].SetWidth(defaultInputWidth)
 
 	inputs[2] = textinput.New()
 	inputs[2].Placeholder = "Args (comma-separated)"
-	inputs[2].Width = 60
+	inputs[2].SetWidth(defaultInputWidth)
 
 	inputs[3] = textinput.New()
 	inputs[3].Placeholder = "Working directory"
-	inputs[3].Width = 60
+	inputs[3].SetWidth(defaultInputWidth)
 
 	inputs[4] = textinput.New()
 	inputs[4].Placeholder = "URL"
-	inputs[4].Width = 60
+	inputs[4].SetWidth(defaultInputWidth)
 
 	inputs[5] = textinput.New()
 	inputs[5].Placeholder = "Environment (key=value, comma-separated)"
-	inputs[5].Width = 60
+	inputs[5].SetWidth(defaultInputWidth)
 
 	inputs[6] = textinput.New()
 	inputs[6].Placeholder = "Headers (key=value, comma-separated)"
-	inputs[6].Width = 60
+	inputs[6].SetWidth(defaultInputWidth)
 
 	inputs[0].Focus()
 
@@ -120,10 +120,11 @@ func (f *MCPForm) Init() tea.Cmd {
 
 // Update handles messages.
 func (f *MCPForm) Update(msg tea.Msg) (component.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.Type { //nolint:exhaustive // the form handles only submit, cancel, and focus traversal keys
-		case tea.KeyCtrlC:
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		if keyMsg.String() == keyCtrlC {
 			return f, tea.Quit
+		}
+		switch keyMsg.Code {
 		case tea.KeyEsc:
 			return f, func() tea.Msg { return messages.NavigateBackMsg{} }
 		case tea.KeyTab:

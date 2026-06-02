@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/ui/views"
 )
@@ -43,13 +43,13 @@ func TestPuppetSelectorNavigation(t *testing.T) {
 	initialCursor := modal.Cursor()
 
 	// Test right navigation
-	_, _ = modal.Update(tea.KeyMsg{Type: tea.KeyRight})
+	_, _ = modal.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	if modal.Cursor() == initialCursor {
 		t.Error("Right key should change cursor position")
 	}
 
 	// Test left navigation
-	_, _ = modal.Update(tea.KeyMsg{Type: tea.KeyLeft})
+	_, _ = modal.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	if modal.Cursor() != initialCursor {
 		t.Error("Left key should change cursor position back")
 	}
@@ -60,7 +60,7 @@ func TestPuppetSelectorConfirmation(t *testing.T) {
 	modal.Open()
 
 	// Test enter confirmation
-	_, _ = modal.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	_, _ = modal.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if !modal.Confirmed() {
 		t.Error("Enter key should set confirmed state")
 	}
@@ -68,7 +68,7 @@ func TestPuppetSelectorConfirmation(t *testing.T) {
 	// Reset and test esc cancellation
 	modal = views.NewPuppetSelectorModal()
 	modal.Open()
-	_, _ = modal.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	_, _ = modal.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if !modal.Cancelled() {
 		t.Error("Esc key should set cancelled state")
 	}

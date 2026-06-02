@@ -4,10 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/components"
@@ -110,7 +107,6 @@ func TestCardList_Selected(t *testing.T) {
 }
 
 func TestRenderCardItem(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
 	card := config.IDCard{
 		ID:     "1",
 		Name:   "Test Card",
@@ -145,8 +141,6 @@ func TestRenderCardItem(t *testing.T) {
 }
 
 func TestRenderCardItemWithPills(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
-
 	// Test with skills and personas
 	card := config.IDCard{
 		ID:         "1",
@@ -181,8 +175,6 @@ func TestRenderCardItemWithPills(t *testing.T) {
 }
 
 func TestRenderCardItemWithEmptyPuppet(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
-
 	// Test with empty puppet - should use default
 	card := config.IDCard{
 		ID:     "1",
@@ -201,8 +193,6 @@ func TestRenderCardItemWithEmptyPuppet(t *testing.T) {
 }
 
 func TestRenderCardItemNoCapabilities(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
-
 	card := config.IDCard{
 		ID:     "1",
 		Name:   "Test Card",

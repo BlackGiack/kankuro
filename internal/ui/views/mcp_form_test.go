@@ -3,7 +3,7 @@ package views_test
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
@@ -78,7 +78,7 @@ func TestMCPForm_Navigation(t *testing.T) {
 	f := views.NewMCPForm(views.MCPFormCallbacks{}, &commands.Commands{})
 
 	// Test Esc
-	_, cmd := f.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	_, cmd := f.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	msg := cmd()
 	if _, ok := msg.(messages.NavigateBackMsg); !ok {
 		t.Errorf("Expected NavigateBackMsg, got %T", msg)
@@ -88,7 +88,7 @@ func TestMCPForm_Navigation(t *testing.T) {
 	if !f.Inputs()[0].Focused() {
 		t.Error("First input should be focused")
 	}
-	f.Update(tea.KeyMsg{Type: tea.KeyTab})
+	f.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	if f.Inputs()[0].Focused() {
 		t.Error("First input should be blurred after Tab")
 	}

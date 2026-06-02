@@ -3,7 +3,7 @@ package app
 import (
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
@@ -157,7 +157,7 @@ func (c *Coordinator) Init() tea.Cmd {
 	)
 }
 
-func (c *Coordinator) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (c *Coordinator) Update(msg tea.Msg) (*Coordinator, tea.Cmd) {
 	if handled, cmd := c.handleSpecialMessages(msg); handled {
 		return c, cmd
 	}

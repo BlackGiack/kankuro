@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
@@ -44,7 +44,7 @@ func TestSettingsView_SwitchToEditMode(t *testing.T) {
 	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
 	v.SetSettings(config.AppSettings{IDECommand: "existing"})
 
-	model, _ := v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model, _ := v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v = model.(*views.SettingsView)
 
 	if v.Mode() != views.SettingsModeEdit {
@@ -65,10 +65,10 @@ func TestSettingsView_SaveInEditMode(t *testing.T) {
 		},
 	}, &commands.Commands{})
 
-	v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v.Input().SetValue("vim $PATH")
 
-	model, _ := v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model, _ := v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v = model.(*views.SettingsView)
 
 	if v.Mode() != views.SettingsModeDisplay {
@@ -81,20 +81,20 @@ func TestSettingsView_SaveInEditMode(t *testing.T) {
 
 func TestSettingsView_ToggleRows(t *testing.T) {
 	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
-	v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
-	v.Update(tea.KeyMsg{Type: tea.KeyTab})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	if v.FocusIndex() != 1 {
 		t.Fatalf("expected focus on personas toggle, got %d", v.FocusIndex())
 	}
 
-	v.Update(tea.KeyMsg{Type: tea.KeySpace})
+	v.Update(tea.KeyPressMsg{Code: tea.KeySpace})
 	if v.Settings().ShowPersonasInCardEditor {
 		t.Error("expected personas toggle to turn off")
 	}
 
-	v.Update(tea.KeyMsg{Type: tea.KeyTab})
-	v.Update(tea.KeyMsg{Type: tea.KeySpace})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	v.Update(tea.KeyPressMsg{Code: tea.KeySpace})
 	if v.Settings().ShowMCPsInCardEditor {
 		t.Error("expected MCP toggle to turn off")
 	}
@@ -115,10 +115,10 @@ func TestSettingsView_EnterSavesFromToggleRow(t *testing.T) {
 		ShowMCPsInCardEditor:     false,
 	})
 
-	v.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	v.Update(tea.KeyMsg{Type: tea.KeyTab})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
-	model, _ := v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model, _ := v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v = model.(*views.SettingsView)
 
 	if v.Mode() != views.SettingsModeDisplay {
@@ -135,10 +135,10 @@ func TestSettingsView_EnterSavesFromToggleRow(t *testing.T) {
 func TestSettingsView_CancelEdit(t *testing.T) {
 	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
 	v.SetSettings(config.AppSettings{IDECommand: "original"})
-	v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v.Input().SetValue("changed")
 
-	model, _ := v.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model, _ := v.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	v = model.(*views.SettingsView)
 
 	if v.Mode() != views.SettingsModeDisplay {
@@ -151,7 +151,7 @@ func TestSettingsView_CancelEdit(t *testing.T) {
 
 func TestSettingsView_NavigateDashboard(t *testing.T) {
 	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
-	_, cmd := v.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	_, cmd := v.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 
 	if cmd == nil {
 		t.Fatal("expected NavigateMsg command")
@@ -192,7 +192,7 @@ func TestSettingsView_View_DisplayMode(t *testing.T) {
 
 func TestSettingsView_View_EditMode(t *testing.T) {
 	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
-	v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v.Input().SetValue("vim $PATH")
 	v.SetSize(80, 24)
 
@@ -214,10 +214,10 @@ func TestSettingsView_OnSaveError(t *testing.T) {
 			return nil, errors.New("save failed")
 		},
 	}, &commands.Commands{})
-	v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v.Input().SetValue("test")
 
-	model, _ := v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model, _ := v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v = model.(*views.SettingsView)
 
 	if v.Mode() != views.SettingsModeDisplay {

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	bubbletea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	bubbletea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/ui/component"
 )
@@ -143,16 +143,16 @@ func (c *CapabilityList) Init() bubbletea.Cmd {
 
 // Update handles messages.
 func (c *CapabilityList) Update(msg bubbletea.Msg) (component.Model, bubbletea.Cmd) {
-	if keyMsg, ok := msg.(bubbletea.KeyMsg); ok {
+	if keyMsg, ok := msg.(bubbletea.KeyPressMsg); ok {
 		c.handleKey(keyMsg)
 	}
 	return c, nil
 }
 
-func (c *CapabilityList) handleKey(keyMsg bubbletea.KeyMsg) {
+func (c *CapabilityList) handleKey(keyMsg bubbletea.KeyPressMsg) {
 	filtered := c.FilteredItems()
 
-	switch keyMsg.Type { //nolint:exhaustive // list interaction intentionally ignores unrelated keys
+	switch keyMsg.Code {
 	case bubbletea.KeyUp:
 		if c.cursor > 0 {
 			c.cursor--
@@ -168,11 +168,13 @@ func (c *CapabilityList) handleKey(keyMsg bubbletea.KeyMsg) {
 			c.searchQuery = c.searchQuery[:len(c.searchQuery)-1]
 			c.cursor = 0
 		}
-	case bubbletea.KeyRunes:
-		for _, ch := range keyMsg.Runes {
-			if ch >= 33 && ch <= 126 {
-				c.searchQuery += string(ch)
-				c.cursor = 0
+	default:
+		if len(keyMsg.Text) > 0 {
+			for _, ch := range keyMsg.Text {
+				if ch >= 33 && ch <= 126 {
+					c.searchQuery += string(ch)
+					c.cursor = 0
+				}
 			}
 		}
 	}

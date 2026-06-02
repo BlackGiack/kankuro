@@ -4,9 +4,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
@@ -117,7 +117,7 @@ func NewCardEditor(callbacks CardEditorCallbacks, cmds *commands.Commands) *Card
 	for i := range inputs {
 		inputs[i] = textinput.New()
 		inputs[i].Placeholder = placeholders[i]
-		inputs[i].Width = 40 // Default width, will be updated in SetSize
+		inputs[i].SetWidth(mediumInputWidth) // Default width, will be updated in SetSize
 	}
 
 	// Initialize capability lists
@@ -333,7 +333,7 @@ func (e *CardEditor) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	}
 
 	// Handle key events
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if cmd, handled := e.handleKey(keyMsg); handled {
 			return e, cmd
 		}
@@ -344,11 +344,18 @@ func (e *CardEditor) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 }
 
 // handleKey processes global key events.
-func (e *CardEditor) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
-	switch keyMsg.Type { //nolint:exhaustive // the form handles only its explicit shortcuts and navigation keys
-	case tea.KeyCtrlC:
+func (e *CardEditor) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
+	if keyMsg.String() == "ctrl+c" {
 		return tea.Quit, true
+	}
 
+	if keyMsg.String() == "shift+tab" {
+		e.clearSearches()
+		e.CycleFocus(-1)
+		return nil, true
+	}
+
+	switch keyMsg.Code {
 	case tea.KeyEsc:
 		e.handleEscape()
 		if e.callbacks.OnCancel != nil {
@@ -359,11 +366,6 @@ func (e *CardEditor) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 	case tea.KeyTab:
 		e.clearSearches()
 		e.CycleFocus(1)
-		return nil, true
-
-	case tea.KeyShiftTab:
-		e.clearSearches()
-		e.CycleFocus(-1)
 		return nil, true
 
 	case tea.KeyUp:
@@ -384,15 +386,9 @@ func (e *CardEditor) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		if e.focusIndex == FocusMCPs {
 			return e.deleteSelectedMCP(), true
 		}
+	}
 
-	case tea.KeyRunes:
-		if keyMsg.String() == "del" {
-			if e.focusIndex == FocusMCPs {
-				return e.deleteSelectedMCP(), true
-			}
-		}
-
-	case tea.KeyCtrlE:
+	if keyMsg.String() == "ctrl+e" {
 		return e.handleCtrlE()
 	}
 
@@ -636,7 +632,7 @@ func (e *CardEditor) updateFocusedInput(msg tea.Msg) (component.Model, tea.Cmd) 
 }
 
 func (e *CardEditor) updateSkillList(msg tea.Msg) tea.Cmd {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if e.handleListSearch(e.skillList, keyMsg) {
 			return nil
 		}
@@ -646,7 +642,7 @@ func (e *CardEditor) updateSkillList(msg tea.Msg) tea.Cmd {
 }
 
 func (e *CardEditor) updatePersonaList(msg tea.Msg) tea.Cmd {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if e.handleListSearch(e.personaList, keyMsg) {
 			return nil
 		}
@@ -656,7 +652,7 @@ func (e *CardEditor) updatePersonaList(msg tea.Msg) tea.Cmd {
 }
 
 func (e *CardEditor) updateMCPList(msg tea.Msg) tea.Cmd {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if e.handleListSearch(e.mcpList, keyMsg) {
 			return nil
 		}
@@ -665,16 +661,16 @@ func (e *CardEditor) updateMCPList(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (e *CardEditor) handleListSearch(list *CapabilityList, keyMsg tea.KeyMsg) bool {
-	if keyMsg.Type == tea.KeyRunes {
-		for _, ch := range keyMsg.Runes {
+func (e *CardEditor) handleListSearch(list *CapabilityList, keyMsg tea.KeyPressMsg) bool {
+	if len(keyMsg.Text) > 0 {
+		for _, ch := range keyMsg.Text {
 			if ch >= 33 && ch <= 126 {
 				list.SetSearchQuery(list.searchQuery + string(ch))
 				return true
 			}
 		}
 	}
-	if keyMsg.Type == tea.KeyBackspace {
+	if keyMsg.Code == tea.KeyBackspace {
 		if len(list.searchQuery) > 0 {
 			list.SetSearchQuery(list.searchQuery[:len(list.searchQuery)-1])
 		}
@@ -911,12 +907,7 @@ func (e *CardEditor) renderAgentsMDRow() string {
 
 // renderWithOverlay renders form with modal overlay.
 func (e *CardEditor) renderWithOverlay(modalContent string) string {
-	form := e.renderForm()
-
-	overlayStyle := lipgloss.NewStyle().
-		Padding(vPadding, hPadding)
-
-	return form + "\n" + overlayStyle.Render(modalContent)
+	return lipgloss.Place(e.Width, e.Height, lipgloss.Center, lipgloss.Center, modalContent)
 }
 
 const (
@@ -956,7 +947,7 @@ func (e *CardEditor) SetSize(width, height int) {
 	// Update input widths
 	calculatedWidth := max(40, width*3/5) //nolint:mnd // responsive sizing
 	for i := range e.inputs {
-		e.inputs[i].Width = calculatedWidth
+		e.inputs[i].SetWidth(calculatedWidth)
 	}
 }
 

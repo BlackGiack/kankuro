@@ -1,6 +1,6 @@
 package component
 
-import tea "github.com/charmbracelet/bubbletea"
+import tea "charm.land/bubbletea/v2"
 
 // Model is the base interface for all UI components.
 type Model interface {

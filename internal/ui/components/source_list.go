@@ -2,11 +2,12 @@ package components
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/component"
@@ -64,9 +65,9 @@ type SourceList struct {
 	EditingIndex int // -1 for new, >= 0 for edit
 
 	// Theme
-	PrimaryColor   lipgloss.Color
-	HighlightColor lipgloss.Color
-	Gray           lipgloss.Color
+	PrimaryColor   color.Color
+	HighlightColor color.Color
+	Gray           color.Color
 }
 
 // NewSourceList creates a new source list component.
@@ -78,7 +79,7 @@ func NewSourceList(config SourceListConfig, callbacks SourceListCallbacks) *Sour
 	inputs := make([]textinput.Model, numInputs)
 	for i := range inputs {
 		inputs[i] = textinput.New()
-		inputs[i].Width = 60
+		inputs[i].SetWidth(defaultInputWidth)
 	}
 
 	if config.FormPrompt != "" {
@@ -125,13 +126,12 @@ func (s *SourceList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 
 // updateList handles list mode input.
 func (s *SourceList) updateList(msg tea.Msg) (component.Model, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyMsg)
+	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return s, nil
 	}
 
-	//nolint:exhaustive // not all keys need to be handled
-	switch keyMsg.Type {
+	switch keyMsg.Code {
 	case tea.KeyUp:
 		s.moveUp()
 	case tea.KeyDown:
@@ -144,8 +144,8 @@ func (s *SourceList) updateList(msg tea.Msg) (component.Model, tea.Cmd) {
 		if s.Callbacks.OnClose != nil {
 			s.Callbacks.OnClose()
 		}
-	case tea.KeyRunes:
-		return s, s.handleListRune(keyMsg.String())
+	default:
+		return s, s.handleListRune(keyMsg.Text)
 	}
 
 	return s, nil
@@ -196,13 +196,12 @@ func (s *SourceList) updateForm(msg tea.Msg) (component.Model, tea.Cmd) {
 	}
 	cmd = tea.Batch(cmds...)
 
-	keyMsg, ok := msg.(tea.KeyMsg)
+	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return s, cmd
 	}
 
-	//nolint:exhaustive // not all keys need to be handled
-	switch keyMsg.Type {
+	switch keyMsg.Code {
 	case tea.KeyEnter:
 		saveCmd := s.HandleSave()
 		// Mode is usually switched by callback/parent or here if successful
@@ -480,6 +479,6 @@ func (s *SourceList) SetSize(width, height int) {
 		inputMargin   = 10
 	)
 	for i := range s.Inputs {
-		s.Inputs[i].Width = min(maxInputWidth, width-inputMargin)
+		s.Inputs[i].SetWidth(min(maxInputWidth, width-inputMargin))
 	}
 }

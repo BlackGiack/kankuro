@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
@@ -37,7 +37,7 @@ type SearchState struct {
 
 // PendingAction holds pending modal actions.
 type PendingAction struct {
-	Type      string // "delete-session", "delete-card", "switch"
+	Code      string // "delete-session", "delete-card", "switch"
 	SessionID string
 	CardID    string
 }
@@ -299,7 +299,7 @@ func (d *Dashboard) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	}
 
 	// Handle key events
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if cmd, handled := d.handleKey(keyMsg); handled {
 			return d, cmd
 		}
@@ -310,15 +310,17 @@ func (d *Dashboard) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 }
 
 // handleKey processes global dashboard key events.
-func (d *Dashboard) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
+func (d *Dashboard) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 	// Handle search input
 	if handled := d.handleSearch(keyMsg); handled {
 		return nil, true
 	}
 
-	switch keyMsg.Type { //nolint:exhaustive // dashboard behavior is defined only for a small shortcut set
-	case tea.KeyCtrlC:
+	if keyMsg.String() == "ctrl+c" {
 		return tea.Quit, true
+	}
+
+	switch keyMsg.Code {
 	case tea.KeyEsc:
 		return nil, true
 	case tea.KeyTab:
@@ -328,7 +330,14 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		return d.handleEnter()
 	case tea.KeyBackspace, tea.KeyDelete:
 		return d.handleDelete()
-	case tea.KeyRunes:
+	}
+
+	if keyMsg.String() == "shift+tab" || keyMsg.Code == tea.KeyLeft || keyMsg.Code == tea.KeyRight {
+		d.togglePane()
+		return nil, true
+	}
+
+	if len(keyMsg.Text) > 0 {
 		switch keyMsg.String() {
 		case "q":
 			return tea.Quit, true
@@ -351,10 +360,6 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 		case "s":
 			return d.handleSwitch()
 		}
-	case tea.KeyShiftTab, tea.KeyLeft, tea.KeyRight:
-		d.togglePane()
-		return nil, true
-	default:
 	}
 
 	return nil, false
@@ -423,8 +428,8 @@ func (d *Dashboard) handleLaunchIDE() (tea.Cmd, bool) {
 }
 
 // handleSearch processes search input.
-func (d *Dashboard) handleSearch(keyMsg tea.KeyMsg) bool {
-	if keyMsg.Type == tea.KeyRunes && keyMsg.String() == "/" && !d.search.IsActive {
+func (d *Dashboard) handleSearch(keyMsg tea.KeyPressMsg) bool {
+	if keyMsg.String() == "/" && !d.search.IsActive {
 		d.search.IsActive = true
 		return true
 	}
@@ -433,7 +438,7 @@ func (d *Dashboard) handleSearch(keyMsg tea.KeyMsg) bool {
 		return false
 	}
 
-	switch keyMsg.Type { //nolint:exhaustive // search mode only consumes search-specific keys
+	switch keyMsg.Code {
 	case tea.KeyEsc:
 		d.cancelSearch()
 		return true
@@ -444,12 +449,13 @@ func (d *Dashboard) handleSearch(keyMsg tea.KeyMsg) bool {
 	case tea.KeyBackspace:
 		d.handleSearchBackspace()
 		return true
-	case tea.KeyRunes:
-		for _, ch := range keyMsg.Runes {
-			d.handleSearchRune(ch)
-		}
-		return true
 	default:
+		if len(keyMsg.Text) > 0 {
+			for _, ch := range keyMsg.Text {
+				d.handleSearchRune(ch)
+			}
+			return true
+		}
 	}
 
 	return false
@@ -595,10 +601,11 @@ func (d *Dashboard) handleDeleteSession() (tea.Cmd, bool) {
 
 	if sess.UseTmpWorkspace {
 		d.pending = PendingAction{
-			Type:      "delete-session",
+			Code:      "delete-session",
 			SessionID: sess.ID,
 		}
 		d.deleteModal.SetContent("Delete session and its temporary workspace?")
+		d.deleteModal.SetLegend("Enter/y: Confirm • Esc/n: Cancel")
 		d.deleteModal.Open()
 		return nil, true
 	}
@@ -623,10 +630,11 @@ func (d *Dashboard) handleDeleteCard() (tea.Cmd, bool) {
 	}
 
 	d.pending = PendingAction{
-		Type:   "delete-card",
+		Code:   "delete-card",
 		CardID: card.ID,
 	}
 	d.deleteModal.SetContent("Delete this ID card?")
+	d.deleteModal.SetLegend("Enter/y: Confirm • Esc/n: Cancel")
 	d.deleteModal.Open()
 	return nil, true
 }
@@ -653,28 +661,29 @@ func (d *Dashboard) handleSwitch() (tea.Cmd, bool) {
 
 // updateDeleteModal handles delete confirmation modal.
 func (d *Dashboard) updateDeleteModal(msg tea.Msg) (component.Model, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyMsg)
+	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return d, nil
 	}
 
-	switch keyMsg.Type { //nolint:exhaustive // confirmation modal only cares about confirm/cancel keys
+	switch keyMsg.Code {
 	case tea.KeyEnter:
 		return d.confirmDelete()
 	case tea.KeyEsc:
 		d.deleteModal.Close()
 		d.pending = PendingAction{}
 		return d, nil
-	case tea.KeyRunes:
-		switch keyMsg.String() {
-		case "y":
-			return d.confirmDelete()
-		case "n":
-			d.deleteModal.Close()
-			d.pending = PendingAction{}
-			return d, nil
-		}
 	default:
+		if len(keyMsg.Text) > 0 {
+			switch keyMsg.String() {
+			case "y":
+				return d.confirmDelete()
+			case "n":
+				d.deleteModal.Close()
+				d.pending = PendingAction{}
+				return d, nil
+			}
+		}
 	}
 
 	return d, nil
@@ -685,7 +694,7 @@ func (d *Dashboard) confirmDelete() (component.Model, tea.Cmd) {
 	pending := d.pending
 	d.pending = PendingAction{}
 
-	switch pending.Type {
+	switch pending.Code {
 	case "delete-session":
 		if d.callbacks.OnRemove != nil {
 			cmd, err := d.callbacks.OnRemove(pending.SessionID)
@@ -741,16 +750,13 @@ func (d *Dashboard) SetSize(width, height int) {
 	d.Base.SetSize(width, height)
 
 	const (
-		borderPadding    = 4
 		cardListMinWidth = 46
 		headerFooter     = 3
-		borderAdjustment = 2
 	)
 
 	d.sessionsWidth = width / dashboardSessionsWidthRatio
-	d.previewWidth = (width/dashboardSessionsWidthRatio)*dashboardPreviewWidthRatio - borderPadding
-	totalSideWidths := d.sessionsWidth + d.previewWidth + borderPadding
-	d.cardsWidth = width - totalSideWidths - borderAdjustment
+	d.previewWidth = (width / dashboardSessionsWidthRatio) * dashboardPreviewWidthRatio
+	d.cardsWidth = width - d.sessionsWidth - d.previewWidth
 
 	if d.cardsWidth < cardListMinWidth {
 		diff := cardListMinWidth - d.cardsWidth
@@ -758,15 +764,18 @@ func (d *Dashboard) SetSize(width, height int) {
 		d.previewWidth -= diff
 	}
 
-	// Account for header (2 lines) + footer (1 line)
-	contentHeight := height - headerFooter
-	d.contentHeight = contentHeight
+	// In the coordinator, the dashboard is sized to (terminal height - 4).
+	// To make the total dashboard render (header + body + footer) fill the entire
+	// terminal screen (0 gap), the outer pane height (body height) must be exactly:
+	// terminal height - headerFooter (3) = (height + 4) - 3 = height + 1.
+	paneHeight := height + 1
+	d.contentHeight = paneHeight
 
-	d.cardList.SetSize(d.cardsWidth, contentHeight)
-	d.sessionList.SetSize(d.sessionsWidth, contentHeight)
-	// Preview's inner area = cards/sessions list area + their title block, so
-	// the three bordered panes have identical total heights.
-	d.preview.SetSize(d.previewWidth, contentHeight+previewTitleBlock)
+	// In border-box, lists must fit inside outer Height - borders (2) - title block (2) = paneHeight - 4.
+	// Preview pane has no title block, so its component fits in outer Height - borders (2) = paneHeight - 2.
+	d.cardList.SetSize(d.cardsWidth-paneBorderRing, paneHeight-paneBorderRing-previewTitleBlock)
+	d.sessionList.SetSize(d.sessionsWidth-paneBorderRing, paneHeight-paneBorderRing-previewTitleBlock)
+	d.preview.SetSize(d.previewWidth-paneBorderRing, paneHeight-paneBorderRing)
 	d.deleteModal.SetSize(width, height)
 }
 
@@ -814,6 +823,7 @@ func (d *Dashboard) renderBase() string {
 func (d *Dashboard) renderCardsPane() string {
 	style := lipgloss.NewStyle().
 		Width(d.cardsWidth).
+		Height(d.contentHeight).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(normalBorderColor)
 
@@ -852,6 +862,7 @@ func (d *Dashboard) renderPreviewPane() string {
 	// to be exactly previewWidth+2 × contentHeight+2.
 	style := lipgloss.NewStyle().
 		Width(d.previewWidth).
+		Height(d.contentHeight).
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(normalBorderColor)
 
@@ -866,8 +877,8 @@ func (d *Dashboard) renderPreviewPane() string {
 	// Adding the 2-cell border ring gives the expected bordered pane height.
 	// Cutting this short would shave the bottom border off.
 	rendered := style.Render(d.preview.View())
-	maxW := d.previewWidth + paneBorderRing
-	maxH := d.contentHeight + previewTitleBlock + paneBorderRing
+	maxW := d.previewWidth
+	maxH := d.contentHeight
 	return components.ClampToSize(rendered, maxW, maxH)
 }
 
@@ -886,6 +897,7 @@ const (
 func (d *Dashboard) renderSessionsPane() string {
 	style := lipgloss.NewStyle().
 		Width(d.sessionsWidth).
+		Height(d.contentHeight).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(normalBorderColor)
 
@@ -935,13 +947,7 @@ func (d *Dashboard) renderFooter() string {
 
 // renderWithOverlay renders dashboard with modal overlay.
 func (d *Dashboard) renderWithOverlay(modalContent string) string {
-	base := d.renderBase()
-
-	// Center modal over content
-	overlayStyle := lipgloss.NewStyle().
-		Padding(1, cardsListPadding)
-
-	return base + "\n" + overlayStyle.Render(modalContent)
+	return lipgloss.Place(d.Width, d.Height, lipgloss.Center, lipgloss.Center, modalContent)
 }
 
 // renderEmptySessionsState renders the empty state artwork.

@@ -4,9 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/components"
@@ -138,19 +136,19 @@ func TestSourceList_Navigation(t *testing.T) {
 	}
 
 	// Move down
-	sl.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	sl.Update(tea.KeyPressMsg{Code: 0, Text: "j"})
 	if sl.Cursor != 1 {
 		t.Errorf("Cursor should be 1 after down, got %d", sl.Cursor)
 	}
 
 	// Move down to "New" option
-	sl.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	sl.Update(tea.KeyPressMsg{Code: 0, Text: "j"})
 	if sl.Cursor != 2 { // len(items) = "New" index
 		t.Errorf("Cursor should be 2 (New), got %d", sl.Cursor)
 	}
 
 	// Can't go past "New"
-	sl.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	sl.Update(tea.KeyPressMsg{Code: 0, Text: "j"})
 	if sl.Cursor != 2 {
 		t.Errorf("Cursor should stay at 2, got %d", sl.Cursor)
 	}
@@ -319,7 +317,6 @@ func TestSourceList_HandleDelete_CallbackError(_ *testing.T) {
 }
 
 func TestSourceList_View_ListMode(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
 	config := components.SourceListConfig{
 		Title:      "Test Sources",
 		Legend:     "(R=Root folder)",
@@ -361,7 +358,6 @@ func TestSourceList_View_ListMode(t *testing.T) {
 }
 
 func TestSourceList_View_FormMode(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
 	config := components.SourceListConfig{
 		Title:      "Test Sources",
 		FormPrompt: "Path:",
@@ -393,7 +389,6 @@ func TestSourceList_View_FormMode(t *testing.T) {
 }
 
 func TestSourceList_View_EmptyList(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
 	config := components.SourceListConfig{Title: "Test", FormFields: 1}
 	callbacks := components.SourceListCallbacks{}
 

@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/app"
 	"kankuro/internal/config"
@@ -60,7 +60,7 @@ func run(registry driver.Registry) error {
 		return fmt.Errorf("ui init error: %w", err)
 	}
 
-	p := tea.NewProgram(application, tea.WithAltScreen())
+	p := tea.NewProgram(application)
 	if _, err = p.Run(); err != nil {
 		sm.Shutdown()
 		return fmt.Errorf("runtime error: %w", err)

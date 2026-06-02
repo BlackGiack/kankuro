@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
@@ -89,7 +89,7 @@ func TestSourceManager_Escape_NavigatesBack(t *testing.T) {
 	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{}, &commands.Commands{})
 	sm.Init()
 
-	_, cmd := sm.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	_, cmd := sm.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 
 	if cmd == nil {
 		t.Error("Should return a command on escape")
@@ -210,14 +210,14 @@ func TestSourceManager_Delete(_ *testing.T) {
 		components.SimpleSourceItem("/path2"),
 	})
 
-	_, _ = sm.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	_, _ = sm.Update(tea.KeyPressMsg{Code: 0, Text: "d"})
 }
 
 func TestSourceManager_EscapeInListMode_NavigatesBack(t *testing.T) {
 	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{}, &commands.Commands{})
 	sm.Init()
 
-	_, cmd := sm.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	_, cmd := sm.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 
 	if cmd == nil {
 		t.Error("Should return a command on escape")
@@ -235,7 +235,7 @@ func TestSourceManager_Escape_InFormMode(t *testing.T) {
 
 	sm.SourceList().OpenForm(-1)
 
-	model, _ := sm.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model, _ := sm.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	sm = model.(*views.SourceManager)
 
 	if sm.SourceList().Mode != components.SourceListModeList {

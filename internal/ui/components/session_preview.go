@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unicode"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 
@@ -416,15 +416,13 @@ const (
 )
 
 func (p *SessionPreview) renderScrollbackStyle(content string, height int) string {
-	// Content area = height-1 to leave 1 row for the top border, so the total
-	// rendered box is exactly `height` rows. MaxHeight clamps the *total*
-	// rendered size (border included), so it must be `height`, not `height-1`.
-	contentH := max(1, height-1)
+	// Under lipgloss v2, height is border-inclusive (border-box model).
+	// We want the total outer box (with top border included) to be exactly `height` rows.
 	return lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), true, false, false, false).
 		BorderForeground(ColorGray).
 		Width(p.Width).
-		Height(contentH).
+		Height(max(1, height)).
 		MaxWidth(p.Width).
 		MaxHeight(max(1, height)).
 		Render(content)
@@ -467,12 +465,12 @@ func (p *SessionPreview) renderScrollback(height int) string {
 
 func (p *SessionPreview) renderNoOutput(height int) string {
 	// Width/Height are required here so Align(Center) works correctly.
-	// See renderScrollbackStyle for why MaxHeight is `height`, not `height-1`.
+	// Under lipgloss v2, height is border-inclusive (border-box model).
 	return lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), true, false, false, false).
 		BorderForeground(ColorGray).
 		Width(p.Width).
-		Height(max(1, height-1)).
+		Height(max(1, height)).
 		MaxWidth(p.Width).
 		MaxHeight(max(1, height)).
 		Align(lipgloss.Center, lipgloss.Center).

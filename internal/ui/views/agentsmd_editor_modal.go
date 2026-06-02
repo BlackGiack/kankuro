@@ -1,10 +1,10 @@
 package views
 
 import (
-	"github.com/charmbracelet/bubbles/textarea"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textarea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/ui/component"
 )
@@ -36,7 +36,7 @@ func NewAgentsMDEditorModal() *AgentsMDEditorModal {
 
 	pathInput := textinput.New()
 	pathInput.Placeholder = "Path to AGENTS.md file..."
-	pathInput.Width = 30
+	pathInput.SetWidth(smallInputWidth)
 
 	return &AgentsMDEditorModal{
 		editor:    editor,
@@ -82,12 +82,12 @@ func (m *AgentsMDEditorModal) SetSize(width, height int) {
 	m.editor.SetWidth(editorWidth)
 	m.editor.SetHeight(editorHeight)
 
-	m.pathInput.Width = max(30, width*3/5) //nolint:mnd // responsive sizing
+	m.pathInput.SetWidth(max(30, width*3/5)) //nolint:mnd // responsive sizing
 }
 
 func (m *AgentsMDEditorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.Type { //nolint:exhaustive // the modal only reacts to the keys used for confirmation and mode switching
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.Code {
 		case tea.KeyEnter:
 			if m.mode == 1 { // Path mode - enter confirms
 				m.preferPath = true

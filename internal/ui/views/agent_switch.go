@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/component"
@@ -104,7 +104,7 @@ func (v *AgentSwitchView) Init() tea.Cmd {
 
 // Update handles input.
 func (v *AgentSwitchView) Update(msg tea.Msg) (component.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if cmd, handled := v.handleKey(keyMsg); handled {
 			return v, cmd
 		}
@@ -115,8 +115,8 @@ func (v *AgentSwitchView) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	return v, cmd
 }
 
-func (v *AgentSwitchView) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
-	switch keyMsg.Type { //nolint:exhaustive // this view only handles a narrow set of navigation keys
+func (v *AgentSwitchView) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
+	switch keyMsg.Code {
 	case tea.KeyEsc:
 		if v.searchQuery != "" {
 			v.searchQuery = ""
@@ -142,14 +142,16 @@ func (v *AgentSwitchView) handleKey(keyMsg tea.KeyMsg) (tea.Cmd, bool) {
 			v.refreshItems()
 		}
 		return nil, true
-	case tea.KeyRunes:
-		if keyMsg.String() == "q" && v.searchQuery == "" {
-			// Block the list's default quit binding while in agent-switch view.
+	default:
+		if len(keyMsg.Text) > 0 {
+			if keyMsg.String() == "q" && v.searchQuery == "" {
+				// Block the list's default quit binding while in agent-switch view.
+				return nil, true
+			}
+			v.searchQuery += keyMsg.Text
+			v.refreshItems()
 			return nil, true
 		}
-		v.searchQuery += keyMsg.String()
-		v.refreshItems()
-		return nil, true
 	}
 
 	return nil, false

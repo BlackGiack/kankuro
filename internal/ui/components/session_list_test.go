@@ -5,10 +5,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
+	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
@@ -121,7 +118,6 @@ func TestSessionList_Selected(t *testing.T) {
 }
 
 func TestSessionListItem_Title(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
 	tests := []struct {
 		name     string
 		session  session.Snapshot
