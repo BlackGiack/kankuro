@@ -59,9 +59,9 @@ func TestSettingsView_SaveInEditMode(t *testing.T) {
 	var saved config.AppSettings
 
 	v := views.NewSettingsView(views.SettingsCallbacks{
-		OnSave: func(settings config.AppSettings) (tea.Cmd, error) {
+		OnSave: func(settings config.AppSettings) tea.Cmd {
 			saved = settings
-			return func() tea.Msg { return nil }, nil
+			return func() tea.Msg { return nil }
 		},
 	}, &commands.Commands{})
 
@@ -104,9 +104,9 @@ func TestSettingsView_EnterSavesFromToggleRow(t *testing.T) {
 	var saved config.AppSettings
 
 	v := views.NewSettingsView(views.SettingsCallbacks{
-		OnSave: func(settings config.AppSettings) (tea.Cmd, error) {
+		OnSave: func(settings config.AppSettings) tea.Cmd {
 			saved = settings
-			return func() tea.Msg { return messages.ClearErrorMsg{} }, nil
+			return func() tea.Msg { return messages.ClearErrorMsg{} }
 		},
 	}, &commands.Commands{})
 	v.SetSettings(config.AppSettings{
@@ -210,8 +210,8 @@ func TestSettingsView_View_EditMode(t *testing.T) {
 
 func TestSettingsView_OnSaveError(t *testing.T) {
 	v := views.NewSettingsView(views.SettingsCallbacks{
-		OnSave: func(_ config.AppSettings) (tea.Cmd, error) {
-			return nil, errors.New("save failed")
+		OnSave: func(_ config.AppSettings) tea.Cmd {
+			return func() tea.Msg { return messages.ErrorMsg{Err: errors.New("save failed")} }
 		},
 	}, &commands.Commands{})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})

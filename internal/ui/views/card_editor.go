@@ -44,7 +44,7 @@ const (
 
 // CardEditorCallbacks defines callbacks for card editor actions.
 type CardEditorCallbacks struct {
-	OnSave              func(card config.IDCard) (config.IDCard, tea.Cmd, error)
+	OnSave              func(card config.IDCard) tea.Cmd
 	OnCancel            func() tea.Cmd
 	OnOpenSources       func(sourceType string) tea.Cmd
 	OnOpenMCPForm       func() tea.Cmd
@@ -306,18 +306,13 @@ func (e *CardEditor) Init() tea.Cmd {
 // Update handles messages.
 func (e *CardEditor) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	// Handle data refresh messages
-	switch msg := msg.(type) {
-	case messages.MCPDeletedMsg:
+	if msg, ok := msg.(messages.MCPDeletedMsg); ok {
 		// Remove the deleted MCP from selection
 		delete(e.mcpList.selected, msg.MCPID)
 		// Adjust cursor if needed
 		if e.mcpList.Cursor() >= len(e.mcpList.items) && e.mcpList.Cursor() > 0 {
 			e.mcpList.SetCursor(e.mcpList.Cursor() - 1)
 		}
-		return e, nil
-
-	case messages.MCPUpdatedMsg:
-		// MCP list will be refreshed via DataLoadedMsg
 		return e, nil
 	}
 
@@ -536,16 +531,7 @@ func (e *CardEditor) handleSubmit() tea.Cmd {
 	card := e.Card()
 
 	if e.callbacks.OnSave != nil {
-		_, cmd, err := e.callbacks.OnSave(card)
-		if err != nil {
-			// Emit error message
-			return func() tea.Msg {
-				return messages.ErrorMsg{Err: err}
-			}
-		}
-		if cmd != nil {
-			return cmd
-		}
+		return e.callbacks.OnSave(card)
 	}
 
 	e.editingID = ""

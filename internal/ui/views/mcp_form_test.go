@@ -46,9 +46,9 @@ func TestMCPForm_SetMCP(t *testing.T) {
 func TestMCPForm_Submit(t *testing.T) {
 	var savedMCP config.MCPServer
 	callbacks := views.MCPFormCallbacks{
-		OnSave: func(mcp config.MCPServer) (config.MCPServer, tea.Cmd, error) {
+		OnSave: func(mcp config.MCPServer) tea.Cmd {
 			savedMCP = mcp
-			return mcp, nil, nil
+			return nil
 		},
 	}
 	f := views.NewMCPForm(callbacks, &commands.Commands{})

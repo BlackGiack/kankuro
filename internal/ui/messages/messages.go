@@ -73,11 +73,6 @@ type MCPDeletedMsg struct {
 	MCPID string
 }
 
-// MCPUpdatedMsg signals that an MCP has been created or updated.
-type MCPUpdatedMsg struct {
-	MCP config.MCPServer
-}
-
 // AttachFinishedMsg signals that an attach session has finished.
 type AttachFinishedMsg struct {
 	SessionID string
@@ -91,6 +86,24 @@ type NavigateMsg struct {
 
 // NavigateBackMsg signals the user wants to return to the previous view.
 type NavigateBackMsg struct{}
+
+// CardSavedMsg signals that an ID card has been saved.
+type CardSavedMsg struct {
+	Card config.IDCard
+	Err  error
+}
+
+// MCPSavedMsg signals that an MCP server has been saved.
+type MCPSavedMsg struct {
+	MCP config.MCPServer
+	Err error
+}
+
+// SettingsSavedMsg signals that application settings have been saved.
+type SettingsSavedMsg struct {
+	Settings config.AppSettings
+	Err      error
+}
 
 // ErrorMsg signals an error occurred.
 type ErrorMsg struct {

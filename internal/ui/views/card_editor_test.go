@@ -14,8 +14,8 @@ import (
 
 func TestCardEditor_New(t *testing.T) {
 	callbacks := views.CardEditorCallbacks{
-		OnSave: func(config.IDCard) (config.IDCard, tea.Cmd, error) {
-			return config.IDCard{}, nil, nil
+		OnSave: func(config.IDCard) tea.Cmd {
+			return nil
 		},
 	}
 

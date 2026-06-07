@@ -154,7 +154,15 @@ func (c *Coordinator) Init() tea.Cmd {
 	return tea.Batch(
 		c.refreshData(),
 		tick(),
+		c.syncPuppetsAsync(),
 	)
+}
+
+func (c *Coordinator) syncPuppetsAsync() tea.Cmd {
+	return func() tea.Msg {
+		_ = c.repo.SyncPuppetsFromSources()
+		return c.refreshData()()
+	}
 }
 
 func (c *Coordinator) Update(msg tea.Msg) (*Coordinator, tea.Cmd) {
@@ -186,6 +194,32 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 	case messages.NavigateBackMsg:
 		return true, c.navigateTo(c.prevView)
 
+	case messages.CardSavedMsg:
+		if m.Err != nil {
+			c.err = m.Err
+			return true, nil
+		}
+		return true, tea.Batch(c.refreshData(), c.navigateTo(ViewDashboard))
+
+	case messages.MCPSavedMsg:
+		if m.Err != nil {
+			c.err = m.Err
+			return true, nil
+		}
+		// Refresh data to update MCP list in card editor
+		return true, tea.Batch(c.refreshData(), c.navigateTo(c.prevView))
+
+	case messages.SettingsSavedMsg:
+		if m.Err != nil {
+			c.err = m.Err
+			return true, nil
+		}
+		c.settings = m.Settings
+		if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
+			editor.SetSettings(m.Settings)
+		}
+		return true, tea.Batch(c.refreshData(), c.navigateTo(ViewDashboard))
+
 	case messages.ErrorMsg:
 		c.err = m.Err
 		return true, nil
@@ -200,10 +234,6 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, func() tea.Msg {
 			return messages.MCPDeletedMsg(m)
 		}
-
-	case messages.MCPUpdatedMsg:
-		// Refresh data to update MCP list in card editor
-		return true, c.refreshData()
 
 	case messages.ClearErrorMsg:
 		c.err = nil
@@ -317,7 +347,6 @@ func (c *Coordinator) resizeAll() {
 
 func (c *Coordinator) refreshData() tea.Cmd {
 	return func() tea.Msg {
-		_ = c.repo.SyncPuppetsFromSources()
 		cards, _ := c.repo.ListIDCards()
 		sessions := c.session.List()
 		skills, _ := c.repo.ListSkills()

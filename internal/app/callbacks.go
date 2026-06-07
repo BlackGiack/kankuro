@@ -36,20 +36,35 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 		OnRelaunch: c.relaunchSession,
 
 		OnKill: func(sessionID string) (tea.Cmd, error) {
-			err := c.session.Kill(sessionID)
-			return c.refreshData(), err
+			return func() tea.Msg {
+				err := c.session.Kill(sessionID)
+				if err != nil {
+					return messages.ErrorMsg{Err: err}
+				}
+				return c.refreshData()()
+			}, nil
 		},
 
 		OnRemove: func(sessionID string) (tea.Cmd, error) {
-			err := c.session.Remove(sessionID)
-			return c.refreshData(), err
+			return func() tea.Msg {
+				err := c.session.Remove(sessionID)
+				if err != nil {
+					return messages.ErrorMsg{Err: err}
+				}
+				return c.refreshData()()
+			}, nil
 		},
 
 		OnSwitch: c.switchAgent,
 
 		OnDeleteCard: func(cardID string) (tea.Cmd, error) {
-			err := c.repo.DeleteIDCard(cardID)
-			return c.refreshData(), err
+			return func() tea.Msg {
+				err := c.repo.DeleteIDCard(cardID)
+				if err != nil {
+					return messages.ErrorMsg{Err: err}
+				}
+				return c.refreshData()()
+			}, nil
 		},
 
 		OnOpenMCP: func() tea.Cmd {
@@ -177,20 +192,17 @@ func (c *Coordinator) launchIDE(sessionID string) error {
 
 func (c *Coordinator) cardEditorCallbacks() views.CardEditorCallbacks {
 	return views.CardEditorCallbacks{
-		OnSave: func(card config.IDCard) (config.IDCard, tea.Cmd, error) {
-			var saved config.IDCard
-			var err error
-			if card.ID == "" {
-				saved, err = c.repo.CreateIDCard(card)
-			} else {
-				saved, err = c.repo.UpdateIDCard(card)
+		OnSave: func(card config.IDCard) tea.Cmd {
+			return func() tea.Msg {
+				var saved config.IDCard
+				var err error
+				if card.ID == "" {
+					saved, err = c.repo.CreateIDCard(card)
+				} else {
+					saved, err = c.repo.UpdateIDCard(card)
+				}
+				return messages.CardSavedMsg{Card: saved, Err: err}
 			}
-			if err != nil {
-				return saved, nil, err
-			}
-			return saved, func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewDashboard}
-			}, nil
 		},
 
 		OnCancel: func() tea.Cmd {
@@ -246,15 +258,20 @@ func (c *Coordinator) sourceManagerCallbacks(sourceType views.SourceType) views.
 		},
 
 		SaveWorkspaceSource: func(source config.WorkspaceSource, editingIndex int) (tea.Cmd, error) {
-			sources, _ := c.repo.ListWorkspaceSources()
-			if editingIndex >= 0 && editingIndex < len(sources) {
-				sources[editingIndex] = source
-			} else {
-				source.ID = fmt.Sprintf("workspace-%d", time.Now().UnixNano())
-				sources = append(sources, source)
-			}
-			err := c.repo.SaveWorkspaceSources(sources)
-			return c.refreshData(), err
+			return func() tea.Msg {
+				sources, _ := c.repo.ListWorkspaceSources()
+				if editingIndex >= 0 && editingIndex < len(sources) {
+					sources[editingIndex] = source
+				} else {
+					source.ID = fmt.Sprintf("workspace-%d", time.Now().UnixNano())
+					sources = append(sources, source)
+				}
+				err := c.repo.SaveWorkspaceSources(sources)
+				if err != nil {
+					return messages.ErrorMsg{Err: err}
+				}
+				return c.refreshData()()
+			}, nil
 		},
 
 		DeleteSource: func(index int) (tea.Cmd, error) {
@@ -262,15 +279,17 @@ func (c *Coordinator) sourceManagerCallbacks(sourceType views.SourceType) views.
 		},
 
 		Refresh: func() tea.Cmd {
-			switch sourceType {
-			case views.SourceTypeWorkspaces:
-				_ = c.repo.SyncWorkspacesFromSources()
-			case views.SourceTypeSkills, views.SourceTypePersonas:
-				// No specific refresh needed for skills and personas
-			case views.SourceTypePuppets:
-				_ = c.repo.SyncPuppetsFromSources()
+			return func() tea.Msg {
+				switch sourceType {
+				case views.SourceTypeWorkspaces:
+					_ = c.repo.SyncWorkspacesFromSources()
+				case views.SourceTypeSkills, views.SourceTypePersonas:
+					// No specific refresh needed for skills and personas
+				case views.SourceTypePuppets:
+					_ = c.repo.SyncPuppetsFromSources()
+				}
+				return c.refreshData()()
 			}
-			return c.refreshData()
 		},
 	}
 }
@@ -294,47 +313,61 @@ func (c *Coordinator) loadSources(sourceType views.SourceType) []components.Sour
 }
 
 func (c *Coordinator) saveSimpleSource(sourceType views.SourceType, path string, editingIndex int) (tea.Cmd, error) {
-	switch sourceType {
-	case views.SourceTypeSkills:
-		sources, _ := c.repo.ListSkillSources()
-		if editingIndex >= 0 && editingIndex < len(sources) {
-			sources[editingIndex] = path
-		} else {
-			sources = append(sources, path)
+	return func() tea.Msg {
+		switch sourceType {
+		case views.SourceTypeSkills:
+			return c.saveStringSource(
+				c.repo.ListSkillSources,
+				c.repo.SaveSkillSources,
+				c.repo.SyncSkillsFromSources,
+				path,
+				editingIndex,
+			)
+		case views.SourceTypePersonas:
+			return c.saveStringSource(
+				c.repo.ListPersonaSources,
+				c.repo.SavePersonaSources,
+				c.repo.SyncPersonasFromSources,
+				path,
+				editingIndex,
+			)
+		case views.SourceTypePuppets:
+			return c.saveStringSource(
+				c.repo.ListPuppetSources,
+				c.repo.SavePuppetSources,
+				c.repo.SyncPuppetsFromSources,
+				path,
+				editingIndex,
+			)
+		case views.SourceTypeWorkspaces:
+			return messages.ErrorMsg{Err: errors.New("unsupported source type for simple save")}
+		default:
+			return messages.ErrorMsg{Err: errors.New("unknown source type")}
 		}
-		err := c.repo.SaveSkillSources(sources)
-		if err == nil {
-			_ = c.repo.SyncSkillsFromSources()
-		}
-		return c.refreshData(), err
-	case views.SourceTypePersonas:
-		sources, _ := c.repo.ListPersonaSources()
-		if editingIndex >= 0 && editingIndex < len(sources) {
-			sources[editingIndex] = path
-		} else {
-			sources = append(sources, path)
-		}
-		err := c.repo.SavePersonaSources(sources)
-		if err == nil {
-			_ = c.repo.SyncPersonasFromSources()
-		}
-		return c.refreshData(), err
-	case views.SourceTypePuppets:
-		sources, _ := c.repo.ListPuppetSources()
-		if editingIndex >= 0 && editingIndex < len(sources) {
-			sources[editingIndex] = path
-		} else {
-			sources = append(sources, path)
-		}
-		err := c.repo.SavePuppetSources(sources)
-		if err == nil {
-			_ = c.repo.SyncPuppetsFromSources()
-		}
-		return c.refreshData(), err
-	case views.SourceTypeWorkspaces:
-		return nil, errors.New("unsupported source type for simple save")
+	}, nil
+}
+
+func (c *Coordinator) saveStringSource(
+	listFn func() ([]string, error),
+	saveFn func([]string) error,
+	syncFn func() error,
+	path string,
+	index int,
+) tea.Msg {
+	sources, _ := listFn()
+	if index >= 0 && index < len(sources) {
+		sources[index] = path
+	} else {
+		sources = append(sources, path)
 	}
-	return nil, errors.New("unknown source type")
+	err := saveFn(sources)
+	if err != nil {
+		return messages.ErrorMsg{Err: err}
+	}
+	if syncFn != nil {
+		_ = syncFn()
+	}
+	return c.refreshData()()
 }
 
 func (c *Coordinator) deleteSource(sourceType views.SourceType, index int) (tea.Cmd, error) {
@@ -346,13 +379,18 @@ func (c *Coordinator) deleteSource(sourceType views.SourceType, index int) (tea.
 	case views.SourceTypePuppets:
 		return c.deleteStringSource(c.repo.ListPuppetSources, c.repo.SavePuppetSources, c.repo.SyncPuppetsFromSources, index)
 	case views.SourceTypeWorkspaces:
-		sources, _ := c.repo.ListWorkspaceSources()
-		if index >= 0 && index < len(sources) {
-			sources = append(sources[:index], sources[index+1:]...)
-			err := c.repo.SaveWorkspaceSources(sources)
-			return c.refreshData(), err
-		}
-		return nil, errors.New("invalid index")
+		return func() tea.Msg {
+			sources, _ := c.repo.ListWorkspaceSources()
+			if index >= 0 && index < len(sources) {
+				sources = append(sources[:index], sources[index+1:]...)
+				err := c.repo.SaveWorkspaceSources(sources)
+				if err != nil {
+					return messages.ErrorMsg{Err: err}
+				}
+				return c.refreshData()()
+			}
+			return messages.ErrorMsg{Err: errors.New("invalid index")}
+		}, nil
 	}
 	return nil, errors.New("unknown source type")
 }
@@ -363,30 +401,30 @@ func (c *Coordinator) deleteStringSource(
 	syncFn func() error,
 	index int,
 ) (tea.Cmd, error) {
-	sources, _ := listFn()
-	if index < 0 || index >= len(sources) {
-		return nil, errors.New("invalid index")
-	}
-	sources = append(sources[:index], sources[index+1:]...)
-	err := saveFn(sources)
-	if err == nil && syncFn != nil {
-		_ = syncFn()
-	}
-	return c.refreshData(), err
+	return func() tea.Msg {
+		sources, _ := listFn()
+		if index < 0 || index >= len(sources) {
+			return messages.ErrorMsg{Err: errors.New("invalid index")}
+		}
+		sources = append(sources[:index], sources[index+1:]...)
+		err := saveFn(sources)
+		if err != nil {
+			return messages.ErrorMsg{Err: err}
+		}
+		if syncFn != nil {
+			_ = syncFn()
+		}
+		return c.refreshData()()
+	}, nil
 }
 
 func (c *Coordinator) settingsCallbacks() views.SettingsCallbacks {
 	return views.SettingsCallbacks{
-		OnSave: func(settings config.AppSettings) (tea.Cmd, error) {
-			err := c.repo.SaveAppSettings(settings)
-			if err != nil {
-				return nil, err
+		OnSave: func(settings config.AppSettings) tea.Cmd {
+			return func() tea.Msg {
+				err := c.repo.SaveAppSettings(settings)
+				return messages.SettingsSavedMsg{Settings: settings, Err: err}
 			}
-			c.settings = settings
-			if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
-				editor.SetSettings(settings)
-			}
-			return c.refreshData(), nil
 		},
 		OnOpenPuppetSources: func() tea.Cmd {
 			return func() tea.Msg {
@@ -398,14 +436,11 @@ func (c *Coordinator) settingsCallbacks() views.SettingsCallbacks {
 
 func (c *Coordinator) mcpCallbacks() views.MCPFormCallbacks {
 	return views.MCPFormCallbacks{
-		OnSave: func(mcp config.MCPServer) (config.MCPServer, tea.Cmd, error) {
-			saved, err := c.repo.UpsertMCP(mcp)
-			if err != nil {
-				return saved, nil, err
+		OnSave: func(mcp config.MCPServer) tea.Cmd {
+			return func() tea.Msg {
+				saved, err := c.repo.UpsertMCP(mcp)
+				return messages.MCPSavedMsg{MCP: saved, Err: err}
 			}
-			return saved, func() tea.Msg {
-				return messages.MCPUpdatedMsg{MCP: saved}
-			}, nil
 		},
 
 		OnDelete: func(mcpID string) error {

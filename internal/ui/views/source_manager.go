@@ -79,7 +79,7 @@ func NewSourceManager(
 			return nil
 		},
 		OnReload: func() {
-			m.SetData()
+			m.Reload()
 		},
 		OnClose: func() {},
 	}
@@ -124,17 +124,22 @@ func HandleSave(
 	return handleSave(sourceType, callbacks, item, editingIndex)
 }
 
-// SetData loads sources into the manager.
-func (m *SourceManager) SetData() {
+// Reload loads sources from the repository into the manager's list.
+func (m *SourceManager) Reload() {
 	if m.callbacks.LoadSources != nil {
 		items := m.callbacks.LoadSources()
 		m.sourceList.SetItems(items)
 	}
 }
 
+// SetData implements messages.DataReceiver to receive broadcasted data updates.
+func (m *SourceManager) SetData(_ messages.DataLoadedMsg) {
+	m.Reload()
+}
+
 // Init initializes the manager.
 func (m *SourceManager) Init() tea.Cmd {
-	m.SetData()
+	m.Reload()
 	return m.sourceList.Init()
 }
 

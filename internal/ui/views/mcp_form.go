@@ -21,7 +21,7 @@ const MCPInputCount = mcpInputCount
 
 // MCPFormCallbacks defines callbacks for MCP form actions.
 type MCPFormCallbacks struct {
-	OnSave   func(mcp config.MCPServer) (config.MCPServer, tea.Cmd, error)
+	OnSave   func(mcp config.MCPServer) tea.Cmd
 	OnDelete func(mcpID string) error
 }
 
@@ -203,22 +203,11 @@ func (f *MCPForm) handleSubmit() tea.Cmd {
 		Headers: headers,
 	}
 
-	var saveCmd tea.Cmd
 	if f.callbacks.OnSave != nil {
-		saved, cmd, err := f.callbacks.OnSave(mcp)
-		if err != nil {
-			f.err = err
-			return nil
-		}
-		f.mcp = saved
-		saveCmd = cmd
+		return f.callbacks.OnSave(mcp)
 	}
 
-	backCmd := func() tea.Msg { return messages.NavigateBackMsg{} }
-	if saveCmd != nil {
-		return tea.Batch(saveCmd, backCmd)
-	}
-	return backCmd
+	return func() tea.Msg { return messages.NavigateBackMsg{} }
 }
 
 func parseCommaList(input string) []string {

@@ -37,7 +37,7 @@ const (
 )
 
 type SettingsCallbacks struct {
-	OnSave              func(settings config.AppSettings) (tea.Cmd, error)
+	OnSave              func(settings config.AppSettings) tea.Cmd
 	OnOpenPuppetSources func() tea.Cmd
 }
 
@@ -205,11 +205,7 @@ func (s *SettingsView) handleEditEnter() (component.Model, tea.Cmd) {
 	s.input.Blur()
 	s.mode = SettingsModeDisplay
 	if s.callbacks.OnSave != nil {
-		saveCmd, saveErr := s.callbacks.OnSave(s.settings)
-		if saveErr != nil {
-			return s, func() tea.Msg { return messages.ErrorMsg{Err: saveErr} }
-		}
-		return s, saveCmd
+		return s, s.callbacks.OnSave(s.settings)
 	}
 	return s, nil
 }

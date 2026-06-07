@@ -65,7 +65,7 @@ func TestSourceManager_New_Workspaces(t *testing.T) {
 	}
 }
 
-func TestSourceManager_SetData(t *testing.T) {
+func TestSourceManager_Reload(t *testing.T) {
 	loaded := false
 
 	callbacks := views.SourceManagerCallbacks{
@@ -78,7 +78,7 @@ func TestSourceManager_SetData(t *testing.T) {
 	}
 
 	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks, &commands.Commands{})
-	sm.SetData()
+	sm.Reload()
 
 	if !loaded {
 		t.Error("LoadSources should have been called")
@@ -203,7 +203,7 @@ func TestSourceManager_Delete(_ *testing.T) {
 
 	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks, &commands.Commands{})
 
-	sm.SetData()
+	sm.Reload()
 
 	sm.SourceList().SetItems([]components.SourceItem{
 		components.SimpleSourceItem("/path1"),

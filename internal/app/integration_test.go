@@ -283,9 +283,12 @@ func TestSessionActionsFlow(t *testing.T) {
 	// Terminated session -> Remove
 	// We must kill it again because SwitchAgent started it
 	_ = sm.Kill(sessionID)
-	_, err = callbacks.OnRemove(sessionID)
+	cmd, err = callbacks.OnRemove(sessionID)
 	if err != nil {
 		t.Errorf("Remove failed: %v", err)
+	}
+	if cmd != nil {
+		cmd()
 	}
 	msg = coord.RefreshData()()
 	coord.Update(msg)
@@ -304,9 +307,12 @@ func TestSourceSyncSideEffects(t *testing.T) {
 	callbacks := coord.SourceManagerCallbacks(views.SourceTypeSkills)
 
 	// Add a skill source (dummy path)
-	_, err := callbacks.SaveSimpleSource("/tmp/skills", -1)
+	cmd, err := callbacks.SaveSimpleSource("/tmp/skills", -1)
 	if err != nil {
 		t.Fatalf("SaveSimpleSource failed: %v", err)
+	}
+	if cmd != nil {
+		cmd()
 	}
 
 	sources, _ := repo.ListSkillSources()
