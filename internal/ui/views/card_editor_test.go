@@ -8,6 +8,7 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
+	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
 )
@@ -191,8 +192,8 @@ func TestCardEditor_WorkspaceSummary(t *testing.T) {
 }
 
 func TestCapabilityList_Toggle(t *testing.T) {
-	list := views.NewCapabilityList(views.CapabilityListConfig{Title: "Test"})
-	list.SetItems([]views.CapabilityItem{
+	list := components.NewCapabilityList(components.CapabilityListConfig{Title: "Test"})
+	list.SetItems([]components.CapabilityItem{
 		views.SkillItem{Skill: config.Skill{ID: "s1", Name: "Skill 1"}},
 		views.SkillItem{Skill: config.Skill{ID: "s2", Name: "Skill 2"}},
 	})
@@ -213,8 +214,8 @@ func TestCapabilityList_Toggle(t *testing.T) {
 }
 
 func TestCapabilityList_Search(t *testing.T) {
-	list := views.NewCapabilityList(views.CapabilityListConfig{Title: "Test"})
-	list.SetItems([]views.CapabilityItem{
+	list := components.NewCapabilityList(components.CapabilityListConfig{Title: "Test"})
+	list.SetItems([]components.CapabilityItem{
 		views.SkillItem{Skill: config.Skill{ID: "s1", Name: "Alpha"}},
 		views.SkillItem{Skill: config.Skill{ID: "s2", Name: "Beta"}},
 		views.SkillItem{Skill: config.Skill{ID: "s3", Name: "Gamma"}},

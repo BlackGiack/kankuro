@@ -10,7 +10,7 @@ import (
 	"kankuro/internal/ui/component"
 )
 
-// TODO move in components package
+// TODO use modal component
 
 // PuppetSelectorModal allows selecting a puppet style.
 type PuppetSelectorModal struct {

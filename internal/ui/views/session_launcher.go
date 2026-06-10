@@ -10,6 +10,7 @@ import (
 	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/messages"
+	"kankuro/internal/ui/styles"
 )
 
 // SessionLauncherCallbacks defines callbacks for session launcher actions.
@@ -114,38 +115,38 @@ func (l *SessionLauncher) View() string {
 	var content strings.Builder
 
 	if l.err != nil {
-		content.WriteString(errorStyle.Render(l.err.Error()) + "\n\n")
+		content.WriteString(styles.ErrorStyle.Render(l.err.Error()) + "\n\n")
 	}
 
 	if l.launchDone {
 		if l.launchErr != nil {
-			content.WriteString(errorStyle.Render("Launch failed: "+l.launchErr.Error()) + "\n\n")
-			content.WriteString(helpStyle.Render("Press Esc to return"))
+			content.WriteString(styles.ErrorStyle.Render("Launch failed: "+l.launchErr.Error()) + "\n\n")
+			content.WriteString(styles.HelpStyle.Render("Press Esc to return"))
 		} else {
-			content.WriteString(successStyle.Render("Session launched successfully!") + "\n\n")
-			content.WriteString(labelStyle.Render("Session ID: ") + l.sessionID + "\n\n")
-			content.WriteString(labelStyle.Render("Session Name") + "\n")
+			content.WriteString(styles.SuccessStyle.Render("Session launched successfully!") + "\n\n")
+			content.WriteString(styles.LabelStyle.Render("Session ID: ") + l.sessionID + "\n\n")
+			content.WriteString(styles.LabelStyle.Render("Session Name") + "\n")
 			content.WriteString(l.input.View() + "\n\n")
-			content.WriteString(helpStyle.Render("Enter: Confirm name and attach | Esc: Cancel"))
+			content.WriteString(styles.HelpStyle.Render("Enter: Confirm name and attach | Esc: Cancel"))
 		}
 		return content.String()
 	}
 
-	content.WriteString(titleStyle.Render("Launch Session") + "\n\n")
+	content.WriteString(styles.TitleStyle.Render("Launch Session") + "\n\n")
 
 	if l.card.ID != "" {
-		content.WriteString(labelStyle.Render("Card: ") + l.card.Name + "\n\n")
+		content.WriteString(styles.LabelStyle.Render("Card: ") + l.card.Name + "\n\n")
 	}
 
-	content.WriteString(labelStyle.Render("Session Name") + "\n")
+	content.WriteString(styles.LabelStyle.Render("Session Name") + "\n")
 	content.WriteString(l.input.View() + "\n\n")
 
 	if !l.launchDone {
-		content.WriteString(labelStyle.Render("Launching session...") + "\n\n")
-		content.WriteString(helpStyle.Render("Enter: Confirm name and attach | Esc: Cancel"))
+		content.WriteString(styles.LabelStyle.Render("Launching session...") + "\n\n")
+		content.WriteString(styles.HelpStyle.Render("Enter: Confirm name and attach | Esc: Cancel"))
 	} else {
-		content.WriteString(labelStyle.Render("Session ID: ") + l.sessionID + "\n\n")
-		content.WriteString(helpStyle.Render("Enter: Confirm name and attach | Esc: Cancel"))
+		content.WriteString(styles.LabelStyle.Render("Session ID: ") + l.sessionID + "\n\n")
+		content.WriteString(styles.HelpStyle.Render("Enter: Confirm name and attach | Esc: Cancel"))
 	}
 
 	return content.String()

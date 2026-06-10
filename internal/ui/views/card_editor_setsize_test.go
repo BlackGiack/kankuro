@@ -8,6 +8,7 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
+	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/views"
 )
 
@@ -31,7 +32,7 @@ func TestCardEditor_SetSize_Idempotency(t *testing.T) {
 	editor.SetSettings(settings)
 
 	// Add many items to lists to trigger overflow if not bounded
-	items := make([]views.CapabilityItem, 20)
+	items := make([]components.CapabilityItem, 20)
 	for i := range 20 {
 		items[i] = testCapItem{id: fmt.Sprintf("item-%d", i), label: fmt.Sprintf("Item %d", i)}
 	}
@@ -95,7 +96,7 @@ func TestCardEditor_SetSize_SmallTerminal(t *testing.T) {
 	editor.SetSettings(settings)
 
 	// Add many items to all 3 lists to trigger minCapListHeight floor
-	items := make([]views.CapabilityItem, 10)
+	items := make([]components.CapabilityItem, 10)
 	for i := range 10 {
 		items[i] = testCapItem{id: fmt.Sprintf("item-%d", i), label: "Item"}
 	}

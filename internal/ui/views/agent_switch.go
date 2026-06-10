@@ -11,6 +11,7 @@ import (
 	"kankuro/internal/config"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/messages"
+	"kankuro/internal/ui/styles"
 )
 
 // AgentSwitchCallbacks defines callbacks for agent switch actions.
@@ -165,7 +166,7 @@ func (v *AgentSwitchView) View() string {
 	if v.sessionName != "" {
 		headerText = fmt.Sprintf("Switch Agent (session: %s)", v.sessionName)
 	}
-	sb.WriteString(titleStyle.Render(headerText) + "\n\n")
+	sb.WriteString(styles.TitleStyle.Render(headerText) + "\n\n")
 
 	var searchDisplay string
 	if v.searchQuery != "" {

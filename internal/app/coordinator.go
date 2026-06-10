@@ -10,6 +10,7 @@ import (
 	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/messages"
+	"kankuro/internal/ui/styles"
 	"kankuro/internal/ui/views"
 )
 
@@ -300,7 +301,7 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 
 func (c *Coordinator) View() string {
 	if c.err != nil {
-		return views.ErrorStyle.Render(c.err.Error()) + "\n\n" + c.currentViewView()
+		return styles.ErrorStyle.Render(c.err.Error()) + "\n\n" + c.currentViewView()
 	}
 	return c.currentViewView()
 }

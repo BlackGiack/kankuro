@@ -31,6 +31,7 @@ func (s *stubDriver) SelectMCPs(_ []config.MCPServer, _ ...string) error {
 func (s *stubDriver) SetModel(_ string) []string      { return nil }
 func (s *stubDriver) SendInput(_ string) error        { return nil }
 func (s *stubDriver) GetStatus() driver.SessionStatus { return driver.StatusRunning }
+func (s *stubDriver) GetAgentFolder() string          { return ".agents" }
 
 func TestNewRegistry(t *testing.T) {
 	r := driver.NewRegistry()

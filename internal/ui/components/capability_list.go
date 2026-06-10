@@ -1,4 +1,4 @@
-package views
+package components
 
 import (
 	"fmt"
@@ -8,9 +8,8 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/ui/component"
+	"kankuro/internal/ui/styles"
 )
-
-// TODO move file in components package
 
 const (
 	cursorCenterDivisor = 2
@@ -41,8 +40,8 @@ type CapabilityList struct {
 
 	items       []CapabilityItem
 	cursor      int
-	selected    map[string]bool
-	searchQuery string
+	Selected    map[string]bool
+	SearchQuery string
 	focused     bool
 }
 
@@ -52,7 +51,7 @@ func NewCapabilityList(config CapabilityListConfig) *CapabilityList {
 		title:      config.Title,
 		sourceHint: config.SourceHint,
 		maxVisible: max(1, config.MaxVisible),
-		selected:   make(map[string]bool),
+		Selected:   make(map[string]bool),
 	}
 }
 
@@ -63,21 +62,21 @@ func (c *CapabilityList) SetItems(items []CapabilityItem) {
 	c.items = items
 }
 
-func (c *CapabilityList) IsSelectedList() map[string]bool { return c.selected }
+func (c *CapabilityList) IsSelectedList() map[string]bool { return c.Selected }
 
 // SetSelected sets the selected IDs.
 func (c *CapabilityList) SetSelected(ids []string) {
-	c.selected = make(map[string]bool)
+	c.Selected = make(map[string]bool)
 	for _, id := range ids {
-		c.selected[id] = true
+		c.Selected[id] = true
 	}
 }
 
 // SelectedIDs returns the selected IDs.
 func (c *CapabilityList) SelectedIDs() []string {
-	ids := make([]string, 0, len(c.selected))
+	ids := make([]string, 0, len(c.Selected))
 	for _, item := range c.items {
-		if c.selected[item.GetID()] {
+		if c.Selected[item.GetID()] {
 			ids = append(ids, item.GetID())
 		}
 	}
@@ -91,7 +90,7 @@ func (c *CapabilityList) SetFocused(focused bool) {
 
 // SetSearchQuery filters the displayed items.
 func (c *CapabilityList) SetSearchQuery(query string) {
-	c.searchQuery = query
+	c.SearchQuery = query
 	c.cursor = 0
 }
 
@@ -120,10 +119,10 @@ func (c *CapabilityList) ToggleSelected() {
 	}
 
 	id := filtered[c.cursor].GetID()
-	if c.selected[id] {
-		delete(c.selected, id)
+	if c.Selected[id] {
+		delete(c.Selected, id)
 	} else {
-		c.selected[id] = true
+		c.Selected[id] = true
 	}
 }
 
@@ -164,15 +163,15 @@ func (c *CapabilityList) handleKey(keyMsg bubbletea.KeyPressMsg) {
 	case bubbletea.KeySpace:
 		c.ToggleSelected()
 	case bubbletea.KeyBackspace:
-		if len(c.searchQuery) > 0 {
-			c.searchQuery = c.searchQuery[:len(c.searchQuery)-1]
+		if len(c.SearchQuery) > 0 {
+			c.SearchQuery = c.SearchQuery[:len(c.SearchQuery)-1]
 			c.cursor = 0
 		}
 	default:
 		if len(keyMsg.Text) > 0 {
 			for _, ch := range keyMsg.Text {
 				if ch >= 33 && ch <= 126 {
-					c.searchQuery += string(ch)
+					c.SearchQuery += string(ch)
 					c.cursor = 0
 				}
 			}
@@ -185,12 +184,12 @@ func (c *CapabilityList) View() string {
 	var sb strings.Builder
 
 	// Header
-	header := lipgloss.NewStyle().Foreground(gray).Render(c.title)
+	header := lipgloss.NewStyle().Foreground(styles.Gray).Render(c.title)
 	if c.sourceHint != "" {
-		header += lipgloss.NewStyle().Foreground(gray).Render(" (" + c.sourceHint + ")")
+		header += lipgloss.NewStyle().Foreground(styles.Gray).Render(" (" + c.sourceHint + ")")
 	}
-	if c.searchQuery != "" {
-		header += lipgloss.NewStyle().Foreground(gray).Render(" | Search: " + c.searchQuery)
+	if c.SearchQuery != "" {
+		header += lipgloss.NewStyle().Foreground(styles.Gray).Render(" | Search: " + c.SearchQuery)
 	}
 	sb.WriteString(header + "\n")
 
@@ -199,7 +198,7 @@ func (c *CapabilityList) View() string {
 	if len(filtered) == 0 {
 		text := "(no matching items)"
 		if c.focused {
-			sb.WriteString(lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render("> " + text))
+			sb.WriteString(lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render("> " + text))
 		} else {
 			sb.WriteString(text)
 		}
@@ -221,14 +220,14 @@ func (c *CapabilityList) View() string {
 		}
 
 		mark := " "
-		if c.selected[item.GetID()] {
+		if c.Selected[item.GetID()] {
 			mark = "x"
 		}
 
 		line := fmt.Sprintf("%s[%s] %s", prefix, mark, item.GetLabel())
 
 		if c.focused && i == c.cursor {
-			line = lipgloss.NewStyle().Foreground(highlightColor).Render(line)
+			line = lipgloss.NewStyle().Foreground(styles.HighlightColor).Render(line)
 		}
 
 		sb.WriteString(line + "\n")
@@ -243,11 +242,11 @@ func (c *CapabilityList) View() string {
 
 // FilteredItems returns items matching the search query.
 func (c *CapabilityList) FilteredItems() []CapabilityItem {
-	if c.searchQuery == "" {
+	if c.SearchQuery == "" {
 		return c.items
 	}
 
-	q := strings.ToLower(c.searchQuery)
+	q := strings.ToLower(c.SearchQuery)
 	var filtered []CapabilityItem
 	for _, item := range c.items {
 		if strings.Contains(strings.ToLower(item.GetLabel()), q) ||

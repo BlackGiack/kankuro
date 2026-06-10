@@ -13,6 +13,7 @@ import (
 	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/messages"
+	"kankuro/internal/ui/styles"
 )
 
 const (
@@ -233,7 +234,7 @@ func (s *SettingsView) View() string {
 }
 
 func (s *SettingsView) renderDisplay() string {
-	title := titleStyle.Padding(0, 1).Render("Settings")
+	title := styles.TitleStyle.Padding(0, 1).Render("Settings")
 	currentCmd := s.settings.IDECommand
 	if currentCmd == "" {
 		currentCmd = "(not configured)"
@@ -242,7 +243,7 @@ func (s *SettingsView) renderDisplay() string {
 	maxWidth := max(settingsBoxMinWidth, s.input.Width()+settingsBoxPadding*2)
 	currentBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(gray).
+		BorderForeground(styles.Gray).
 		Padding(1, settingsBoxPadding).
 		Width(maxWidth).
 		Render(strings.Join([]string{
@@ -251,27 +252,27 @@ func (s *SettingsView) renderDisplay() string {
 			fmt.Sprintf("Show MCPs In Card Editor: %s", enabledLabel(s.settings.ShowMCPsInCardEditor)),
 		}, "\n"))
 
-	actionStyle := lipgloss.NewStyle().Foreground(highlightColor).Bold(true)
+	actionStyle := lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true)
 	puppetAction := actionStyle.Render("→ Manage Puppet Sources")
 
 	helpText := lipgloss.NewStyle().
-		Foreground(gray).
+		Foreground(styles.Gray).
 		Padding(1, 0).
 		Render("e=edit • p=puppet sources • Esc=go back")
 
 	pathHelp := lipgloss.NewStyle().
-		Foreground(secondaryColor).
+		Foreground(styles.SecondaryColor).
 		Render("Use $PATH in your IDE command to reference the session workspace path")
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, "", currentBox, "", puppetAction, "", pathHelp, "", helpText)
 }
 
 func (s *SettingsView) renderEdit() string {
-	title := titleStyle.Padding(0, 1).Render("Edit Settings")
+	title := styles.TitleStyle.Padding(0, 1).Render("Edit Settings")
 	explanationWidth := max(settingsExplanationWide, s.input.Width())
 
 	explanation := lipgloss.NewStyle().
-		Foreground(secondaryColor).
+		Foreground(styles.SecondaryColor).
 		Width(explanationWidth).
 		Render("Configure the IDE command and the optional card editor sections.\nUse $PATH as the session workspace path placeholder.")
 
@@ -286,7 +287,7 @@ func (s *SettingsView) renderEdit() string {
 	puppetSourcesLine := s.renderActionLine(settingsFocusPuppetSources, "Manage Puppet Sources")
 
 	footer := lipgloss.NewStyle().
-		Foreground(gray).
+		Foreground(styles.Gray).
 		Render("Tab=next Shift+Tab=prev Space=toggle Enter=select Esc=cancel")
 
 	return lipgloss.JoinVertical(
@@ -312,7 +313,7 @@ func (s *SettingsView) renderToggleLine(index int, label string, enabled bool) s
 	style := lipgloss.NewStyle()
 	if s.focus == index {
 		prefix = "> "
-		style = style.Foreground(highlightColor).Bold(true)
+		style = style.Foreground(styles.HighlightColor).Bold(true)
 	}
 	return style.Render(fmt.Sprintf("%s[%s] %s", prefix, enabledLabel(enabled), label))
 }
@@ -322,7 +323,7 @@ func (s *SettingsView) renderActionLine(index int, label string) string {
 	style := lipgloss.NewStyle()
 	if s.focus == index {
 		prefix = "> "
-		style = style.Foreground(highlightColor).Bold(true)
+		style = style.Foreground(styles.HighlightColor).Bold(true)
 	}
 	return style.Render(fmt.Sprintf("%s→ %s", prefix, label))
 }
@@ -331,7 +332,7 @@ func (s *SettingsView) focusBorderColor(index int) color.Color {
 	if s.focus == index {
 		return focusedBorderColor
 	}
-	return gray
+	return styles.Gray
 }
 
 func enabledLabel(enabled bool) string {

@@ -13,6 +13,7 @@ import (
 	"kankuro/internal/config"
 	"kankuro/internal/session"
 	"kankuro/internal/ui/component"
+	"kankuro/internal/ui/styles"
 )
 
 // Preview layout .
@@ -27,35 +28,26 @@ const (
 	WidthBorders = 6
 )
 
-// Theme colors (local copies to keep component self-contained for now, or use styles.go).
-var (
-	ColorPrimary   = lipgloss.Color("#8E44AD") //nolint:gochecknoglobals // UI theme colors
-	ColorHighlight = lipgloss.Color("#16A085") //nolint:gochecknoglobals // UI theme colors
-	ColorHotPink   = lipgloss.Color("#FF69B4") //nolint:gochecknoglobals // UI theme colors
-	ColorGray      = lipgloss.Color("240")     //nolint:gochecknoglobals // UI theme colors
-	ColorWhite     = lipgloss.Color("#FFFFFF") //nolint:gochecknoglobals // UI theme colors
-)
-
 // Status badge styles.
 var (
 	StatusRunningStyle = lipgloss.NewStyle(). //nolint:gochecknoglobals // UI style definitions
-				Foreground(ColorWhite).
-				Background(ColorHighlight).
+				Foreground(styles.White).
+				Background(styles.HighlightColor).
 				Padding(0, 1)
 
 	StatusWaitingStyle = lipgloss.NewStyle(). //nolint:gochecknoglobals // UI style definitions
-				Foreground(ColorWhite).
-				Background(ColorHotPink).
+				Foreground(styles.White).
+				Background(styles.HotPink).
 				Padding(0, 1)
 
 	StatusTerminatedStyle = lipgloss.NewStyle(). //nolint:gochecknoglobals // UI style definitions
-				Foreground(ColorWhite).
-				Background(ColorGray).
+				Foreground(styles.White).
+				Background(styles.Gray).
 				Padding(0, 1)
 
 	TitleStyle = lipgloss.NewStyle(). //nolint:gochecknoglobals // UI style definitions
 			Bold(true).
-			Foreground(ColorPrimary)
+			Foreground(styles.PrimaryColor)
 )
 
 // SessionPreview displays detailed information about a selected session.
@@ -281,7 +273,7 @@ func (p *SessionPreview) renderPlaceholder() string {
 			Width(p.Width-WidthBorders).
 			Height(p.Height).
 			Align(lipgloss.Center, lipgloss.Center).
-			Foreground(ColorGray).
+			Foreground(styles.Gray).
 			Render(placeholder),
 		p.Width, p.Height,
 	)
@@ -315,16 +307,16 @@ func (p *SessionPreview) renderPreview() string {
 	headerLines := []string{
 		TitleStyle.Render(truncateString(sessionName, p.Width-WidthBorders)),
 		lipgloss.JoinHorizontal(lipgloss.Center, statusBadge),
-		lipgloss.NewStyle().Foreground(ColorGray).Render(
+		lipgloss.NewStyle().Foreground(styles.Gray).Render(
 			"ID: " + truncateString(p.snapshot.ID, p.Width-PreviewIDLabelPrefixLen-WidthBorders),
 		),
-		lipgloss.NewStyle().Foreground(ColorGray).Render("WS: " + wdStr),
-		lipgloss.NewStyle().Foreground(ColorGray).Render("Started: " + startedStr),
+		lipgloss.NewStyle().Foreground(styles.Gray).Render("WS: " + wdStr),
+		lipgloss.NewStyle().Foreground(styles.Gray).Render("Started: " + startedStr),
 	}
 
 	if p.card != nil {
 		headerLines = append(headerLines,
-			lipgloss.NewStyle().Foreground(ColorGray).Render(
+			lipgloss.NewStyle().Foreground(styles.Gray).Render(
 				"Card: "+truncateString(p.card.Name, p.Width-PreviewCardLabelPrefixLen-WidthBorders),
 			),
 		)
@@ -420,7 +412,7 @@ func (p *SessionPreview) renderScrollbackStyle(content string, height int) strin
 	// We want the total outer box (with top border included) to be exactly `height` rows.
 	return lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), true, false, false, false).
-		BorderForeground(ColorGray).
+		BorderForeground(styles.Gray).
 		Width(p.Width).
 		Height(max(1, height)).
 		MaxWidth(p.Width).
@@ -468,13 +460,13 @@ func (p *SessionPreview) renderNoOutput(height int) string {
 	// Under lipgloss v2, height is border-inclusive (border-box model).
 	return lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), true, false, false, false).
-		BorderForeground(ColorGray).
+		BorderForeground(styles.Gray).
 		Width(p.Width).
 		Height(max(1, height)).
 		MaxWidth(p.Width).
 		MaxHeight(max(1, height)).
 		Align(lipgloss.Center, lipgloss.Center).
-		Foreground(ColorGray).
+		Foreground(styles.Gray).
 		Render("(no output yet)")
 }
 

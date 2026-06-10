@@ -61,6 +61,7 @@ type AgentDriver interface {
 	SendInput(data string) error
 
 	GetStatus() SessionStatus
+	GetAgentFolder() string
 }
 
 type GenericCLIDriver struct {
@@ -78,6 +79,8 @@ func NewGenericCLIDriver() *GenericCLIDriver {
 	return &GenericCLIDriver{status: StatusTerminated}
 }
 
+func (d *GenericCLIDriver) GetAgentFolder() string { return ".agents" }
+
 // SetAgentsMD ensures the agent instruction file (AGENTS.md) is present in the session workspace.
 func (d *GenericCLIDriver) SetAgentsMD(
 	card config.IDCard,
@@ -86,7 +89,7 @@ func (d *GenericCLIDriver) SetAgentsMD(
 	workspaceRoot string,
 	appendIfExist bool,
 ) error {
-	return syncInstructionFile(workspaceRoot, "AGENTS.md", card, personas, mcps, appendIfExist)
+	return syncInstructionFile(workspaceRoot, "AGENTS.md", d.GetAgentFolder(), card, personas, mcps, appendIfExist)
 }
 
 // ClaudeCodeDriver specializes the GenericCLIDriver to write CLAUDE.md instead of AGENTS.md.
@@ -99,6 +102,8 @@ func NewClaudeCodeDriver() *ClaudeCodeDriver {
 	return &ClaudeCodeDriver{GenericCLIDriver: NewGenericCLIDriver()}
 }
 
+func (d *ClaudeCodeDriver) GetAgentFolder() string { return ".claude" }
+
 // SetAgentsMD ensures the agent instruction file (CLAUDE.md) is present in the session workspace.
 func (d *ClaudeCodeDriver) SetAgentsMD(
 	card config.IDCard,
@@ -107,11 +112,19 @@ func (d *ClaudeCodeDriver) SetAgentsMD(
 	workspaceRoot string,
 	appendIfExist bool,
 ) error {
-	return syncInstructionFile(workspaceRoot, "CLAUDE.md", card, personas, mcps, appendIfExist)
+	return syncInstructionFile(workspaceRoot, "CLAUDE.md", d.GetAgentFolder(), card, personas, mcps, appendIfExist)
+}
+
+func (d *ClaudeCodeDriver) SetSkills(skills []config.Skill, workspaceRoot ...string) error {
+	return setSkills(skills, d.GetAgentFolder(), workspaceRoot...)
+}
+
+func (d *ClaudeCodeDriver) SetPersonas(personas []config.Persona, workspaceRoot ...string) error {
+	return setPersonas(personas, d.GetAgentFolder(), workspaceRoot...)
 }
 
 func syncInstructionFile(
-	finalWD, filename string,
+	finalWD, filename, agentFolder string,
 	card config.IDCard,
 	personas []config.Persona,
 	mcps []config.MCPServer,
@@ -123,7 +136,7 @@ func syncInstructionFile(
 	}
 
 	if len(personas) == 1 {
-		content = appendPersonaInstruction(content, personas[0])
+		content = appendPersonaInstruction(content, agentFolder, personas[0])
 	}
 
 	if len(mcps) > 0 {
@@ -148,9 +161,9 @@ func resolveAgentsMDContent(card config.IDCard) (string, error) {
 	return card.AgentsMD, nil
 }
 
-func appendPersonaInstruction(content string, p config.Persona) string {
+func appendPersonaInstruction(content, agentFolder string, p config.Persona) string {
 	ext := filepath.Ext(p.Source)
-	relPath := filepath.Join(".agents", "agents", p.Name+ext)
+	relPath := filepath.Join(agentFolder, "agents", p.Name+ext)
 	instruction := fmt.Sprintf("Read the file %s and embody the persona described during this session,", relPath)
 	if content != "" {
 		return content + "\n\n" + instruction
@@ -289,6 +302,10 @@ func (d *GenericCLIDriver) Kill() error {
 // SetSkills ensures skill assets are present in the session workspace.
 // For built-in skills (empty Source), content is written directly from embedded bytes.
 func (d *GenericCLIDriver) SetSkills(skills []config.Skill, workspaceRoot ...string) error {
+	return setSkills(skills, d.GetAgentFolder(), workspaceRoot...)
+}
+
+func setSkills(skills []config.Skill, agentsFolder string, workspaceRoot ...string) error {
 	if len(skills) == 0 {
 		return nil
 	}
@@ -296,7 +313,7 @@ func (d *GenericCLIDriver) SetSkills(skills []config.Skill, workspaceRoot ...str
 	if errResolve != nil {
 		return errResolve
 	}
-	skillsRoot := filepath.Join(root, ".agents", "skills")
+	skillsRoot := filepath.Join(root, agentsFolder, "skills")
 	if errMkdir := os.MkdirAll(skillsRoot, 0o700); errMkdir != nil {
 		return fmt.Errorf("create skills dir: %w", errMkdir)
 	}
@@ -307,14 +324,14 @@ func (d *GenericCLIDriver) SetSkills(skills []config.Skill, workspaceRoot ...str
 	}
 
 	for _, skill := range skills {
-		if errDeploy := d.deploySkill(skill, skillsRoot, nameCounts); errDeploy != nil {
+		if errDeploy := deploySkill(skill, skillsRoot, nameCounts); errDeploy != nil {
 			return errDeploy
 		}
 	}
 	return nil
 }
 
-func (d *GenericCLIDriver) deploySkill(skill config.Skill, skillsRoot string, nameCounts map[string]int) error {
+func deploySkill(skill config.Skill, skillsRoot string, nameCounts map[string]int) error {
 	if skill.Name == "" {
 		return errors.New("skill name is required")
 	}
@@ -360,6 +377,10 @@ func resolveWorkspaceRoot(workspaceRoot []string) (string, error) {
 
 // SetPersonas ensures persona assets are present in the session workspace.
 func (d *GenericCLIDriver) SetPersonas(personas []config.Persona, workspaceRoot ...string) error {
+	return setPersonas(personas, d.GetAgentFolder(), workspaceRoot...)
+}
+
+func setPersonas(personas []config.Persona, agentsFolder string, workspaceRoot ...string) error {
 	if len(personas) == 0 {
 		return nil
 	}
@@ -370,7 +391,7 @@ func (d *GenericCLIDriver) SetPersonas(personas []config.Persona, workspaceRoot 
 	if root == "" {
 		return errors.New("workspace root is required for persona sync")
 	}
-	personasRoot := filepath.Join(root, ".agents", "agents")
+	personasRoot := filepath.Join(root, agentsFolder, "agents")
 	if err := os.MkdirAll(personasRoot, 0o700); err != nil {
 		return fmt.Errorf("create personas dir: %w", err)
 	}

@@ -27,14 +27,21 @@ func (m *Manager) syncDriverFiles(
 	d := m.drivers.Get(card.Driver)
 
 	if clearTmp {
-		// Clear existing .agents directories in tmp workspace
-		skillsDir := filepath.Join(workingDir, ".agents", "skills")
-		if err := os.RemoveAll(skillsDir); err != nil {
-			return nil, fmt.Errorf("clear tmp skills dir: %w", err)
+		// TODO: if other names become relevant, implement a more elegant way of handling this
+		agentDirs := []string{".agents", ".claude"}
+		if d.GetAgentFolder() != agentDirs[0] && d.GetAgentFolder() != agentDirs[1] {
+			agentDirs = append(agentDirs, d.GetAgentFolder())
 		}
-		personasDir := filepath.Join(workingDir, ".agents", "agents")
-		if err := os.RemoveAll(personasDir); err != nil {
-			return nil, fmt.Errorf("clear tmp personas dir: %w", err)
+		for _, agentDir := range agentDirs {
+			// Clear existing .agents directories in tmp workspace
+			skillsDir := filepath.Join(workingDir, agentDir, "skills")
+			if err := os.RemoveAll(skillsDir); err != nil {
+				return nil, fmt.Errorf("clear tmp skills dir: %w", err)
+			}
+			personasDir := filepath.Join(workingDir, agentDir, "agents")
+			if err := os.RemoveAll(personasDir); err != nil {
+				return nil, fmt.Errorf("clear tmp personas dir: %w", err)
+			}
 		}
 	}
 

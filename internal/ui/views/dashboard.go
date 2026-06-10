@@ -13,6 +13,7 @@ import (
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/messages"
+	"kankuro/internal/ui/styles"
 )
 
 // Pane identifiers.
@@ -806,8 +807,8 @@ func (d *Dashboard) renderBase() string {
 
 	// Header
 	header := lipgloss.NewStyle().
-		Foreground(white).
-		Background(primaryColor).
+		Foreground(styles.White).
+		Background(styles.PrimaryColor).
 		Padding(0, cardsListPadding).
 		MarginBottom(1).
 		Bold(true).
@@ -831,15 +832,15 @@ func (d *Dashboard) renderCardsPane() string {
 		style = style.BorderForeground(focusedBorderColor)
 	}
 
-	title := titleStyle.Render("ID Cards")
+	title := styles.TitleStyle.Render("ID Cards")
 
 	// Search indicator
 	switch {
 	case d.search.IsActive && d.focusedPane == PaneCards:
-		title += "\n" + lipgloss.NewStyle().Foreground(gray).
+		title += "\n" + lipgloss.NewStyle().Foreground(styles.Gray).
 			Render("Search: "+d.search.CardsQuery)
 	case d.search.CardsQuery != "":
-		title += "\n" + lipgloss.NewStyle().Foreground(gray).
+		title += "\n" + lipgloss.NewStyle().Foreground(styles.Gray).
 			Render("Filter: "+d.search.CardsQuery)
 	default:
 		title += "\n "
@@ -905,15 +906,15 @@ func (d *Dashboard) renderSessionsPane() string {
 		style = style.BorderForeground(focusedBorderColor)
 	}
 
-	title := titleStyle.Render("Active Sessions")
+	title := styles.TitleStyle.Render("Active Sessions")
 
 	// Search indicator
 	switch {
 	case d.search.IsActive && d.focusedPane == PaneSessions:
-		title += "\n" + lipgloss.NewStyle().Foreground(gray).
+		title += "\n" + lipgloss.NewStyle().Foreground(styles.Gray).
 			Render("Search: "+d.search.SessionsQuery)
 	case d.search.SessionsQuery != "":
-		title += "\n" + lipgloss.NewStyle().Foreground(gray).
+		title += "\n" + lipgloss.NewStyle().Foreground(styles.Gray).
 			Render("Filter: "+d.search.SessionsQuery)
 	default:
 		title += "\n "
@@ -938,10 +939,10 @@ func (d *Dashboard) renderSessionsPane() string {
 // renderFooter renders the keyboard shortcuts.
 func (d *Dashboard) renderFooter() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().Foreground(gray).Render("[Nav] Tab "),
-		lipgloss.NewStyle().Foreground(gray).Render(" [Card] Enter=Launch n=New e=Edit "),
-		lipgloss.NewStyle().Foreground(gray).Render(" [Session] Enter=Attach/Relaunch s=Switch x=Kill Del=Remove "),
-		lipgloss.NewStyle().Foreground(gray).Render(" [Global] m=MCP w=Workspaces c=Settings q=Quit"),
+		lipgloss.NewStyle().Foreground(styles.Gray).Render("[Nav] Tab "),
+		lipgloss.NewStyle().Foreground(styles.Gray).Render(" [Card] Enter=Launch n=New e=Edit "),
+		lipgloss.NewStyle().Foreground(styles.Gray).Render(" [Session] Enter=Attach/Relaunch s=Switch x=Kill Del=Remove "),
+		lipgloss.NewStyle().Foreground(styles.Gray).Render(" [Global] m=MCP w=Workspaces c=Settings q=Quit"),
 	)
 }
 
@@ -966,7 +967,7 @@ func renderEmptySessionsState(width, height int) string {
 		Width(width).
 		Height(height).
 		Align(lipgloss.Center, lipgloss.Center).
-		Foreground(gray).
+		Foreground(styles.Gray).
 		Render(crowASCII)
 }
 
@@ -983,7 +984,6 @@ func findCardByID(cards []config.IDCard, id string) *config.IDCard {
 
 // Dashboard-specific theme colors.
 var (
-	white              = lipgloss.Color("#FFFFFF") //nolint:gochecknoglobals // UI theme colors
-	normalBorderColor  = gray                      //nolint:gochecknoglobals // UI theme colors
-	focusedBorderColor = primaryColor              //nolint:gochecknoglobals // UI theme colors
+	normalBorderColor  = styles.Gray         //nolint:gochecknoglobals // UI theme colors
+	focusedBorderColor = styles.PrimaryColor //nolint:gochecknoglobals // UI theme colors
 )

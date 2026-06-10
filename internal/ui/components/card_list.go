@@ -12,6 +12,7 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/component"
+	"kankuro/internal/ui/styles"
 )
 
 // Card styling .
@@ -285,18 +286,11 @@ func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config
 
 	driverLine := fmt.Sprintf("%s | %s", card.Driver, card.Model)
 
-	// Colors - should come from shared styles
-	primaryColor := lipgloss.Color("#8E44AD")
-	highlightColor := lipgloss.Color("#16A085")
-	gray := lipgloss.Color("240")
-	white := lipgloss.Color("#FFFFFF")
-	deepCharcoal := lipgloss.Color("#1A1A1A")
-
 	titleStyle := lipgloss.NewStyle().Bold(true)
-	descStyle := lipgloss.NewStyle().Foreground(gray)
+	descStyle := lipgloss.NewStyle().Foreground(styles.Gray)
 
 	if selected {
-		titleStyle = titleStyle.Foreground(highlightColor)
+		titleStyle = titleStyle.Foreground(styles.HighlightColor)
 	}
 
 	infoLines := []string{
@@ -311,29 +305,29 @@ func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config
 		Height(InfoBoxHeight).
 		Render(strings.Join(infoLines, "\n"))
 
-	faceBg := deepCharcoal
+	faceBg := styles.DeepCharcoal
 	if selected {
-		faceBg = primaryColor
+		faceBg = styles.PrimaryColor
 	}
 
 	faceBoxStyle := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
-		BorderForeground(primaryColor).
-		Background(deepCharcoal).
+		BorderForeground(styles.PrimaryColor).
+		Background(styles.DeepCharcoal).
 		Align(lipgloss.Center, lipgloss.Center)
 
 	faceBox := faceBoxStyle.
 		Width(FaceBoxWidth).
 		Height(FaceBoxHeight).
 		Background(faceBg).
-		Foreground(white).
+		Foreground(styles.White).
 		Render(puppetStr)
 
 	content := lipgloss.JoinHorizontal(lipgloss.Top, infoBox, faceBox)
 
-	borderColor := gray
+	borderColor := styles.Gray
 	if selected {
-		borderColor = primaryColor
+		borderColor = styles.PrimaryColor
 	}
 
 	return lipgloss.NewStyle().
@@ -392,25 +386,22 @@ func getSelectedNames(ids []string, resolver func(string) (string, bool)) []stri
 func renderPills(skillNames, personaNames []string) []string {
 	var pills []string
 	if len(skillNames) == 0 && len(personaNames) == 0 {
-		gray := lipgloss.Color("240")
-		return []string{lipgloss.NewStyle().Foreground(gray).Render("(no capabilities)")}
+		return []string{lipgloss.NewStyle().Foreground(styles.Gray).Render("(no capabilities)")}
 	}
 
-	highlightColor := lipgloss.Color("#16A085")
-	personaColor := lipgloss.Color("#C0392B")
-	white := lipgloss.Color("#FFFFFF")
+	personaColor := styles.SecondaryColor
 
 	for _, s := range skillNames {
 		if len(pills) >= MaxPillsShown {
 			break
 		}
-		pills = append(pills, pillStyle(highlightColor, white).Render(truncatePill(s)))
+		pills = append(pills, pillStyle(styles.HighlightColor, styles.White).Render(truncatePill(s)))
 	}
 	for _, s := range personaNames {
 		if len(pills) >= MaxPillsShown {
 			break
 		}
-		pills = append(pills, pillStyle(personaColor, white).Render(truncatePill(s)))
+		pills = append(pills, pillStyle(personaColor, styles.White).Render(truncatePill(s)))
 	}
 	return pills
 }

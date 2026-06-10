@@ -11,7 +11,9 @@ import (
 	"kankuro/internal/config"
 	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
+	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/messages"
+	"kankuro/internal/ui/styles"
 )
 
 // Focus indices for the card form.
@@ -60,9 +62,9 @@ type CardEditor struct {
 	inputs []textinput.Model
 
 	// Capability lists
-	skillList   *CapabilityList
-	personaList *CapabilityList
-	mcpList     *CapabilityList
+	skillList   *components.CapabilityList
+	personaList *components.CapabilityList
+	mcpList     *components.CapabilityList
 
 	// Modals
 	workspacePicker *WorkspacePickerModal
@@ -121,19 +123,19 @@ func NewCardEditor(callbacks CardEditorCallbacks, cmds *commands.Commands) *Card
 	}
 
 	// Initialize capability lists
-	skillList := NewCapabilityList(CapabilityListConfig{
+	skillList := components.NewCapabilityList(components.CapabilityListConfig{
 		Title:      "Skills",
 		SourceHint: "ctrl+e=sources",
 		MaxVisible: maxVisibleCaps,
 	})
 
-	personaList := NewCapabilityList(CapabilityListConfig{
+	personaList := components.NewCapabilityList(components.CapabilityListConfig{
 		Title:      "Personas",
 		SourceHint: "ctrl+e=sources",
 		MaxVisible: maxVisibleCaps,
 	})
 
-	mcpList := NewCapabilityList(CapabilityListConfig{
+	mcpList := components.NewCapabilityList(components.CapabilityListConfig{
 		Title:      "MCPs",
 		SourceHint: "ctrl+e=add",
 		MaxVisible: maxVisibleCaps,
@@ -154,11 +156,11 @@ func NewCardEditor(callbacks CardEditorCallbacks, cmds *commands.Commands) *Card
 	}
 }
 
-func (e *CardEditor) SkillList() *CapabilityList { return e.skillList }
+func (e *CardEditor) SkillList() *components.CapabilityList { return e.skillList }
 
-func (e *CardEditor) PersonaList() *CapabilityList { return e.personaList }
+func (e *CardEditor) PersonaList() *components.CapabilityList { return e.personaList }
 
-func (e *CardEditor) MCPList() *CapabilityList { return e.mcpList }
+func (e *CardEditor) MCPList() *components.CapabilityList { return e.mcpList }
 
 func (e *CardEditor) Settings() config.AppSettings { return e.settings }
 
@@ -254,19 +256,19 @@ func (e *CardEditor) SetData(msg messages.DataLoadedMsg) {
 	e.mcps = msg.MCPs
 
 	// Convert to capability items
-	skillItems := make([]CapabilityItem, len(e.skills))
+	skillItems := make([]components.CapabilityItem, len(e.skills))
 	for i, s := range e.skills {
 		skillItems[i] = SkillItem{Skill: s}
 	}
 	e.skillList.SetItems(skillItems)
 
-	personaItems := make([]CapabilityItem, len(e.personas))
+	personaItems := make([]components.CapabilityItem, len(e.personas))
 	for i, p := range e.personas {
 		personaItems[i] = personaItem{persona: p}
 	}
 	e.personaList.SetItems(personaItems)
 
-	mcpItems := make([]CapabilityItem, len(e.mcps))
+	mcpItems := make([]components.CapabilityItem, len(e.mcps))
 	for i, m := range e.mcps {
 		mcpItems[i] = mcpItem{mcp: m}
 	}
@@ -308,9 +310,9 @@ func (e *CardEditor) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	// Handle data refresh messages
 	if msg, ok := msg.(messages.MCPDeletedMsg); ok {
 		// Remove the deleted MCP from selection
-		delete(e.mcpList.selected, msg.MCPID)
+		delete(e.mcpList.Selected, msg.MCPID)
 		// Adjust cursor if needed
-		if e.mcpList.Cursor() >= len(e.mcpList.items) && e.mcpList.Cursor() > 0 {
+		if e.mcpList.Cursor() >= len(e.mcpList.Items()) && e.mcpList.Cursor() > 0 {
 			e.mcpList.SetCursor(e.mcpList.Cursor() - 1)
 		}
 		return e, nil
@@ -395,17 +397,17 @@ func (e *CardEditor) handleEscape() {
 	// Clear search if active
 	switch e.focusIndex {
 	case FocusSkills:
-		if e.skillList.searchQuery != "" {
+		if e.skillList.SearchQuery != "" {
 			e.skillList.SetSearchQuery("")
 			return
 		}
 	case FocusPersonas:
-		if e.personaList.searchQuery != "" {
+		if e.personaList.SearchQuery != "" {
 			e.personaList.SetSearchQuery("")
 			return
 		}
 	case FocusMCPs:
-		if e.mcpList.searchQuery != "" {
+		if e.mcpList.SearchQuery != "" {
 			e.mcpList.SetSearchQuery("")
 			return
 		}
@@ -647,18 +649,18 @@ func (e *CardEditor) updateMCPList(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-func (e *CardEditor) handleListSearch(list *CapabilityList, keyMsg tea.KeyPressMsg) bool {
+func (e *CardEditor) handleListSearch(list *components.CapabilityList, keyMsg tea.KeyPressMsg) bool {
 	if len(keyMsg.Text) > 0 {
 		for _, ch := range keyMsg.Text {
 			if ch >= 33 && ch <= 126 {
-				list.SetSearchQuery(list.searchQuery + string(ch))
+				list.SetSearchQuery(list.SearchQuery + string(ch))
 				return true
 			}
 		}
 	}
 	if keyMsg.Code == tea.KeyBackspace {
-		if len(list.searchQuery) > 0 {
-			list.SetSearchQuery(list.searchQuery[:len(list.searchQuery)-1])
+		if len(list.SearchQuery) > 0 {
+			list.SetSearchQuery(list.SearchQuery[:len(list.SearchQuery)-1])
 		}
 		return true
 	}
@@ -729,7 +731,7 @@ func (e *CardEditor) updateAgentsMDEditor(msg tea.Msg) (component.Model, tea.Cmd
 func (e *CardEditor) autoSelectMCPCLISkill() {
 	for _, s := range e.skills {
 		if s.Name == "mcp-cli" {
-			e.skillList.selected[s.ID] = true
+			e.skillList.Selected[s.ID] = true
 			return
 		}
 	}
@@ -771,7 +773,7 @@ func (e *CardEditor) renderFormAboveLists() string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(titleStyle.Render(title) + "\n\n")
+	sb.WriteString(styles.TitleStyle.Render(title) + "\n\n")
 
 	// Text inputs
 	sb.WriteString("Name: " + e.inputs[0].View() + "\n")
@@ -815,7 +817,7 @@ func (e *CardEditor) renderWorkspaceLine() string {
 
 	if e.focusIndex == FocusWorkspace {
 		line = "> " + line
-		return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(line)
+		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(line)
 	}
 	return line
 }
@@ -839,7 +841,7 @@ func (e *CardEditor) renderPuppetLine() string {
 
 	if e.focusIndex == FocusPuppet {
 		line = "> " + line
-		return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(line)
+		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(line)
 	}
 	return line
 }
@@ -876,19 +878,19 @@ func (e *CardEditor) renderAgentsMDRow() string {
 	if e.focusIndex == FocusAgentsMD {
 		prefix := "> "
 		if e.agentsMD.PreferPath {
-			return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(
+			return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(
 				prefix + "  " + contentOption + "\n" + prefix + "x " + pathOption,
 			)
 		}
-		return lipgloss.NewStyle().Foreground(highlightColor).Bold(true).Render(
+		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(
 			prefix + "x " + contentOption + "\n" + prefix + "  " + pathOption,
 		)
 	}
 
 	if e.agentsMD.PreferPath {
-		return lipgloss.NewStyle().Foreground(gray).Render("    " + contentOption + "\n  x " + pathOption)
+		return lipgloss.NewStyle().Foreground(styles.Gray).Render("    " + contentOption + "\n  x " + pathOption)
 	}
-	return lipgloss.NewStyle().Foreground(gray).Render("  x " + contentOption + "\n    " + pathOption)
+	return lipgloss.NewStyle().Foreground(styles.Gray).Render("  x " + contentOption + "\n    " + pathOption)
 }
 
 // renderWithOverlay renders form with modal overlay.

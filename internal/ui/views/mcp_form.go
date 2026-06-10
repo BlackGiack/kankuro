@@ -10,6 +10,7 @@ import (
 	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/messages"
+	"kankuro/internal/ui/styles"
 )
 
 const (
@@ -147,10 +148,10 @@ func (f *MCPForm) View() string {
 	var content strings.Builder
 
 	if f.err != nil {
-		content.WriteString(errorStyle.Render(f.err.Error()) + "\n\n")
+		content.WriteString(styles.ErrorStyle.Render(f.err.Error()) + "\n\n")
 	}
 
-	content.WriteString(titleStyle.Render("MCP Server Configuration") + "\n\n")
+	content.WriteString(styles.TitleStyle.Render("MCP Server Configuration") + "\n\n")
 
 	fields := []struct {
 		label string
@@ -166,11 +167,11 @@ func (f *MCPForm) View() string {
 	}
 
 	for _, field := range fields {
-		content.WriteString(labelStyle.Render(field.label) + "\n")
+		content.WriteString(styles.LabelStyle.Render(field.label) + "\n")
 		content.WriteString(field.input.View() + "\n\n")
 	}
 
-	content.WriteString(helpStyle.Render("Tab: Next field | Enter: Save | Esc: Back"))
+	content.WriteString(styles.HelpStyle.Render("Tab: Next field | Enter: Save | Esc: Back"))
 
 	return content.String()
 }

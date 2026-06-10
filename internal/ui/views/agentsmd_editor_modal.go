@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/ui/component"
+	"kankuro/internal/ui/styles"
 )
 
 // AgentsMDEditorModal allows editing agents.md content or path.
@@ -137,13 +138,13 @@ func (m *AgentsMDEditorModal) View() string {
 	content += "AGENTS.md Editor\n\n"
 	content += "Content:\n"
 	if m.mode == 0 {
-		content += lipgloss.NewStyle().Foreground(highlightColor).Render("> "+m.editor.View()) + "\n"
+		content += lipgloss.NewStyle().Foreground(styles.HighlightColor).Render("> "+m.editor.View()) + "\n"
 	} else {
 		content += m.editor.View() + "\n"
 	}
 	content += "\nPath:\n"
 	if m.mode == 1 {
-		content += lipgloss.NewStyle().Foreground(highlightColor).Render("> "+m.pathInput.View()) + "\n"
+		content += lipgloss.NewStyle().Foreground(styles.HighlightColor).Render("> "+m.pathInput.View()) + "\n"
 	} else {
 		content += m.pathInput.View() + "\n"
 	}
