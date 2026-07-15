@@ -46,9 +46,28 @@ type SessionOutputMsg struct {
 	Output    []byte
 }
 
+// DataRefreshRequestedMsg asks the coordinator to run refreshData(). It exists
+// so that callbacks running inside an already-async tea.Cmd closure (e.g. a
+// save/delete handler) can hand the actual refresh back to Update, which runs
+// on the main Bubble Tea goroutine. Building and immediately invoking
+// refreshData() inside such a closure would touch coordinator-goroutine state
+// (c.views, c.previewSessionID, ...) from the wrong goroutine.
+type DataRefreshRequestedMsg struct{}
+
+// PuppetsSyncedMsg signals that a background puppet-source sync has finished.
+// Like DataRefreshRequestedMsg, it defers the actual refreshData() call to
+// Update instead of running it inside the async closure that performed the
+// sync.
+type PuppetsSyncedMsg struct{}
+
 // SessionAttachRequestedMsg signals user wants to attach to session.
+// Warning carries a non-fatal problem the caller should still surface (e.g.
+// session.ErrPersistFailed): the session started/relaunched successfully and
+// should still be attached to, but something about the operation - usually
+// that its state could not be saved - deserves the user's attention.
 type SessionAttachRequestedMsg struct {
 	SessionID string
+	Warning   error
 }
 
 // SessionLaunchCompletedMsg signals that a session launch has completed.
@@ -75,6 +94,24 @@ type MCPDeletedMsg struct {
 
 // AttachFinishedMsg signals that an attach session has finished.
 type AttachFinishedMsg struct {
+	SessionID string
+	Err       error
+}
+
+// IDELaunchedMsg signals that a requested IDE launch has completed (or
+// failed). Spawning the editor process happens inside a tea.Cmd, off the UI
+// goroutine - see Coordinator.launchIDE.
+type IDELaunchedMsg struct {
+	Err error
+}
+
+// AgentSwitchedMsg signals that an agent-switch request has completed (or
+// failed). Err may wrap session.ErrPersistFailed: the agent process did
+// restart, but its on-disk record failed to save - callers should still
+// attach, but surface the warning. Syncing driver files and spawning the new
+// PTY process happens inside a tea.Cmd, off the UI goroutine - see
+// Coordinator.switchAgentAsync.
+type AgentSwitchedMsg struct {
 	SessionID string
 	Err       error
 }
@@ -113,7 +150,12 @@ type ErrorMsg struct {
 // ClearErrorMsg signals to clear the current error.
 type ClearErrorMsg struct{}
 
-// DataLoadedMsg contains all loaded data from the repository.
+// DataLoadedMsg contains a full data snapshot from the repository. It always
+// represents a complete refresh: fields left nil mean "that registry could
+// not be read this round, keep whatever the receiver already has" (see Err),
+// never "this update doesn't concern that field". Partial, preview-only
+// updates use PreviewDataMsg instead - see debt_impl_plan_4.md step 2b for why
+// mixing the two in one message type caused silent data loss.
 type DataLoadedMsg struct {
 	Cards      []config.IDCard
 	Sessions   []session.Snapshot
@@ -123,12 +165,51 @@ type DataLoadedMsg struct {
 	Workspaces []config.Workspace
 	Puppets    []config.Puppet
 
+	// PreviewSessionID/PreviewScrollback carry the current preview's
+	// scrollback alongside a full refresh. The coordinator forwards these to
+	// PreviewReceiver.SetPreviewData rather than handing them to
+	// DataReceiver.SetData directly.
 	PreviewSessionID  string
 	PreviewScrollback []byte
-	IsIncremental     bool
+
+	// Err reports any error hit while reading one or more registries. When
+	// set, the corresponding field(s) above are left nil rather than
+	// overwritten with an empty slice, so a transient read failure cannot
+	// blank data a receiver already has.
+	Err error
 }
 
-// DataReceiver is an interface for components that can receive data updates.
+// DataReceiver is an interface for components that can receive a full data
+// snapshot.
 type DataReceiver interface {
 	SetData(msg DataLoadedMsg)
+}
+
+// SessionsRefreshedMsg carries just the (in-memory) session list plus the
+// current preview session ID/scrollback - the idle tick's sessions-only
+// refresh. It is deliberately a distinct type from DataLoadedMsg, not a
+// DataLoadedMsg with only Sessions set: broadcasting the latter to every
+// DataReceiver used to reach config-registry views (e.g. the source
+// managers), whose SetData unconditionally reloads their source files from
+// disk - see debt_impl_plan_5.md review finding 1. This message is instead
+// routed only to the dashboard, the sole consumer of Sessions.
+type SessionsRefreshedMsg struct {
+	Sessions          []session.Snapshot
+	PreviewSessionID  string
+	PreviewScrollback []byte
+}
+
+// PreviewDataMsg carries an update to the currently previewed session's
+// scrollback only. It is a distinct type from DataLoadedMsg so a receiver can
+// never mistake a partial preview update for a full snapshot.
+type PreviewDataMsg struct {
+	SessionID     string
+	Scrollback    []byte
+	IsIncremental bool
+}
+
+// PreviewReceiver is implemented by views that render a live session
+// preview and need incremental scrollback updates.
+type PreviewReceiver interface {
+	SetPreviewData(msg PreviewDataMsg)
 }

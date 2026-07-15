@@ -263,13 +263,17 @@ func TestSessionActionsFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateIDCard failed: %v", err)
 	}
-	cmd, err = callbacks.OnSwitch(sessionID, newCard.ID)
-	if err != nil {
-		t.Errorf("Switch failed: %v", err)
+	// Agent-switch is only reachable through AgentSwitchCallbacks (the
+	// AgentSwitchView's callback), which - unlike DashboardCallbacks -
+	// actually gets invoked by real input. It's async (the blocking
+	// SwitchAgent call runs inside the returned Cmd, not synchronously
+	// here), so drive it through Update the way a real Bubble Tea runtime
+	// would: execute the Cmd, feed the resulting message back in.
+	switchCmd := coord.AgentSwitchCallbacks().OnSwitch(sessionID, newCard.ID)
+	if switchCmd == nil {
+		t.Fatal("Expected cmd for switch")
 	}
-	if cmd == nil {
-		t.Error("Expected cmd for switch")
-	}
+	coord.Update(switchCmd())
 
 	// Verify session now uses new card
 	sess, ok := sm.GetSession(sessionID)

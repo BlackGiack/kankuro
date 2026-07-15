@@ -462,6 +462,14 @@ linters:
       - text: 'comment on exported \S+ \S+ should be of the form ".+"'
         source: '// ?(nolint|TODO)'
         linters: [ revive, staticcheck ]
+      # internal/driver deliberately shares its name with database/sql/driver:
+      # "driver" is the right word for the domain (an AgentDriver wraps one CLI
+      # tool) and the package is imported widely enough that renaming it costs
+      # more than the shadowing is worth. warn-unused above will flag this rule
+      # if the collision ever stops being reported.
+      - text: 'avoid package names that conflict with Go standard library'
+        path: 'internal/driver/'
+        linters: [ revive ]
       - path: '_test\.go'
         linters:
           - bodyclose

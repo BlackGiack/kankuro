@@ -10,6 +10,12 @@ import (
 
 // ListSkills returns the skill registry sorted by name, always including built-in skills.
 func (r *FileRepository) ListSkills() ([]Skill, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.listSkillsLocked()
+}
+
+func (r *FileRepository) listSkillsLocked() ([]Skill, error) {
 	f, err := r.LoadSkillsFile()
 	if err != nil {
 		return nil, err
@@ -21,6 +27,9 @@ func (r *FileRepository) ListSkills() ([]Skill, error) {
 
 // UpsertSkill creates or updates one skill entry.
 func (r *FileRepository) UpsertSkill(skill Skill) (Skill, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if skill.Name == "" {
 		return Skill{}, errors.New("skill name is required")
 	}
@@ -45,7 +54,10 @@ func (r *FileRepository) UpsertSkill(skill Skill) (Skill, error) {
 
 // DeleteSkill removes a skill unless it is referenced by existing ID cards.
 func (r *FileRepository) DeleteSkill(id string) error {
-	cards, err := r.ListIDCards()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	cards, err := r.listIDCardsLocked()
 	if err != nil {
 		return err
 	}

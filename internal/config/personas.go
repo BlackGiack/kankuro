@@ -10,6 +10,12 @@ import (
 
 // ListPersonas returns the persona registry sorted by name.
 func (r *FileRepository) ListPersonas() ([]Persona, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.listPersonasLocked()
+}
+
+func (r *FileRepository) listPersonasLocked() ([]Persona, error) {
 	f, err := r.LoadPersonasFile()
 	if err != nil {
 		return nil, err
@@ -20,6 +26,9 @@ func (r *FileRepository) ListPersonas() ([]Persona, error) {
 
 // UpsertPersona creates or updates one persona entry.
 func (r *FileRepository) UpsertPersona(persona Persona) (Persona, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if persona.Name == "" {
 		return Persona{}, errors.New("persona name is required")
 	}
@@ -44,7 +53,10 @@ func (r *FileRepository) UpsertPersona(persona Persona) (Persona, error) {
 
 // DeletePersona removes a persona unless it is referenced by existing ID cards.
 func (r *FileRepository) DeletePersona(id string) error {
-	cards, err := r.ListIDCards()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	cards, err := r.listIDCardsLocked()
 	if err != nil {
 		return err
 	}

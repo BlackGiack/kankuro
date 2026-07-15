@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
+
+	"github.com/mattn/go-runewidth"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
@@ -315,6 +318,30 @@ func TestTruncatePath(t *testing.T) {
 	}
 }
 
+func TestTruncatePath_MultibyteRuneSafety(t *testing.T) {
+	tests := []struct {
+		name  string
+		path  string
+		limit int
+	}{
+		{"CJK path", "/家/项目/很长的路径/名字/文件夹/子目录", 12},
+		{"combining marks", "/home/usér/proje\u0301ct/nested/deep/path", 15},
+		{"emoji", "/home/👍🎉🚀/project/deep/nested/path", 12},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := components.TruncatePath(tt.path, tt.limit)
+			if !utf8.ValidString(result) {
+				t.Fatalf("result is not valid UTF-8: %q", result)
+			}
+			if w := runewidth.StringWidth(result); w > tt.limit {
+				t.Errorf("result width %d exceeds limit %d: %q", w, tt.limit, result)
+			}
+		})
+	}
+}
+
 func TestRenderStatusBadge(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -354,19 +381,6 @@ func TestSessionPreview_View_WaitingStatus(t *testing.T) {
 	// Waiting status should show hot pink badge
 	if !strings.Contains(view, "Waiting") {
 		t.Error("Should contain 'Waiting' status")
-	}
-}
-
-func TestSessionPreview_SessionID(t *testing.T) {
-	p := components.NewSessionPreview()
-
-	if p.SessionID() != "" {
-		t.Error("Initial session ID should be empty")
-	}
-
-	p.SetSessionByID("test-id")
-	if p.SessionID() != "test-id" {
-		t.Errorf("Expected 'test-id', got '%s'", p.SessionID())
 	}
 }
 

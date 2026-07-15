@@ -7,11 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"kankuro/internal/config"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -58,7 +58,13 @@ type AgentDriver interface {
 	SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error
 	SetModel(model string) []string
 
+	// SendInput and SendInputBytes both write into the active PTY session,
+	// synchronized against Kill via the driver's own lock. This is the only
+	// safe way to write attach input: writing directly to a raw *os.File
+	// PTY handle (as the session package used to) races Kill, which closes
+	// and nils that same fd under lock. See debt_impl_plan_4.md step 4.
 	SendInput(data string) error
+	SendInputBytes(data []byte) (int, error)
 
 	GetStatus() SessionStatus
 	GetAgentFolder() string
@@ -68,10 +74,11 @@ type GenericCLIDriver struct {
 	mu     sync.RWMutex
 	status SessionStatus
 
-	cmd  *exec.Cmd
-	pty  *os.File
-	done chan struct{}
-	once sync.Once
+	cmd      *exec.Cmd
+	pty      *os.File
+	done     chan struct{}
+	once     sync.Once
+	exitCode int
 }
 
 // NewGenericCLIDriver returns the default PTY-backed CLI driver implementation.
@@ -274,6 +281,9 @@ func (d *GenericCLIDriver) watchProcess(cmd *exec.Cmd) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.status = StatusTerminated
+	if cmd.ProcessState != nil {
+		d.exitCode = cmd.ProcessState.ExitCode()
+	}
 	if d.pty != nil {
 		_ = d.pty.Close()
 		d.pty = nil
@@ -282,7 +292,8 @@ func (d *GenericCLIDriver) watchProcess(cmd *exec.Cmd) {
 	d.closeDone()
 }
 
-// Kill terminates the underlying process and closes its PTY.
+// Kill terminates the underlying process and closes its PTY. A process that
+// has already exited on its own is treated as a successful kill.
 func (d *GenericCLIDriver) Kill() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -290,6 +301,9 @@ func (d *GenericCLIDriver) Kill() error {
 		return nil
 	}
 	err := d.cmd.Process.Kill()
+	if errors.Is(err, os.ErrProcessDone) {
+		err = nil
+	}
 	d.status = StatusTerminated
 	if d.pty != nil {
 		_ = d.pty.Close()
@@ -492,13 +506,21 @@ func (d *GenericCLIDriver) SetModel(model string) []string {
 
 // SendInput writes raw input bytes into the active PTY session.
 func (d *GenericCLIDriver) SendInput(data string) error {
+	_, err := d.SendInputBytes([]byte(data))
+	return err
+}
+
+// SendInputBytes writes raw input bytes into the active PTY session. It
+// holds only a read lock: it doesn't mutate driver state, but Kill (which
+// closes and nils the pty under a write lock) must never race a write to an
+// already-closed fd - the RLock/Lock pairing is what serializes the two.
+func (d *GenericCLIDriver) SendInputBytes(data []byte) (int, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.pty == nil {
-		return errors.New("no active PTY")
+		return 0, errors.New("no active PTY")
 	}
-	_, err := io.WriteString(d.pty, data)
-	return err
+	return d.pty.Write(data)
 }
 
 // GetStatus reports the current process lifecycle state.
@@ -506,6 +528,14 @@ func (d *GenericCLIDriver) GetStatus() SessionStatus {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.status
+}
+
+// ExitCode returns the child process's exit code once it has terminated.
+// It is -1 for a signalled process and 0 before the process has exited.
+func (d *GenericCLIDriver) ExitCode() int {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.exitCode
 }
 
 // PTY exposes the active pseudo-terminal file descriptor.
@@ -536,8 +566,13 @@ func (d *GenericCLIDriver) closeDone() {
 
 func mergeEnvWithPwd(extra map[string]string, pwd string) []string {
 	base := os.Environ()
-	for k, v := range extra {
-		base = append(base, fmt.Sprintf("%s=%s", k, v))
+	keys := make([]string, 0, len(extra))
+	for k := range extra {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		base = upsertEnv(base, k, extra[k])
 	}
 	return upsertEnv(base, "PWD", pwd)
 }

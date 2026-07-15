@@ -1,14 +1,13 @@
 package views
 
 import (
-	"strings"
-
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/component"
+	"kankuro/internal/ui/components"
 )
 
 // WorkspacePickerModal allows selecting a workspace.
@@ -230,18 +229,9 @@ func (m *WorkspacePickerModal) refreshItems() {
 }
 
 func (m *WorkspacePickerModal) filterWorkspaces() []config.Workspace {
-	if m.searchQuery == "" {
-		return m.workspaces
-	}
-	q := strings.ToLower(m.searchQuery)
-	var filtered []config.Workspace
-	for _, ws := range m.workspaces {
-		if strings.Contains(strings.ToLower(ws.Name), q) ||
-			strings.Contains(strings.ToLower(ws.Path), q) {
-			filtered = append(filtered, ws)
-		}
-	}
-	return filtered
+	return components.Filter(m.workspaces, m.searchQuery, func(ws config.Workspace) string {
+		return ws.Name + " " + ws.Path
+	})
 }
 
 // normalizeSelection ensures the selected index is valid for the current filtered list.

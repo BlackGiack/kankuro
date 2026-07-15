@@ -7,7 +7,6 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/views"
 )
@@ -23,8 +22,7 @@ func (i testCapItem) GetDescription() string { return "description" }
 
 func TestCardEditor_SetSize_Idempotency(t *testing.T) {
 	// Setup
-	cmds := &commands.Commands{}
-	editor := views.NewCardEditor(views.CardEditorCallbacks{}, cmds)
+	editor := views.NewCardEditor(views.CardEditorCallbacks{})
 
 	settings := config.DefaultAppSettings()
 	settings.ShowPersonasInCardEditor = true
@@ -87,8 +85,7 @@ func TestCardEditor_SetSize_Idempotency(t *testing.T) {
 
 func TestCardEditor_SetSize_SmallTerminal(t *testing.T) {
 	// Setup
-	cmds := &commands.Commands{}
-	editor := views.NewCardEditor(views.CardEditorCallbacks{}, cmds)
+	editor := views.NewCardEditor(views.CardEditorCallbacks{})
 
 	settings := config.DefaultAppSettings()
 	settings.ShowPersonasInCardEditor = true

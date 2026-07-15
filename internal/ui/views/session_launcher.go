@@ -1,13 +1,14 @@
 package views
 
 import (
+	"errors"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/ui/commands"
+	"kankuro/internal/session"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/styles"
@@ -27,7 +28,6 @@ type SessionLauncher struct {
 	input textinput.Model
 
 	callbacks SessionLauncherCallbacks
-	cmds      *commands.Commands
 
 	launchDone bool
 	launchErr  error
@@ -36,7 +36,7 @@ type SessionLauncher struct {
 }
 
 // NewSessionLauncher creates a new session launcher.
-func NewSessionLauncher(callbacks SessionLauncherCallbacks, cmds *commands.Commands) *SessionLauncher {
+func NewSessionLauncher(callbacks SessionLauncherCallbacks) *SessionLauncher {
 	input := textinput.New()
 	input.Placeholder = "Session name (Enter to confirm)"
 	input.SetWidth(defaultInputWidth)
@@ -45,7 +45,6 @@ func NewSessionLauncher(callbacks SessionLauncherCallbacks, cmds *commands.Comma
 	return &SessionLauncher{
 		input:     input,
 		callbacks: callbacks,
-		cmds:      cmds,
 	}
 }
 
@@ -94,6 +93,13 @@ func (l *SessionLauncher) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 
 	if l.launchDone {
+		if l.launchFatal() {
+			// No process ever started; the only sensible action is to leave.
+			if keyMsg.Code == tea.KeyEsc {
+				return func() tea.Msg { return messages.NavigateBackMsg{} }, true
+			}
+			return nil, false
+		}
 		switch keyMsg.Code {
 		case tea.KeyEnter:
 			return l.handleNameSubmit(), true
@@ -110,6 +116,15 @@ func (l *SessionLauncher) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
+// launchFatal reports whether the launch failed outright, meaning no agent
+// process ever started. It is false for session.ErrPersistFailed: there the
+// process is running and the session is fully usable, only its on-disk
+// record failed to save, so the normal name/attach flow should stay
+// available rather than being replaced with a dead end.
+func (l *SessionLauncher) launchFatal() bool {
+	return l.launchErr != nil && !errors.Is(l.launchErr, session.ErrPersistFailed)
+}
+
 // View renders the launcher.
 func (l *SessionLauncher) View() string {
 	var content strings.Builder
@@ -119,16 +134,22 @@ func (l *SessionLauncher) View() string {
 	}
 
 	if l.launchDone {
-		if l.launchErr != nil {
+		if l.launchFatal() {
 			content.WriteString(styles.ErrorStyle.Render("Launch failed: "+l.launchErr.Error()) + "\n\n")
 			content.WriteString(styles.HelpStyle.Render("Press Esc to return"))
+			return content.String()
+		}
+		if l.launchErr != nil {
+			// The process is running; only its state failed to save. Keep
+			// the normal name/attach flow below, just flag the warning.
+			content.WriteString(styles.ErrorStyle.Render("Warning: "+l.launchErr.Error()) + "\n\n")
 		} else {
 			content.WriteString(styles.SuccessStyle.Render("Session launched successfully!") + "\n\n")
-			content.WriteString(styles.LabelStyle.Render("Session ID: ") + l.sessionID + "\n\n")
-			content.WriteString(styles.LabelStyle.Render("Session Name") + "\n")
-			content.WriteString(l.input.View() + "\n\n")
-			content.WriteString(styles.HelpStyle.Render("Enter: Confirm name and attach | Esc: Cancel"))
 		}
+		content.WriteString(styles.LabelStyle.Render("Session ID: ") + l.sessionID + "\n\n")
+		content.WriteString(styles.LabelStyle.Render("Session Name") + "\n")
+		content.WriteString(l.input.View() + "\n\n")
+		content.WriteString(styles.HelpStyle.Render("Enter: Confirm name and attach | Esc: Cancel"))
 		return content.String()
 	}
 
@@ -157,7 +178,11 @@ func (l *SessionLauncher) SetLaunchResult(sessionID string, err error) {
 	l.launchDone = true
 	l.launchErr = err
 	l.sessionID = sessionID
-	if err != nil {
+	// Only mirror fatal errors into the top-level banner. An
+	// ErrPersistFailed warning is already rendered inline by View() as part
+	// of the (otherwise normal) success flow; duplicating it into the
+	// top-level banner would show the same message twice.
+	if err != nil && l.launchFatal() {
 		l.err = err
 	}
 }

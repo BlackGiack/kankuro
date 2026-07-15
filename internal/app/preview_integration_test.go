@@ -112,7 +112,6 @@ func TestPreviewStreaming(t *testing.T) {
 
 	// Launch session
 	sessionID, _ := sm.Launch(card, nil, nil, nil)
-	sess, _ := sm.GetSession(sessionID)
 
 	coord := app.NewCoordinator(repo, sm)
 	coord.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
@@ -137,9 +136,7 @@ func TestPreviewStreaming(t *testing.T) {
 	}
 
 	// Manually send output to session subscribers
-	for ch := range sess.Subscribers {
-		ch <- testOutput
-	}
+	sm.BroadcastOutput(sessionID, testOutput)
 
 	// Execute the captured command (it should read from the channel)
 	outputMsg := cmd()
@@ -174,7 +171,6 @@ func TestPreviewStreamingKitty(t *testing.T) {
 
 	// Launch session
 	sessionID, _ := sm.Launch(card, nil, nil, nil)
-	sess, _ := sm.GetSession(sessionID)
 
 	coord := app.NewCoordinator(repo, sm)
 	coord.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
@@ -201,9 +197,7 @@ func TestPreviewStreamingKitty(t *testing.T) {
 	_, cmd = coord.Update(messages.SessionPreviewRequestedMsg{SessionID: sessionID})
 
 	// Send output to session subscribers
-	for ch := range sess.Subscribers {
-		ch <- testOutput
-	}
+	sm.BroadcastOutput(sessionID, testOutput)
 
 	// Execute cmd to get SessionOutputMsg
 	outputMsg := cmd()
