@@ -3,7 +3,7 @@ package session
 import (
 	"fmt"
 	"io"
-	"maps"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -42,16 +42,25 @@ type Session struct {
 	Pinged          bool
 	ExitCode        int
 	Driver          driver.AgentDriver
-	Input           io.Writer
-	Output          <-chan []byte
-	Done            <-chan struct{}
-	Scrollback      []byte
-	PendingLine     []byte
-	Subscribers     map[chan []byte]struct{}
+	// PTY is the raw pseudo-terminal file, used only for ioctl-based resize
+	// (Attach hands it out as AttachHandle.PTY). Keystrokes must NOT be
+	// written directly to this fd - it races Kill, which closes and nils the
+	// driver's own copy under lock. Use Driver.SendInputBytes for writes; see
+	// debt_impl_plan_4.md step 4 and session/attach.go's driverInputWriter.
+	PTY         *os.File
+	Output      <-chan []byte
+	Done        <-chan struct{}
+	Scrollback  []byte
+	PendingLine []byte
+	Subscribers map[chan []byte]struct{}
 	// PendingAttachHeader is a one-shot banner (e.g. "Relaunched at ...")
 	// shown to the next attacher and then cleared, so it doesn't re-appear on
 	// subsequent reattaches via scrollback replay.
 	PendingAttachHeader []byte
+	// generation is bumped on every activation (Launch/Relaunch/SwitchAgent).
+	// It lets goroutines started by a previous activation detect that they
+	// are stale and stop touching the session.
+	generation uint64
 }
 
 type AttachHandle struct {
@@ -78,11 +87,14 @@ type Snapshot struct {
 	Name            string
 	PID             int
 	WorkingDir      string
+	OriginalDir     string
 	UseTmpWorkspace bool
 	StartedAt       time.Time
 	LastWordAt      time.Time
+	LastOutput      string
 	Status          Status
 	Pinged          bool
+	ExitCode        int
 }
 
 // WorkspaceReader provides the minimal interface the session manager needs
@@ -97,6 +109,8 @@ type Manager struct {
 	configDir string
 	repo      WorkspaceReader
 	drivers   driver.Registry
+	loadErr   error
+	logger    *slog.Logger
 }
 
 // Option configures the Manager.
@@ -109,6 +123,18 @@ func WithDriverRegistry(reg driver.Registry) Option {
 	}
 }
 
+// WithLogger sets the logger used for background failures that have no
+// caller to report them to (e.g. a persist failure from the watch ticker).
+// Defaults to a discarding logger, so callers that don't care about this
+// need not wire anything up.
+func WithLogger(logger *slog.Logger) Option {
+	return func(m *Manager) {
+		if logger != nil {
+			m.logger = logger
+		}
+	}
+}
+
 // NewManager creates a session registry and loads persisted sessions.
 func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager {
 	m := &Manager{
@@ -116,48 +142,70 @@ func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager
 		configDir: configDir,
 		repo:      repo,
 		drivers:   driver.NewBuiltinRegistry(), // default builtin registry
+		logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	for _, opt := range opts {
 		opt(m)
 	}
 
 	sessionsDir := filepath.Join(configDir, "sessions")
-	loaded, _ := loadSessions(sessionsDir) // ignore error, just start empty
+	loaded, loadErr := loadSessions(sessionsDir)
+	m.loadErr = loadErr
 
 	for _, d := range loaded {
-		m.sessions[d.ID] = &Session{
-			ID:              d.ID,
-			CardID:          d.CardID,
-			Name:            d.Name,
-			PID:             d.PID,
-			WorkingDir:      d.WorkingDir,
-			OriginalDir:     d.OriginalDir,
-			UseTmpWorkspace: d.UseTmpWorkspace,
-			StartedAt:       d.StartedAt,
-			LastWordAt:      d.LastWordAt,
-			Status:          StatusTerminated, // All loaded sessions are terminated
-			Subscribers:     make(map[chan []byte]struct{}),
-		}
+		m.sessions[d.ID] = d.restore()
 	}
 
 	return m
 }
 
-// Sessions returns a thread-safe snapshot of all sessions.
-func (m *Manager) Sessions() map[string]*Session {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	out := make(map[string]*Session, len(m.sessions))
-	maps.Copy(out, m.sessions)
-	return out
+// LoadErrors returns any error encountered while hydrating persisted
+// sessions at startup (corrupt or unreadable session files are skipped, not
+// fatal). Callers should surface this once at startup.
+//
+// m.loadErr is intentionally read without m.mu: it is written exactly once,
+// in NewManager, before the Manager is returned to (and can escape to) any
+// other goroutine - so there is a happens-before edge and no lock is needed.
+// It must stay write-once; do not add another writer without adding
+// synchronization.
+func (m *Manager) LoadErrors() error {
+	return m.loadErr
 }
 
-// GetSession returns a session by ID.
-func (m *Manager) GetSession(id string) (*Session, bool) {
+// GetSession returns a safe value snapshot of a session by ID.
+func (m *Manager) GetSession(id string) (Snapshot, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	s, ok := m.sessions[id]
-	return s, ok
+	if !ok {
+		return Snapshot{}, false
+	}
+	return s.snapshot(), true
+}
+
+// PendingLineLen reports the buffered partial-line size. Used by tests to
+// assert the pendingLineLimit cap.
+func (m *Manager) PendingLineLen(id string) (int, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	s, ok := m.sessions[id]
+	if !ok {
+		return 0, false
+	}
+	return len(s.PendingLine), true
+}
+
+// BroadcastOutput delivers raw output to a session's subscribers. It exists
+// for tests that simulate live process output without a real driver.
+func (m *Manager) BroadcastOutput(id string, data []byte) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, ok := m.sessions[id]
+	if !ok {
+		return false
+	}
+	broadcast(data, s.Subscribers)
+	return true
 }
 
 // SetLastWordAt is used for testing word silence detection.
@@ -175,20 +223,48 @@ func (m *Manager) List() []Snapshot {
 	defer m.mu.RUnlock()
 	out := make([]Snapshot, 0, len(m.sessions))
 	for _, s := range m.sessions {
-		out = append(out, Snapshot{
-			ID:              s.ID,
-			CardID:          s.CardID,
-			Name:            s.Name,
-			PID:             s.PID,
-			WorkingDir:      s.WorkingDir,
-			UseTmpWorkspace: s.UseTmpWorkspace,
-			StartedAt:       s.StartedAt,
-			LastWordAt:      s.LastWordAt,
-			Status:          s.Status,
-			Pinged:          s.Pinged,
-		})
+		out = append(out, s.snapshot())
 	}
 	return out
+}
+
+// snapshot builds a value Snapshot from a Session. Callers must hold m.mu
+// (read or write) while calling this.
+func (s *Session) snapshot() Snapshot {
+	return Snapshot{
+		ID:              s.ID,
+		CardID:          s.CardID,
+		Name:            s.Name,
+		PID:             s.PID,
+		WorkingDir:      s.WorkingDir,
+		OriginalDir:     s.OriginalDir,
+		UseTmpWorkspace: s.UseTmpWorkspace,
+		StartedAt:       s.StartedAt,
+		LastWordAt:      s.LastWordAt,
+		LastOutput:      s.LastOutput,
+		Status:          s.Status,
+		Pinged:          s.Pinged,
+		ExitCode:        s.ExitCode,
+	}
+}
+
+// data builds the persisted Data record from a Session. Callers must hold
+// m.mu (read or write) while calling this.
+func (s *Session) data() *Data {
+	return &Data{
+		ID:              s.ID,
+		CardID:          s.CardID,
+		Name:            s.Name,
+		PID:             s.PID,
+		WorkingDir:      s.WorkingDir,
+		OriginalDir:     s.OriginalDir,
+		UseTmpWorkspace: s.UseTmpWorkspace,
+		StartedAt:       s.StartedAt,
+		LastWordAt:      s.LastWordAt,
+		LastOutput:      s.LastOutput,
+		Status:          s.Status,
+		ExitCode:        s.ExitCode,
+	}
 }
 
 // SetName updates the name of an existing session and persists it.
@@ -200,8 +276,7 @@ func (m *Manager) SetName(id, name string) error {
 		return fmt.Errorf("session not found: %s", id)
 	}
 	s.Name = name
-	m.persistSessionLocked(s)
-	return nil
+	return m.persistSessionLockedErr(s)
 }
 
 // GetScrollback returns a copy of the cached scrollback for a session.

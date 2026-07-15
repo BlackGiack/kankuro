@@ -28,19 +28,15 @@ func (m *Manager) prepareWorkspace(
 	targetDir := filepath.Join(sessionRoot, filepath.Base(wd))
 
 	if isNew {
-		// G703: Path traversal via taint analysis.
-		if err := os.MkdirAll(sessionRoot, 0o700); err != nil { //nolint:gosec // sessionRoot is derived from managed ID
+		if err := os.MkdirAll(sessionRoot, 0o700); err != nil {
 			return "", fmt.Errorf("create tmp session dir: %w", err)
 		}
-		// G702: Command injection via taint analysis.
-		// Used for local copy with verified paths.
-		cmd := exec.CommandContext(context.Background(), "cp", "-r", wd, targetDir) //nolint:gosec // cp is safe here
+		cmd := exec.CommandContext(context.Background(), "cp", "-r", wd, targetDir)
 		if out, errCopy := cmd.CombinedOutput(); errCopy != nil {
 			return "", fmt.Errorf("copy workspace: %s: %w", string(out), errCopy)
 		}
 	} else {
-		// G703: Path traversal via taint analysis.
-		if _, errStat := os.Stat(targetDir); errStat != nil { //nolint:gosec // targetDir is derived from managed ID
+		if _, errStat := os.Stat(targetDir); errStat != nil {
 			return "", fmt.Errorf("tmp workspace missing: %w", errStat)
 		}
 	}

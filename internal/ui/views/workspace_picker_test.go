@@ -7,13 +7,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
 )
 
 func TestWorkspacePicker_SearchAndFilter(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	workspaces := []config.Workspace{
 		{ID: "ws-1", Name: "Alpha Project", Path: "/path/alpha"},
 		{ID: "ws-2", Name: "Beta Project", Path: "/path/beta"},
@@ -52,7 +51,7 @@ func TestWorkspacePicker_SearchAndFilter(t *testing.T) {
 }
 
 func TestWorkspacePicker_EscapeBehavior(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetData(messages.DataLoadedMsg{Workspaces: []config.Workspace{{ID: "1", Name: "Alpha"}}})
 
 	// Open picker
@@ -82,7 +81,7 @@ func TestWorkspacePicker_EscapeBehavior(t *testing.T) {
 }
 
 func TestWorkspacePicker_QNonQuit(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetData(messages.DataLoadedMsg{Workspaces: []config.Workspace{{ID: "1", Name: "Alpha"}}})
 
 	// Open picker
@@ -100,7 +99,7 @@ func TestWorkspacePicker_QNonQuit(t *testing.T) {
 }
 
 func TestWorkspacePicker_DedicatedRendering(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetSize(100, 50)
 
 	// Open picker
@@ -120,7 +119,7 @@ func TestWorkspacePicker_DedicatedRendering(t *testing.T) {
 // TestWorkspacePicker_ReopenAfterSearch tests the exact crash scenario:
 // open -> search -> select -> close -> reopen -> render.
 func TestWorkspacePicker_ReopenAfterSearch(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetSize(100, 50)
 
 	// Setup workspaces
@@ -174,7 +173,7 @@ func TestWorkspacePicker_ReopenAfterSearch(t *testing.T) {
 
 // TestWorkspacePicker_SizeRestoration tests that picker dimensions are preserved across reopens.
 func TestWorkspacePicker_SizeRestoration(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetSize(50, 20) // Non-default size
 
 	workspaces := []config.Workspace{
@@ -213,7 +212,7 @@ func TestWorkspacePicker_SizeRestoration(t *testing.T) {
 
 // TestWorkspacePicker_SmallTerminal tests that small terminal sizes don't cause panics.
 func TestWorkspacePicker_SmallTerminal(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetSize(20, 10) // Very small terminal
 
 	workspaces := []config.Workspace{
@@ -237,7 +236,7 @@ func TestWorkspacePicker_SmallTerminal(t *testing.T) {
 // TestWorkspacePicker_SelectionRestoration tests that selecting a workspace actually saves the new selection
 // and doesn't restore the old workspace due to premature state reset.
 func TestWorkspacePicker_SelectionRestoration(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetSize(100, 50)
 
 	workspaces := []config.Workspace{
@@ -277,7 +276,7 @@ func TestWorkspacePicker_SelectionRestoration(t *testing.T) {
 
 // TestWorkspacePicker_Filtering tests that workspace filtering works correctly.
 func TestWorkspacePicker_Filtering(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetSize(100, 50)
 
 	workspaces := []config.Workspace{

@@ -4,6 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
+	"sync"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -32,6 +37,10 @@ type CardRepository interface {
 type WorkspaceRepository interface {
 	ListWorkspaceSources() ([]WorkspaceSource, error)
 	SaveWorkspaceSources(sources []WorkspaceSource) error
+	// UpdateWorkspaceSources applies fn to the current source list and
+	// persists + syncs the result atomically. Prefer this over
+	// ListWorkspaceSources+SaveWorkspaceSources for any read-modify-write.
+	UpdateWorkspaceSources(fn func([]WorkspaceSource) ([]WorkspaceSource, error)) error
 	SyncWorkspacesFromSources() error
 	ListWorkspaces() ([]Workspace, error)
 	GetWorkspaceByPath(path string) (Workspace, bool)
@@ -42,6 +51,10 @@ type WorkspaceRepository interface {
 type SkillRepository interface {
 	ListSkillSources() ([]string, error)
 	SaveSkillSources(paths []string) error
+	// UpdateSkillSources applies fn to the current source list and persists
+	// + syncs the result atomically. Prefer this over
+	// ListSkillSources+SaveSkillSources for any read-modify-write.
+	UpdateSkillSources(fn func([]string) ([]string, error)) error
 	SyncSkillsFromSources() error
 	ListSkills() ([]Skill, error)
 	UpsertSkill(skill Skill) (Skill, error)
@@ -52,6 +65,10 @@ type SkillRepository interface {
 type PersonaRepository interface {
 	ListPersonaSources() ([]string, error)
 	SavePersonaSources(paths []string) error
+	// UpdatePersonaSources applies fn to the current source list and
+	// persists + syncs the result atomically. Prefer this over
+	// ListPersonaSources+SavePersonaSources for any read-modify-write.
+	UpdatePersonaSources(fn func([]string) ([]string, error)) error
 	SyncPersonasFromSources() error
 	ListPersonas() ([]Persona, error)
 	UpsertPersona(persona Persona) (Persona, error)
@@ -75,6 +92,10 @@ type SettingsRepository interface {
 type PuppetRepository interface {
 	ListPuppetSources() ([]string, error)
 	SavePuppetSources(paths []string) error
+	// UpdatePuppetSources applies fn to the current source list and persists
+	// + syncs the result atomically. Prefer this over
+	// ListPuppetSources+SavePuppetSources for any read-modify-write.
+	UpdatePuppetSources(fn func([]string) ([]string, error)) error
 	SyncPuppetsFromSources() error
 	ListPuppets() ([]Puppet, error)
 }
@@ -91,11 +112,23 @@ type Repository interface {
 	SettingsRepository
 	PuppetRepository
 	Dir() string
+	Fingerprint() (map[string]FileStamp, error)
 }
 
 // FileRepository stores all configuration state in YAML files under one directory.
+//
+// mu serializes read-modify-write sequences (list, mutate in memory, write
+// back) across all domains. It guards logical consistency on top of the
+// crash/interleaving safety WriteAtomic already provides for a single write.
+// It is a plain Mutex, not an RWMutex: several public readers are called
+// internally by mutators that already hold the lock (e.g. ValidateCard reads
+// workspaces/skills/personas/mcps while Create/UpdateIDCard hold it), and
+// Go's locks are not reentrant, so every exported method that touches disk
+// takes mu itself and internal call sites use the unexported *Locked helpers
+// that assume the lock is already held.
 type FileRepository struct {
 	dir string
+	mu  sync.Mutex
 }
 
 // NewFileRepository creates the repository and bootstraps empty YAML files when missing.
@@ -191,34 +224,61 @@ func (r *FileRepository) EnsureFiles() error {
 	return nil
 }
 
-// GetAppSettings loads app settings from disk.
+// GetAppSettings loads app settings from disk. Fields absent from the file
+// keep DefaultAppSettings' value (so a field added after the file was first
+// written defaults sanely instead of zeroing); fields present are decoded
+// straight from the real AppSettings struct via reflection, so a field added
+// to AppSettings is picked up automatically without hand-editing a second,
+// divergent schema here (see TestGetAppSettingsCoversEveryField for the
+// regression guard).
 func (r *FileRepository) GetAppSettings() (AppSettings, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	path := filepath.Join(r.dir, AppSettingsFilename)
-	var f struct {
-		SchemaVersion int `yaml:"schema_version"`
-		AppSettings   struct {
-			IDECommand               string `yaml:"ide_command"`
-			ShowPersonasInCardEditor *bool  `yaml:"show_personas_in_card_editor"`
-			ShowMCPsInCardEditor     *bool  `yaml:"show_mcps_in_card_editor"`
-		} `yaml:"app_settings"`
+	var raw struct {
+		SchemaVersion int                  `yaml:"schema_version"`
+		AppSettings   map[string]yaml.Node `yaml:"app_settings"`
 	}
-	if err := ReadYAML(path, &f); err != nil {
+	if err := ReadYAML(path, &raw); err != nil {
 		return AppSettings{}, err
 	}
 	settings := DefaultAppSettings()
-	settings.IDECommand = f.AppSettings.IDECommand
-	if f.AppSettings.ShowPersonasInCardEditor != nil {
-		settings.ShowPersonasInCardEditor = *f.AppSettings.ShowPersonasInCardEditor
-	}
-	if f.AppSettings.ShowMCPsInCardEditor != nil {
-		settings.ShowMCPsInCardEditor = *f.AppSettings.ShowMCPsInCardEditor
+	if err := overlayYAMLFields(&settings, raw.AppSettings); err != nil {
+		return AppSettings{}, fmt.Errorf("decode app_settings: %w", err)
 	}
 	return settings, nil
 }
 
 // SaveAppSettings persists app settings to disk.
 func (r *FileRepository) SaveAppSettings(cfg AppSettings) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	path := filepath.Join(r.dir, AppSettingsFilename)
 	f := AppSettingsFile{SchemaVersion: SchemaVersion, AppSettings: cfg}
 	return r.WriteAtomic(path, f)
+}
+
+// overlayYAMLFields decodes each field present in values onto the matching
+// yaml-tagged field of dst (a pointer to a struct), leaving fields absent
+// from values untouched. It is used to apply a partial YAML document onto a
+// struct that already carries defaults.
+func overlayYAMLFields(dst any, values map[string]yaml.Node) error {
+	v := reflect.ValueOf(dst).Elem()
+	t := v.Type()
+	for i := range t.NumField() {
+		tag := strings.Split(t.Field(i).Tag.Get("yaml"), ",")[0]
+		if tag == "" || tag == "-" {
+			continue
+		}
+		node, ok := values[tag]
+		if !ok {
+			continue
+		}
+		if err := node.Decode(v.Field(i).Addr().Interface()); err != nil {
+			return fmt.Errorf("field %q: %w", tag, err)
+		}
+	}
+	return nil
 }

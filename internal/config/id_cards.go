@@ -13,6 +13,14 @@ import (
 
 // ListIDCards returns all ID cards sorted by name.
 func (r *FileRepository) ListIDCards() ([]IDCard, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.listIDCardsLocked()
+}
+
+// listIDCardsLocked is ListIDCards without acquiring r.mu, for use by callers
+// that already hold it.
+func (r *FileRepository) listIDCardsLocked() ([]IDCard, error) {
 	f, err := r.LoadIDCardsFile()
 	if err != nil {
 		return nil, err
@@ -23,6 +31,9 @@ func (r *FileRepository) ListIDCards() ([]IDCard, error) {
 
 // CreateIDCard validates and persists a new ID card.
 func (r *FileRepository) CreateIDCard(card IDCard) (IDCard, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if card.ID == "" {
 		card.ID = uuid.NewString()
 	}
@@ -51,6 +62,9 @@ func (r *FileRepository) CreateIDCard(card IDCard) (IDCard, error) {
 
 // UpdateIDCard validates and updates an existing ID card.
 func (r *FileRepository) UpdateIDCard(card IDCard) (IDCard, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if card.ID == "" {
 		return IDCard{}, errors.New("id is required")
 	}
@@ -88,7 +102,15 @@ func (r *FileRepository) UpdateIDCard(card IDCard) (IDCard, error) {
 }
 
 // DeleteIDCard removes one ID card by identifier.
+//
+// It does not check whether the card is referenced by a live session:
+// internal/config cannot see internal/session (that package imports this one,
+// so the reverse would be an import cycle). Callers that can see sessions
+// (internal/app's OnDeleteCard) must apply that guard before calling this.
 func (r *FileRepository) DeleteIDCard(id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	f, err := r.LoadIDCardsFile()
 	if err != nil {
 		return err

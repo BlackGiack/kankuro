@@ -15,8 +15,6 @@ type Modal struct {
 	content    string
 	legend     string
 	open       bool
-	onConfirm  func()
-	onCancel   func()
 	modalWidth int
 }
 
@@ -58,16 +56,6 @@ func (m *Modal) Close() {
 // IsOpen returns whether modal is currently visible.
 func (m *Modal) IsOpen() bool {
 	return m.open
-}
-
-// SetConfirm sets the confirm callback.
-func (m *Modal) SetConfirm(callback func()) {
-	m.onConfirm = callback
-}
-
-// SetCancel sets the cancel callback.
-func (m *Modal) SetCancel(callback func()) {
-	m.onCancel = callback
 }
 
 // Init implements component.Model.

@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
@@ -16,7 +15,7 @@ import (
 
 func TestSourceManager_New_Skills(t *testing.T) {
 	callbacks := views.SourceManagerCallbacks{}
-	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks)
 
 	if sm == nil {
 		t.Fatal("NewSourceManager returned nil")
@@ -37,7 +36,7 @@ func TestSourceManager_New_Skills(t *testing.T) {
 
 func TestSourceManager_New_Personas(t *testing.T) {
 	callbacks := views.SourceManagerCallbacks{}
-	sm := views.NewSourceManager(views.SourceTypePersonas, callbacks, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypePersonas, callbacks)
 
 	if sm.SourceType() != views.SourceTypePersonas {
 		t.Errorf("Expected SourceTypePersonas, got %s", sm.SourceType())
@@ -50,7 +49,7 @@ func TestSourceManager_New_Personas(t *testing.T) {
 
 func TestSourceManager_New_Workspaces(t *testing.T) {
 	callbacks := views.SourceManagerCallbacks{}
-	sm := views.NewSourceManager(views.SourceTypeWorkspaces, callbacks, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeWorkspaces, callbacks)
 
 	if sm.SourceType() != views.SourceTypeWorkspaces {
 		t.Errorf("Expected SourceTypeWorkspaces, got %s", sm.SourceType())
@@ -77,7 +76,7 @@ func TestSourceManager_Reload(t *testing.T) {
 		},
 	}
 
-	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks)
 	sm.Reload()
 
 	if !loaded {
@@ -86,7 +85,7 @@ func TestSourceManager_Reload(t *testing.T) {
 }
 
 func TestSourceManager_Escape_NavigatesBack(t *testing.T) {
-	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{}, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{})
 	sm.Init()
 
 	_, cmd := sm.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
@@ -111,7 +110,7 @@ func TestSourceManager_View(t *testing.T) {
 		},
 	}
 
-	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks)
 	sm.Init()
 
 	view := sm.View()
@@ -201,7 +200,7 @@ func TestSourceManager_Delete(_ *testing.T) {
 		Refresh: func() tea.Cmd { return nil },
 	}
 
-	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks)
 
 	sm.Reload()
 
@@ -214,7 +213,7 @@ func TestSourceManager_Delete(_ *testing.T) {
 }
 
 func TestSourceManager_EscapeInListMode_NavigatesBack(t *testing.T) {
-	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{}, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{})
 	sm.Init()
 
 	_, cmd := sm.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
@@ -230,7 +229,7 @@ func TestSourceManager_EscapeInListMode_NavigatesBack(t *testing.T) {
 }
 
 func TestSourceManager_Escape_InFormMode(t *testing.T) {
-	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{}, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{})
 	sm.Init()
 
 	sm.SourceList().OpenForm(-1)
@@ -244,7 +243,7 @@ func TestSourceManager_Escape_InFormMode(t *testing.T) {
 }
 
 func TestSourceManager_SetSize(t *testing.T) {
-	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{}, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{})
 	sm.SetSize(80, 24)
 
 	if sm.Width != 80 {
@@ -263,7 +262,7 @@ func TestSourceManager_Error(t *testing.T) {
 		},
 	}
 
-	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks, &commands.Commands{})
+	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks)
 	sm.SetError(errors.New("test error"))
 
 	view := sm.View()

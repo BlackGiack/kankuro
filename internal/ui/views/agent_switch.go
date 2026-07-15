@@ -10,6 +10,7 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/component"
+	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/styles"
 )
@@ -61,12 +62,28 @@ func (v *AgentSwitchView) SetSession(id, name string) {
 	v.sessionName = name
 }
 
-// SetData implements messages.DataReceiver.
+// SetData implements messages.DataReceiver. Per messages.DataLoadedMsg's
+// contract, a nil field means "that registry could not be read this round" -
+// so each field is only replaced when non-nil, leaving the view's existing
+// card list in place across a transient read failure instead of emptying it
+// (see review_dp_4.md finding 1).
 func (v *AgentSwitchView) SetData(msg messages.DataLoadedMsg) {
-	v.cards = msg.Cards
-	v.skills = msg.Skills
-	v.personas = msg.Personas
-	v.refreshItems()
+	changed := false
+	if msg.Cards != nil {
+		v.cards = msg.Cards
+		changed = true
+	}
+	if msg.Skills != nil {
+		v.skills = msg.Skills
+		changed = true
+	}
+	if msg.Personas != nil {
+		v.personas = msg.Personas
+		changed = true
+	}
+	if changed {
+		v.refreshItems()
+	}
 }
 
 func (v *AgentSwitchView) refreshItems() {
@@ -83,19 +100,9 @@ func (v *AgentSwitchView) refreshItems() {
 }
 
 func (v *AgentSwitchView) filterCards() []config.IDCard {
-	if v.searchQuery == "" {
-		return v.cards
-	}
-	q := strings.ToLower(v.searchQuery)
-	var filtered []config.IDCard
-	for _, card := range v.cards {
-		if strings.Contains(strings.ToLower(card.Name), q) ||
-			strings.Contains(strings.ToLower(card.Driver), q) ||
-			strings.Contains(strings.ToLower(card.Model), q) {
-			filtered = append(filtered, card)
-		}
-	}
-	return filtered
+	return components.Filter(v.cards, v.searchQuery, func(card config.IDCard) string {
+		return card.Name + " " + card.Driver + " " + card.Model
+	})
 }
 
 // Init initializes the view.

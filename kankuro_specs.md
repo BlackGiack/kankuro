@@ -168,4 +168,31 @@ type AgentDriver interface {
 * **Config Data:** ID cards store `workspace_id`; workspace paths are resolved through the workspace registry.
 * **Workspace Isolation:** Temporary workspaces are created using standard system copy tools to ensure attribute preservation.
 
+### 5.1 Running the App for Testing
+
+Never run a test/dev instance against the real user directories — a session
+launched from a manual test writes a session record, and a temporary workspace
+copies an entire workspace tree. Both land under the user's own config directory
+by default and are easy to forget about.
+
+Point both overrides at a throwaway location before launching:
+
+```bash
+KANKURO_TMP_DIR=/tmp/kankuro-test/tmp \
+KANKURO_CONFIG_DIR=/tmp/kankuro-test/config \
+  go run ./cmd/kankuro
+```
+
+* **`KANKURO_TMP_DIR`** — root for temporary workspaces. Defaults to
+  `~/.config/kankuro/tmp/`, so leaving it unset means every tmp-workspace test
+  leaves a full copy of the source tree there (`internal/session/workspace.go`,
+  `lifecycle.go`).
+* **`KANKURO_CONFIG_DIR`** — root for ID cards, sessions and the capability
+  registries (also settable with `--config-dir`). Leaving it unset means a test
+  run adds real ID cards and session records to the user's own config.
+
+Both are read at startup, so they must be set on the launching process — exporting
+them after the app starts has no effect. Tests in `internal/session` already use
+`t.TempDir()` and are unaffected; this note is about running the binary by hand.
+
 ---

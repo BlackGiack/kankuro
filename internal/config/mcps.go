@@ -10,6 +10,12 @@ import (
 
 // ListMCPs returns the MCP server registry sorted by name.
 func (r *FileRepository) ListMCPs() ([]MCPServer, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.listMCPsLocked()
+}
+
+func (r *FileRepository) listMCPsLocked() ([]MCPServer, error) {
 	f, err := r.LoadMCPsFile()
 	if err != nil {
 		return nil, err
@@ -20,6 +26,9 @@ func (r *FileRepository) ListMCPs() ([]MCPServer, error) {
 
 // UpsertMCP creates or updates one MCP server entry.
 func (r *FileRepository) UpsertMCP(mcp MCPServer) (MCPServer, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if mcp.Name == "" {
 		return MCPServer{}, errors.New("mcp name is required")
 	}
@@ -47,7 +56,10 @@ func (r *FileRepository) UpsertMCP(mcp MCPServer) (MCPServer, error) {
 
 // DeleteMCP removes an MCP server unless it is referenced by existing ID cards.
 func (r *FileRepository) DeleteMCP(id string) error {
-	cards, err := r.ListIDCards()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	cards, err := r.listIDCardsLocked()
 	if err != nil {
 		return err
 	}

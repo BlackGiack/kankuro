@@ -3,6 +3,7 @@ package components_test
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -207,5 +208,24 @@ func TestRenderCardItemNoCapabilities(t *testing.T) {
 	// Should show "no capabilities" message
 	if !strings.Contains(output, "no capabilities") {
 		t.Error("Expected 'no capabilities' message when no skills/personas")
+	}
+}
+
+func TestRenderCardItem_MultibyteName(t *testing.T) {
+	card := config.IDCard{
+		ID:     "1",
+		Name:   "日本語のとても長いカード名前テスト",
+		Driver: "claude",
+		Model:  "claude-3",
+		Puppet: "kankuro",
+	}
+
+	output := components.RenderCardItem(card, nil, nil, nil, false, 30)
+
+	if !utf8.ValidString(output) {
+		t.Fatalf("output is not valid UTF-8: %q", output)
+	}
+	if strings.ContainsRune(output, '\uFFFD') {
+		t.Errorf("output contains a replacement rune, name was cut mid-rune: %q", output)
 	}
 }

@@ -3,6 +3,7 @@ package components
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	bubbletea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -40,7 +41,7 @@ type CapabilityList struct {
 
 	items       []CapabilityItem
 	cursor      int
-	Selected    map[string]bool
+	selected    map[string]bool
 	SearchQuery string
 	focused     bool
 }
@@ -51,7 +52,7 @@ func NewCapabilityList(config CapabilityListConfig) *CapabilityList {
 		title:      config.Title,
 		sourceHint: config.SourceHint,
 		maxVisible: max(1, config.MaxVisible),
-		Selected:   make(map[string]bool),
+		selected:   make(map[string]bool),
 	}
 }
 
@@ -62,21 +63,43 @@ func (c *CapabilityList) SetItems(items []CapabilityItem) {
 	c.items = items
 }
 
-func (c *CapabilityList) IsSelectedList() map[string]bool { return c.Selected }
+// IsSelected reports whether id is currently selected.
+func (c *CapabilityList) IsSelected(id string) bool {
+	return c.selected[id]
+}
+
+// Select marks id as selected.
+func (c *CapabilityList) Select(id string) {
+	c.selected[id] = true
+}
+
+// Deselect clears id's selection.
+func (c *CapabilityList) Deselect(id string) {
+	delete(c.selected, id)
+}
+
+// Toggle flips id's selection state.
+func (c *CapabilityList) Toggle(id string) {
+	if c.selected[id] {
+		delete(c.selected, id)
+	} else {
+		c.selected[id] = true
+	}
+}
 
 // SetSelected sets the selected IDs.
 func (c *CapabilityList) SetSelected(ids []string) {
-	c.Selected = make(map[string]bool)
+	c.selected = make(map[string]bool)
 	for _, id := range ids {
-		c.Selected[id] = true
+		c.selected[id] = true
 	}
 }
 
 // SelectedIDs returns the selected IDs.
 func (c *CapabilityList) SelectedIDs() []string {
-	ids := make([]string, 0, len(c.Selected))
+	ids := make([]string, 0, len(c.selected))
 	for _, item := range c.items {
-		if c.Selected[item.GetID()] {
+		if c.selected[item.GetID()] {
 			ids = append(ids, item.GetID())
 		}
 	}
@@ -118,12 +141,7 @@ func (c *CapabilityList) ToggleSelected() {
 		return
 	}
 
-	id := filtered[c.cursor].GetID()
-	if c.Selected[id] {
-		delete(c.Selected, id)
-	} else {
-		c.Selected[id] = true
-	}
+	c.Toggle(filtered[c.cursor].GetID())
 }
 
 // SelectedItem returns the item at cursor.
@@ -170,7 +188,7 @@ func (c *CapabilityList) handleKey(keyMsg bubbletea.KeyPressMsg) {
 	default:
 		if len(keyMsg.Text) > 0 {
 			for _, ch := range keyMsg.Text {
-				if ch >= 33 && ch <= 126 {
+				if unicode.IsPrint(ch) && !unicode.IsSpace(ch) {
 					c.SearchQuery += string(ch)
 					c.cursor = 0
 				}
@@ -220,7 +238,7 @@ func (c *CapabilityList) View() string {
 		}
 
 		mark := " "
-		if c.Selected[item.GetID()] {
+		if c.IsSelected(item.GetID()) {
 			mark = "x"
 		}
 

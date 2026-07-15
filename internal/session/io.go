@@ -7,11 +7,11 @@ import (
 	"kankuro/internal/driver"
 )
 
-func (m *Manager) trackOutput(sessionID string, output <-chan []byte) {
+func (m *Manager) trackOutput(sessionID string, gen uint64, output <-chan []byte) {
 	for chunk := range output {
 		m.mu.Lock()
 		s, ok := m.sessions[sessionID]
-		if !ok {
+		if !ok || s.generation != gen {
 			m.mu.Unlock()
 			return
 		}
@@ -29,7 +29,9 @@ func (m *Manager) trackOutput(sessionID string, output <-chan []byte) {
 		m.mu.Unlock()
 	}
 	m.mu.Lock()
-	m.closeSubscribersLocked(sessionID)
+	if s, ok := m.sessions[sessionID]; ok && s.generation == gen {
+		m.closeSubscribersLocked(sessionID)
+	}
 	m.mu.Unlock()
 }
 
