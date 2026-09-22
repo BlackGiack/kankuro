@@ -213,6 +213,62 @@ func TestKillPersistsTerminatedDespiteDriverError(t *testing.T) {
 	}
 }
 
+// TestLaunchWrapsErrPersistFailedButSessionStaysUsable pins the Finding-1
+// fix: a persist failure after a successful spawn must be reported as
+// ErrPersistFailed (distinguishable via [errors.Is] from "never started"),
+// while the process keeps running and the session stays fully usable.
+func TestLaunchWrapsErrPersistFailedButSessionStaysUsable(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root: file permissions are not enforced")
+	}
+
+	repo, _ := config.NewFileRepository(t.TempDir())
+	wd := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	sessionsDir := filepath.Join(repo.Dir(), "sessions")
+	if errMkdir := os.MkdirAll(sessionsDir, 0o700); errMkdir != nil {
+		t.Fatalf("mkdir sessions dir: %v", errMkdir)
+	}
+	if errChmod := os.Chmod(sessionsDir, 0o500); errChmod != nil {
+		t.Fatalf("chmod: %v", errChmod)
+	}
+	defer os.Chmod(sessionsDir, 0o700)
+
+	sm := session.NewManager(repo.Dir(), repo)
+	card := config.IDCard{
+		ID:          "card-persist-fail",
+		Name:        "persist-fail",
+		Driver:      "cat",
+		WorkspaceID: workspaces[0].ID,
+	}
+
+	sid, err := sm.Launch(card, nil, nil, nil)
+	if !errors.Is(err, session.ErrPersistFailed) {
+		t.Fatalf("expected ErrPersistFailed, got: %v", err)
+	}
+	defer func() {
+		_ = os.Chmod(sessionsDir, 0o700)
+		_ = sm.Kill(sid)
+	}()
+	time.Sleep(100 * time.Millisecond)
+
+	s, ok := sm.GetSession(sid)
+	if !ok {
+		t.Fatalf("expected session to exist despite the persist failure")
+	}
+	if s.Status == session.StatusTerminated {
+		t.Fatalf("expected the process to still be running, got %s", s.Status)
+	}
+
+	handle, errAttach := sm.Attach(sid)
+	if errAttach != nil {
+		t.Fatalf("expected attach to succeed despite the persist failure: %v", errAttach)
+	}
+	handle.Close()
+}
+
 func TestSessionSwitchAgent(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	wd := t.TempDir()
@@ -324,6 +380,94 @@ func TestSessionSwitchAgentPreservesCustomName(t *testing.T) {
 	}
 
 	_ = sm.Kill(sid)
+}
+
+// TestSetNamePropagatesPersistFailure pins the step-2 fix: a save failure
+// inside persistSessionLocked must propagate out of SetName rather than be
+// silently discarded. The sessions dir is made unwritable to force the
+// failure deterministically.
+func TestSetNamePropagatesPersistFailure(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root: file permissions are not enforced")
+	}
+
+	repo, _ := config.NewFileRepository(t.TempDir())
+	wd := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	sm := session.NewManager(repo.Dir(), repo)
+	card := config.IDCard{
+		ID:          "card-setname-fail",
+		Name:        "setname-fail",
+		Driver:      "cat",
+		WorkspaceID: workspaces[0].ID,
+	}
+
+	sid, err := sm.Launch(card, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+	defer sm.Kill(sid)
+	time.Sleep(100 * time.Millisecond)
+
+	// The session file already exists from the Launch persist above, so
+	// restricting the *directory* would not block a write to an
+	// already-open, already-writable file. Strip write permission from the
+	// file itself instead.
+	sessionFile := filepath.Join(repo.Dir(), "sessions", sid+".json")
+	if errChmod := os.Chmod(sessionFile, 0o400); errChmod != nil {
+		t.Fatalf("chmod: %v", errChmod)
+	}
+	defer os.Chmod(sessionFile, 0o600)
+
+	if errSet := sm.SetName(sid, "new-name"); errSet == nil {
+		t.Fatalf("expected SetName to surface the persist failure")
+	}
+}
+
+// TestRemoveIsBenignForMissingSessionFile pins the Remove contract: if the
+// on-disk session file is already gone, that is not a failure - the delete
+// the caller asked for already holds - so Remove must return nil (mirroring
+// Kill's treatment of [os.ErrProcessDone] as benign), and must still drop the
+// session from the in-memory registry.
+func TestRemoveIsBenignForMissingSessionFile(t *testing.T) {
+	repo, _ := config.NewFileRepository(t.TempDir())
+	wd := t.TempDir()
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	sm := session.NewManager(repo.Dir(), repo)
+	card := config.IDCard{
+		ID:          "card-remove-missing",
+		Name:        "remove-missing",
+		Driver:      "cat",
+		WorkspaceID: workspaces[0].ID,
+	}
+
+	sid, err := sm.Launch(card, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+	if errKill := sm.Kill(sid); errKill != nil {
+		t.Fatalf("kill: %v", errKill)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	sessionsDir := filepath.Join(repo.Dir(), "sessions")
+	if errRemoveFile := os.Remove(filepath.Join(sessionsDir, sid+".json")); errRemoveFile != nil {
+		t.Fatalf("pre-remove session file: %v", errRemoveFile)
+	}
+
+	if errRemove := sm.Remove(sid); errRemove != nil {
+		t.Fatalf("expected Remove to be benign for an already-missing session file, got: %v", errRemove)
+	}
+
+	for _, s := range sm.List() {
+		if s.ID == sid {
+			t.Fatalf("expected session to be dropped from the registry")
+		}
+	}
 }
 
 func TestRemoveOnlyDeletesTerminatedSessions(t *testing.T) {

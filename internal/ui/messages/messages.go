@@ -47,8 +47,13 @@ type SessionOutputMsg struct {
 }
 
 // SessionAttachRequestedMsg signals user wants to attach to session.
+// Warning carries a non-fatal problem the caller should still surface (e.g.
+// session.ErrPersistFailed): the session started/relaunched successfully and
+// should still be attached to, but something about the operation - usually
+// that its state could not be saved - deserves the user's attention.
 type SessionAttachRequestedMsg struct {
 	SessionID string
+	Warning   error
 }
 
 // SessionLaunchCompletedMsg signals that a session launch has completed.

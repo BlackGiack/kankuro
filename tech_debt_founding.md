@@ -7,6 +7,19 @@ Confidence key: **[confirmed]** = verified by directly reading the code;
 **[reported]** = surfaced by review, plausible, worth confirming (e.g. with
 `go test -race`) before acting.
 
+Findings are numbered in **discovery order, not severity order** — the plans below
+reference these numbers, so new findings are appended rather than renumbered. Read
+the section heading (Critical/High, Medium, Low) for severity.
+
+> **Progress (2026-09-22).** Plans 1 and 2 are implemented and merged/staged:
+> findings **#2, #3, #6, #15** and the exit-code half of **#9** are fixed (Plan 1),
+> and **#9** (struct mapping) plus the `internal/session` half of **#8** are fixed
+> (Plan 2). `go test -race ./internal/session/...` now passes — the Baseline
+> section below records the pre-remediation state, so treat its `-race` line as
+> historical. Line references inside findings touched by those two plans have
+> shifted by a few lines; the symbol names are still accurate. Finding **#17** was
+> discovered while testing Plan 2 and is not yet fixed.
+
 > **Scope update (2026-09-10).** The env-var *injection feature* was cancelled;
 > `session_envvar_plan.md` is not going to be implemented. The correctness fixes
 > that plan had bundled ("Bundled correctness fixes" A–D, plus the `Env` half of
@@ -115,6 +128,49 @@ detector as a gate for #3, #4 and any future concurrency work. `Sessions()` has 
 callers at all.
 **Fix:** return a value snapshot from `GetSession`, delete `Sessions()`, migrate
 the test call sites.
+
+### 17. A partial `DataLoadedMsg` broadcast wipes other views' data — silent card data loss [confirmed]
+`internal/app/coordinator.go:415-421` (`broadcastData`), partial senders at `:284`
+and `:434`; unguarded receivers at `internal/ui/views/agent_switch.go:65` and
+`internal/ui/views/card_editor.go:252`
+
+`broadcastData` sends one `DataLoadedMsg` to **every** `DataReceiver`, and two
+senders deliberately fill in only the preview fields: `handlePreviewRequest`
+(`:434`) and the incremental-output path (`:284`, `IsIncremental: true`). Receivers
+that assign unconditionally therefore overwrite their real data with `nil`.
+
+`Dashboard.SetData` (`dashboard.go:144-160`) already guards every field with
+`if msg.X != nil` — so this was hit once and fixed *in one view only*.
+`AgentSwitchView.SetData` and `CardEditor.SetData` still assign unconditionally.
+
+The card editor makes this **silent data loss, not a cosmetic flash**:
+`CapabilityList.SelectedIDs()` (`components/capability_list.go:76-84`) builds its
+result by iterating the list's *items* and keeping those marked selected — so once
+`SetData` has replaced the items with an empty slice, `SelectedIDs()` returns
+nothing, and `CardEditor.Card()` saves the card with **no skills / personas / MCPs**.
+Measured, driving a real coordinator:
+
+```
+skills on the card BEFORE:   [builtin:mcp-cli]
+skills on the card AFTER:    []          <- after one incremental broadcast
+=> saving now would write the card with NO skills
+```
+
+Reachability: opening the card editor does not clear `c.previewSessionID` (that is
+finding #12), so a `SessionOutputMsg` already queued for the previously previewed
+session still matches at `:263` and fires the `:284` broadcast while the editor is
+open. The window closes at the next full refresh (≤2s, the tick), so the damage
+needs a save inside that window — but an agent producing output makes the stray
+message likely, and the loss is silent when it lands. Same root cause, milder
+symptom, for the agent-switch view: its card list empties until the next tick.
+
+**Fix:** the root cause is that `DataLoadedMsg` doubles as both a full snapshot and
+a partial preview update with no way to tell them apart. Prefer fixing that — give
+the preview updates their own message type (or have `broadcastData` only reach
+receivers for the fields actually present) — rather than adding nil guards to each
+of the five `SetData` implementations, which is what left the codebase in this
+half-fixed state. If guards are used as a stopgap, mirror the dashboard's exactly
+and add a test that a partial broadcast cannot change `CardEditor.Card()`.
 
 ---
 
@@ -315,15 +371,15 @@ correct; `attach.go` detach detection and PTY resize handling are careful
 The findings above are split into seven independently executable plans, ordered so
 that each one's verification gate is available when it runs:
 
-| Plan | File | Covers |
-| --- | --- | --- |
-| 1 | `debt_impl_plan_1.md` | #6, #3, #15, exit code half of #9, #2 |
-| 2 | `debt_impl_plan_2.md` | #9 (structs), #8 (session half) |
-| 3 | `debt_impl_plan_3.md` | #7, #11, #5, `DeleteIDCard` guard, `GetAppSettings`, ID gen, `ExpandEnv` |
-| 4 | `debt_impl_plan_4.md` | #4, #12, #10, #8 (app half), sync `DeleteMCP`, #14 |
-| 5 | `debt_impl_plan_5.md` | #13, redundant per-launch reads, `wiring.go GetCard` |
-| 6 | `debt_impl_plan_6.md` | #1, card-editor focus table, mutating accessors, `\n` split |
-| 7 | `debt_impl_plan_7.md` | key/value parsing, unicode truncation, `CapabilityList`, **#16**, dead code, dedup |
+| Plan | File | Covers | Status |
+| --- | --- | --- | --- |
+| 1 | `debt_impl_plan_1.md` | #6, #3, #15, exit code half of #9, #2 | **done** |
+| 2 | `debt_impl_plan_2.md` | #9 (structs), #8 (session half) | **done** |
+| 3 | `debt_impl_plan_3.md` | #7, #11, #5, `DeleteIDCard` guard, `GetAppSettings`, ID gen, `ExpandEnv` | todo |
+| 4 | `debt_impl_plan_4.md` | #4, #12, **#17**, #10, #8 (app half), sync `DeleteMCP`, #14 | todo |
+| 5 | `debt_impl_plan_5.md` | #13, redundant per-launch reads, `wiring.go GetCard` | todo |
+| 6 | `debt_impl_plan_6.md` | #1, card-editor focus table, mutating accessors, `\n` split | todo |
+| 7 | `debt_impl_plan_7.md` | key/value parsing, unicode truncation, `CapabilityList`, **#16**, dead code, dedup | todo |
 
 Plan 1 must run first: it restores `go test -race ./internal/session/...` as a
 usable gate. Plans 3–7 are otherwise independent of each other.

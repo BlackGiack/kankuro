@@ -3,6 +3,7 @@ package session
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -88,6 +89,7 @@ type Snapshot struct {
 	LastOutput      string
 	Status          Status
 	Pinged          bool
+	ExitCode        int
 }
 
 // WorkspaceReader provides the minimal interface the session manager needs
@@ -102,6 +104,8 @@ type Manager struct {
 	configDir string
 	repo      WorkspaceReader
 	drivers   driver.Registry
+	loadErr   error
+	logger    *slog.Logger
 }
 
 // Option configures the Manager.
@@ -114,6 +118,18 @@ func WithDriverRegistry(reg driver.Registry) Option {
 	}
 }
 
+// WithLogger sets the logger used for background failures that have no
+// caller to report them to (e.g. a persist failure from the watch ticker).
+// Defaults to a discarding logger, so callers that don't care about this
+// need not wire anything up.
+func WithLogger(logger *slog.Logger) Option {
+	return func(m *Manager) {
+		if logger != nil {
+			m.logger = logger
+		}
+	}
+}
+
 // NewManager creates a session registry and loads persisted sessions.
 func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager {
 	m := &Manager{
@@ -121,31 +137,34 @@ func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager
 		configDir: configDir,
 		repo:      repo,
 		drivers:   driver.NewBuiltinRegistry(), // default builtin registry
+		logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	for _, opt := range opts {
 		opt(m)
 	}
 
 	sessionsDir := filepath.Join(configDir, "sessions")
-	loaded, _ := loadSessions(sessionsDir) // ignore error, just start empty
+	loaded, loadErr := loadSessions(sessionsDir)
+	m.loadErr = loadErr
 
 	for _, d := range loaded {
-		m.sessions[d.ID] = &Session{
-			ID:              d.ID,
-			CardID:          d.CardID,
-			Name:            d.Name,
-			PID:             d.PID,
-			WorkingDir:      d.WorkingDir,
-			OriginalDir:     d.OriginalDir,
-			UseTmpWorkspace: d.UseTmpWorkspace,
-			StartedAt:       d.StartedAt,
-			LastWordAt:      d.LastWordAt,
-			Status:          StatusTerminated, // All loaded sessions are terminated
-			Subscribers:     make(map[chan []byte]struct{}),
-		}
+		m.sessions[d.ID] = d.restore()
 	}
 
 	return m
+}
+
+// LoadErrors returns any error encountered while hydrating persisted
+// sessions at startup (corrupt or unreadable session files are skipped, not
+// fatal). Callers should surface this once at startup.
+//
+// m.loadErr is intentionally read without m.mu: it is written exactly once,
+// in NewManager, before the Manager is returned to (and can escape to) any
+// other goroutine - so there is a happens-before edge and no lock is needed.
+// It must stay write-once; do not add another writer without adding
+// synchronization.
+func (m *Manager) LoadErrors() error {
+	return m.loadErr
 }
 
 // GetSession returns a safe value snapshot of a session by ID.
@@ -156,7 +175,7 @@ func (m *Manager) GetSession(id string) (Snapshot, bool) {
 	if !ok {
 		return Snapshot{}, false
 	}
-	return snapshotOf(s), true
+	return s.snapshot(), true
 }
 
 // PendingLineLen reports the buffered partial-line size. Used by tests to
@@ -199,14 +218,14 @@ func (m *Manager) List() []Snapshot {
 	defer m.mu.RUnlock()
 	out := make([]Snapshot, 0, len(m.sessions))
 	for _, s := range m.sessions {
-		out = append(out, snapshotOf(s))
+		out = append(out, s.snapshot())
 	}
 	return out
 }
 
-// snapshotOf builds a value Snapshot from a Session. Callers must hold m.mu
+// snapshot builds a value Snapshot from a Session. Callers must hold m.mu
 // (read or write) while calling this.
-func snapshotOf(s *Session) Snapshot {
+func (s *Session) snapshot() Snapshot {
 	return Snapshot{
 		ID:              s.ID,
 		CardID:          s.CardID,
@@ -220,6 +239,26 @@ func snapshotOf(s *Session) Snapshot {
 		LastOutput:      s.LastOutput,
 		Status:          s.Status,
 		Pinged:          s.Pinged,
+		ExitCode:        s.ExitCode,
+	}
+}
+
+// data builds the persisted Data record from a Session. Callers must hold
+// m.mu (read or write) while calling this.
+func (s *Session) data() *Data {
+	return &Data{
+		ID:              s.ID,
+		CardID:          s.CardID,
+		Name:            s.Name,
+		PID:             s.PID,
+		WorkingDir:      s.WorkingDir,
+		OriginalDir:     s.OriginalDir,
+		UseTmpWorkspace: s.UseTmpWorkspace,
+		StartedAt:       s.StartedAt,
+		LastWordAt:      s.LastWordAt,
+		LastOutput:      s.LastOutput,
+		Status:          s.Status,
+		ExitCode:        s.ExitCode,
 	}
 }
 
@@ -232,8 +271,7 @@ func (m *Manager) SetName(id, name string) error {
 		return fmt.Errorf("session not found: %s", id)
 	}
 	s.Name = name
-	m.persistSessionLocked(s)
-	return nil
+	return m.persistSessionLockedErr(s)
 }
 
 // GetScrollback returns a copy of the cached scrollback for a session.

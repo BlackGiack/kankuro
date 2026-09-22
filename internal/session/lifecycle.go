@@ -13,6 +13,14 @@ import (
 	"kankuro/internal/driver"
 )
 
+// ErrPersistFailed marks a "started, but its record could not be saved"
+// outcome: the agent process is live and the in-memory session is fully
+// usable, but the on-disk copy did not update, so it will not survive a
+// restart. Callers should use [errors.Is] to tell this apart from a launch
+// that never started a process at all, and can still attach/use the session
+// while surfacing this as a (non-blocking) warning.
+var ErrPersistFailed = errors.New("session state could not be saved")
+
 // Launch starts a new session process from an ID card.
 // syncDriverFiles clears temp directories (if needed) and syncs skill/persona/MCP files.
 func (m *Manager) syncDriverFiles(
@@ -147,7 +155,14 @@ func (m *Manager) SwitchAgent(
 	go m.trackOutput(id, gen, h.Output)
 	go m.watch(id, gen, d)
 
-	m.persistSessionLocked(s)
+	// A persist failure here must not unwind the spawn: the agent process is
+	// already running. Surface the error so the caller can report it, but
+	// leave the in-memory session as-is. Wrapped in ErrPersistFailed so
+	// callers can tell "did not start" apart from "started, but its record
+	// did not save" and still offer the normal attach flow.
+	if persistErr := m.persistSessionLockedErr(s); persistErr != nil {
+		return fmt.Errorf("%w: %w", ErrPersistFailed, persistErr)
+	}
 	return nil
 }
 
@@ -242,7 +257,14 @@ func (m *Manager) startSession(
 	go m.trackOutput(sid, gen, h.Output)
 	go m.watch(sid, gen, d)
 
-	m.persistSessionLocked(s)
+	// A persist failure here must not unwind the spawn: the agent process is
+	// already running. Surface the error so the caller can report it, but
+	// leave the in-memory session as-is. Wrapped in ErrPersistFailed so
+	// callers can tell "did not start" apart from "started, but its record
+	// did not save" and still offer the normal attach flow.
+	if persistErr := m.persistSessionLockedErr(s); persistErr != nil {
+		return fmt.Errorf("%w: %w", ErrPersistFailed, persistErr)
+	}
 	return nil
 }
 
@@ -270,21 +292,24 @@ func (m *Manager) activateSessionLocked(
 	s.Done = h.Done
 }
 
-func (m *Manager) persistSessionLocked(s *Session) {
-	d := &Data{
-		ID:              s.ID,
-		CardID:          s.CardID,
-		Name:            s.Name,
-		PID:             s.PID,
-		WorkingDir:      s.WorkingDir,
-		OriginalDir:     s.OriginalDir,
-		UseTmpWorkspace: s.UseTmpWorkspace,
-		StartedAt:       s.StartedAt,
-		LastWordAt:      s.LastWordAt,
-		Status:          s.Status,
-	}
+// persistSessionLockedErr writes s to disk and returns any error. Callers
+// must hold m.mu.
+func (m *Manager) persistSessionLockedErr(s *Session) error {
 	sessionsDir := filepath.Join(m.configDir, "sessions")
-	_ = saveSession(sessionsDir, d)
+	return saveSession(sessionsDir, s.data())
+}
+
+// persistSessionLocked is the background-safe variant: failures cannot
+// propagate to a caller (e.g. the watch ticker), so they are logged instead
+// of discarded. See debt_impl_plan_2.md step 3 for the logging decision:
+// callers must never log unconditionally to stderr (it corrupts the
+// rendered TUI frame), so this goes through the Manager's injected logger
+// (WithLogger), which main.go points at the debug log file, or discards
+// entirely when --debug is not set.
+func (m *Manager) persistSessionLocked(s *Session) {
+	if err := m.persistSessionLockedErr(s); err != nil {
+		m.logger.Warn("session persist failed", "session_id", s.ID, "error", err)
+	}
 }
 
 // Kill terminates one managed session. If the driver reports an error (e.g.
@@ -304,9 +329,9 @@ func (m *Manager) Kill(id string) error {
 	m.mu.Lock()
 	s.Status = StatusTerminated
 	s.Pinged = false
-	m.persistSessionLocked(s)
+	persistErr := m.persistSessionLockedErr(s)
 	m.mu.Unlock()
-	return killErr
+	return errors.Join(killErr, persistErr)
 }
 
 // Remove deletes a terminated session from the registry.
@@ -322,8 +347,16 @@ func (m *Manager) Remove(id string) error {
 	}
 
 	sessionsDir := filepath.Join(m.configDir, "sessions")
-	_ = deleteSession(sessionsDir, id)
+	deleteErr := deleteSession(sessionsDir, id)
+	// A file that is already gone is not a failure: the caller asked for it
+	// not to exist, and it doesn't. Surfacing this as an error (as Plan 2
+	// originally did) produced a red banner for a delete that did exactly
+	// what was asked - the same shape as os.ErrProcessDone in Kill.
+	if errors.Is(deleteErr, os.ErrNotExist) {
+		deleteErr = nil
+	}
 
+	var rmErr error
 	if s.UseTmpWorkspace {
 		tmpRoot := os.Getenv("KANKURO_TMP_DIR")
 		if tmpRoot == "" {
@@ -332,11 +365,21 @@ func (m *Manager) Remove(id string) error {
 		sessionRoot := filepath.Join(tmpRoot, id)
 		// G703: Path traversal via taint analysis.
 		// sessionRoot is derived from managed ID.
-		_ = os.RemoveAll(sessionRoot) //nolint:gosec // sessionRoot is derived from managed ID
+		rmErr = os.RemoveAll(sessionRoot) //nolint:gosec // sessionRoot is derived from managed ID
 	}
 
+	// Always drop the in-memory session so the UI does not wedge on a row it
+	// cannot delete, even if the on-disk cleanup below failed.
 	delete(m.sessions, id)
-	return nil
+
+	var errs []error
+	if deleteErr != nil {
+		errs = append(errs, fmt.Errorf("delete session file: %w", deleteErr))
+	}
+	if rmErr != nil {
+		errs = append(errs, fmt.Errorf("remove tmp workspace: %w", rmErr))
+	}
+	return errors.Join(errs...)
 }
 
 // Shutdown terminates all managed sessions, used when Kankuro exits.

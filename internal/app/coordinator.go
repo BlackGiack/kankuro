@@ -115,6 +115,11 @@ func (c *Coordinator) SourceManagerCallbacks(st views.SourceType) views.SourceMa
 	return c.sourceManagerCallbacks(st)
 }
 
+// AgentSwitchCallbacks returns the agent-switch view callbacks.
+func (c *Coordinator) AgentSwitchCallbacks() views.AgentSwitchCallbacks {
+	return c.agentSwitchCallbacks()
+}
+
 // RefreshData triggers a data refresh.
 func (c *Coordinator) RefreshData() tea.Cmd {
 	return c.refreshData()
@@ -156,7 +161,20 @@ func (c *Coordinator) Init() tea.Cmd {
 		c.refreshData(),
 		tick(),
 		c.syncPuppetsAsync(),
+		c.reportSessionLoadErrors(),
 	)
+}
+
+// reportSessionLoadErrors surfaces any error hit while hydrating persisted
+// sessions at startup (corrupt/unreadable session files are skipped, not
+// fatal, but the user should know they lost a session record).
+func (c *Coordinator) reportSessionLoadErrors() tea.Cmd {
+	return func() tea.Msg {
+		if err := c.session.LoadErrors(); err != nil {
+			return messages.ErrorMsg{Err: err}
+		}
+		return nil
+	}
 }
 
 func (c *Coordinator) syncPuppetsAsync() tea.Cmd {
@@ -287,7 +305,22 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, c.navigateTo(ViewAgentSwitch)
 
 	case messages.SessionAttachRequestedMsg:
-		return true, c.attachSession(m.SessionID)
+		// Navigate here, not in the callback that produced this message:
+		// this handler runs outside updateCurrentView's write-back
+		// (coordinator.go's Update), so flipping c.currentView cannot
+		// clobber c.views[c.currentView] with whatever view originated the
+		// message (e.g. the agent-switch view calling this to attach after
+		// a successful switch). See callbacks.go's agentSwitchCallbacks for
+		// the regression this guards against.
+		var initCmd tea.Cmd
+		if c.currentView != ViewDashboard {
+			initCmd = c.navigateTo(ViewDashboard)
+		}
+		// Set after navigating: navigateTo unconditionally clears c.err.
+		if m.Warning != nil {
+			c.err = m.Warning
+		}
+		return true, tea.Batch(initCmd, c.attachSession(m.SessionID))
 
 	case messages.AttachFinishedMsg:
 		if m.Err != nil {

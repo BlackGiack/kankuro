@@ -150,7 +150,12 @@ func (c *Coordinator) relaunchSession(sessionID string) tea.Cmd {
 		mcps := c.mcpsForCard(card)
 		relaunchErr := c.session.Relaunch(sessionID, card, skills, personas, mcps)
 		if relaunchErr != nil {
-			return messages.ErrorMsg{Err: relaunchErr}
+			if !errors.Is(relaunchErr, session.ErrPersistFailed) {
+				return messages.ErrorMsg{Err: relaunchErr}
+			}
+			// The process did restart; only its on-disk record failed to
+			// save. Still attach, but let the user know.
+			return messages.SessionAttachRequestedMsg{SessionID: sessionID, Warning: relaunchErr}
 		}
 		return messages.SessionAttachRequestedMsg{SessionID: sessionID}
 	}
@@ -465,15 +470,32 @@ func (c *Coordinator) agentSwitchCallbacks() views.AgentSwitchCallbacks {
 	return views.AgentSwitchCallbacks{
 		OnSwitch: func(sessionID, cardID string) tea.Cmd {
 			refreshCmd, err := c.switchAgent(sessionID, cardID)
-			if err != nil {
+			if err != nil && !errors.Is(err, session.ErrPersistFailed) {
 				return func() tea.Msg { return messages.ErrorMsg{Err: err} }
 			}
-			// After switch, attach to the session (it was restarted by switchAgent)
+			// The agent did switch (its process restarted); a persist
+			// failure only means its on-disk record didn't save, so still
+			// attach, but warn. Route the warning through
+			// SessionAttachRequestedMsg.Warning - the same path relaunch
+			// uses - instead of batching a separate ErrorMsg beside a
+			// NavigateMsg: tea.Batch makes no ordering guarantee, and
+			// navigateTo unconditionally clears c.err, so a batched warning
+			// was lost whenever the navigate message won the race.
+			//
+			// Navigation itself must NOT happen here: this closure runs from
+			// inside AgentSwitchView.Update (via OnSwitch), and
+			// Coordinator.Update writes the *returned* model back into
+			// c.views[c.currentView] right after. Calling c.navigateTo
+			// synchronously here would flip c.currentView to ViewDashboard
+			// before that write-back runs, storing the AgentSwitchView under
+			// the dashboard's key and permanently clobbering it. Instead,
+			// hand the whole thing (including the navigate) to the
+			// SessionAttachRequestedMsg handler, which runs later, outside
+			// updateCurrentView, where a navigate is safe.
 			return tea.Batch(
 				refreshCmd,
-				c.attachSession(sessionID),
 				func() tea.Msg {
-					return messages.NavigateMsg{View: messages.ViewDashboard}
+					return messages.SessionAttachRequestedMsg{SessionID: sessionID, Warning: err}
 				},
 			)
 		},

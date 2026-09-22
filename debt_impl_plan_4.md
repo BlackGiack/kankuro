@@ -1,7 +1,8 @@
 # Debt Plan 4 — Coordinator concurrency & UI-thread discipline
 
 > Covers **#4** (concurrent map access can panic), **#12** (`waitForOutput`
-> goroutine leak), **#10** (`View()` side effect + blocking work in `Update`),
+> goroutine leak), **#17** (partial broadcasts wipe other views' data — silent
+> card data loss), **#10** (`View()` side effect + blocking work in `Update`),
 > **#14** (dead `SendInput` vs. unlocked PTY write), the `internal/app` half of
 > **#8** (swallowed errors), and the Low item "synchronous `DeleteMCP` inside
 > `Update`".
@@ -20,12 +21,19 @@ them piecemeal means re-deriving the same rule four times.
 
 ## Context budget
 
-`internal/app/coordinator.go` (~440), `callbacks.go` (~540, but only the dashboard
+`internal/app/coordinator.go` (~450), `callbacks.go` (~550, but only the dashboard
 and MCP callback blocks matter), `attach.go` (~280), plus
-`internal/ui/views/dashboard.go` around `:400-430` and `:780-800`, and
-`internal/ui/messages/messages.go` (134) to add message types. ~1200 lines of
-reading with several structural edits. This is the densest of the seven plans —
-don't add scope to it.
+`internal/ui/views/dashboard.go` around `:144-160`, `:400-430` and `:780-800`,
+`internal/ui/messages/messages.go` (~140) to add message types, and — for step 2b —
+the three other `SetData` implementations (`views/agent_switch.go:65`,
+`views/card_editor.go:252`, `views/source_manager.go:136`) plus
+`components/capability_list.go:76-84`.
+
+~1500 lines of reading with several structural edits. **This is the densest of the
+seven plans; step 2b was added to it after the fact, so it is now the most likely
+to overflow one session.** If it does, split at the step boundary: steps 1, 2 and
+2b are one coherent unit (they are all "the coordinator's data flow is not
+type-safe"), and steps 3–5 are independently committable. Don't add further scope.
 
 ---
 
@@ -107,6 +115,68 @@ leak.
 `SessionOutputMsg` for the old session and assert the returned `tea.Cmd` is nil.
 (`internal/app/preview_integration_test.go` already has the scaffolding for
 preview subscriptions — extend it.)
+
+## Step 2b — One message type cannot be both a snapshot and a patch (#17)
+
+> Added 2026-09-22, found while testing Plan 2. This one causes **silent data
+> loss**, so do it before the cosmetic items below if you have to stop early.
+
+**Problem.** `broadcastData` (`coordinator.go:415-421`) pushes a single
+`DataLoadedMsg` to every `DataReceiver`. Two senders fill in only the preview
+fields — `handlePreviewRequest` (`:434`) and the incremental-output path (`:284`,
+`IsIncremental: true`) — so every receiver that assigns unconditionally replaces its
+real data with `nil`.
+
+`Dashboard.SetData` (`views/dashboard.go:144-160`) already guards every field with
+`if msg.X != nil`: someone hit this once and fixed it in that one view.
+`AgentSwitchView.SetData` (`views/agent_switch.go:65`) and `CardEditor.SetData`
+(`views/card_editor.go:252`) still do not.
+
+For the card editor that is not a cosmetic flash. `CapabilityList.SelectedIDs()`
+(`components/capability_list.go:76-84`) iterates the list's *items* and returns the
+selected ones — so once the items are gone, it returns nothing, and
+`CardEditor.Card()` writes the card back with **no skills, personas or MCPs**.
+Measured against a real coordinator:
+
+```
+skills on the card BEFORE:   [builtin:mcp-cli]
+skills on the card AFTER:    []      <- one incremental broadcast, editor open
+```
+
+It is reachable because `navigateTo` never clears `c.previewSessionID` (that is
+#12, fixed in step 2 of this plan): a `SessionOutputMsg` already queued for the
+previously-previewed session still matches at `:263` after the user has opened the
+editor. The next full refresh repairs it within ~2s, so the loss needs a save inside
+that window — but it is silent when it lands.
+
+**Do this.** Fix the type confusion, not the symptom. Adding a third set of nil
+guards is what produced this half-fixed state in the first place, and it leaves the
+next `SetData` implementer with the same trap.
+
+1. Give preview updates their own message — e.g. `messages.PreviewDataMsg
+   {SessionID string; Scrollback []byte; IsIncremental bool}` — and a narrow
+   receiver interface (`PreviewReceiver`) that only the views actually rendering a
+   preview implement. `broadcastData` then stops being a channel for partial data,
+   and `DataLoadedMsg` means exactly one thing: a full snapshot.
+2. Update the two partial senders (`:284`, `:434`) to emit the new message, and
+   route it in `broadcastData`'s sibling (or a `broadcastPreview`).
+3. With that done, the dashboard's `if msg.X != nil` guards become redundant
+   defensive noise — leave them or drop them, but say which in the commit message
+   so the intent is not lost again.
+4. Note the ordering interaction with step 2: clearing `previewSessionID` in
+   `navigateTo` removes the *reachability* of the card-editor case, but not the bug.
+   Do both; do not treat #12 as a fix for this.
+
+**Test.** `internal/app`: open the card editor with a card that has skills
+selected, deliver a `SessionOutputMsg` for a previously previewed session, and
+assert `editor.Card().SkillIDs` is unchanged. That test fails today and is the one
+that matters — the agent-switch symptom (`AgentSwitchView`'s list emptying until the
+next tick) is worth a second, cheaper assertion in the same test file.
+
+There is a working harness for this in `internal/app/session_warning_test.go`
+(Plan 2 added it): `NewCoordinator` + `Update` + `Views()`, with the two traps that
+file documents — refresh *after* navigating, and assert the operation under test
+actually ran before asserting anything else.
 
 ## Step 3 — Get side effects and blocking work off the UI goroutine (#10)
 
