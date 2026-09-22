@@ -6,7 +6,7 @@ import (
 	"kankuro/internal/driver"
 )
 
-func (m *Manager) watch(sessionID string, d driver.AgentDriver) {
+func (m *Manager) watch(sessionID string, gen uint64, d driver.AgentDriver) {
 	ticker := time.NewTicker(watchInterval)
 	defer ticker.Stop()
 	for {
@@ -14,13 +14,16 @@ func (m *Manager) watch(sessionID string, d driver.AgentDriver) {
 		status := d.GetStatus()
 		m.mu.Lock()
 		s, ok := m.sessions[sessionID]
-		if !ok {
+		if !ok || s.generation != gen {
 			m.mu.Unlock()
 			return
 		}
 		if status == driver.StatusTerminated {
 			s.Status = StatusTerminated
 			s.Pinged = false
+			if exitCoder, hasExitCode := d.(interface{ ExitCode() int }); hasExitCode {
+				s.ExitCode = exitCoder.ExitCode()
+			}
 			m.persistSessionLocked(s)
 			m.closeSubscribersLocked(sessionID)
 			m.mu.Unlock()

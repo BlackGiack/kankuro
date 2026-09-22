@@ -142,9 +142,10 @@ func (m *Manager) SwitchAgent(
 	m.activateSessionLocked(s, card, d, h, pid, now)
 	s.PendingAttachHeader = fmt.Appendf(nil, "\r\n--- Switched agent to %s at %s ---\r\n\r\n",
 		card.Name, now.Format(time.RFC3339))
+	gen := s.generation
 
-	go m.trackOutput(id, h.Output)
-	go m.watch(id, d)
+	go m.trackOutput(id, gen, h.Output)
+	go m.watch(id, gen, d)
 
 	m.persistSessionLocked(s)
 	return nil
@@ -236,9 +237,10 @@ func (m *Manager) startSession(
 		s.PendingAttachHeader = fmt.Appendf(nil, "\r\n--- Relaunched at %s ---\r\n\r\n",
 			now.Format(time.RFC3339))
 	}
+	gen := s.generation
 
-	go m.trackOutput(sid, h.Output)
-	go m.watch(sid, d)
+	go m.trackOutput(sid, gen, h.Output)
+	go m.watch(sid, gen, d)
 
 	m.persistSessionLocked(s)
 	return nil
@@ -252,6 +254,7 @@ func (m *Manager) activateSessionLocked(
 	pid int,
 	now time.Time,
 ) {
+	s.generation++
 	s.CardID = card.ID
 	if s.Name == "" {
 		s.Name = card.Name
@@ -284,7 +287,9 @@ func (m *Manager) persistSessionLocked(s *Session) {
 	_ = saveSession(sessionsDir, d)
 }
 
-// Kill terminates one managed session.
+// Kill terminates one managed session. If the driver reports an error (e.g.
+// the process had already exited), the session is still marked Terminated
+// and persisted; the error is returned after the state update.
 func (m *Manager) Kill(id string) error {
 	m.mu.RLock()
 	s, ok := m.sessions[id]
@@ -292,17 +297,16 @@ func (m *Manager) Kill(id string) error {
 	if !ok {
 		return fmt.Errorf("session not found: %s", id)
 	}
+	var killErr error
 	if s.Driver != nil {
-		if err := s.Driver.Kill(); err != nil {
-			return err
-		}
+		killErr = s.Driver.Kill()
 	}
 	m.mu.Lock()
 	s.Status = StatusTerminated
 	s.Pinged = false
 	m.persistSessionLocked(s)
 	m.mu.Unlock()
-	return nil
+	return killErr
 }
 
 // Remove deletes a terminated session from the registry.

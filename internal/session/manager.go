@@ -3,7 +3,6 @@ package session
 import (
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -52,6 +51,10 @@ type Session struct {
 	// shown to the next attacher and then cleared, so it doesn't re-appear on
 	// subsequent reattaches via scrollback replay.
 	PendingAttachHeader []byte
+	// generation is bumped on every activation (Launch/Relaunch/SwitchAgent).
+	// It lets goroutines started by a previous activation detect that they
+	// are stale and stop touching the session.
+	generation uint64
 }
 
 type AttachHandle struct {
@@ -78,9 +81,11 @@ type Snapshot struct {
 	Name            string
 	PID             int
 	WorkingDir      string
+	OriginalDir     string
 	UseTmpWorkspace bool
 	StartedAt       time.Time
 	LastWordAt      time.Time
+	LastOutput      string
 	Status          Status
 	Pinged          bool
 }
@@ -143,21 +148,40 @@ func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager
 	return m
 }
 
-// Sessions returns a thread-safe snapshot of all sessions.
-func (m *Manager) Sessions() map[string]*Session {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	out := make(map[string]*Session, len(m.sessions))
-	maps.Copy(out, m.sessions)
-	return out
-}
-
-// GetSession returns a session by ID.
-func (m *Manager) GetSession(id string) (*Session, bool) {
+// GetSession returns a safe value snapshot of a session by ID.
+func (m *Manager) GetSession(id string) (Snapshot, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	s, ok := m.sessions[id]
-	return s, ok
+	if !ok {
+		return Snapshot{}, false
+	}
+	return snapshotOf(s), true
+}
+
+// PendingLineLen reports the buffered partial-line size. Used by tests to
+// assert the pendingLineLimit cap.
+func (m *Manager) PendingLineLen(id string) (int, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	s, ok := m.sessions[id]
+	if !ok {
+		return 0, false
+	}
+	return len(s.PendingLine), true
+}
+
+// BroadcastOutput delivers raw output to a session's subscribers. It exists
+// for tests that simulate live process output without a real driver.
+func (m *Manager) BroadcastOutput(id string, data []byte) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, ok := m.sessions[id]
+	if !ok {
+		return false
+	}
+	broadcast(data, s.Subscribers)
+	return true
 }
 
 // SetLastWordAt is used for testing word silence detection.
@@ -175,20 +199,28 @@ func (m *Manager) List() []Snapshot {
 	defer m.mu.RUnlock()
 	out := make([]Snapshot, 0, len(m.sessions))
 	for _, s := range m.sessions {
-		out = append(out, Snapshot{
-			ID:              s.ID,
-			CardID:          s.CardID,
-			Name:            s.Name,
-			PID:             s.PID,
-			WorkingDir:      s.WorkingDir,
-			UseTmpWorkspace: s.UseTmpWorkspace,
-			StartedAt:       s.StartedAt,
-			LastWordAt:      s.LastWordAt,
-			Status:          s.Status,
-			Pinged:          s.Pinged,
-		})
+		out = append(out, snapshotOf(s))
 	}
 	return out
+}
+
+// snapshotOf builds a value Snapshot from a Session. Callers must hold m.mu
+// (read or write) while calling this.
+func snapshotOf(s *Session) Snapshot {
+	return Snapshot{
+		ID:              s.ID,
+		CardID:          s.CardID,
+		Name:            s.Name,
+		PID:             s.PID,
+		WorkingDir:      s.WorkingDir,
+		OriginalDir:     s.OriginalDir,
+		UseTmpWorkspace: s.UseTmpWorkspace,
+		StartedAt:       s.StartedAt,
+		LastWordAt:      s.LastWordAt,
+		LastOutput:      s.LastOutput,
+		Status:          s.Status,
+		Pinged:          s.Pinged,
+	}
 }
 
 // SetName updates the name of an existing session and persists it.

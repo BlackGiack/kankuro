@@ -41,21 +41,21 @@ func TestSessionPendingLineCapped(t *testing.T) {
 
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		s, ok := sm.GetSession(sid)
+		n, ok := sm.PendingLineLen(sid)
 		if !ok {
 			t.Fatalf("session not found")
 		}
-		if len(s.PendingLine) > 0 || time.Now().After(deadline) {
+		if n > 0 || time.Now().After(deadline) {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	s, ok := sm.GetSession(sid)
+	n, ok := sm.PendingLineLen(sid)
 	if !ok {
 		t.Fatalf("session not found")
 	}
-	if len(s.PendingLine) > 8*1024 {
-		t.Fatalf("expected pending line <= %d, got %d", 8*1024, len(s.PendingLine))
+	if n > 8*1024 {
+		t.Fatalf("expected pending line <= %d, got %d", 8*1024, n)
 	}
 }

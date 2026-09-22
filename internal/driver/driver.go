@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -68,10 +69,11 @@ type GenericCLIDriver struct {
 	mu     sync.RWMutex
 	status SessionStatus
 
-	cmd  *exec.Cmd
-	pty  *os.File
-	done chan struct{}
-	once sync.Once
+	cmd      *exec.Cmd
+	pty      *os.File
+	done     chan struct{}
+	once     sync.Once
+	exitCode int
 }
 
 // NewGenericCLIDriver returns the default PTY-backed CLI driver implementation.
@@ -274,6 +276,9 @@ func (d *GenericCLIDriver) watchProcess(cmd *exec.Cmd) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.status = StatusTerminated
+	if cmd.ProcessState != nil {
+		d.exitCode = cmd.ProcessState.ExitCode()
+	}
 	if d.pty != nil {
 		_ = d.pty.Close()
 		d.pty = nil
@@ -282,7 +287,8 @@ func (d *GenericCLIDriver) watchProcess(cmd *exec.Cmd) {
 	d.closeDone()
 }
 
-// Kill terminates the underlying process and closes its PTY.
+// Kill terminates the underlying process and closes its PTY. A process that
+// has already exited on its own is treated as a successful kill.
 func (d *GenericCLIDriver) Kill() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -290,6 +296,9 @@ func (d *GenericCLIDriver) Kill() error {
 		return nil
 	}
 	err := d.cmd.Process.Kill()
+	if errors.Is(err, os.ErrProcessDone) {
+		err = nil
+	}
 	d.status = StatusTerminated
 	if d.pty != nil {
 		_ = d.pty.Close()
@@ -508,6 +517,14 @@ func (d *GenericCLIDriver) GetStatus() SessionStatus {
 	return d.status
 }
 
+// ExitCode returns the child process's exit code once it has terminated.
+// It is -1 for a signalled process and 0 before the process has exited.
+func (d *GenericCLIDriver) ExitCode() int {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.exitCode
+}
+
 // PTY exposes the active pseudo-terminal file descriptor.
 func (d *GenericCLIDriver) PTY() *os.File {
 	d.mu.RLock()
@@ -536,8 +553,13 @@ func (d *GenericCLIDriver) closeDone() {
 
 func mergeEnvWithPwd(extra map[string]string, pwd string) []string {
 	base := os.Environ()
-	for k, v := range extra {
-		base = append(base, fmt.Sprintf("%s=%s", k, v))
+	keys := make([]string, 0, len(extra))
+	for k := range extra {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		base = upsertEnv(base, k, extra[k])
 	}
 	return upsertEnv(base, "PWD", pwd)
 }
