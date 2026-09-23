@@ -94,6 +94,11 @@ func (e *attachExec) Run() error {
 		// This restores the terminal to the "classic" state
 		// that Kankuro's Bubble Tea dashboard expects.
 		_, _ = e.stdout.Write([]byte("\x1b[<1u"))
+		// Belt and braces: also explicitly disable the Kitty keyboard
+		// protocol on this transition back to the dashboard. Dashboard.Init
+		// does the same on the "navigate back" transition; this covers the
+		// "detach a PTY" transition, which does not go through Init.
+		_, _ = e.stdout.Write([]byte("\x1b[=0u"))
 
 		_ = cterm.Restore(stdinFile.Fd(), oldState)
 	}()

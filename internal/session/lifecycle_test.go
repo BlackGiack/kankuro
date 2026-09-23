@@ -53,6 +53,7 @@ func (d *stubKillDriver) SetPersonas(_ []config.Persona, _ ...string) error  { r
 func (d *stubKillDriver) SelectMCPs(_ []config.MCPServer, _ ...string) error { return nil }
 func (d *stubKillDriver) SetModel(_ string) []string                         { return nil }
 func (d *stubKillDriver) SendInput(_ string) error                           { return nil }
+func (d *stubKillDriver) SendInputBytes(_ []byte) (int, error)               { return 0, nil }
 func (d *stubKillDriver) GetAgentFolder() string                             { return ".agents" }
 
 func (d *stubKillDriver) GetStatus() driver.SessionStatus {

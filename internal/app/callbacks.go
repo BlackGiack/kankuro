@@ -41,7 +41,7 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 				if err != nil {
 					return messages.ErrorMsg{Err: err}
 				}
-				return c.refreshData()()
+				return messages.DataRefreshRequestedMsg{}
 			}, nil
 		},
 
@@ -51,11 +51,9 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 				if err != nil {
 					return messages.ErrorMsg{Err: err}
 				}
-				return c.refreshData()()
+				return messages.DataRefreshRequestedMsg{}
 			}, nil
 		},
-
-		OnSwitch: c.switchAgent,
 
 		OnDeleteCard: func(cardID string) (tea.Cmd, error) {
 			return func() tea.Msg {
@@ -63,7 +61,7 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 				if err != nil {
 					return messages.ErrorMsg{Err: err}
 				}
-				return c.refreshData()()
+				return messages.DataRefreshRequestedMsg{}
 			}, nil
 		},
 
@@ -161,38 +159,49 @@ func (c *Coordinator) relaunchSession(sessionID string) tea.Cmd {
 	}
 }
 
-func (c *Coordinator) switchAgent(sessionID, newCardID string) (tea.Cmd, error) {
+// switchAgentAsync performs the actual (blocking) agent switch: it syncs
+// driver files to disk and spawns a new PTY process. Callers must run it
+// inside a tea.Cmd closure, never synchronously inside Update - see
+// agentSwitchCallbacks' OnSwitch, the only caller. A synchronous wrapper
+// used to exist here for DashboardCallbacks.OnSwitch, which was never
+// invoked by the real Dashboard view (Dashboard.handleSwitch emits
+// AgentSwitchRequestedMsg instead); both were deleted together (review_dp_4_2.md
+// finding 4) rather than left as a dead, reachable-by-one-wiring-change copy
+// of the blocking-work-inside-Update bug step 3 removed.
+func (c *Coordinator) switchAgentAsync(sessionID, newCardID string) error {
 	card, err := c.getCardByID(newCardID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	skills := c.skillsForCard(card)
 	personas := c.personasForCard(card)
 	mcps := c.mcpsForCard(card)
-	err = c.session.SwitchAgent(sessionID, card, skills, personas, mcps)
-	return c.refreshData(), err
+	return c.session.SwitchAgent(sessionID, card, skills, personas, mcps)
 }
 
-func (c *Coordinator) launchIDE(sessionID string) error {
-	// Get the session to find its workspace path
-	sessions := c.session.List()
-	for _, s := range sessions {
-		if s.ID == sessionID {
-			// Get the workspace path from the session
+// launchIDE spawns the configured editor for a session's workspace. It
+// returns a tea.Cmd so the (potentially slow) process spawn runs off the UI
+// goroutine; completion is reported via messages.IDELaunchedMsg rather than a
+// synchronous error return.
+func (c *Coordinator) launchIDE(sessionID string) tea.Cmd {
+	return func() tea.Msg {
+		sessions := c.session.List()
+		for _, s := range sessions {
+			if s.ID != sessionID {
+				continue
+			}
 			workspacePath := s.WorkingDir
 			if workspacePath == "" {
-				return errors.New("session has no workspace path")
+				return messages.IDELaunchedMsg{Err: errors.New("session has no workspace path")}
 			}
-
-			// Use the stored IDE config
 			if c.settings.IDECommand == "" {
-				return session.ErrIDENotConfigured
+				return messages.IDELaunchedMsg{Err: session.ErrIDENotConfigured}
 			}
 			launcher := session.NewIDELauncher(c.settings.IDECommand)
-			return launcher.Launch(workspacePath)
+			return messages.IDELaunchedMsg{Err: launcher.Launch(workspacePath)}
 		}
+		return messages.IDELaunchedMsg{Err: fmt.Errorf("session not found: %s", sessionID)}
 	}
-	return fmt.Errorf("session not found: %s", sessionID)
 }
 
 func (c *Coordinator) cardEditorCallbacks() views.CardEditorCallbacks {
@@ -275,7 +284,7 @@ func (c *Coordinator) sourceManagerCallbacks(sourceType views.SourceType) views.
 				if err != nil {
 					return messages.ErrorMsg{Err: err}
 				}
-				return c.refreshData()()
+				return messages.DataRefreshRequestedMsg{}
 			}, nil
 		},
 
@@ -293,7 +302,7 @@ func (c *Coordinator) sourceManagerCallbacks(sourceType views.SourceType) views.
 				case views.SourceTypePuppets:
 					_ = c.repo.SyncPuppetsFromSources()
 				}
-				return c.refreshData()()
+				return messages.DataRefreshRequestedMsg{}
 			}
 		},
 	}
@@ -372,7 +381,7 @@ func (c *Coordinator) saveStringSource(
 	if syncFn != nil {
 		_ = syncFn()
 	}
-	return c.refreshData()()
+	return messages.DataRefreshRequestedMsg{}
 }
 
 func (c *Coordinator) deleteSource(sourceType views.SourceType, index int) (tea.Cmd, error) {
@@ -392,7 +401,7 @@ func (c *Coordinator) deleteSource(sourceType views.SourceType, index int) (tea.
 				if err != nil {
 					return messages.ErrorMsg{Err: err}
 				}
-				return c.refreshData()()
+				return messages.DataRefreshRequestedMsg{}
 			}
 			return messages.ErrorMsg{Err: errors.New("invalid index")}
 		}, nil
@@ -419,7 +428,7 @@ func (c *Coordinator) deleteStringSource(
 		if syncFn != nil {
 			_ = syncFn()
 		}
-		return c.refreshData()()
+		return messages.DataRefreshRequestedMsg{}
 	}, nil
 }
 
@@ -468,36 +477,21 @@ func (c *Coordinator) sessionLauncherCallbacks() views.SessionLauncherCallbacks 
 
 func (c *Coordinator) agentSwitchCallbacks() views.AgentSwitchCallbacks {
 	return views.AgentSwitchCallbacks{
+		// OnSwitch must not call switchAgentAsync synchronously: this
+		// closure runs from inside AgentSwitchView.Update, on the main
+		// Bubble Tea goroutine, and switchAgentAsync syncs driver files to
+		// disk and spawns a PTY process - exactly the kind of blocking work
+		// that must run inside the returned tea.Cmd, off that goroutine.
+		// Completion is reported via AgentSwitchedMsg and handled in
+		// handleSessionMessages, which does the refresh + attach + warning
+		// dance below (moved there because it needs c.currentView, which
+		// this closure cannot safely touch either - see that handler's
+		// comment for the navigation hazard).
 		OnSwitch: func(sessionID, cardID string) tea.Cmd {
-			refreshCmd, err := c.switchAgent(sessionID, cardID)
-			if err != nil && !errors.Is(err, session.ErrPersistFailed) {
-				return func() tea.Msg { return messages.ErrorMsg{Err: err} }
+			return func() tea.Msg {
+				err := c.switchAgentAsync(sessionID, cardID)
+				return messages.AgentSwitchedMsg{SessionID: sessionID, Err: err}
 			}
-			// The agent did switch (its process restarted); a persist
-			// failure only means its on-disk record didn't save, so still
-			// attach, but warn. Route the warning through
-			// SessionAttachRequestedMsg.Warning - the same path relaunch
-			// uses - instead of batching a separate ErrorMsg beside a
-			// NavigateMsg: tea.Batch makes no ordering guarantee, and
-			// navigateTo unconditionally clears c.err, so a batched warning
-			// was lost whenever the navigate message won the race.
-			//
-			// Navigation itself must NOT happen here: this closure runs from
-			// inside AgentSwitchView.Update (via OnSwitch), and
-			// Coordinator.Update writes the *returned* model back into
-			// c.views[c.currentView] right after. Calling c.navigateTo
-			// synchronously here would flip c.currentView to ViewDashboard
-			// before that write-back runs, storing the AgentSwitchView under
-			// the dashboard's key and permanently clobbering it. Instead,
-			// hand the whole thing (including the navigate) to the
-			// SessionAttachRequestedMsg handler, which runs later, outside
-			// updateCurrentView, where a navigate is safe.
-			return tea.Batch(
-				refreshCmd,
-				func() tea.Msg {
-					return messages.SessionAttachRequestedMsg{SessionID: sessionID, Warning: err}
-				},
-			)
 		},
 		OnCancel: func() tea.Cmd {
 			return func() tea.Msg {

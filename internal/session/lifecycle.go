@@ -287,7 +287,7 @@ func (m *Manager) activateSessionLocked(
 	s.Status = StatusRunning
 	s.Pinged = false
 	s.Driver = d
-	s.Input = h.PTY
+	s.PTY = h.PTY
 	s.Output = h.Output
 	s.Done = h.Done
 }

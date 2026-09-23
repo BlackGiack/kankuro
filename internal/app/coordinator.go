@@ -1,6 +1,8 @@
 package app
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -157,7 +159,20 @@ func (c *Coordinator) initViews() {
 }
 
 func (c *Coordinator) Init() tea.Cmd {
+	// Also run the initial view's own Init (the dashboard's, at startup):
+	// navigating between views already does this via navigateTo, but
+	// nothing previously ran it for the view Coordinator starts on, so
+	// Dashboard.Init's transition-only work (disabling the Kitty keyboard
+	// protocol left on by a previous run that died mid-attach; see
+	// review_dp_4.md finding 2) never fired at cold start. This also
+	// belatedly runs cardList/sessionList/preview.Init(), which had the same
+	// gap.
+	var initialViewCmd tea.Cmd
+	if view, ok := c.views[c.currentView]; ok {
+		initialViewCmd = view.Init()
+	}
 	return tea.Batch(
+		initialViewCmd,
 		c.refreshData(),
 		tick(),
 		c.syncPuppetsAsync(),
@@ -180,7 +195,7 @@ func (c *Coordinator) reportSessionLoadErrors() tea.Cmd {
 func (c *Coordinator) syncPuppetsAsync() tea.Cmd {
 	return func() tea.Msg {
 		_ = c.repo.SyncPuppetsFromSources()
-		return c.refreshData()()
+		return messages.PuppetsSyncedMsg{}
 	}
 }
 
@@ -206,6 +221,12 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 
 	case tickMsg:
 		return true, tea.Batch(c.refreshData(), tick())
+
+	case messages.DataRefreshRequestedMsg:
+		return true, c.refreshData()
+
+	case messages.PuppetsSyncedMsg:
+		return true, c.refreshData()
 
 	case messages.NavigateMsg:
 		return true, c.navigateTo(convertViewType(m.View))
@@ -244,18 +265,23 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, nil
 
 	case messages.MCPDeleteRequestedMsg:
-		err := c.repo.DeleteMCP(m.MCPID)
-		if err != nil {
-			c.err = err
-			return true, nil
-		}
-		// Emit message to notify card editor
+		// Disk I/O deferred to a tea.Cmd, consistent with every other
+		// mutation - this used to run synchronously inside Update.
 		return true, func() tea.Msg {
+			if err := c.repo.DeleteMCP(m.MCPID); err != nil {
+				return messages.ErrorMsg{Err: err}
+			}
 			return messages.MCPDeletedMsg(m)
 		}
 
 	case messages.ClearErrorMsg:
 		c.err = nil
+		return true, nil
+
+	case messages.IDELaunchedMsg:
+		if m.Err != nil {
+			c.err = m.Err
+		}
 		return true, nil
 	}
 
@@ -265,26 +291,21 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 	switch m := msg.(type) {
 	case messages.DataLoadedMsg:
-		c.broadcastData(m)
-		// If the dashboard auto-selected a session (e.g. on first launch), subscribe immediately
-		if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
-			id := dashboard.PreviewSessionID()
-			if id != "" && id != c.previewSessionID {
-				return true, c.handlePreviewRequest(id)
-			}
-		}
-		return true, nil
+		return true, c.handleDataLoaded(m)
 
 	case messages.SessionPreviewRequestedMsg:
 		return true, c.handlePreviewRequest(m.SessionID)
 
 	case messages.SessionOutputMsg:
-		// Only forward if it's the currently previewed session
-		if m.SessionID == c.previewSessionID {
-			c.broadcastData(messages.DataLoadedMsg{
-				PreviewSessionID:  m.SessionID,
-				PreviewScrollback: m.Output,
-				IsIncremental:     true,
+		// Only forward if it's the currently previewed session and we are
+		// still subscribed - navigateTo clears both together, so a
+		// SessionOutputMsg already queued for a session we've since
+		// navigated away from cannot re-arm waitForOutput on a nil channel.
+		if m.SessionID == c.previewSessionID && c.previewSubChan != nil {
+			c.broadcastPreview(messages.PreviewDataMsg{
+				SessionID:     m.SessionID,
+				Scrollback:    m.Output,
+				IsIncremental: true,
 			})
 			return true, c.waitForOutput(m.SessionID, c.previewSubChan)
 		}
@@ -303,6 +324,9 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 			switchView.SetSession(m.SessionID, m.SessionName)
 		}
 		return true, c.navigateTo(ViewAgentSwitch)
+
+	case messages.AgentSwitchedMsg:
+		return true, c.handleAgentSwitched(m)
 
 	case messages.SessionAttachRequestedMsg:
 		// Navigate here, not in the callback that produced this message:
@@ -330,6 +354,60 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 	}
 
 	return false, nil
+}
+
+func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
+	if m.Err != nil {
+		c.err = m.Err
+	}
+	c.broadcastData(m)
+	if m.PreviewSessionID != "" {
+		c.broadcastPreview(messages.PreviewDataMsg{
+			SessionID:  m.PreviewSessionID,
+			Scrollback: m.PreviewScrollback,
+		})
+	}
+	// If the dashboard auto-selected a session (e.g. on first launch), subscribe immediately
+	if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+		id := dashboard.PreviewSessionID()
+		if id != "" && id != c.previewSessionID {
+			return c.handlePreviewRequest(id)
+		}
+	}
+	return nil
+}
+
+func (c *Coordinator) handleAgentSwitched(m messages.AgentSwitchedMsg) tea.Cmd {
+	if m.Err != nil && !errors.Is(m.Err, session.ErrPersistFailed) {
+		c.err = m.Err
+		return nil
+	}
+	// The agent did switch (its process restarted); a persist failure only
+	// means its on-disk record didn't save, so still attach, but warn. Set
+	// c.err directly here (not only via SessionAttachRequestedMsg.Warning
+	// below) so the warning is visible even to a caller that processes this
+	// message without driving the follow-on Cmd - the same guarantee the
+	// "relaunch" path gets for free by returning a single message instead of
+	// a batch.
+	if m.Err != nil {
+		c.err = m.Err
+	}
+	// Route the warning through SessionAttachRequestedMsg.Warning too - the
+	// same path relaunch uses - instead of batching a separate ErrorMsg
+	// beside a NavigateMsg: tea.Batch makes no ordering guarantee, and
+	// navigateTo unconditionally clears c.err, so a batched warning was lost
+	// whenever the navigate message won the race.
+	//
+	// This handler runs from handleSessionMessages, outside
+	// updateCurrentView's write-back, so it - unlike the OnSwitch callback
+	// that produced this message - is a safe place to hand off to
+	// SessionAttachRequestedMsg, which does the actual navigate.
+	return tea.Batch(
+		c.refreshData(),
+		func() tea.Msg {
+			return messages.SessionAttachRequestedMsg{SessionID: m.SessionID, Warning: m.Err}
+		},
+	)
 }
 
 func (c *Coordinator) View() string {
@@ -361,6 +439,11 @@ func (c *Coordinator) navigateTo(vt ViewType) tea.Cmd {
 			c.session.UnsubscribeOutput(c.previewSessionID, c.previewSubChan)
 			c.previewSubChan = nil
 		}
+		// Clear alongside the unsubscribe so a SessionOutputMsg already
+		// queued for the session we just left cannot still match
+		// m.SessionID == c.previewSessionID after we've navigated away (see
+		// debt_impl_plan_4.md #12/#17).
+		c.previewSessionID = ""
 	}
 	c.prevView = c.currentView
 	c.currentView = vt
@@ -379,23 +462,62 @@ func (c *Coordinator) resizeAll() {
 	}
 }
 
-func (c *Coordinator) refreshData() tea.Cmd {
-	return func() tea.Msg {
-		cards, _ := c.repo.ListIDCards()
-		sessions := c.session.List()
-		skills, _ := c.repo.ListSkills()
-		personas, _ := c.repo.ListPersonas()
-		mcps, _ := c.repo.ListMCPs()
-		workspaces, _ := c.repo.ListWorkspaces()
-		puppets, _ := c.repo.ListPuppets()
+// currentPreviewSessionID reads the dashboard's active preview session. It
+// must only be called from the main coordinator goroutine (Update/Init), not
+// from inside a tea.Cmd closure - see refreshData.
+func (c *Coordinator) currentPreviewSessionID() string {
+	if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+		return dashboard.PreviewSessionID()
+	}
+	return ""
+}
 
-		var previewID string
+func (c *Coordinator) refreshData() tea.Cmd {
+	// Snapshot coordinator-goroutine state (c.views) now, on the caller's
+	// goroutine. The returned closure runs on its own goroutine (it's a
+	// tea.Cmd) and must never touch c.views/c.previewSessionID/c.currentView
+	// directly - see debt_impl_plan_4.md step 1. c.session and c.repo are
+	// safe to call from either goroutine.
+	previewID := c.currentPreviewSessionID()
+
+	return func() tea.Msg {
+		var errs []error
+
+		cards, err := c.repo.ListIDCards()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("list cards: %w", err))
+			cards = nil
+		}
+		sessions := c.session.List()
+		skills, err := c.repo.ListSkills()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("list skills: %w", err))
+			skills = nil
+		}
+		personas, err := c.repo.ListPersonas()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("list personas: %w", err))
+			personas = nil
+		}
+		mcps, err := c.repo.ListMCPs()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("list mcps: %w", err))
+			mcps = nil
+		}
+		workspaces, err := c.repo.ListWorkspaces()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("list workspaces: %w", err))
+			workspaces = nil
+		}
+		puppets, err := c.repo.ListPuppets()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("list puppets: %w", err))
+			puppets = nil
+		}
+
 		var scrollback []byte
-		if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
-			previewID = dashboard.PreviewSessionID()
-			if previewID != "" {
-				scrollback = c.session.GetScrollback(previewID)
-			}
+		if previewID != "" {
+			scrollback = c.session.GetScrollback(previewID)
 		}
 
 		return messages.DataLoadedMsg{
@@ -408,6 +530,7 @@ func (c *Coordinator) refreshData() tea.Cmd {
 			Puppets:           puppets,
 			PreviewSessionID:  previewID,
 			PreviewScrollback: scrollback,
+			Err:               errors.Join(errs...),
 		}
 	}
 }
@@ -416,6 +539,18 @@ func (c *Coordinator) broadcastData(msg messages.DataLoadedMsg) {
 	for _, view := range c.views {
 		if dataReceiver, ok := view.(messages.DataReceiver); ok {
 			dataReceiver.SetData(msg)
+		}
+	}
+}
+
+// broadcastPreview delivers a partial, preview-only update to the views that
+// render a live session preview. Unlike broadcastData, this never reaches
+// DataReceiver.SetData - see messages.PreviewDataMsg for why the two must
+// stay separate.
+func (c *Coordinator) broadcastPreview(msg messages.PreviewDataMsg) {
+	for _, view := range c.views {
+		if previewReceiver, ok := view.(messages.PreviewReceiver); ok {
+			previewReceiver.SetPreviewData(msg)
 		}
 	}
 }
@@ -431,9 +566,9 @@ func (c *Coordinator) handlePreviewRequest(sessionID string) tea.Cmd {
 
 	// Immediate scrollback fetch
 	scrollback := c.session.GetScrollback(sessionID)
-	c.broadcastData(messages.DataLoadedMsg{
-		PreviewSessionID:  sessionID,
-		PreviewScrollback: scrollback,
+	c.broadcastPreview(messages.PreviewDataMsg{
+		SessionID:  sessionID,
+		Scrollback: scrollback,
 	})
 
 	// Subscribe to new session
@@ -447,6 +582,9 @@ func (c *Coordinator) handlePreviewRequest(sessionID string) tea.Cmd {
 }
 
 func (c *Coordinator) waitForOutput(id string, ch chan []byte) tea.Cmd {
+	if ch == nil {
+		return nil
+	}
 	return func() tea.Msg {
 		output, ok := <-ch
 		if !ok {

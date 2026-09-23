@@ -42,12 +42,17 @@ type Session struct {
 	Pinged          bool
 	ExitCode        int
 	Driver          driver.AgentDriver
-	Input           io.Writer
-	Output          <-chan []byte
-	Done            <-chan struct{}
-	Scrollback      []byte
-	PendingLine     []byte
-	Subscribers     map[chan []byte]struct{}
+	// PTY is the raw pseudo-terminal file, used only for ioctl-based resize
+	// (Attach hands it out as AttachHandle.PTY). Keystrokes must NOT be
+	// written directly to this fd - it races Kill, which closes and nils the
+	// driver's own copy under lock. Use Driver.SendInputBytes for writes; see
+	// debt_impl_plan_4.md step 4 and session/attach.go's driverInputWriter.
+	PTY         *os.File
+	Output      <-chan []byte
+	Done        <-chan struct{}
+	Scrollback  []byte
+	PendingLine []byte
+	Subscribers map[chan []byte]struct{}
 	// PendingAttachHeader is a one-shot banner (e.g. "Relaunched at ...")
 	// shown to the next attacher and then cleared, so it doesn't re-appear on
 	// subsequent reattaches via scrollback replay.

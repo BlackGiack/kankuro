@@ -248,36 +248,51 @@ func (e *CardEditor) Reset() {
 	e.setFocus(0)
 }
 
-// SetData sets the available options.
+// SetData sets the available options. Per messages.DataLoadedMsg's contract,
+// a nil field means "that registry could not be read this round" - not "the
+// caller has no data" - so each field is only replaced when non-nil,
+// preserving whatever the editor already has (and, critically, whatever is
+// currently selected in the capability lists) across a transient read
+// failure. See review_dp_4.md finding 1: this used to assign unconditionally,
+// which meant a corrupt skills.yaml wiped the editor's skill selection on the
+// next refresh and a save would then persist the card with none.
 func (e *CardEditor) SetData(msg messages.DataLoadedMsg) {
-	e.workspaces = msg.Workspaces
-	e.skills = msg.Skills
-	e.personas = msg.Personas
-	e.mcps = msg.MCPs
-
-	// Convert to capability items
-	skillItems := make([]components.CapabilityItem, len(e.skills))
-	for i, s := range e.skills {
-		skillItems[i] = SkillItem{Skill: s}
+	if msg.Workspaces != nil {
+		e.workspaces = msg.Workspaces
+		e.workspacePicker.SetWorkspaces(e.workspaces)
 	}
-	e.skillList.SetItems(skillItems)
 
-	personaItems := make([]components.CapabilityItem, len(e.personas))
-	for i, p := range e.personas {
-		personaItems[i] = personaItem{persona: p}
+	if msg.Skills != nil {
+		e.skills = msg.Skills
+		skillItems := make([]components.CapabilityItem, len(e.skills))
+		for i, s := range e.skills {
+			skillItems[i] = SkillItem{Skill: s}
+		}
+		e.skillList.SetItems(skillItems)
 	}
-	e.personaList.SetItems(personaItems)
 
-	mcpItems := make([]components.CapabilityItem, len(e.mcps))
-	for i, m := range e.mcps {
-		mcpItems[i] = mcpItem{mcp: m}
+	if msg.Personas != nil {
+		e.personas = msg.Personas
+		personaItems := make([]components.CapabilityItem, len(e.personas))
+		for i, p := range e.personas {
+			personaItems[i] = personaItem{persona: p}
+		}
+		e.personaList.SetItems(personaItems)
 	}
-	e.mcpList.SetItems(mcpItems)
 
-	e.puppets = msg.Puppets
-	e.puppetSelector.SetPuppets(e.puppets)
+	if msg.MCPs != nil {
+		e.mcps = msg.MCPs
+		mcpItems := make([]components.CapabilityItem, len(e.mcps))
+		for i, m := range e.mcps {
+			mcpItems[i] = mcpItem{mcp: m}
+		}
+		e.mcpList.SetItems(mcpItems)
+	}
 
-	e.workspacePicker.SetWorkspaces(e.workspaces)
+	if msg.Puppets != nil {
+		e.puppets = msg.Puppets
+		e.puppetSelector.SetPuppets(e.puppets)
+	}
 }
 
 // Card returns the current card data.

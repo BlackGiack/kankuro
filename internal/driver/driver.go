@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"kankuro/internal/config"
 	"os"
 	"os/exec"
@@ -59,7 +58,13 @@ type AgentDriver interface {
 	SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error
 	SetModel(model string) []string
 
+	// SendInput and SendInputBytes both write into the active PTY session,
+	// synchronized against Kill via the driver's own lock. This is the only
+	// safe way to write attach input: writing directly to a raw *os.File
+	// PTY handle (as the session package used to) races Kill, which closes
+	// and nils that same fd under lock. See debt_impl_plan_4.md step 4.
 	SendInput(data string) error
+	SendInputBytes(data []byte) (int, error)
 
 	GetStatus() SessionStatus
 	GetAgentFolder() string
@@ -501,13 +506,21 @@ func (d *GenericCLIDriver) SetModel(model string) []string {
 
 // SendInput writes raw input bytes into the active PTY session.
 func (d *GenericCLIDriver) SendInput(data string) error {
+	_, err := d.SendInputBytes([]byte(data))
+	return err
+}
+
+// SendInputBytes writes raw input bytes into the active PTY session. It
+// holds only a read lock: it doesn't mutate driver state, but Kill (which
+// closes and nils the pty under a write lock) must never race a write to an
+// already-closed fd - the RLock/Lock pairing is what serializes the two.
+func (d *GenericCLIDriver) SendInputBytes(data []byte) (int, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.pty == nil {
-		return errors.New("no active PTY")
+		return 0, errors.New("no active PTY")
 	}
-	_, err := io.WriteString(d.pty, data)
-	return err
+	return d.pty.Write(data)
 }
 
 // GetStatus reports the current process lifecycle state.

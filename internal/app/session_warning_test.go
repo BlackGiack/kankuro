@@ -42,6 +42,22 @@ func collectMsgs(t *testing.T, cmd tea.Cmd) []tea.Msg {
 	return []tea.Msg{msg}
 }
 
+// drive executes cmd (recursing into tea.BatchMsg via collectMsgs) and feeds
+// every resulting leaf message through coord.Update exactly once. It does
+// NOT recurse into whatever Cmd those Update calls in turn return - like
+// collectMsgs, on purpose: some of those (e.g. an actual PTY attach, or a
+// preview subscription's blocking channel read) are exactly the kind of
+// thing a unit test must not execute. This is enough to observe a callback's
+// deferred side effect (debt_impl_plan_4.md step 3B moved several of these
+// from synchronous calls into a returned tea.Cmd) without turning the test
+// into a full Bubble Tea runtime.
+func drive(t *testing.T, coord *app.Coordinator, cmd tea.Cmd) {
+	t.Helper()
+	for _, msg := range collectMsgs(t, cmd) {
+		coord.Update(msg)
+	}
+}
+
 // permute calls fn once for every permutation of msgs (Heap's algorithm).
 // tea.Batch makes no delivery-order guarantee, so a fix that only happens to
 // work for one arrival order isn't actually fixed - this is what makes the
@@ -242,8 +258,13 @@ func TestAgentSwitchDoesNotClobberDashboardView(t *testing.T) {
 	coord.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
 	// Real OnSwitch, through Update: this is what exercises the
-	// updateCurrentView write-back that Finding 6 lived in.
-	coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	// updateCurrentView write-back that Finding 6 lived in. OnSwitch now
+	// defers the actual switch into the returned Cmd (debt_impl_plan_4.md
+	// step 3B), so drive() must run that Cmd - and everything it in turn
+	// produces - for the switch to actually happen, the same way a real
+	// Bubble Tea program's runtime would.
+	_, cmd := coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	drive(t, coord, cmd)
 
 	// The switch must have actually run before this test's result means
 	// anything - otherwise a no-op Enter would pass for the wrong reason too.

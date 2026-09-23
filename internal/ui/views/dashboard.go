@@ -53,14 +53,13 @@ type DashboardCallbacks struct {
 	OnRelaunch func(sessionID string) tea.Cmd
 	OnKill     func(sessionID string) (tea.Cmd, error)
 	OnRemove   func(sessionID string) (tea.Cmd, error)
-	OnSwitch   func(sessionID string, newCardID string) (tea.Cmd, error)
 
 	OnDeleteCard     func(cardID string) (tea.Cmd, error)
 	OnOpenMCP        func() tea.Cmd
 	OnOpenWorkspaces func() tea.Cmd
 	OnOpenSettings   func() tea.Cmd
 	OnOpenCardEditor func() tea.Cmd
-	OnLaunchIDE      func(sessionID string) error
+	OnLaunchIDE      func(sessionID string) tea.Cmd
 }
 
 // Dashboard is the main composite view showing cards, preview, and sessions.
@@ -173,13 +172,25 @@ func (d *Dashboard) SetData(msg messages.DataLoadedMsg) {
 
 	d.syncPreviewSelection()
 
-	// Update scrollback if it matches current preview
+	// Update scrollback if it matches current preview. This full-snapshot
+	// path and SetPreviewData (below) both write to d.preview, but never
+	// concurrently: both run on the main Bubble Tea goroutine.
 	if msg.PreviewSessionID != "" && msg.PreviewSessionID == d.preview.SessionID() {
-		if msg.IsIncremental {
-			d.preview.AppendScrollback(msg.PreviewScrollback)
-		} else {
-			d.preview.SetScrollback(msg.PreviewScrollback)
-		}
+		d.preview.SetScrollback(msg.PreviewScrollback)
+	}
+}
+
+// SetPreviewData implements messages.PreviewReceiver, handling partial,
+// preview-only updates that must never be confused with a full SetData
+// snapshot (see messages.PreviewDataMsg).
+func (d *Dashboard) SetPreviewData(msg messages.PreviewDataMsg) {
+	if msg.SessionID == "" || msg.SessionID != d.preview.SessionID() {
+		return
+	}
+	if msg.IsIncremental {
+		d.preview.AppendScrollback(msg.Scrollback)
+	} else {
+		d.preview.SetScrollback(msg.Scrollback)
 	}
 }
 
@@ -286,10 +297,24 @@ func (d *Dashboard) PreviewWidth() int {
 // Init initializes the dashboard.
 func (d *Dashboard) Init() tea.Cmd {
 	return tea.Batch(
+		disableKittyProtocolCmd,
 		d.cardList.Init(),
 		d.sessionList.Init(),
 		d.preview.Init(),
 	)
+}
+
+// disableKittyProtocolCmd disables the Kitty keyboard protocol when control
+// returns to the Kankuro dashboard (e.g. on startup, or navigating back from
+// another view). This used to run unconditionally from View() - a pure
+// render function Bubble Tea may call arbitrarily often - which fought the
+// renderer's own output on every frame. Emitting it once as a tea.Cmd from
+// Init() (the transition point) keeps the same effect without the render-time
+// side effect. See also the attach->detach transition in app/attach.go, which
+// needs the same sequence for the same reason.
+func disableKittyProtocolCmd() tea.Msg {
+	fmt.Print("\x1b[=0u") //nolint:forbidigo // disable kitty protocol on dashboard transition, not on every render
+	return nil
 }
 
 // Update handles messages.
@@ -418,14 +443,7 @@ func (d *Dashboard) handleLaunchIDE() (tea.Cmd, bool) {
 		return nil, true
 	}
 
-	err := d.callbacks.OnLaunchIDE(sess.ID)
-	if err != nil {
-		// Return error message
-		return func() tea.Msg {
-			return messages.ErrorMsg{Err: err}
-		}, true
-	}
-	return nil, true
+	return d.callbacks.OnLaunchIDE(sess.ID), true
 }
 
 // handleSearch processes search input.
@@ -782,7 +800,6 @@ func (d *Dashboard) SetSize(width, height int) {
 
 // View renders the dashboard.
 func (d *Dashboard) View() string {
-	fmt.Print("\x1b[=0u") //nolint:forbidigo // we need to be sure to disable kitty protocol when on kankuro side
 	// Handle modal overlays
 	if d.deleteModal.IsOpen() {
 		return d.renderWithOverlay(d.deleteModal.View())

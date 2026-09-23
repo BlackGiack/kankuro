@@ -3,8 +3,23 @@ package session
 import (
 	"bytes"
 	"fmt"
-	"os"
+
+	"kankuro/internal/driver"
 )
+
+// driverInputWriter adapts a driver.AgentDriver to [io.Writer] by routing
+// writes through its locked SendInputBytes, instead of a raw [os.File] PTY
+// handle. Writing directly to the PTY (the previous behavior) raced Kill,
+// which closes and nils that same fd under the driver's own lock - a
+// keystroke landing during a kill could hit a closed fd and be silently
+// dropped. See debt_impl_plan_4.md step 4.
+type driverInputWriter struct {
+	driver driver.AgentDriver
+}
+
+func (w driverInputWriter) Write(p []byte) (int, error) {
+	return w.driver.SendInputBytes(p)
+}
 
 // Attach returns an attach handle with scrollback replay and live output stream.
 func (m *Manager) Attach(id string) (*AttachHandle, error) {
@@ -19,12 +34,11 @@ func (m *Manager) Attach(id string) (*AttachHandle, error) {
 	}
 	ch := make(chan []byte, outputChanSize)
 	s.Subscribers[ch] = struct{}{}
-	ptyFile, _ := s.Input.(*os.File)
 	header := s.PendingAttachHeader
 	s.PendingAttachHeader = nil
 	return &AttachHandle{
-		Input:      s.Input,
-		PTY:        ptyFile,
+		Input:      driverInputWriter{driver: s.Driver},
+		PTY:        s.PTY,
 		Output:     ch,
 		Scrollback: bytes.Clone(s.Scrollback),
 		Header:     header,
