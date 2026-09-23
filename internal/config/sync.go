@@ -9,12 +9,27 @@ import (
 )
 
 // expandPath handles ~ expansion, env var expansion, and returns an absolute path.
+// Unlike [os.ExpandEnv], an undefined variable is an error rather than silently
+// collapsing to an empty string - "$UNSET/skills" must not resolve to "/skills"
+// and scan the filesystem root.
 func expandPath(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return "", errors.New("path is empty")
 	}
-	value = os.ExpandEnv(value)
+	var expandErr error
+	value = os.Expand(value, func(name string) string {
+		if v, ok := os.LookupEnv(name); ok {
+			return v
+		}
+		if expandErr == nil {
+			expandErr = fmt.Errorf("undefined variable %q in path %q", name, value)
+		}
+		return ""
+	})
+	if expandErr != nil {
+		return "", expandErr
+	}
 	if strings.HasPrefix(value, "~") {
 		home, err := os.UserHomeDir()
 		if err != nil {

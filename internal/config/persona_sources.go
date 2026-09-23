@@ -10,6 +10,12 @@ import (
 
 // ListPersonaSources returns the configured root folders for persona discovery.
 func (r *FileRepository) ListPersonaSources() ([]string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.listPersonaSourcesLocked()
+}
+
+func (r *FileRepository) listPersonaSourcesLocked() ([]string, error) {
 	path := filepath.Join(r.dir, PersonaSourcesFilename)
 	f := PersonaSourcesFile{}
 	if err := ReadYAML(path, &f); err != nil {
@@ -26,7 +32,13 @@ func (r *FileRepository) ListPersonaSources() ([]string, error) {
 
 // SyncPersonasFromSources rebuilds the personas registry by scanning configured source folders.
 func (r *FileRepository) SyncPersonasFromSources() error {
-	sources, err := r.ListPersonaSources()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.syncPersonasFromSourcesLocked()
+}
+
+func (r *FileRepository) syncPersonasFromSourcesLocked() error {
+	sources, err := r.listPersonaSourcesLocked()
 	if err != nil {
 		return err
 	}
@@ -59,6 +71,9 @@ func PersonaIDFromSource(path string) string {
 
 // SavePersonaSources writes the list of persona sources to disk.
 func (r *FileRepository) SavePersonaSources(paths []string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if paths == nil {
 		paths = []string{}
 	}
@@ -66,6 +81,34 @@ func (r *FileRepository) SavePersonaSources(paths []string) error {
 		SchemaVersion: SchemaVersion,
 		Paths:         paths,
 	})
+}
+
+// UpdatePersonaSources reads the current persona sources, applies fn,
+// persists the result, and re-syncs the persona registry - all under one
+// lock acquisition. See UpdateSkillSources for why this exists and what a
+// *SyncFailedError return means.
+func (r *FileRepository) UpdatePersonaSources(fn func([]string) ([]string, error)) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	current, err := r.listPersonaSourcesLocked()
+	if err != nil {
+		return err
+	}
+	updated, err := fn(current)
+	if err != nil {
+		return err
+	}
+	if updated == nil {
+		updated = []string{}
+	}
+	if err = r.WritePersonaSourcesFile(PersonaSourcesFile{SchemaVersion: SchemaVersion, Paths: updated}); err != nil {
+		return err
+	}
+	if err = r.syncPersonasFromSourcesLocked(); err != nil {
+		return &SyncFailedError{Err: err}
+	}
+	return nil
 }
 
 // WritePersonaSourcesFile writes persona sources data using the current schema version.

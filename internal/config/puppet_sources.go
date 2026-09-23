@@ -18,6 +18,12 @@ const (
 )
 
 func (r *FileRepository) ListPuppetSources() ([]string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.listPuppetSourcesLocked()
+}
+
+func (r *FileRepository) listPuppetSourcesLocked() ([]string, error) {
 	path := filepath.Join(r.dir, PuppetSourcesFilename)
 	f := PuppetSourcesFile{}
 	if err := ReadYAML(path, &f); err != nil {
@@ -33,6 +39,9 @@ func (r *FileRepository) ListPuppetSources() ([]string, error) {
 }
 
 func (r *FileRepository) SavePuppetSources(paths []string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if paths == nil {
 		paths = []string{}
 	}
@@ -40,6 +49,34 @@ func (r *FileRepository) SavePuppetSources(paths []string) error {
 		SchemaVersion: SchemaVersion,
 		Paths:         paths,
 	})
+}
+
+// UpdatePuppetSources reads the current puppet sources, applies fn,
+// persists the result, and re-syncs the puppet registry - all under one
+// lock acquisition. See UpdateSkillSources for why this exists and what a
+// *SyncFailedError return means.
+func (r *FileRepository) UpdatePuppetSources(fn func([]string) ([]string, error)) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	current, err := r.listPuppetSourcesLocked()
+	if err != nil {
+		return err
+	}
+	updated, err := fn(current)
+	if err != nil {
+		return err
+	}
+	if updated == nil {
+		updated = []string{}
+	}
+	if err = r.WritePuppetSourcesFile(PuppetSourcesFile{SchemaVersion: SchemaVersion, Paths: updated}); err != nil {
+		return err
+	}
+	if err = r.syncPuppetsFromSourcesLocked(); err != nil {
+		return &SyncFailedError{Err: err}
+	}
+	return nil
 }
 
 func (r *FileRepository) WritePuppetSourcesFile(f PuppetSourcesFile) error {
@@ -68,6 +105,9 @@ func (r *FileRepository) WritePuppetsFile(f PuppetsFile) error {
 }
 
 func (r *FileRepository) ListPuppets() ([]Puppet, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	f, err := r.LoadPuppetsFile()
 	if err != nil {
 		return nil, err
@@ -98,7 +138,13 @@ func (r *FileRepository) ListPuppets() ([]Puppet, error) {
 }
 
 func (r *FileRepository) SyncPuppetsFromSources() error {
-	sources, err := r.ListPuppetSources()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.syncPuppetsFromSourcesLocked()
+}
+
+func (r *FileRepository) syncPuppetsFromSourcesLocked() error {
+	sources, err := r.listPuppetSourcesLocked()
 	if err != nil {
 		return err
 	}
