@@ -1,13 +1,14 @@
 package views
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/styles"
@@ -34,13 +35,12 @@ type MCPForm struct {
 	mcp    config.MCPServer
 
 	callbacks MCPFormCallbacks
-	cmds      *commands.Commands
 
 	err error
 }
 
 // NewMCPForm creates a new MCP form.
-func NewMCPForm(callbacks MCPFormCallbacks, cmds *commands.Commands) *MCPForm {
+func NewMCPForm(callbacks MCPFormCallbacks) *MCPForm {
 	inputs := make([]textinput.Model, mcpInputCount)
 
 	inputs[0] = textinput.New()
@@ -52,7 +52,7 @@ func NewMCPForm(callbacks MCPFormCallbacks, cmds *commands.Commands) *MCPForm {
 	inputs[1].SetWidth(defaultInputWidth)
 
 	inputs[2] = textinput.New()
-	inputs[2].Placeholder = "Args (comma-separated)"
+	inputs[2].Placeholder = "Args (comma-separated, use \\, for a literal comma)"
 	inputs[2].SetWidth(defaultInputWidth)
 
 	inputs[3] = textinput.New()
@@ -64,11 +64,11 @@ func NewMCPForm(callbacks MCPFormCallbacks, cmds *commands.Commands) *MCPForm {
 	inputs[4].SetWidth(defaultInputWidth)
 
 	inputs[5] = textinput.New()
-	inputs[5].Placeholder = "Environment (key=value, comma-separated)"
+	inputs[5].Placeholder = "Environment (key=value, comma-separated, use \\, for a literal comma)"
 	inputs[5].SetWidth(defaultInputWidth)
 
 	inputs[6] = textinput.New()
-	inputs[6].Placeholder = "Headers (key=value, comma-separated)"
+	inputs[6].Placeholder = "Headers (key=value, comma-separated, use \\, for a literal comma)"
 	inputs[6].SetWidth(defaultInputWidth)
 
 	inputs[0].Focus()
@@ -76,7 +76,6 @@ func NewMCPForm(callbacks MCPFormCallbacks, cmds *commands.Commands) *MCPForm {
 	return &MCPForm{
 		inputs:    inputs,
 		callbacks: callbacks,
-		cmds:      cmds,
 	}
 }
 
@@ -95,7 +94,7 @@ func (f *MCPForm) SetMCP(mcp config.MCPServer) {
 	f.mcp = mcp
 	f.inputs[0].SetValue(mcp.Name)
 	f.inputs[1].SetValue(mcp.Command)
-	f.inputs[2].SetValue(strings.Join(mcp.Args, ","))
+	f.inputs[2].SetValue(formatCommaList(mcp.Args))
 	f.inputs[3].SetValue(mcp.CWD)
 	f.inputs[4].SetValue(mcp.URL)
 	f.inputs[5].SetValue(formatKeyValueMap(mcp.Env))
@@ -189,9 +188,21 @@ func (f *MCPForm) cycleFocus() {
 }
 
 func (f *MCPForm) handleSubmit() tea.Cmd {
+	f.err = nil
+
 	args := parseCommaList(f.inputs[2].Value())
-	env := parseKeyValueList(f.inputs[5].Value())
-	headers := parseKeyValueList(f.inputs[6].Value())
+
+	env, err := parseKeyValueList(f.inputs[5].Value())
+	if err != nil {
+		f.err = fmt.Errorf("environment: %w", err)
+		return nil
+	}
+
+	headers, err := parseKeyValueList(f.inputs[6].Value())
+	if err != nil {
+		f.err = fmt.Errorf("headers: %w", err)
+		return nil
+	}
 
 	mcp := config.MCPServer{
 		ID:      f.mcp.ID,
@@ -211,10 +222,47 @@ func (f *MCPForm) handleSubmit() tea.Cmd {
 	return func() tea.Msg { return messages.NavigateBackMsg{} }
 }
 
-func parseCommaList(input string) []string {
-	parts := strings.Split(input, ",")
+// Args, env, and header values are entered as a single comma-separated line.
+// Since commas are common inside those values (e.g. "Accept: a,b", a JSON
+// arg, a PATH-like list), a literal comma or backslash in a value must be
+// escaped with a backslash (`\,`, `\\`) to distinguish it from the
+// delimiter. splitEscaped/escapeItem implement that round-trip.
+
+// splitEscaped splits input on unescaped commas, unescaping `\,` and `\\`
+// into a literal `,` and `\` in the returned tokens.
+func splitEscaped(input string) []string {
 	var result []string
-	for _, p := range parts {
+	var cur strings.Builder
+	escaped := false
+	for _, r := range input {
+		switch {
+		case escaped:
+			cur.WriteRune(r)
+			escaped = false
+		case r == '\\':
+			escaped = true
+		case r == ',':
+			result = append(result, cur.String())
+			cur.Reset()
+		default:
+			cur.WriteRune(r)
+		}
+	}
+	result = append(result, cur.String())
+	return result
+}
+
+// escapeItem escapes backslashes and commas so the value survives a
+// round-trip through splitEscaped.
+func escapeItem(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `,`, `\,`)
+	return s
+}
+
+func parseCommaList(input string) []string {
+	var result []string
+	for _, p := range splitEscaped(input) {
 		if s := strings.TrimSpace(p); s != "" {
 			result = append(result, s)
 		}
@@ -222,20 +270,46 @@ func parseCommaList(input string) []string {
 	return result
 }
 
-func parseKeyValueList(input string) map[string]string {
-	result := make(map[string]string)
-	for pair := range strings.SplitSeq(input, ",") {
-		if k, v, ok := strings.Cut(pair, "="); ok {
-			result[strings.TrimSpace(k)] = strings.TrimSpace(v)
-		}
+func formatCommaList(items []string) string {
+	parts := make([]string, len(items))
+	for i, item := range items {
+		parts[i] = escapeItem(item)
 	}
-	return result
+	return strings.Join(parts, ",")
 }
 
+// parseKeyValueList parses a comma-separated list of key=value pairs. It
+// returns an error instead of silently dropping a pair that has no `=`, so a
+// typo is surfaced rather than vanishing.
+func parseKeyValueList(input string) (map[string]string, error) {
+	result := make(map[string]string)
+	for _, pair := range splitEscaped(input) {
+		if strings.TrimSpace(pair) == "" {
+			continue
+		}
+		k, v, ok := strings.Cut(pair, "=")
+		if !ok {
+			return nil, fmt.Errorf("malformed key=value pair: %q", pair)
+		}
+		result[strings.TrimSpace(k)] = strings.TrimSpace(v)
+	}
+	return result, nil
+}
+
+// formatKeyValueMap renders a map as a sorted, comma-separated key=value
+// list. Sorting keeps the rendered text stable across calls (Go randomizes
+// map iteration order, which previously made the form's env/header fields
+// visibly reshuffle as the user edited them).
 func formatKeyValueMap(m map[string]string) string {
-	var parts []string
-	for k, v := range m {
-		parts = append(parts, k+"="+v)
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, escapeItem(k)+"="+escapeItem(m[k]))
 	}
 	return strings.Join(parts, ",")
 }

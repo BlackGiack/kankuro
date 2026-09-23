@@ -3,13 +3,13 @@ package views
 import (
 	"errors"
 	"fmt"
+	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/messages"
@@ -77,7 +77,6 @@ type Dashboard struct {
 	pending     PendingAction
 
 	callbacks DashboardCallbacks
-	cmds      *commands.Commands
 
 	// Data (passed from App)
 	cards    []config.IDCard
@@ -95,7 +94,7 @@ type Dashboard struct {
 }
 
 // NewDashboard creates a new dashboard view.
-func NewDashboard(callbacks DashboardCallbacks, cmds *commands.Commands) *Dashboard {
+func NewDashboard(callbacks DashboardCallbacks) *Dashboard {
 	preview := components.NewSessionPreview()
 
 	deleteModal := components.NewModal("Confirm Delete")
@@ -107,7 +106,6 @@ func NewDashboard(callbacks DashboardCallbacks, cmds *commands.Commands) *Dashbo
 		deleteModal: deleteModal,
 		focusedPane: PaneCards,
 		callbacks:   callbacks,
-		cmds:        cmds,
 	}
 
 	d.puppets = []config.Puppet{}
@@ -358,7 +356,7 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return d.handleDelete()
 	}
 
-	if keyMsg.String() == "shift+tab" || keyMsg.Code == tea.KeyLeft || keyMsg.Code == tea.KeyRight {
+	if keyMsg.String() == keyShiftTab || keyMsg.Code == tea.KeyLeft || keyMsg.Code == tea.KeyRight {
 		d.togglePane()
 		return nil, true
 	}
@@ -501,7 +499,7 @@ func (d *Dashboard) handleSearchBackspace() {
 }
 
 func (d *Dashboard) handleSearchRune(ch rune) {
-	if ch >= 33 && ch <= 126 {
+	if unicode.IsPrint(ch) && !unicode.IsSpace(ch) {
 		if d.focusedPane == PaneCards {
 			d.search.CardsQuery += string(ch)
 			d.cardList.SetSearchQuery(d.search.CardsQuery)

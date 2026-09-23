@@ -206,20 +206,9 @@ func (c *CardList) refreshItems() {
 
 // filterCards applies the search query filter.
 func (c *CardList) filterCards() []config.IDCard {
-	if c.searchQuery == "" {
-		return c.cards
-	}
-
-	q := strings.ToLower(c.searchQuery)
-	var filtered []config.IDCard
-	for _, card := range c.cards {
-		if strings.Contains(strings.ToLower(card.Name), q) ||
-			strings.Contains(strings.ToLower(card.Driver), q) ||
-			strings.Contains(strings.ToLower(card.Model), q) {
-			filtered = append(filtered, card)
-		}
-	}
-	return filtered
+	return Filter(c.cards, c.searchQuery, func(card config.IDCard) string {
+		return card.Name + " " + card.Driver + " " + card.Model
+	})
 }
 
 // cardDelegate handles rendering custom card items.
@@ -415,15 +404,9 @@ func pillStyle(bg, fg color.Color) lipgloss.Style {
 }
 
 func truncatePill(s string) string {
-	if len(s) > PillTextLimit {
-		return s[:PillTextLimit-1] + "."
-	}
-	return s
+	return truncateToVisibleWidthLeft(s, PillTextLimit)
 }
 
 func truncate(s string, w int) string {
-	if len(s) > w && w > 3 {
-		return s[:w-3] + "..."
-	}
-	return s
+	return truncateToVisibleWidthLeft(s, w)
 }

@@ -12,8 +12,6 @@ const (
 
 	dashboardSessionsWidthRatio = 4
 	dashboardPreviewWidthRatio  = 2
-	dashboardPanePadding        = 2
-	dashboardDeleteModalHeight  = 10
 
 	switchModalDelegateHeight = 4
 

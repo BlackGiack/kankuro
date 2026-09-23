@@ -198,11 +198,6 @@ func (p *SessionPreview) processData(data []byte) {
 	}
 }
 
-// SetSessionByID sets the session by ID (requires separate SetSession call).
-func (p *SessionPreview) SetSessionByID(sessionID string) {
-	p.sessionID = sessionID
-}
-
 // Clear resets the preview to empty state.
 func (p *SessionPreview) Clear() {
 	p.sessionID = ""
@@ -666,26 +661,25 @@ func StripAllControlCodes(s string) string {
 	}, s)
 }
 
-// TruncatePath truncates a path with ellipsis.
+// TruncatePath truncates a path with ellipsis, keeping the tail (the most
+// specific path segments) visible.
 func TruncatePath(path string, limit int) string {
-	if len(path) <= limit {
-		return path
-	}
-	return "..." + path[len(path)-(limit-PreviewEllipsisLen):]
+	return truncateToVisibleWidth(path, limit)
 }
 
-// truncateString truncates a string with ellipsis.
+// truncateString truncates a string with ellipsis, keeping the head visible.
 func truncateString(s string, w int) string {
-	if len(s) > w && w > 3 {
-		return s[:w-3] + "..."
-	}
-	return s
+	return truncateToVisibleWidthLeft(s, w)
 }
 
-// truncateToVisibleWidth trims s so that lipgloss.Width(result) <= maxWidth.
-// If truncation happens, the result is prefixed with "..." (matching the
-// existing tail-preserving behavior so the newest characters stay visible).
+// truncateToVisibleWidth trims s so that lipgloss.Width(result) <= maxWidth,
+// keeping the tail (rightmost runes) and prefixing "..." when truncated.
+// Measures and slices by rune, not byte, so multibyte glyphs (CJK, emoji,
+// accented characters) are never cut mid-rune.
 func truncateToVisibleWidth(s string, maxWidth int) string {
+	if runewidth.StringWidth(s) <= maxWidth {
+		return s
+	}
 	if maxWidth <= PreviewEllipsisLen {
 		return s
 	}
@@ -705,9 +699,34 @@ func truncateToVisibleWidth(s string, maxWidth int) string {
 		i--
 	}
 
-	if i == 0 {
+	return "..." + string(runes[i:])
+}
+
+// truncateToVisibleWidthLeft trims s so that lipgloss.Width(result) <=
+// maxWidth, keeping the head (leftmost runes) and suffixing "..." when
+// truncated. Measures and slices by rune, not byte, so multibyte glyphs are
+// never cut mid-rune.
+func truncateToVisibleWidthLeft(s string, maxWidth int) string {
+	if runewidth.StringWidth(s) <= maxWidth {
+		return s
+	}
+	if maxWidth <= PreviewEllipsisLen {
 		return s
 	}
 
-	return "..." + string(runes[i:])
+	runes := []rune(s)
+	budget := maxWidth - PreviewEllipsisLen
+	w := 0
+	i := 0
+
+	for i < len(runes) {
+		rw := runewidth.RuneWidth(runes[i])
+		if w+rw > budget {
+			break
+		}
+		w += rw
+		i++
+	}
+
+	return string(runes[:i]) + "..."
 }

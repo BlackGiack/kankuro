@@ -71,24 +71,6 @@ func TestCoordinator_ResizeAll(t *testing.T) {
 	}
 }
 
-func TestCoordinator_WireCommands(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
-
-	cmds := app.WireCommands(repo, sm)
-
-	if cmds == nil {
-		t.Fatal("WireCommands returned nil")
-	}
-
-	if cmds.LaunchSession == nil {
-		t.Error("LaunchSession should not be nil")
-	}
-	if cmds.SaveCard == nil {
-		t.Error("SaveCard should not be nil")
-	}
-}
-
 func TestApp_BackwardsCompatibility(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	sm := session.NewManager(repo.Dir(), repo)

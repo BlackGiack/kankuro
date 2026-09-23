@@ -10,7 +10,6 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/styles"
@@ -50,10 +49,9 @@ type SettingsView struct {
 	input     textinput.Model
 	settings  config.AppSettings
 	callbacks SettingsCallbacks
-	cmds      *commands.Commands
 }
 
-func NewSettingsView(callbacks SettingsCallbacks, cmds *commands.Commands) *SettingsView {
+func NewSettingsView(callbacks SettingsCallbacks) *SettingsView {
 	input := textinput.New()
 	input.Placeholder = "e.g. code $PATH"
 	input.SetWidth(defaultInputWidth)
@@ -63,7 +61,6 @@ func NewSettingsView(callbacks SettingsCallbacks, cmds *commands.Commands) *Sett
 		input:     input,
 		settings:  config.DefaultAppSettings(),
 		callbacks: callbacks,
-		cmds:      cmds,
 	}
 }
 

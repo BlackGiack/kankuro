@@ -1,18 +1,18 @@
 package views_test
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
 )
 
 func TestMCPForm_New(t *testing.T) {
-	f := views.NewMCPForm(views.MCPFormCallbacks{}, &commands.Commands{})
+	f := views.NewMCPForm(views.MCPFormCallbacks{})
 	if f == nil {
 		t.Fatal("NewMCPForm returned nil")
 	}
@@ -22,7 +22,7 @@ func TestMCPForm_New(t *testing.T) {
 }
 
 func TestMCPForm_SetMCP(t *testing.T) {
-	f := views.NewMCPForm(views.MCPFormCallbacks{}, &commands.Commands{})
+	f := views.NewMCPForm(views.MCPFormCallbacks{})
 	mcp := config.MCPServer{
 		Name:    "Test MCP",
 		Command: "node",
@@ -51,7 +51,7 @@ func TestMCPForm_Submit(t *testing.T) {
 			return nil
 		},
 	}
-	f := views.NewMCPForm(callbacks, &commands.Commands{})
+	f := views.NewMCPForm(callbacks)
 
 	f.Inputs()[0].SetValue("New MCP")
 	f.Inputs()[1].SetValue("python")
@@ -74,8 +74,73 @@ func TestMCPForm_Submit(t *testing.T) {
 	}
 }
 
+func TestMCPForm_EnvRoundTrip_CommasAndOrder(t *testing.T) {
+	f := views.NewMCPForm(views.MCPFormCallbacks{})
+	mcp := config.MCPServer{
+		Name:    "Test MCP",
+		Command: "node",
+		Env: map[string]string{
+			"ZEBRA":  "last",
+			"ACCEPT": "a,b",
+			"ARG":    "value=with=equals",
+		},
+	}
+
+	f.SetMCP(mcp)
+	rendered := f.Inputs()[5].Value()
+
+	// Rendering must be stable/sorted (ACCEPT < ARG < ZEBRA).
+	wantOrder := "ACCEPT=a\\,b,ARG=value=with=equals,ZEBRA=last"
+	if rendered != wantOrder {
+		t.Fatalf("expected sorted, escaped rendering %q, got %q", wantOrder, rendered)
+	}
+
+	// Re-rendering must be identical (no map-order flakiness).
+	f.SetMCP(mcp)
+	if again := f.Inputs()[5].Value(); again != rendered {
+		t.Fatalf("rendering is not stable: %q vs %q", rendered, again)
+	}
+
+	var saved config.MCPServer
+	f2 := views.NewMCPForm(views.MCPFormCallbacks{
+		OnSave: func(mcp config.MCPServer) tea.Cmd {
+			saved = mcp
+			return nil
+		},
+	})
+	f2.Inputs()[0].SetValue("Test MCP")
+	f2.Inputs()[1].SetValue("node")
+	f2.Inputs()[5].SetValue(rendered)
+	f2.HandleSubmit()
+
+	if saved.Env["ACCEPT"] != "a,b" {
+		t.Errorf("expected ACCEPT=%q, got %q", "a,b", saved.Env["ACCEPT"])
+	}
+	if saved.Env["ARG"] != "value=with=equals" {
+		t.Errorf("expected ARG=%q, got %q", "value=with=equals", saved.Env["ARG"])
+	}
+	if saved.Env["ZEBRA"] != "last" {
+		t.Errorf("expected ZEBRA=%q, got %q", "last", saved.Env["ZEBRA"])
+	}
+}
+
+func TestMCPForm_MalformedEnvPair_ProducesError(t *testing.T) {
+	f := views.NewMCPForm(views.MCPFormCallbacks{})
+	f.Inputs()[0].SetValue("Test MCP")
+	f.Inputs()[1].SetValue("node")
+	f.Inputs()[5].SetValue("NOVALUE")
+
+	cmd := f.HandleSubmit()
+	if cmd != nil {
+		t.Errorf("expected no save command on malformed input, got %v", cmd)
+	}
+	if !strings.Contains(f.View(), "malformed key=value pair") {
+		t.Errorf("expected error rendered in view, got: %s", f.View())
+	}
+}
+
 func TestMCPForm_Navigation(t *testing.T) {
-	f := views.NewMCPForm(views.MCPFormCallbacks{}, &commands.Commands{})
+	f := views.NewMCPForm(views.MCPFormCallbacks{})
 
 	// Test Esc
 	_, cmd := f.Update(tea.KeyPressMsg{Code: tea.KeyEsc})

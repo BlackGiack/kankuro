@@ -365,7 +365,7 @@ func (m *Manager) Remove(id string) error {
 		sessionRoot := filepath.Join(tmpRoot, id)
 		// G703: Path traversal via taint analysis.
 		// sessionRoot is derived from managed ID.
-		rmErr = os.RemoveAll(sessionRoot) //nolint:gosec // sessionRoot is derived from managed ID
+		rmErr = os.RemoveAll(sessionRoot)
 	}
 
 	// Always drop the in-memory session so the UI does not wedge on a row it

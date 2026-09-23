@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/messages"
@@ -34,7 +33,6 @@ type SourceManager struct {
 	sourceType SourceType
 	typeConfig SourceTypeConfig
 	callbacks  SourceManagerCallbacks
-	cmds       *commands.Commands
 
 	err error
 }
@@ -43,7 +41,6 @@ type SourceManager struct {
 func NewSourceManager(
 	sourceType SourceType,
 	callbacks SourceManagerCallbacks,
-	cmds *commands.Commands,
 ) *SourceManager {
 	typeConfig := GetSourceTypeConfig(sourceType)
 
@@ -59,7 +56,6 @@ func NewSourceManager(
 		sourceType: sourceType,
 		typeConfig: typeConfig,
 		callbacks:  callbacks,
-		cmds:       cmds,
 	}
 
 	listCallbacks := components.SourceListCallbacks{

@@ -9,7 +9,6 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/styles"
@@ -29,7 +28,6 @@ type SessionLauncher struct {
 	input textinput.Model
 
 	callbacks SessionLauncherCallbacks
-	cmds      *commands.Commands
 
 	launchDone bool
 	launchErr  error
@@ -38,7 +36,7 @@ type SessionLauncher struct {
 }
 
 // NewSessionLauncher creates a new session launcher.
-func NewSessionLauncher(callbacks SessionLauncherCallbacks, cmds *commands.Commands) *SessionLauncher {
+func NewSessionLauncher(callbacks SessionLauncherCallbacks) *SessionLauncher {
 	input := textinput.New()
 	input.Placeholder = "Session name (Enter to confirm)"
 	input.SetWidth(defaultInputWidth)
@@ -47,7 +45,6 @@ func NewSessionLauncher(callbacks SessionLauncherCallbacks, cmds *commands.Comma
 	return &SessionLauncher{
 		input:     input,
 		callbacks: callbacks,
-		cmds:      cmds,
 	}
 }
 

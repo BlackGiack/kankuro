@@ -10,6 +10,7 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/component"
+	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/styles"
 )
@@ -99,19 +100,9 @@ func (v *AgentSwitchView) refreshItems() {
 }
 
 func (v *AgentSwitchView) filterCards() []config.IDCard {
-	if v.searchQuery == "" {
-		return v.cards
-	}
-	q := strings.ToLower(v.searchQuery)
-	var filtered []config.IDCard
-	for _, card := range v.cards {
-		if strings.Contains(strings.ToLower(card.Name), q) ||
-			strings.Contains(strings.ToLower(card.Driver), q) ||
-			strings.Contains(strings.ToLower(card.Model), q) {
-			filtered = append(filtered, card)
-		}
-	}
-	return filtered
+	return components.Filter(v.cards, v.searchQuery, func(card config.IDCard) string {
+		return card.Name + " " + card.Driver + " " + card.Model
+	})
 }
 
 // Init initializes the view.

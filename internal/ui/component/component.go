@@ -29,8 +29,3 @@ func (b *Base) SetSize(width, height int) {
 	b.Width = width
 	b.Height = height
 }
-
-// SetFocus controls whether component displays focused state.
-func (b *Base) SetFocus(focused bool) {
-	b.Focused = focused
-}

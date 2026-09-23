@@ -41,7 +41,7 @@ func TestInputIndexConstantsMatchTargets(t *testing.T) {
 }
 
 func TestVisibleFocusOrder(t *testing.T) {
-	e := NewCardEditor(CardEditorCallbacks{}, nil)
+	e := NewCardEditor(CardEditorCallbacks{})
 
 	e.settings = config.AppSettings{ShowPersonasInCardEditor: true, ShowMCPsInCardEditor: true}
 	full := e.visibleFocusOrder()
@@ -66,7 +66,7 @@ func TestVisibleFocusOrder(t *testing.T) {
 // to the first, even when the table's tail entries (Personas/MCPs) are
 // hidden.
 func TestCycleFocusWrapsWithBothSectionsHidden(t *testing.T) {
-	e := NewCardEditor(CardEditorCallbacks{}, nil)
+	e := NewCardEditor(CardEditorCallbacks{})
 	e.SetSettings(config.AppSettings{ShowPersonasInCardEditor: false, ShowMCPsInCardEditor: false})
 
 	order := e.visibleFocusOrder()

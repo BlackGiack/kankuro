@@ -10,14 +10,13 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/views"
 )
 
 func TestSessionLauncher_LaunchFlow(t *testing.T) {
 	card := config.IDCard{ID: "c1", Name: "Test Card"}
 
-	l := views.NewSessionLauncher(views.SessionLauncherCallbacks{}, &commands.Commands{})
+	l := views.NewSessionLauncher(views.SessionLauncherCallbacks{})
 	l.SetCard(card)
 
 	if l.Card().ID != "c1" {
@@ -66,7 +65,7 @@ func TestSessionLauncher_PersistFailureStillOffersAttach(t *testing.T) {
 			attachCalled = true
 			return nil
 		},
-	}, &commands.Commands{})
+	})
 	l.SetCard(card)
 	l.SetLaunchResult("s1", persistErr)
 
@@ -114,7 +113,7 @@ func TestSessionLauncher_FatalFailureBlocksAttach(t *testing.T) {
 			attachCalled = true
 			return nil
 		},
-	}, &commands.Commands{})
+	})
 	l.SetCard(card)
 	l.SetLaunchResult("", errors.New("spawn failed: no such driver"))
 

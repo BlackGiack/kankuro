@@ -9,7 +9,6 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
 )
@@ -26,7 +25,7 @@ func TestDashboard_New(t *testing.T) {
 		},
 	}
 
-	d := views.NewDashboard(callbacks, &commands.Commands{})
+	d := views.NewDashboard(callbacks)
 
 	if d == nil {
 		t.Fatal("NewDashboard returned nil")
@@ -38,7 +37,7 @@ func TestDashboard_New(t *testing.T) {
 }
 
 func TestDashboard_SetData(t *testing.T) {
-	d := views.NewDashboard(views.DashboardCallbacks{}, &commands.Commands{})
+	d := views.NewDashboard(views.DashboardCallbacks{})
 
 	cards := []config.IDCard{
 		{ID: "c1", Name: "Card 1"},
@@ -61,7 +60,7 @@ func TestDashboard_SetData(t *testing.T) {
 }
 
 func TestDashboard_TogglePane(t *testing.T) {
-	d := views.NewDashboard(views.DashboardCallbacks{}, &commands.Commands{})
+	d := views.NewDashboard(views.DashboardCallbacks{})
 	d.SetData(messages.DataLoadedMsg{
 		Sessions: []session.Snapshot{{ID: "s1"}},
 	})
@@ -82,7 +81,7 @@ func TestDashboard_TogglePane(t *testing.T) {
 }
 
 func TestDashboard_Search(t *testing.T) {
-	d := views.NewDashboard(views.DashboardCallbacks{}, &commands.Commands{})
+	d := views.NewDashboard(views.DashboardCallbacks{})
 
 	// Initialize the dashboard
 	d.Init()
@@ -115,6 +114,19 @@ func TestDashboard_Search(t *testing.T) {
 	}
 }
 
+func TestDashboard_Search_NonASCII(t *testing.T) {
+	d := views.NewDashboard(views.DashboardCallbacks{})
+	d.Init()
+
+	d.Update(tea.KeyPressMsg{Code: 0, Text: "/"})
+	d.Update(tea.KeyPressMsg{Code: 0, Text: "é"})
+	d.Update(tea.KeyPressMsg{Code: 0, Text: "日"})
+
+	if d.Search().CardsQuery != "é日" {
+		t.Errorf("Expected non-ASCII runes to reach the search query, got %q", d.Search().CardsQuery)
+	}
+}
+
 func TestDashboard_DeleteModal(t *testing.T) {
 	var deletedSessionID string
 
@@ -125,7 +137,7 @@ func TestDashboard_DeleteModal(t *testing.T) {
 		},
 	}
 
-	d := views.NewDashboard(callbacks, &commands.Commands{})
+	d := views.NewDashboard(callbacks)
 	d.SetData(messages.DataLoadedMsg{
 		Sessions: []session.Snapshot{
 			{ID: "s1", Name: "Test Session", UseTmpWorkspace: true, Status: session.StatusTerminated},
@@ -171,7 +183,7 @@ func TestDashboard_DeleteModal_CancelWithEsc(t *testing.T) {
 		},
 	}
 
-	d := views.NewDashboard(callbacks, &commands.Commands{})
+	d := views.NewDashboard(callbacks)
 	d.SetData(messages.DataLoadedMsg{
 		Sessions: []session.Snapshot{
 			{ID: "s1", Name: "Test Session", UseTmpWorkspace: true, Status: session.StatusTerminated},
@@ -205,7 +217,7 @@ func TestDashboard_DeleteModal_CancelWithEsc(t *testing.T) {
 }
 
 func TestDashboard_SetSize_Flexible(t *testing.T) {
-	d := views.NewDashboard(views.DashboardCallbacks{}, &commands.Commands{})
+	d := views.NewDashboard(views.DashboardCallbacks{})
 
 	// Test wide terminal
 	// width=200, dashboardSessionsWidthRatio=4, dashboardPreviewWidthRatio=2
@@ -237,7 +249,7 @@ func TestDashboard_SetSize_Flexible(t *testing.T) {
 }
 
 func TestDashboard_PreviewPersistence(t *testing.T) {
-	d := views.NewDashboard(views.DashboardCallbacks{}, &commands.Commands{})
+	d := views.NewDashboard(views.DashboardCallbacks{})
 	d.Init()
 
 	s1 := session.Snapshot{ID: "s1", Name: "Session 1"}
@@ -301,7 +313,7 @@ func TestDashboard_MCPActions(t *testing.T) {
 			return nil
 		},
 	}
-	d := views.NewDashboard(callbacks, &commands.Commands{})
+	d := views.NewDashboard(callbacks)
 	d.Init()
 
 	// Press 'm' to open MCP
@@ -314,7 +326,7 @@ func TestDashboard_MCPActions(t *testing.T) {
 }
 
 func TestDashboard_View(t *testing.T) {
-	d := views.NewDashboard(views.DashboardCallbacks{}, &commands.Commands{})
+	d := views.NewDashboard(views.DashboardCallbacks{})
 	d.SetData(messages.DataLoadedMsg{
 		Cards:    []config.IDCard{{ID: "c1", Name: "Test Card", Driver: "claude", Model: "claude-3"}},
 		Sessions: []session.Snapshot{{ID: "s1", Name: "Test Session"}},

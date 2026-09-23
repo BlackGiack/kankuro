@@ -8,13 +8,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
 )
 
 func TestSettingsView_New(t *testing.T) {
-	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
+	v := views.NewSettingsView(views.SettingsCallbacks{})
 	if v == nil {
 		t.Fatal("NewSettingsView returned nil")
 	}
@@ -24,7 +23,7 @@ func TestSettingsView_New(t *testing.T) {
 }
 
 func TestSettingsView_SetSettings(t *testing.T) {
-	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
+	v := views.NewSettingsView(views.SettingsCallbacks{})
 	cfg := config.AppSettings{
 		IDECommand:               "code $PATH",
 		ShowPersonasInCardEditor: false,
@@ -41,7 +40,7 @@ func TestSettingsView_SetSettings(t *testing.T) {
 }
 
 func TestSettingsView_SwitchToEditMode(t *testing.T) {
-	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
+	v := views.NewSettingsView(views.SettingsCallbacks{})
 	v.SetSettings(config.AppSettings{IDECommand: "existing"})
 
 	model, _ := v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -63,7 +62,7 @@ func TestSettingsView_SaveInEditMode(t *testing.T) {
 			saved = settings
 			return func() tea.Msg { return nil }
 		},
-	}, &commands.Commands{})
+	})
 
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v.Input().SetValue("vim $PATH")
@@ -80,7 +79,7 @@ func TestSettingsView_SaveInEditMode(t *testing.T) {
 }
 
 func TestSettingsView_ToggleRows(t *testing.T) {
-	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
+	v := views.NewSettingsView(views.SettingsCallbacks{})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
@@ -108,7 +107,7 @@ func TestSettingsView_EnterSavesFromToggleRow(t *testing.T) {
 			saved = settings
 			return func() tea.Msg { return messages.ClearErrorMsg{} }
 		},
-	}, &commands.Commands{})
+	})
 	v.SetSettings(config.AppSettings{
 		IDECommand:               "code $PATH",
 		ShowPersonasInCardEditor: true,
@@ -133,7 +132,7 @@ func TestSettingsView_EnterSavesFromToggleRow(t *testing.T) {
 }
 
 func TestSettingsView_CancelEdit(t *testing.T) {
-	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
+	v := views.NewSettingsView(views.SettingsCallbacks{})
 	v.SetSettings(config.AppSettings{IDECommand: "original"})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v.Input().SetValue("changed")
@@ -150,7 +149,7 @@ func TestSettingsView_CancelEdit(t *testing.T) {
 }
 
 func TestSettingsView_NavigateDashboard(t *testing.T) {
-	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
+	v := views.NewSettingsView(views.SettingsCallbacks{})
 	_, cmd := v.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 
 	if cmd == nil {
@@ -167,7 +166,7 @@ func TestSettingsView_NavigateDashboard(t *testing.T) {
 }
 
 func TestSettingsView_View_DisplayMode(t *testing.T) {
-	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
+	v := views.NewSettingsView(views.SettingsCallbacks{})
 	v.SetSettings(config.AppSettings{
 		IDECommand:               "code $PATH",
 		ShowPersonasInCardEditor: true,
@@ -191,7 +190,7 @@ func TestSettingsView_View_DisplayMode(t *testing.T) {
 }
 
 func TestSettingsView_View_EditMode(t *testing.T) {
-	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
+	v := views.NewSettingsView(views.SettingsCallbacks{})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v.Input().SetValue("vim $PATH")
 	v.SetSize(80, 24)
@@ -213,7 +212,7 @@ func TestSettingsView_OnSaveError(t *testing.T) {
 		OnSave: func(_ config.AppSettings) tea.Cmd {
 			return func() tea.Msg { return messages.ErrorMsg{Err: errors.New("save failed")} }
 		},
-	}, &commands.Commands{})
+	})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v.Input().SetValue("test")
 
@@ -226,7 +225,7 @@ func TestSettingsView_OnSaveError(t *testing.T) {
 }
 
 func TestSettingsView_SetSize(t *testing.T) {
-	v := views.NewSettingsView(views.SettingsCallbacks{}, &commands.Commands{})
+	v := views.NewSettingsView(views.SettingsCallbacks{})
 	v.SetSize(100, 30)
 	if v.Width != 100 {
 		t.Errorf("expected width 100, got %d", v.Width)

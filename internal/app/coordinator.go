@@ -9,7 +9,6 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/styles"
@@ -39,7 +38,6 @@ type Coordinator struct {
 
 	repo    config.Repository
 	session *session.Manager
-	cmds    *commands.Commands
 
 	width  int
 	height int
@@ -52,12 +50,9 @@ type Coordinator struct {
 }
 
 func NewCoordinator(repo config.Repository, sm *session.Manager) *Coordinator {
-	cmds := WireCommands(repo, sm)
-
 	c := &Coordinator{
 		repo:        repo,
 		session:     sm,
-		cmds:        cmds,
 		views:       make(map[ViewType]component.Model),
 		currentView: ViewDashboard,
 	}
@@ -133,28 +128,28 @@ func (c *Coordinator) Err() error {
 }
 
 func (c *Coordinator) initViews() {
-	c.views[ViewDashboard] = views.NewDashboard(c.dashboardCallbacks(), c.cmds)
-	cardEditor := views.NewCardEditor(c.cardEditorCallbacks(), c.cmds)
+	c.views[ViewDashboard] = views.NewDashboard(c.dashboardCallbacks())
+	cardEditor := views.NewCardEditor(c.cardEditorCallbacks())
 	cardEditor.SetSettings(c.settings)
 	c.views[ViewCardEditor] = cardEditor
 
-	smSkills := views.NewSourceManager(views.SourceTypeSkills, c.sourceManagerCallbacks(views.SourceTypeSkills), c.cmds)
+	smSkills := views.NewSourceManager(views.SourceTypeSkills, c.sourceManagerCallbacks(views.SourceTypeSkills))
 	c.views[ViewSourceManagerSkills] = smSkills
 
-	smPersonas := views.NewSourceManager(views.SourceTypePersonas, c.sourceManagerCallbacks(views.SourceTypePersonas), c.cmds)
+	smPersonas := views.NewSourceManager(views.SourceTypePersonas, c.sourceManagerCallbacks(views.SourceTypePersonas))
 	c.views[ViewSourceManagerPersonas] = smPersonas
 
-	smWorkspaces := views.NewSourceManager(views.SourceTypeWorkspaces, c.sourceManagerCallbacks(views.SourceTypeWorkspaces), c.cmds)
+	smWorkspaces := views.NewSourceManager(views.SourceTypeWorkspaces, c.sourceManagerCallbacks(views.SourceTypeWorkspaces))
 	c.views[ViewSourceManagerWorkspaces] = smWorkspaces
 
-	smPuppets := views.NewSourceManager(views.SourceTypePuppets, c.sourceManagerCallbacks(views.SourceTypePuppets), c.cmds)
+	smPuppets := views.NewSourceManager(views.SourceTypePuppets, c.sourceManagerCallbacks(views.SourceTypePuppets))
 	c.views[ViewSourceManagerPuppets] = smPuppets
 
-	settingsView := views.NewSettingsView(c.settingsCallbacks(), c.cmds)
+	settingsView := views.NewSettingsView(c.settingsCallbacks())
 	settingsView.SetSettings(c.settings)
 	c.views[ViewSettings] = settingsView
-	c.views[ViewMCPForm] = views.NewMCPForm(c.mcpCallbacks(), c.cmds)
-	c.views[ViewSessionLauncher] = views.NewSessionLauncher(c.sessionLauncherCallbacks(), c.cmds)
+	c.views[ViewMCPForm] = views.NewMCPForm(c.mcpCallbacks())
+	c.views[ViewSessionLauncher] = views.NewSessionLauncher(c.sessionLauncherCallbacks())
 	c.views[ViewAgentSwitch] = views.NewAgentSwitchView(c.agentSwitchCallbacks())
 }
 

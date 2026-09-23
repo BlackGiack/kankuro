@@ -18,7 +18,6 @@ type PuppetSelectorModal struct {
 
 	puppets   []config.Puppet
 	cursor    int
-	prevStyle string
 	confirmed bool
 	cancelled bool
 	open      bool
@@ -60,7 +59,6 @@ func (m *PuppetSelectorModal) SetPuppets(puppets []config.Puppet) {
 func (m *PuppetSelectorModal) Cursor() int { return m.cursor }
 
 func (m *PuppetSelectorModal) SetSelected(name string) {
-	m.prevStyle = name
 	for i, p := range m.puppets {
 		if p.Name == name {
 			m.cursor = i

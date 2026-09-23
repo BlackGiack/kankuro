@@ -9,7 +9,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
@@ -22,7 +21,7 @@ func TestCardEditor_New(t *testing.T) {
 		},
 	}
 
-	e := views.NewCardEditor(callbacks, &commands.Commands{})
+	e := views.NewCardEditor(callbacks)
 
 	if e == nil {
 		t.Fatal("NewCardEditor returned nil")
@@ -34,7 +33,7 @@ func TestCardEditor_New(t *testing.T) {
 }
 
 func TestCardEditor_SetCard(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 
 	card := config.IDCard{
 		ID:          "test-1",
@@ -60,7 +59,7 @@ func TestCardEditor_SetCard(t *testing.T) {
 }
 
 func TestCardEditor_Reset(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 
 	e.SetCard(config.IDCard{
 		ID:     "test-1",
@@ -82,7 +81,7 @@ func TestCardEditor_Reset(t *testing.T) {
 }
 
 func TestCardEditor_Card(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 
 	e.Inputs()[0].SetValue("My Card")
 	e.Inputs()[1].SetValue("claude")
@@ -151,7 +150,7 @@ func TestCardEditorPreservesUnmanagedFields(t *testing.T) {
 		}
 	}
 
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	// CapabilityList.SelectedIDs() only returns IDs present in its current
 	// items (see finding #17), so the lists must know about s1/p1/m1 before
 	// SetCard's selection can round-trip through Card().
@@ -177,7 +176,7 @@ func TestCardEditorPreservesUnmanagedFields(t *testing.T) {
 }
 
 func TestCardEditor_CycleFocus(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 
 	if e.FocusIndex() != 0 {
 		t.Error("Should start on first field")
@@ -204,7 +203,7 @@ func TestCardEditor_CycleFocus(t *testing.T) {
 }
 
 func TestCardEditor_SetData(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 
 	workspaces := []config.Workspace{
 		{ID: "ws-1", Name: "Workspace 1"},
@@ -235,7 +234,7 @@ func TestCardEditor_SetData(t *testing.T) {
 }
 
 func TestCardEditor_WorkspaceSummary(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetData(messages.DataLoadedMsg{
 		Workspaces: []config.Workspace{
 			{ID: "ws-1", Name: "My Workspace"},
@@ -265,13 +264,13 @@ func TestCapabilityList_Toggle(t *testing.T) {
 	list.SetCursor(0)
 	list.ToggleSelected()
 
-	if !list.IsSelectedList()["s1"] {
+	if !list.IsSelected("s1") {
 		t.Error("s1 should be selected after toggle")
 	}
 
 	// Toggle again
 	list.ToggleSelected()
-	if list.IsSelectedList()["s1"] {
+	if list.IsSelected("s1") {
 		t.Error("s1 should be deselected after second toggle")
 	}
 }
@@ -300,7 +299,7 @@ func TestCapabilityList_Search(t *testing.T) {
 }
 
 func TestCardEditor_View(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetSize(80, 40)
 
 	view := e.View()
@@ -320,7 +319,7 @@ func TestCardEditor_View(t *testing.T) {
 }
 
 func TestCardEditor_View_HidesOptionalSectionsFromSettings(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetSettings(config.AppSettings{
 		ShowPersonasInCardEditor: false,
 		ShowMCPsInCardEditor:     false,
@@ -337,7 +336,7 @@ func TestCardEditor_View_HidesOptionalSectionsFromSettings(t *testing.T) {
 }
 
 func TestCardEditor_HiddenSectionsPreserveSelections(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetCard(config.IDCard{
 		ID:         "card-1",
 		PersonaIDs: []string{"p1"},
@@ -363,7 +362,7 @@ func TestCardEditor_HiddenSectionsPreserveSelections(t *testing.T) {
 // mistaken for "list not populated yet", which is what the guard exists to
 // protect).
 func TestCardEditor_HiddenSectionsCaptureDeselection(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetData(messages.DataLoadedMsg{
 		Personas: []config.Persona{{ID: "p1", Name: "Persona 1"}},
 		MCPs:     []config.MCPServer{{ID: "m1", Name: "MCP 1"}},
@@ -396,7 +395,7 @@ func TestCardEditor_HiddenSectionsCaptureDeselection(t *testing.T) {
 // `\n` (a backtick raw string) instead of a real newline, so the
 // multi-line summary/ellipsis branch never fired.
 func TestCardEditor_AgentsMDRow_MultilineSummary(t *testing.T) {
-	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetCard(config.IDCard{ID: "c1", AgentsMD: "line one\nline two"})
 	e.SetSize(80, 40)
 

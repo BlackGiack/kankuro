@@ -3,13 +3,13 @@ package views
 import (
 	"slices"
 	"strings"
+	"unicode"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/ui/commands"
 	"kankuro/internal/ui/component"
 	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/messages"
@@ -135,7 +135,6 @@ type CardEditor struct {
 	settings   config.AppSettings
 
 	callbacks CardEditorCallbacks
-	cmds      *commands.Commands
 }
 
 // AgentsMDState holds the agents.md configuration.
@@ -151,7 +150,7 @@ const (
 )
 
 // NewCardEditor creates a new card editor.
-func NewCardEditor(callbacks CardEditorCallbacks, cmds *commands.Commands) *CardEditor {
+func NewCardEditor(callbacks CardEditorCallbacks) *CardEditor {
 	// Initialize text inputs, sized and placed from focusTargets.
 	inputs := make([]textinput.Model, inputCountFromTargets())
 	for _, t := range focusTargetTable() {
@@ -193,7 +192,6 @@ func NewCardEditor(callbacks CardEditorCallbacks, cmds *commands.Commands) *Card
 		puppet:          "kankuro",
 		settings:        config.DefaultAppSettings(),
 		callbacks:       callbacks,
-		cmds:            cmds,
 	}
 }
 
@@ -386,7 +384,7 @@ func (e *CardEditor) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	// Handle data refresh messages
 	if msg, ok := msg.(messages.MCPDeletedMsg); ok {
 		// Remove the deleted MCP from selection
-		delete(e.mcpList.Selected, msg.MCPID)
+		e.mcpList.Deselect(msg.MCPID)
 		// Adjust cursor if needed
 		if e.mcpList.Cursor() >= len(e.mcpList.Items()) && e.mcpList.Cursor() > 0 {
 			e.mcpList.SetCursor(e.mcpList.Cursor() - 1)
@@ -422,7 +420,7 @@ func (e *CardEditor) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return tea.Quit, true
 	}
 
-	if keyMsg.String() == "shift+tab" {
+	if keyMsg.String() == keyShiftTab {
 		e.clearSearches()
 		e.CycleFocus(-1)
 		return nil, true
@@ -461,7 +459,7 @@ func (e *CardEditor) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 	}
 
-	if keyMsg.String() == "ctrl+e" {
+	if keyMsg.String() == keyCtrlE {
 		return e.handleCtrlE()
 	}
 
@@ -736,7 +734,7 @@ func (e *CardEditor) updateMCPList(msg tea.Msg) tea.Cmd {
 func (e *CardEditor) handleListSearch(list *components.CapabilityList, keyMsg tea.KeyPressMsg) bool {
 	if len(keyMsg.Text) > 0 {
 		for _, ch := range keyMsg.Text {
-			if ch >= 33 && ch <= 126 {
+			if unicode.IsPrint(ch) && !unicode.IsSpace(ch) {
 				list.SetSearchQuery(list.SearchQuery + string(ch))
 				return true
 			}
@@ -815,7 +813,7 @@ func (e *CardEditor) updateAgentsMDEditor(msg tea.Msg) (component.Model, tea.Cmd
 func (e *CardEditor) autoSelectMCPCLISkill() {
 	for _, s := range e.skills {
 		if s.Name == "mcp-cli" {
-			e.skillList.Selected[s.ID] = true
+			e.skillList.Select(s.ID)
 			return
 		}
 	}
