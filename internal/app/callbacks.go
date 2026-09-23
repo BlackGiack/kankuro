@@ -130,13 +130,17 @@ func (c *Coordinator) launchCard(card config.IDCard) tea.Cmd {
 	launcher.Reset()
 	launcher.SetCard(card)
 
-	// Launch session async while navigating to the naming view
-	skills := c.skillsForCard(card)
-	personas := c.personasForCard(card)
-	mcps := c.mcpsForCard(card)
-
 	return tea.Batch(
 		func() tea.Msg {
+			// Resolve capabilities inside the Cmd (off the UI goroutine) -
+			// each registry is read once here rather than by three
+			// separate LoadXxxForCard calls, and a failed read now aborts
+			// the launch instead of silently starting the agent with no
+			// skills/personas/MCPs (see debt_impl_plan_5.md step 2).
+			skills, personas, mcps, err := c.resolveCapabilities(card)
+			if err != nil {
+				return messages.SessionLaunchCompletedMsg{Err: err}
+			}
 			id, err := c.session.Launch(card, skills, personas, mcps)
 			return messages.SessionLaunchCompletedMsg{SessionID: id, Err: err}
 		},
@@ -159,14 +163,11 @@ func (c *Coordinator) relaunchSession(sessionID string) tea.Cmd {
 		if sess == nil {
 			return messages.ErrorMsg{Err: fmt.Errorf("session not found: %s", sessionID)}
 		}
-		card, err := c.getCardByID(sess.CardID)
+		bundle, err := c.resolveCard(sess.CardID)
 		if err != nil {
 			return messages.ErrorMsg{Err: err}
 		}
-		skills := c.skillsForCard(card)
-		personas := c.personasForCard(card)
-		mcps := c.mcpsForCard(card)
-		relaunchErr := c.session.Relaunch(sessionID, card, skills, personas, mcps)
+		relaunchErr := c.session.Relaunch(sessionID, bundle.Card, bundle.Skills, bundle.Personas, bundle.MCPs)
 		if relaunchErr != nil {
 			if !errors.Is(relaunchErr, session.ErrPersistFailed) {
 				return messages.ErrorMsg{Err: relaunchErr}
@@ -189,14 +190,11 @@ func (c *Coordinator) relaunchSession(sessionID string) tea.Cmd {
 // finding 4) rather than left as a dead, reachable-by-one-wiring-change copy
 // of the blocking-work-inside-Update bug step 3 removed.
 func (c *Coordinator) switchAgentAsync(sessionID, newCardID string) error {
-	card, err := c.getCardByID(newCardID)
+	bundle, err := c.resolveCard(newCardID)
 	if err != nil {
 		return err
 	}
-	skills := c.skillsForCard(card)
-	personas := c.personasForCard(card)
-	mcps := c.mcpsForCard(card)
-	return c.session.SwitchAgent(sessionID, card, skills, personas, mcps)
+	return c.session.SwitchAgent(sessionID, bundle.Card, bundle.Skills, bundle.Personas, bundle.MCPs)
 }
 
 // launchIDE spawns the configured editor for a session's workspace. It
@@ -518,51 +516,95 @@ func (c *Coordinator) agentSwitchCallbacks() views.AgentSwitchCallbacks {
 	}
 }
 
-func (c *Coordinator) getCardByID(cardID string) (config.IDCard, error) {
-	cards, _ := c.repo.ListIDCards()
-	for _, card := range cards {
-		if card.ID == cardID {
-			return card, nil
-		}
-	}
-	return config.IDCard{}, fmt.Errorf("card not found: %s", cardID)
+// cardBundle groups an ID card with its resolved capabilities, so a
+// launch/relaunch/switch only has to read each registry once - see
+// debt_impl_plan_5.md step 2.
+type cardBundle struct {
+	Card     config.IDCard
+	Skills   []config.Skill
+	Personas []config.Persona
+	MCPs     []config.MCPServer
 }
 
-func (c *Coordinator) skillsForCard(card config.IDCard) []config.Skill {
-	var result []config.Skill
-	allSkills, _ := c.repo.ListSkills()
-	for _, skill := range allSkills {
-		for _, id := range card.SkillIDs {
-			if skill.ID == id {
-				result = append(result, skill)
-			}
+// resolveCard reads the card registry once, finds cardID, and resolves its
+// capabilities via resolveCapabilities. It folds the old getCardByID's
+// not-found lookup together with propagating a failed registry read (step
+// 3): a read failure now surfaces as "list cards: ...", not the misleading
+// "card not found" a discarded error used to produce.
+func (c *Coordinator) resolveCard(cardID string) (cardBundle, error) {
+	cards, err := c.repo.ListIDCards()
+	if err != nil {
+		return cardBundle{}, fmt.Errorf("list cards: %w", err)
+	}
+	var card config.IDCard
+	found := false
+	for _, cd := range cards {
+		if cd.ID == cardID {
+			card = cd
+			found = true
+			break
 		}
 	}
-	return result
+	if !found {
+		return cardBundle{}, fmt.Errorf("card not found: %s", cardID)
+	}
+	skills, personas, mcps, err := c.resolveCapabilities(card)
+	if err != nil {
+		return cardBundle{}, err
+	}
+	return cardBundle{Card: card, Skills: skills, Personas: personas, MCPs: mcps}, nil
 }
 
-func (c *Coordinator) personasForCard(card config.IDCard) []config.Persona {
-	var result []config.Persona
-	allPersonas, _ := c.repo.ListPersonas()
-	for _, persona := range allPersonas {
-		for _, id := range card.PersonaIDs {
-			if persona.ID == id {
-				result = append(result, persona)
-			}
+// resolveCapabilities reads the skill/persona/MCP registries once each and
+// filters them down to card's referenced IDs, iterating each registry in its
+// own (name-sorted) order so results come out in registry order rather than
+// card-ID order - preserving the order previously written to disk/AGENTS.md
+// by the three separate ListXxx-then-nested-loop calls this replaces. Unlike
+// those calls, a failed registry read here aborts (returns an error) instead
+// of silently launching/relaunching/switching with no capabilities.
+func (c *Coordinator) resolveCapabilities(card config.IDCard) ([]config.Skill, []config.Persona, []config.MCPServer, error) {
+	allSkills, err := c.repo.ListSkills()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("list skills: %w", err)
+	}
+	allPersonas, err := c.repo.ListPersonas()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("list personas: %w", err)
+	}
+	allMCPs, err := c.repo.ListMCPs()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("list mcps: %w", err)
+	}
+
+	skillIDs := toIDSet(card.SkillIDs)
+	personaIDs := toIDSet(card.PersonaIDs)
+	mcpIDs := toIDSet(card.MCPIDs)
+
+	var skills []config.Skill
+	for _, s := range allSkills {
+		if _, ok := skillIDs[s.ID]; ok {
+			skills = append(skills, s)
 		}
 	}
-	return result
+	var personas []config.Persona
+	for _, p := range allPersonas {
+		if _, ok := personaIDs[p.ID]; ok {
+			personas = append(personas, p)
+		}
+	}
+	var mcps []config.MCPServer
+	for _, m := range allMCPs {
+		if _, ok := mcpIDs[m.ID]; ok {
+			mcps = append(mcps, m)
+		}
+	}
+	return skills, personas, mcps, nil
 }
 
-func (c *Coordinator) mcpsForCard(card config.IDCard) []config.MCPServer {
-	var result []config.MCPServer
-	allMCPs, _ := c.repo.ListMCPs()
-	for _, mcp := range allMCPs {
-		for _, id := range card.MCPIDs {
-			if mcp.ID == id {
-				result = append(result, mcp)
-			}
-		}
+func toIDSet(ids []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		set[id] = struct{}{}
 	}
-	return result
+	return set
 }

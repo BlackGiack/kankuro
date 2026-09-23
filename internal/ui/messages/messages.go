@@ -185,6 +185,20 @@ type DataReceiver interface {
 	SetData(msg DataLoadedMsg)
 }
 
+// SessionsRefreshedMsg carries just the (in-memory) session list plus the
+// current preview session ID/scrollback - the idle tick's sessions-only
+// refresh. It is deliberately a distinct type from DataLoadedMsg, not a
+// DataLoadedMsg with only Sessions set: broadcasting the latter to every
+// DataReceiver used to reach config-registry views (e.g. the source
+// managers), whose SetData unconditionally reloads their source files from
+// disk - see debt_impl_plan_5.md review finding 1. This message is instead
+// routed only to the dashboard, the sole consumer of Sessions.
+type SessionsRefreshedMsg struct {
+	Sessions          []session.Snapshot
+	PreviewSessionID  string
+	PreviewScrollback []byte
+}
+
 // PreviewDataMsg carries an update to the currently previewed session's
 // scrollback only. It is a distinct type from DataLoadedMsg so a receiver can
 // never mistake a partial preview update for a full snapshot.

@@ -11,7 +11,13 @@ Findings are numbered in **discovery order, not severity order** — the plans b
 reference these numbers, so new findings are appended rather than renumbered. Read
 the section heading (Critical/High, Medium, Low) for severity.
 
-> **Progress (2026-09-22).** Plans 1 and 2 are implemented and merged/staged:
+> **Progress (2026-09-24).** All seven plans are implemented and landed on
+> `feat/envvar` (plans 3 and 5 were rebased onto the plans that overtook them).
+> `go build`, `go vet`, `go test ./...` and `go test -race ./internal/...` are all
+> clean, and `golangci-lint run` now exits 0. The one item knowingly left behind is
+> the modal-boilerplate half of Plan 7 step 5 — see the **Low** section.
+>
+> Earlier progress note (2026-09-22): Plans 1 and 2 are implemented and merged/staged:
 > findings **#2, #3, #6, #15** and the exit-code half of **#9** are fixed (Plan 1),
 > and **#9** (struct mapping) plus the `internal/session` half of **#8** are fixed
 > (Plan 2). `go test -race ./internal/session/...` now passes — the Baseline
@@ -51,11 +57,14 @@ Measured before any remediation, so plans can tell regressions from pre-existing
   flag the standard `log` package writes to **stderr**, which corrupts the rendered
   TUI frame — so error *logging* must route through that file, never bare
   `log.Printf`. Relevant to #8.
-- `golangci-lint run ./...` — **5 pre-existing issues**: 4 × `nolintlint`
-  (unused `//nolint:gosec` directives at `session/lifecycle.go:331`,
-  `session/workspace.go:32,37,43`) and 1 × `revive` (`driver` package name
-  shadows a stdlib name, `driver/registry.go:1`). Treat these as the known
-  baseline; do not count them as new.
+- `golangci-lint run ./...` — **5 pre-existing issues** at the time this baseline
+  was taken: 4 × `nolintlint` (unused `//nolint:gosec` directives at
+  `session/lifecycle.go:331`, `session/workspace.go:32,37,43`) and 1 × `revive`
+  (`driver` package name shadows a stdlib name, `driver/registry.go:1`).
+  **Superseded as of Plan 7 — lint now exits 0:** the four stale directives were
+  removed, and the `revive` collision is excluded in `.golangci.yml` with a
+  comment saying the name is deliberate (`warn-unused: true` will flag the rule
+  if it ever stops matching).
 
 ---
 
@@ -343,11 +352,15 @@ where a reader looks first.
   and `keyShiftTab` (`:37`) is used in `settings.go:152` while `dashboard.go:336`
   and `card_editor.go:349` hard-code `"shift+tab"`. Also 4 stale `//nolint:gosec` directives
   the linter already flags (see Baseline). [confirmed]
-- **Duplicated filter/modal boilerplate** — `filterCards` implemented three times
-  (`components/card_list.go:208`, `views/agent_switch.go:85`,
-  `workspace_picker_modal.go:232`); four modals re-implement `Open/Close/IsOpen/…`
-  (a `// TODO use modal component` at `puppet_selector_modal.go:13` acknowledges it).
-  Extract a shared generic filter and a modal base. [reported]
+- **Duplicated modal boilerplate** — three modals re-implement
+  `Open/Close/IsOpen/…` (`views/workspace_picker_modal.go`,
+  `agentsmd_editor_modal.go`, `puppet_selector_modal.go`; the
+  `// TODO use modal component` at `puppet_selector_modal.go:13` acknowledges it).
+  Give `components.Modal` an embeddable form and embed it.
+  **Still outstanding** — the *filter* half of this item was resolved in Plan 7
+  (`components.Filter`, now used at all three former `filterCards` copies); the
+  modal half was deliberately dropped, as Plan 7 step 5 permitted, and has no
+  remaining plan that covers it. [reported, deferred out of Plan 7]
 - **`config/types.go` has a standing `// TODO: Split this file`** — types for every
   domain live in one file (`internal/config/types.go:3`). Cosmetic; listed so it is
   not rediscovered as a finding. [confirmed]
@@ -375,11 +388,11 @@ that each one's verification gate is available when it runs:
 | --- | --- | --- | --- |
 | 1 | `debt_impl_plan_1.md` | #6, #3, #15, exit code half of #9, #2 | **done** |
 | 2 | `debt_impl_plan_2.md` | #9 (structs), #8 (session half) | **done** |
-| 3 | `debt_impl_plan_3.md` | #7, #11, #5, `DeleteIDCard` guard, `GetAppSettings`, ID gen, `ExpandEnv` | todo |
-| 4 | `debt_impl_plan_4.md` | #4, #12, **#17**, #10, #8 (app half), sync `DeleteMCP`, #14 | todo |
-| 5 | `debt_impl_plan_5.md` | #13, redundant per-launch reads, `wiring.go GetCard` | todo |
-| 6 | `debt_impl_plan_6.md` | #1, card-editor focus table, mutating accessors, `\n` split | todo |
-| 7 | `debt_impl_plan_7.md` | key/value parsing, unicode truncation, `CapabilityList`, **#16**, dead code, dedup | todo |
+| 3 | `debt_impl_plan_3.md` | #7, #11, #5, `DeleteIDCard` guard, `GetAppSettings`, ID gen, `ExpandEnv` | **done** |
+| 4 | `debt_impl_plan_4.md` | #4, #12, **#17**, #10, #8 (app half), sync `DeleteMCP`, #14 | **done** |
+| 5 | `debt_impl_plan_5.md` | #13, redundant per-launch reads, `wiring.go GetCard` | **done** |
+| 6 | `debt_impl_plan_6.md` | #1, card-editor focus table, mutating accessors, `\n` split | **done** |
+| 7 | `debt_impl_plan_7.md` | key/value parsing, unicode truncation, `CapabilityList`, **#16**, dead code, dedup | **done** (modal dedup deferred) |
 
 Plan 1 must run first: it restores `go test -race ./internal/session/...` as a
 usable gate. Plans 3–7 are otherwise independent of each other.

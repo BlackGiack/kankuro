@@ -112,6 +112,7 @@ type Repository interface {
 	SettingsRepository
 	PuppetRepository
 	Dir() string
+	Fingerprint() (map[string]FileStamp, error)
 }
 
 // FileRepository stores all configuration state in YAML files under one directory.

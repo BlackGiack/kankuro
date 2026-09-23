@@ -178,6 +178,20 @@ func (d *Dashboard) SetData(msg messages.DataLoadedMsg) {
 	}
 }
 
+// SetSessions applies just the session list - used by the coordinator for
+// the idle tick's sessions-only refresh (messages.SessionsRefreshedMsg),
+// which is routed directly here rather than through SetData/broadcastData so
+// it never reaches an unrelated DataReceiver - see
+// debt_impl_plan_5.md review finding 1.
+func (d *Dashboard) SetSessions(sessions []session.Snapshot) {
+	if sessions == nil {
+		return
+	}
+	d.sessions = sessions
+	d.sessionList.SetSessions(d.sessions, d.cards)
+	d.syncPreviewSelection()
+}
+
 // SetPreviewData implements messages.PreviewReceiver, handling partial,
 // preview-only updates that must never be confused with a full SetData
 // snapshot (see messages.PreviewDataMsg).
