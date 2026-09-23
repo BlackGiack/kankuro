@@ -1,8 +1,10 @@
 package views_test
 
 import (
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -110,6 +112,67 @@ func TestCardEditor_Card(t *testing.T) {
 	}
 	if len(card.SkillIDs) != 1 {
 		t.Errorf("Expected 1 skill, got %d", len(card.SkillIDs))
+	}
+}
+
+// TestCardEditorPreservesUnmanagedFields fails when a new IDCard field is
+// added that the editor neither edits nor preserves (finding #1: Card() used
+// to rebuild config.IDCard{} from scratch, silently dropping
+// SystemInstruction and Env on every save).
+func TestCardEditorPreservesUnmanagedFields(t *testing.T) {
+	original := config.IDCard{
+		ID:                 "id-1",
+		Name:               "orig-name",
+		Driver:             "orig-driver",
+		Model:              "orig-model",
+		WorkspaceID:        "ws-1",
+		UseTmpWorkspace:    true,
+		SystemInstruction:  "be a test",
+		SkillIDs:           []string{"s1"},
+		PersonaIDs:         []string{"p1"},
+		MCPIDs:             []string{"m1"},
+		Env:                map[string]string{"FOO": "bar"},
+		FaceStyle:          "orig-face",
+		Puppet:             "orig-puppet",
+		AgentsMD:           "orig agents md",
+		AgentsMDPath:       "/orig/path",
+		AgentsMDPreferPath: true,
+		CreatedAt:          time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+		UpdatedAt:          time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	// Every field must be non-zero, or this test would vacuously pass for a
+	// field mistakenly left at its zero value.
+	v := reflect.ValueOf(original)
+	typ := v.Type()
+	for i := range typ.NumField() {
+		if v.Field(i).IsZero() {
+			t.Fatalf("test setup bug: field %s is zero-valued", typ.Field(i).Name)
+		}
+	}
+
+	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	// CapabilityList.SelectedIDs() only returns IDs present in its current
+	// items (see finding #17), so the lists must know about s1/p1/m1 before
+	// SetCard's selection can round-trip through Card().
+	e.SetData(messages.DataLoadedMsg{
+		Skills:   []config.Skill{{ID: "s1", Name: "Skill 1"}},
+		Personas: []config.Persona{{ID: "p1", Name: "Persona 1"}},
+		MCPs:     []config.MCPServer{{ID: "m1", Name: "MCP 1"}},
+	})
+	e.SetCard(original)
+
+	// Mutate exactly one field the form manages.
+	e.Inputs()[0].SetValue("changed-name")
+
+	got := e.Card()
+
+	want := original
+	want.Name = "changed-name"
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Card() after editing only Name changed other fields too, or "+
+			"dropped one it should have preserved:\ngot:  %+v\nwant: %+v", got, want)
 	}
 }
 
@@ -291,6 +354,61 @@ func TestCardEditor_HiddenSectionsPreserveSelections(t *testing.T) {
 	}
 	if len(card.MCPIDs) != 1 || card.MCPIDs[0] != "m1" {
 		t.Fatalf("expected hidden MCP selection to be preserved, got %+v", card.MCPIDs)
+	}
+}
+
+// TestCardEditor_HiddenSectionsCaptureDeselection guards the SetSettings
+// capture-on-hide guard: when the list's items are actually loaded, an
+// explicit deselect-everything before hiding the section must stick (not be
+// mistaken for "list not populated yet", which is what the guard exists to
+// protect).
+func TestCardEditor_HiddenSectionsCaptureDeselection(t *testing.T) {
+	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e.SetData(messages.DataLoadedMsg{
+		Personas: []config.Persona{{ID: "p1", Name: "Persona 1"}},
+		MCPs:     []config.MCPServer{{ID: "m1", Name: "MCP 1"}},
+	})
+	e.SetCard(config.IDCard{
+		ID:         "card-1",
+		PersonaIDs: []string{"p1"},
+		MCPIDs:     []string{"m1"},
+	})
+
+	e.PersonaList().SetSelected(nil)
+	e.MCPList().SetSelected(nil)
+
+	e.SetSettings(config.AppSettings{
+		ShowPersonasInCardEditor: false,
+		ShowMCPsInCardEditor:     false,
+	})
+
+	card := e.Card()
+	if len(card.PersonaIDs) != 0 {
+		t.Fatalf("expected deselected persona to stay deselected after hiding, got %+v", card.PersonaIDs)
+	}
+	if len(card.MCPIDs) != 0 {
+		t.Fatalf("expected deselected MCP to stay deselected after hiding, got %+v", card.MCPIDs)
+	}
+}
+
+// TestCardEditor_AgentsMDRow_MultilineSummary guards the renderAgentsMDRow
+// delimiter bug: it used to split on the literal two-character string
+// `\n` (a backtick raw string) instead of a real newline, so the
+// multi-line summary/ellipsis branch never fired.
+func TestCardEditor_AgentsMDRow_MultilineSummary(t *testing.T) {
+	e := views.NewCardEditor(views.CardEditorCallbacks{}, &commands.Commands{})
+	e.SetCard(config.IDCard{ID: "c1", AgentsMD: "line one\nline two"})
+	e.SetSize(80, 40)
+
+	view := e.View()
+	if !strings.Contains(view, "line one") {
+		t.Error("view should contain the first line of AGENTS.md content")
+	}
+	if !strings.Contains(view, "line one...") {
+		t.Error("multi-line AGENTS.md content should render with an ellipsis")
+	}
+	if strings.Contains(view, "line two") {
+		t.Error("view should not contain the second line of AGENTS.md content")
 	}
 }
 

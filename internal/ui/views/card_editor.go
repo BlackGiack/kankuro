@@ -16,7 +16,8 @@ import (
 	"kankuro/internal/ui/styles"
 )
 
-// Focus indices for the card form.
+// Focus indices for the card form. focusCount is a sentinel that must stay
+// last in the block so FocusCount tracks the iota automatically.
 const (
 	FocusName = iota
 	FocusDriver
@@ -29,20 +30,67 @@ const (
 	FocusSkills
 	FocusPersonas
 	FocusMCPs
+	focusCount
 )
 
 // FocusCount is the total number of potential focusable elements.
-const FocusCount = 11
+const FocusCount = focusCount
 
-// Focus field constants for card editor layout.
+// UI constants.
 const (
-	faceStyleIndex = 3
-	useTmpIndex    = 4
-
-	// UI constants.
 	hPadding = 2
 	vPadding = 1
 )
+
+// Input array indices for the focus targets that are text inputs. Named so
+// focusTargets doesn't scatter unexplained integer literals.
+const (
+	nameInputIdx = iota
+	driverInputIdx
+	modelInputIdx
+	faceStyleInputIdx
+	useTmpInputIdx
+)
+
+// notAnInput marks a focusTarget that has no corresponding text input.
+const notAnInput = -1
+
+// focusTarget is the single source of truth for a focusable element: which
+// input (if any) it maps to, what placeholder that input shows, and whether
+// it is visible given the current settings. mapFocusToInput,
+// visibleFocusOrder, and the input slice built in NewCardEditor are all
+// derived from this table instead of being hand-kept in sync.
+type focusTarget struct {
+	focus       int
+	inputIdx    int // index into CardEditor.inputs, or notAnInput
+	placeholder string
+	visible     func(config.AppSettings) bool // nil means always visible
+}
+
+// focusTargetTable returns the focus target table. It is a function rather
+// than a package-level var so each CardEditor gets its own slice/closures
+// without a shared global.
+func focusTargetTable() []focusTarget {
+	return []focusTarget{
+		{focus: FocusName, inputIdx: nameInputIdx, placeholder: "Card name..."},
+		{focus: FocusDriver, inputIdx: driverInputIdx, placeholder: "Driver (e.g., claude, gemini)..."},
+		{focus: FocusModel, inputIdx: modelInputIdx, placeholder: "Model (e.g., claude-3-opus)..."},
+		{focus: FocusWorkspace, inputIdx: notAnInput},
+		{focus: FocusFaceStyle, inputIdx: faceStyleInputIdx, placeholder: "Face style..."},
+		{focus: FocusPuppet, inputIdx: notAnInput},
+		{focus: FocusUseTmp, inputIdx: useTmpInputIdx, placeholder: "Use tmp workspace (y/n)..."},
+		{focus: FocusAgentsMD, inputIdx: notAnInput},
+		{focus: FocusSkills, inputIdx: notAnInput},
+		{
+			focus: FocusPersonas, inputIdx: notAnInput,
+			visible: func(s config.AppSettings) bool { return s.ShowPersonasInCardEditor },
+		},
+		{
+			focus: FocusMCPs, inputIdx: notAnInput,
+			visible: func(s config.AppSettings) bool { return s.ShowMCPsInCardEditor },
+		},
+	}
+}
 
 // CardEditorCallbacks defines callbacks for card editor actions.
 type CardEditorCallbacks struct {
@@ -72,13 +120,11 @@ type CardEditor struct {
 	agentsMDEditor  *AgentsMDEditorModal
 
 	// State
-	editingID   string
+	loaded      config.IDCard // card as loaded by SetCard; Card() overlays edits onto this
 	focusIndex  int
 	puppet      string
 	workspaceID string
 	agentsMD    AgentsMDState
-	personaIDs  []string
-	mcpIDs      []string
 
 	// Data
 	workspaces []config.Workspace
@@ -100,26 +146,21 @@ type AgentsMDState struct {
 }
 
 const (
-	inputCount     = 5
 	maxVisibleCaps = 5
 	summaryLimit   = 27
 )
 
 // NewCardEditor creates a new card editor.
 func NewCardEditor(callbacks CardEditorCallbacks, cmds *commands.Commands) *CardEditor {
-	// Initialize text inputs
-	inputs := make([]textinput.Model, inputCount)
-	placeholders := []string{
-		"Card name...",
-		"Driver (e.g., claude, gemini)...",
-		"Model (e.g., claude-3-opus)...",
-		"Face style...",
-		"Use tmp workspace (y/n)...",
-	}
-	for i := range inputs {
-		inputs[i] = textinput.New()
-		inputs[i].Placeholder = placeholders[i]
-		inputs[i].SetWidth(mediumInputWidth) // Default width, will be updated in SetSize
+	// Initialize text inputs, sized and placed from focusTargets.
+	inputs := make([]textinput.Model, inputCountFromTargets())
+	for _, t := range focusTargetTable() {
+		if t.inputIdx < 0 {
+			continue
+		}
+		inputs[t.inputIdx] = textinput.New()
+		inputs[t.inputIdx].Placeholder = t.placeholder
+		inputs[t.inputIdx].SetWidth(mediumInputWidth) // Default width, will be updated in SetSize
 	}
 
 	// Initialize capability lists
@@ -172,21 +213,32 @@ func (e *CardEditor) SetWorkspaceID(workspaceID string) { e.workspaceID = worksp
 func (e *CardEditor) Puppet() string          { return e.puppet }
 func (e *CardEditor) SetPuppet(puppet string) { e.puppet = puppet }
 
-func (e *CardEditor) EditingID() string { return e.editingID }
+func (e *CardEditor) EditingID() string { return e.loaded.ID }
 
 func (e *CardEditor) FocusIndex() int { return e.focusIndex }
 
 func (e *CardEditor) Inputs() []textinput.Model { return e.inputs }
 
 func (e *CardEditor) SetSettings(settings config.AppSettings) {
+	// A section going from visible to hidden must capture whatever is
+	// currently selected into e.loaded, since Card() falls back to e.loaded's
+	// value for a hidden section instead of reading the list.
+	//
+	// Guard on the list having items rather than the selection being
+	// non-empty: SelectedIDs() only returns IDs whose items are currently
+	// loaded (finding #17), so before SetData has populated the list,
+	// "nothing selected" is indistinguishable from "list not populated yet"
+	// and must not wipe a real selection. Checking Items() makes that
+	// distinction, so a genuine deselect-everything edit on a populated list
+	// is still captured (TestCardEditor_HiddenSectionsCaptureDeselection).
 	if e.settings.ShowPersonasInCardEditor && !settings.ShowPersonasInCardEditor {
-		if selected := e.personaList.SelectedIDs(); len(selected) > 0 {
-			e.personaIDs = selected
+		if len(e.personaList.Items()) > 0 {
+			e.loaded.PersonaIDs = e.personaList.SelectedIDs()
 		}
 	}
 	if e.settings.ShowMCPsInCardEditor && !settings.ShowMCPsInCardEditor {
-		if selected := e.mcpList.SelectedIDs(); len(selected) > 0 {
-			e.mcpIDs = selected
+		if len(e.mcpList.Items()) > 0 {
+			e.loaded.MCPIDs = e.mcpList.SelectedIDs()
 		}
 	}
 	e.settings = settings
@@ -198,14 +250,16 @@ func (e *CardEditor) SetSettings(settings config.AppSettings) {
 	}
 }
 
-// SetCard populates the form for editing an existing card.
+// SetCard populates the form for editing an existing card. The full card is
+// retained in e.loaded so that Card() can overlay edits onto it without
+// dropping fields the form does not expose (e.g. SystemInstruction, Env).
 func (e *CardEditor) SetCard(card config.IDCard) {
-	e.editingID = card.ID
-	e.inputs[0].SetValue(card.Name)
-	e.inputs[1].SetValue(card.Driver)
-	e.inputs[2].SetValue(card.Model)
+	e.loaded = card
+	e.inputs[nameInputIdx].SetValue(card.Name)
+	e.inputs[driverInputIdx].SetValue(card.Driver)
+	e.inputs[modelInputIdx].SetValue(card.Model)
 	e.workspaceID = card.WorkspaceID
-	e.inputs[3].SetValue(card.FaceStyle)
+	e.inputs[faceStyleInputIdx].SetValue(card.FaceStyle)
 	e.puppet = card.Puppet
 	if e.puppet == "" {
 		e.puppet = defaultPuppetStyle
@@ -214,7 +268,7 @@ func (e *CardEditor) SetCard(card config.IDCard) {
 	if card.UseTmpWorkspace {
 		tmpVal = "y"
 	}
-	e.inputs[4].SetValue(tmpVal)
+	e.inputs[useTmpInputIdx].SetValue(tmpVal)
 	e.agentsMD.Content = card.AgentsMD
 	e.agentsMD.Path = card.AgentsMDPath
 	e.agentsMD.PreferPath = card.AgentsMDPreferPath
@@ -222,8 +276,6 @@ func (e *CardEditor) SetCard(card config.IDCard) {
 	e.skillList.SetSelected(card.SkillIDs)
 	e.personaList.SetSelected(card.PersonaIDs)
 	e.mcpList.SetSelected(card.MCPIDs)
-	e.personaIDs = append([]string(nil), card.PersonaIDs...)
-	e.mcpIDs = append([]string(nil), card.MCPIDs...)
 
 	e.focusIndex = 0
 	e.setFocus(0)
@@ -235,12 +287,10 @@ func (e *CardEditor) Reset() {
 		e.inputs[i].SetValue("")
 		e.inputs[i].Blur()
 	}
-	e.editingID = ""
+	e.loaded = config.IDCard{}
 	e.workspaceID = ""
 	e.puppet = "kankuro"
 	e.agentsMD = AgentsMDState{}
-	e.personaIDs = nil
-	e.mcpIDs = nil
 	e.skillList.SetSelected(nil)
 	e.personaList.SetSelected(nil)
 	e.mcpList.SetSelected(nil)
@@ -295,24 +345,35 @@ func (e *CardEditor) SetData(msg messages.DataLoadedMsg) {
 	}
 }
 
-// Card returns the current card data.
+// Card returns the current card data, overlaid onto the card most recently
+// loaded via SetCard (or the zero value for a new card). Every field the
+// form does not expose — SystemInstruction, Env, CreatedAt, ID, and anything
+// added later — is carried through from e.loaded unchanged instead of being
+// silently dropped. Only the fields the form actually edits are assigned
+// below.
 func (e *CardEditor) Card() config.IDCard {
-	return config.IDCard{
-		ID:                 e.editingID,
-		Name:               strings.TrimSpace(e.inputs[0].Value()),
-		Driver:             strings.TrimSpace(e.inputs[1].Value()),
-		Model:              strings.TrimSpace(e.inputs[2].Value()),
-		WorkspaceID:        e.workspaceID,
-		FaceStyle:          strings.TrimSpace(e.inputs[3].Value()),
-		Puppet:             e.puppet,
-		UseTmpWorkspace:    strings.ToLower(strings.TrimSpace(e.inputs[4].Value())) == "y",
-		AgentsMD:           e.agentsMD.Content,
-		AgentsMDPath:       e.agentsMD.Path,
-		AgentsMDPreferPath: e.agentsMD.PreferPath,
-		SkillIDs:           e.skillList.SelectedIDs(),
-		PersonaIDs:         e.selectedPersonaIDs(),
-		MCPIDs:             e.selectedMCPIDs(),
+	card := e.loaded
+	card.Name = strings.TrimSpace(e.inputs[nameInputIdx].Value())
+	card.Driver = strings.TrimSpace(e.inputs[driverInputIdx].Value())
+	card.Model = strings.TrimSpace(e.inputs[modelInputIdx].Value())
+	card.WorkspaceID = e.workspaceID
+	card.FaceStyle = strings.TrimSpace(e.inputs[faceStyleInputIdx].Value())
+	card.Puppet = e.puppet
+	card.UseTmpWorkspace = strings.ToLower(strings.TrimSpace(e.inputs[useTmpInputIdx].Value())) == "y"
+	card.AgentsMD = e.agentsMD.Content
+	card.AgentsMDPath = e.agentsMD.Path
+	card.AgentsMDPreferPath = e.agentsMD.PreferPath
+	card.SkillIDs = e.skillList.SelectedIDs()
+	// A hidden persona/MCP section is not rendered, so its list can't be
+	// read; leave e.loaded's value (set by SetCard, and kept current by
+	// SetSettings when a section transitions to hidden) untouched.
+	if e.settings.ShowPersonasInCardEditor {
+		card.PersonaIDs = e.personaList.SelectedIDs()
 	}
+	if e.settings.ShowMCPsInCardEditor {
+		card.MCPIDs = e.mcpList.SelectedIDs()
+	}
+	return card
 }
 
 // Init initializes the editor.
@@ -551,7 +612,7 @@ func (e *CardEditor) handleSubmit() tea.Cmd {
 		return e.callbacks.OnSave(card)
 	}
 
-	e.editingID = ""
+	e.loaded.ID = ""
 	if e.callbacks.OnCancel != nil {
 		return e.callbacks.OnCancel()
 	}
@@ -600,18 +661,26 @@ func (e *CardEditor) setFocus(index int) {
 	}
 }
 
-// mapFocusToInput maps logical focus index to input array index.
+// mapFocusToInput maps logical focus index to input array index, looked up
+// from focusTargets.
 func (e *CardEditor) mapFocusToInput(index int) int {
-	switch index {
-	case FocusName, FocusDriver, FocusModel:
-		return index
-	case FocusFaceStyle:
-		return faceStyleIndex
-	case FocusUseTmp:
-		return useTmpIndex
-	default:
-		return -1
+	for _, t := range focusTargetTable() {
+		if t.focus == index {
+			return t.inputIdx
+		}
 	}
+	return -1
+}
+
+// inputCountFromTargets returns how many focusTargets map to a text input.
+func inputCountFromTargets() int {
+	n := 0
+	for _, t := range focusTargetTable() {
+		if t.inputIdx >= 0 {
+			n++
+		}
+	}
+	return n
 }
 
 // updateFocusedInput routes update to the focused element.
@@ -783,7 +852,7 @@ func (e *CardEditor) View() string {
 // renderFormAboveLists renders the form parts that appear before the capability lists.
 func (e *CardEditor) renderFormAboveLists() string {
 	title := "New ID Card"
-	if e.editingID != "" {
+	if e.loaded.ID != "" {
 		title = "Edit ID Card"
 	}
 
@@ -866,7 +935,7 @@ func (e *CardEditor) renderAgentsMDRow() string {
 	const ellipsisLen = 3
 	contentSummary := "empty"
 	if e.agentsMD.Content != "" {
-		lines := strings.Split(e.agentsMD.Content, `\n`)
+		lines := strings.Split(e.agentsMD.Content, "\n")
 		contentSummary = lines[0]
 		if len(lines) > 1 || len(contentSummary) > summaryLimit {
 			if len(contentSummary) > summaryLimit {
@@ -954,45 +1023,22 @@ func (e *CardEditor) SetSize(width, height int) {
 	}
 }
 
+// visibleFocusOrder returns the display/tab order of currently visible focus
+// targets, derived from focusTargets so a new entry there is automatically
+// included (and automatically reachable by Tab/wrap-around).
 func (e *CardEditor) visibleFocusOrder() []int {
-	order := []int{
-		FocusName,
-		FocusDriver,
-		FocusModel,
-		FocusWorkspace,
-		FocusFaceStyle,
-		FocusPuppet,
-		FocusUseTmp,
-		FocusAgentsMD,
-		FocusSkills,
-	}
-	if e.settings.ShowPersonasInCardEditor {
-		order = append(order, FocusPersonas)
-	}
-	if e.settings.ShowMCPsInCardEditor {
-		order = append(order, FocusMCPs)
+	targets := focusTargetTable()
+	order := make([]int, 0, len(targets))
+	for _, t := range targets {
+		if t.visible == nil || t.visible(e.settings) {
+			order = append(order, t.focus)
+		}
 	}
 	return order
 }
 
 func (e *CardEditor) isFocusVisible(index int) bool {
 	return slices.Contains(e.visibleFocusOrder(), index)
-}
-
-func (e *CardEditor) selectedPersonaIDs() []string {
-	if e.settings.ShowPersonasInCardEditor {
-		e.personaIDs = e.personaList.SelectedIDs()
-		return e.personaIDs
-	}
-	return append([]string(nil), e.personaIDs...)
-}
-
-func (e *CardEditor) selectedMCPIDs() []string {
-	if e.settings.ShowMCPsInCardEditor {
-		e.mcpIDs = e.mcpList.SelectedIDs()
-		return e.mcpIDs
-	}
-	return append([]string(nil), e.mcpIDs...)
 }
 
 // Capability item types
