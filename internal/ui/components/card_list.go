@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/component"
@@ -268,10 +269,14 @@ func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config
 		return "", false
 	})
 
-	pills := renderPills(skillNames, personaNames)
+	pills := renderPills(skillNames, personaNames, infoBoxWidth)
 	skillsLine := lipgloss.JoinHorizontal(lipgloss.Top, pills...)
 
-	puppetStr := RenderAgentPuppet(card.Puppet, puppets)
+	// Clip, never wrap: a word-wrapped art line becomes two lines and grows the
+	// face box, which shatters the card. The built-in puppets all fit; this
+	// only affects user puppets drawn larger than the box. The face box's left
+	// border takes one of its FaceBoxWidth columns.
+	puppetStr := clipBlock(RenderAgentPuppet(card.Puppet, puppets), FaceBoxWidth-1, FaceBoxHeight)
 
 	driverLine := fmt.Sprintf("%s | %s", card.Driver, card.Model)
 
@@ -289,8 +294,13 @@ func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config
 		skillsLine,
 	}
 
+	// MaxWidth is a backstop, not the primary fit: if any line ever comes out
+	// wider than the slot, it is truncated here rather than widening the row -
+	// a too-wide row makes the outer card border wrap it, which pushes the
+	// face box onto new lines at the left edge and shatters the card.
 	infoBox := lipgloss.NewStyle().
 		Width(infoBoxWidth).
+		MaxWidth(infoBoxWidth).
 		Height(InfoBoxHeight).
 		Render(strings.Join(infoLines, "\n"))
 
@@ -307,6 +317,7 @@ func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config
 
 	faceBox := faceBoxStyle.
 		Width(FaceBoxWidth).
+		MaxWidth(FaceBoxWidth).
 		Height(FaceBoxHeight).
 		Background(faceBg).
 		Foreground(styles.White).
@@ -372,27 +383,85 @@ func getSelectedNames(ids []string, resolver func(string) (string, bool)) []stri
 	return names
 }
 
-func renderPills(skillNames, personaNames []string) []string {
-	var pills []string
+// renderPills renders the capability pills for one card row, fitted to
+// maxWidth by measured display width.
+//
+// The row must never be wrapped by lipgloss: every pill ends in two columns
+// of whitespace (padding + margin), and a word-wrap leaves whitespace hanging
+// past the box edge instead of moving it to the next line. When the edge
+// lands inside those two columns the row comes out 1-2 columns too wide,
+// which is what shattered the card for particular skill sets at particular
+// terminal widths. So pills are added only while they fit, and whatever does
+// not fit - including anything past MaxPillsShown - is summarised in a
+// trailing "+N" pill.
+func renderPills(skillNames, personaNames []string, maxWidth int) []string {
 	if len(skillNames) == 0 && len(personaNames) == 0 {
 		return []string{lipgloss.NewStyle().Foreground(styles.Gray).Render("(no capabilities)")}
 	}
 
-	personaColor := styles.SecondaryColor
-
-	for _, s := range skillNames {
-		if len(pills) >= MaxPillsShown {
-			break
-		}
-		pills = append(pills, pillStyle(styles.HighlightColor, styles.White).Render(truncatePill(s)))
+	type pillSpec struct {
+		name string
+		bg   color.Color
 	}
-	for _, s := range personaNames {
+	specs := make([]pillSpec, 0, len(skillNames)+len(personaNames))
+	for _, n := range skillNames {
+		specs = append(specs, pillSpec{name: n, bg: styles.HighlightColor})
+	}
+	for _, n := range personaNames {
+		specs = append(specs, pillSpec{name: n, bg: styles.SecondaryColor})
+	}
+
+	var pills []string
+	var widths []int
+	used := 0
+	for _, sp := range specs {
 		if len(pills) >= MaxPillsShown {
 			break
 		}
-		pills = append(pills, pillStyle(personaColor, styles.White).Render(truncatePill(s)))
+		p := pillStyle(sp.bg, styles.White).Render(truncatePill(sp.name))
+		w := lipgloss.Width(p)
+		if used+w > maxWidth {
+			break
+		}
+		pills = append(pills, p)
+		widths = append(widths, w)
+		used += w
+	}
+
+	// Make room for the "+N" summary, dropping pills from the end if needed.
+	// Dropping one raises N, which can widen the summary by a digit, so this
+	// re-measures on every iteration rather than reserving space up front.
+	for hidden := len(specs) - len(pills); hidden > 0; hidden = len(specs) - len(pills) {
+		more := overflowPill(hidden)
+		if used+lipgloss.Width(more) <= maxWidth {
+			pills = append(pills, more)
+			break
+		}
+		if len(pills) == 0 {
+			break // not even the summary fits; the info box MaxWidth clips
+		}
+		used -= widths[len(widths)-1]
+		pills, widths = pills[:len(pills)-1], widths[:len(widths)-1]
 	}
 	return pills
+}
+
+// clipBlock truncates a multi-line block to at most width display columns
+// and height lines, without wrapping anything onto a new line.
+func clipBlock(block string, width, height int) string {
+	lines := strings.Split(block, "\n")
+	if len(lines) > height {
+		lines = lines[:height]
+	}
+	for i, l := range lines {
+		lines[i] = ansi.Truncate(l, width, "")
+	}
+	return strings.Join(lines, "\n")
+}
+
+// overflowPill summarises capabilities that did not fit on the card row.
+func overflowPill(hidden int) string {
+	return pillStyle(styles.Gray, styles.White).Render(fmt.Sprintf("+%d", hidden))
 }
 
 func pillStyle(bg, fg color.Color) lipgloss.Style {
