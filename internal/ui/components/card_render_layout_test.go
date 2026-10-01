@@ -9,6 +9,7 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/components"
+	"kankuro/internal/ui/uitest"
 )
 
 // renderedCardHeight is the line count of a correctly laid-out card: the face
@@ -45,18 +46,7 @@ func cardWithSkills(names []string) (config.IDCard, []config.Skill) {
 // face box's art spilling onto new lines at the left edge.
 func assertIntactCard(t *testing.T, out, label string) {
 	t.Helper()
-	lines := strings.Split(out, "\n")
-	if len(lines) != renderedCardHeight {
-		t.Errorf("%s: %d lines, want %d:\n%s", label, len(lines), renderedCardHeight, ansi.Strip(out))
-		return
-	}
-	want := ansi.StringWidth(lines[0])
-	for i, l := range lines {
-		if got := ansi.StringWidth(l); got != want {
-			t.Errorf("%s: line %d is %d wide, want %d:\n%s", label, i, got, want, ansi.Strip(out))
-			return
-		}
-	}
+	uitest.AssertExactRect(t, out, ansi.StringWidth(strings.SplitN(out, "\n", 2)[0]), renderedCardHeight, label)
 }
 
 // assertSinglePillRow fails if the capability pills spill past their one row.
@@ -162,5 +152,24 @@ func TestRenderCardItemClipsOversizedPuppet(t *testing.T) {
 	for width := components.CardListMinWidth; width <= 120; width++ {
 		out := components.RenderCardItem(card, skills, nil, []config.Puppet{wide}, false, width)
 		assertIntactCard(t, out, fmt.Sprintf("oversized puppet width=%d", width))
+	}
+}
+
+// TestRenderCardItemSanitisesUserText: tabs, line breaks and escapes in a
+// card's name, driver, model and skill names must not change the card's shape.
+// lipgloss expands a tab to four columns after the text was fitted, so a name
+// of 18 tab-separated letters is 18 columns to the fitting code and 57 to the
+// terminal. Seen to fail with DisplayText removed from the name line.
+func TestRenderCardItemSanitisesUserText(t *testing.T) {
+	puppets := builtinPuppets(t)
+	messy := "a\tb\tc\td\te\tf\tg\th\ti\tj\nk\r\x1b[31ml\x1b[0m"
+	card, skills := cardWithSkills([]string{messy, "clean-code"})
+	card.Name, card.Driver, card.Model = messy, messy, messy
+	for width := components.CardListMinWidth; width <= 160; width++ {
+		out := components.RenderCardItem(card, skills, nil, puppets, false, width)
+		assertIntactCard(t, out, fmt.Sprintf("width=%d", width))
+		if strings.ContainsAny(ansi.Strip(out), "\t\r") {
+			t.Fatalf("width=%d: a control character reached the output: %q", width, ansi.Strip(out))
+		}
 	}
 }

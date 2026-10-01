@@ -10,6 +10,16 @@ import (
 	"kankuro/internal/config"
 )
 
+// tmpRoot is the directory holding temporary workspace copies: KANKURO_TMP_DIR
+// when set, else <config>/tmp. Creating and removing a copy must agree on it,
+// so both go through here.
+func (m *Manager) tmpRoot() string {
+	if root := os.Getenv("KANKURO_TMP_DIR"); root != "" {
+		return root
+	}
+	return filepath.Join(m.configDir, "tmp")
+}
+
 func (m *Manager) prepareWorkspace(
 	sid string,
 	card config.IDCard,
@@ -20,11 +30,7 @@ func (m *Manager) prepareWorkspace(
 		return wd, nil
 	}
 
-	tmpRoot := os.Getenv("KANKURO_TMP_DIR")
-	if tmpRoot == "" {
-		tmpRoot = filepath.Join(m.configDir, "tmp")
-	}
-	sessionRoot := filepath.Join(tmpRoot, sid)
+	sessionRoot := filepath.Join(m.tmpRoot(), sid)
 	targetDir := filepath.Join(sessionRoot, filepath.Base(wd))
 
 	if isNew {

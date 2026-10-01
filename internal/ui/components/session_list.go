@@ -78,6 +78,11 @@ func NewSessionList(callbacks SessionListCallbacks) *SessionList {
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
+	// The bubbles help line ("↑/k up • … • q quit") is wider than a narrow
+	// sessions pane at several widths (it is padded by 2 columns that
+	// Help.Width ignores), which made the pane wrap it and grow two rows. The
+	// dashboard footer already lists the keys, and "q quit" is the dashboard's.
+	l.SetShowHelp(false)
 
 	return &SessionList{
 		list:           l,
@@ -289,9 +294,9 @@ func (i SessionListItem) Title() string {
 		return lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF69B4")).
 			Bold(true).
-			Render(i.Session.Name)
+			Render(DisplayText(i.Session.Name))
 	}
-	return i.Session.Name
+	return DisplayText(i.Session.Name)
 }
 
 func (i SessionListItem) Description() string {
@@ -300,6 +305,7 @@ func (i SessionListItem) Description() string {
 	if i.Card != nil {
 		cardName = i.Card.Name
 	}
+	cardName = DisplayText(cardName)
 
 	// Render face
 	faceStyle := "neutral"
@@ -311,22 +317,14 @@ func (i SessionListItem) Description() string {
 	cardLine := cardName + " " + face
 	descLine := fmt.Sprintf("%s pid=%d", i.Session.Status, i.Session.PID)
 
-	const (
-		maxWorkspaceLen = 25
-		ellipsisLen     = 3
-	)
+	const maxWorkspaceLen = 25
 
 	// Session detail (ID or working dir)
 	var detailLine string
 	if i.Session.UseTmpWorkspace {
 		detailLine = "ID: " + i.Session.ID
 	} else {
-		wsPath := i.Session.WorkingDir
-		if len(wsPath) > maxWorkspaceLen {
-			// Trim workspace path to fit, accounting for ellipsis length (3 chars)
-			wsPath = "..." + wsPath[len(wsPath)-(maxWorkspaceLen-ellipsisLen):]
-		}
-		detailLine = "WS: " + wsPath
+		detailLine = "WS: " + TruncateTail(DisplayText(i.Session.WorkingDir), maxWorkspaceLen)
 	}
 
 	// Apply waiting status styling

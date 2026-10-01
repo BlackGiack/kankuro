@@ -126,6 +126,11 @@ type CardEditor struct {
 	workspaceID string
 	agentsMD    AgentsMDState
 
+	// scrollOffset is the first form line shown when the form is taller than
+	// the editor. It is derived state: layout() keeps the focused block inside
+	// the window and moves it as little as possible.
+	scrollOffset int
+
 	// Data
 	workspaces []config.Workspace
 	skills     []config.Skill
@@ -647,6 +652,7 @@ func (e *CardEditor) setFocus(index int) {
 	e.skillList.SetFocused(index == FocusSkills)
 	e.personaList.SetFocused(index == FocusPersonas && e.settings.ShowPersonasInCardEditor)
 	e.mcpList.SetFocused(index == FocusMCPs && e.settings.ShowMCPsInCardEditor)
+	defer e.syncScroll()
 
 	// Map focus index to input index
 	inputIdx := e.mapFocusToInput(index)
@@ -835,7 +841,7 @@ func (e *CardEditor) deleteSelectedMCP() tea.Cmd {
 func (e *CardEditor) View() string {
 	// Handle modal overlays
 	if e.workspacePicker.IsOpen() {
-		return e.workspacePicker.View()
+		return e.renderWithOverlay(e.workspacePicker.View())
 	}
 	if e.puppetSelector.IsOpen() {
 		return e.renderWithOverlay(e.puppetSelector.View())
@@ -847,58 +853,208 @@ func (e *CardEditor) View() string {
 	return e.renderForm()
 }
 
-// renderFormAboveLists renders the form parts that appear before the capability lists.
-func (e *CardEditor) renderFormAboveLists() string {
+// formBlock is a run of form lines that scroll as one unit. focus is the
+// focus target the block contains, so the editor can keep the focused block on
+// screen when the form is taller than its box.
+type formBlock struct {
+	focus int
+	lines []string
+}
+
+// blockOf splits text (every block ends with a newline; capability lists end
+// with several) into a block's lines.
+func blockOf(focus int, text string) formBlock {
+	return formBlock{focus: focus, lines: strings.Split(strings.TrimSuffix(text, "\n"), "\n")}
+}
+
+// fieldBlocks returns the blocks above the capability lists: one per field
+// line and one for the AGENTS.md row. The title belongs to the first block so
+// that scrolling to the first field scrolls all the way to the top.
+func (e *CardEditor) fieldBlocks() []formBlock {
 	title := "New ID Card"
 	if e.loaded.ID != "" {
 		title = "Edit ID Card"
 	}
 
-	var sb strings.Builder
-	sb.WriteString(styles.TitleStyle.Render(title) + "\n\n")
-
-	// Text inputs
-	sb.WriteString("Name: " + e.inputs[0].View() + "\n")
-	sb.WriteString("Driver: " + e.inputs[1].View() + "\n")
-	sb.WriteString("Model: " + e.inputs[2].View() + "\n")
-	sb.WriteString(e.renderWorkspaceLine() + "\n")
-	sb.WriteString("Face Style: " + e.inputs[3].View() + "\n")
-	sb.WriteString(e.renderPuppetLine() + "\n")
-	sb.WriteString("Use Tmp Workspace: " + e.inputs[4].View() + "\n\n")
-
-	// Agents.md
-	sb.WriteString("AGENTS.md:\n" + e.renderAgentsMDRow() + "\n\n")
-
-	return sb.String()
+	return []formBlock{
+		blockOf(FocusName, styles.TitleStyle.Render(title)+"\n\n"+"Name: "+e.inputs[nameInputIdx].View()+"\n"),
+		blockOf(FocusDriver, "Driver: "+e.inputs[driverInputIdx].View()+"\n"),
+		blockOf(FocusModel, "Model: "+e.inputs[modelInputIdx].View()+"\n"),
+		blockOf(FocusWorkspace, e.renderWorkspaceLine()+"\n"),
+		blockOf(FocusFaceStyle, "Face Style: "+e.inputs[faceStyleInputIdx].View()+"\n"),
+		blockOf(FocusPuppet, e.renderPuppetLine()+"\n"),
+		blockOf(FocusUseTmp, "Use Tmp Workspace: "+e.inputs[useTmpInputIdx].View()+"\n\n"),
+		blockOf(FocusAgentsMD, "AGENTS.md:\n"+e.renderAgentsMDRow()+"\n\n"),
+	}
 }
 
-// renderForm renders the main form.
-func (e *CardEditor) renderForm() string {
-	var sb strings.Builder
-	sb.WriteString(e.renderFormAboveLists())
+// listBlock is a capability list followed by the blank rows that separate it
+// from what is below. A sized list renders exactly its height with no trailing
+// newline; an unsized one ends with one.
+func listBlock(focus int, l *components.CapabilityList) formBlock {
+	view := l.View()
+	if l.Height <= 0 {
+		// Only the unsized list's newline is a terminator. A sized list's last
+		// row may itself be blank and must stay.
+		view = strings.TrimSuffix(view, "\n")
+	}
+	return blockOf(focus, view+"\n\n\n")
+}
 
-	// Capability lists
-	sb.WriteString(e.skillList.View() + "\n\n")
+// listBlocks returns one block per visible capability list.
+func (e *CardEditor) listBlocks() []formBlock {
+	blocks := []formBlock{listBlock(FocusSkills, e.skillList)}
 	if e.settings.ShowPersonasInCardEditor {
-		sb.WriteString(e.personaList.View() + "\n\n")
+		blocks = append(blocks, listBlock(FocusPersonas, e.personaList))
 	}
 	if e.settings.ShowMCPsInCardEditor {
-		sb.WriteString(e.mcpList.View() + "\n\n")
+		blocks = append(blocks, listBlock(FocusMCPs, e.mcpList))
+	}
+	return blocks
+}
+
+// formLayout is the whole form as lines, with where the focused block sits.
+type formLayout struct {
+	rows       []string
+	focusStart int // first line of the focused block
+	focusEnd   int // one past its last non-blank line
+}
+
+// layout flattens the blocks. When the form is taller than win the blank
+// lines that trail it are dropped: they would only be scrolled to.
+func (e *CardEditor) layout(win int) formLayout {
+	var l formLayout
+	for _, b := range append(e.fieldBlocks(), e.listBlocks()...) {
+		start := len(l.rows)
+		l.rows = append(l.rows, b.lines...)
+		if b.focus == e.focusIndex {
+			l.focusStart = start
+			l.focusEnd = start + len(b.lines)
+			for l.focusEnd > l.focusStart+1 && b.lines[l.focusEnd-start-1] == "" {
+				l.focusEnd--
+			}
+		}
+	}
+	if win > 0 && len(l.rows) > win {
+		for len(l.rows) > win && l.rows[len(l.rows)-1] == "" {
+			l.rows = l.rows[:len(l.rows)-1]
+		}
+	}
+	return l
+}
+
+// formWindow is how many form lines fit above the pinned help line, or 0 when
+// the editor has not been given a size (then nothing scrolls).
+func (e *CardEditor) formWindow() int {
+	if e.Height <= 0 {
+		return 0
+	}
+	return max(e.Height-helpLineHeight, 1)
+}
+
+// minIndicatorWindow is the smallest window that can spare two rows for the
+// "more" indicators and still show a line of the form.
+const minIndicatorWindow = 3
+
+// syncScroll moves scrollOffset the least that puts the focused block fully
+// inside the window, leaving the rows the "↑ more" / "↓ more" indicators
+// occupy out of it. It returns the layout it computed against.
+func (e *CardEditor) syncScroll() (formLayout, int) {
+	win := e.formWindow()
+	l := e.layout(win)
+	if win <= 0 || len(l.rows) <= win {
+		e.scrollOffset = 0
+		return l, win
 	}
 
-	// Help
-	sb.WriteString("Enter=save Tab=next Esc=cancel")
+	indicator := 0
+	if win >= minIndicatorWindow {
+		indicator = 1
+	}
+	maxOff := len(l.rows) - win
+	off := min(max(e.scrollOffset, 0), maxOff)
+	bottom := func(off int) int {
+		if off+win < len(l.rows) {
+			return off + win - indicator
+		}
+		return off + win
+	}
+	top := func(off int) int {
+		if off > 0 {
+			return off + indicator
+		}
+		return 0
+	}
 
-	return sb.String()
+	if l.focusEnd > bottom(off) {
+		off = min(l.focusEnd-win+indicator, maxOff)
+	}
+	// Checked second so that a block taller than the window shows its start.
+	if l.focusStart < top(off) {
+		off = max(l.focusStart-indicator, 0)
+	}
+	e.scrollOffset = min(max(off, 0), maxOff)
+	return l, win
 }
+
+// renderForm renders the main form: the visible slice of the form lines, and
+// the help line pinned to the last row.
+func (e *CardEditor) renderForm() string {
+	const help = "Enter=save Tab=next Esc=cancel"
+
+	l, win := e.syncScroll()
+	rows := e.visibleRows(l, win)
+	if len(rows) == 0 {
+		return help
+	}
+	return strings.Join(rows, "\n") + "\n" + help
+}
+
+// visibleRows is the slice of the form shown in the window, with the dim
+// "more" indicators standing in for the first and last row when content is cut.
+func (e *CardEditor) visibleRows(l formLayout, win int) []string {
+	if win <= 0 || len(l.rows) <= win {
+		return l.rows
+	}
+	rows := slices.Clone(l.rows[e.scrollOffset:min(e.scrollOffset+win, len(l.rows))])
+	if win < minIndicatorWindow {
+		return rows
+	}
+	more := lipgloss.NewStyle().Foreground(styles.Gray)
+	if e.scrollOffset > 0 {
+		rows[0] = more.Render("↑ more")
+	}
+	if e.scrollOffset+win < len(l.rows) {
+		rows[len(rows)-1] = more.Render("↓ more")
+	}
+	return rows
+}
+
+// fitField clips user text sitting after a label of the given display width
+// to the editor's width, so a long value cannot widen the line. An editor
+// that has no size yet does not clip.
+func (e *CardEditor) fitField(text string, labelWidth int) string {
+	text = components.DisplayText(text)
+	if e.Width <= 0 {
+		return text
+	}
+	return components.TruncateHead(text, e.Width-labelWidth)
+}
+
+const (
+	workspaceLabel = "Workspace: "
+	puppetLabel    = "Puppet: "
+	focusMarker    = "> "
+)
 
 // renderWorkspaceLine renders the workspace picker line.
 func (e *CardEditor) renderWorkspaceLine() string {
-	summary := e.WorkspaceSummary()
-	line := "Workspace: " + summary
+	// Budget for the focused prefix in both states, so the line keeps its
+	// width when focus moves onto it.
+	line := workspaceLabel + e.fitField(e.WorkspaceSummary(), len(focusMarker)+len(workspaceLabel))
 
 	if e.focusIndex == FocusWorkspace {
-		line = "> " + line
+		line = focusMarker + line
 		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(line)
 	}
 	return line
@@ -919,10 +1075,10 @@ func (e *CardEditor) WorkspaceSummary() string {
 
 // renderPuppetLine renders the puppet selector line.
 func (e *CardEditor) renderPuppetLine() string {
-	line := "Puppet: " + e.puppet
+	line := puppetLabel + e.fitField(e.puppet, len(focusMarker)+len(puppetLabel))
 
 	if e.focusIndex == FocusPuppet {
-		line = "> " + line
+		line = focusMarker + line
 		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(line)
 	}
 	return line
@@ -930,35 +1086,26 @@ func (e *CardEditor) renderPuppetLine() string {
 
 // renderAgentsMDRow renders the agents.md options.
 func (e *CardEditor) renderAgentsMDRow() string {
-	const ellipsisLen = 3
 	contentSummary := "empty"
 	if e.agentsMD.Content != "" {
 		lines := strings.Split(e.agentsMD.Content, "\n")
-		contentSummary = lines[0]
-		if len(lines) > 1 || len(contentSummary) > summaryLimit {
-			if len(contentSummary) > summaryLimit {
-				// Trim content and add ellipsis (3 chars)
-				contentSummary = contentSummary[:summaryLimit-ellipsisLen] + "..."
-			} else {
-				contentSummary += "..."
-			}
+		first := components.DisplayText(lines[0])
+		contentSummary = components.TruncateHead(first, summaryLimit)
+		if len(lines) > 1 && contentSummary == first {
+			contentSummary += "..."
 		}
 	}
 
 	pathSummary := "empty"
 	if e.agentsMD.Path != "" {
-		pathSummary = e.agentsMD.Path
-		if len(pathSummary) > summaryLimit {
-			// Trim path and add ellipsis (3 chars)
-			pathSummary = "..." + pathSummary[len(pathSummary)-(summaryLimit-ellipsisLen):]
-		}
+		pathSummary = components.TruncateTail(components.DisplayText(e.agentsMD.Path), summaryLimit)
 	}
 
 	contentOption := "[ Content: " + contentSummary + " ]"
 	pathOption := "[ Path: " + pathSummary + " ]"
 
 	if e.focusIndex == FocusAgentsMD {
-		prefix := "> "
+		prefix := focusMarker
 		if e.agentsMD.PreferPath {
 			return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(
 				prefix + "  " + contentOption + "\n" + prefix + "x " + pathOption,
@@ -990,7 +1137,10 @@ const (
 func (e *CardEditor) SetSize(width, height int) {
 	e.Base.SetSize(width, height)
 
-	headerHeight := lipgloss.Height(e.renderFormAboveLists())
+	headerHeight := 0
+	for _, b := range e.fieldBlocks() {
+		headerHeight += len(b.lines)
+	}
 
 	part := 1
 	if e.settings.ShowPersonasInCardEditor {
@@ -1003,6 +1153,8 @@ func (e *CardEditor) SetSize(width, height int) {
 	separatorsAndHelp := (part * listSeparatorRows) + helpLineHeight
 	available := height - headerHeight - separatorsAndHelp
 
+	// Floored: when the lists do not fit, the form scrolls instead of
+	// squeezing them further.
 	capListHeight := max(minCapListHeight, available/part)
 
 	e.skillList.SetSize(width, capListHeight)
@@ -1014,12 +1166,26 @@ func (e *CardEditor) SetSize(width, height int) {
 	e.agentsMDEditor.SetSize(width, height)
 	e.puppetSelector.SetSize(width, height)
 
-	// Update input widths
-	calculatedWidth := max(40, width*3/5) //nolint:mnd // responsive sizing
+	// Update input widths. A text input draws its prompt and cursor on top of
+	// the width it is given, and sits after the widest label.
+	calculatedWidth := min(
+		width-widestInputLabel-inputChrome,
+		max(40, width*3/5), //nolint:mnd // responsive sizing
+	)
 	for i := range e.inputs {
-		e.inputs[i].SetWidth(calculatedWidth)
+		e.inputs[i].SetWidth(max(1, calculatedWidth))
 	}
+
+	e.syncScroll()
 }
+
+// widestInputLabel is the display width of the longest label in front of a
+// text input ("Use Tmp Workspace: "); inputChrome is what textinput draws
+// beyond its width (the "> " prompt and the cursor cell).
+const (
+	widestInputLabel = len("Use Tmp Workspace: ")
+	inputChrome      = 3
+)
 
 // visibleFocusOrder returns the display/tab order of currently visible focus
 // targets, derived from focusTargets so a new entry there is automatically

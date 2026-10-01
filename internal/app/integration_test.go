@@ -5,14 +5,13 @@ import (
 
 	"kankuro/internal/app"
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
 )
 
 func TestFullSessionLaunchFlow(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
@@ -38,7 +37,7 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 
 func TestCardCRUDFlow(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
@@ -80,7 +79,7 @@ func TestCardCRUDFlow(t *testing.T) {
 
 func TestSourceManagementFlow(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
@@ -106,7 +105,7 @@ func TestSourceManagementFlow(t *testing.T) {
 
 func TestSessionManagementFlow(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
@@ -139,7 +138,7 @@ func TestSessionManagementFlow(t *testing.T) {
 
 func TestNavigationFlow(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
@@ -165,7 +164,7 @@ func TestNavigationFlow(t *testing.T) {
 
 func TestPreviousViewRestoration(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
@@ -206,7 +205,7 @@ func TestPreviousViewRestoration(t *testing.T) {
 
 func TestSessionActionsFlow(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
@@ -303,7 +302,7 @@ func TestSessionActionsFlow(t *testing.T) {
 
 func TestSourceSyncSideEffects(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
@@ -330,7 +329,7 @@ func TestSourceSyncSideEffects(t *testing.T) {
 
 func TestCoordinatorErrorHandling(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
@@ -350,7 +349,7 @@ func TestCoordinatorErrorHandling(t *testing.T) {
 
 func TestCoordinatorDataPropagation(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
@@ -377,7 +376,7 @@ func TestCoordinatorDataPropagation(t *testing.T) {
 
 func TestSessionLauncherBehavior(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})

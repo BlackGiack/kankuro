@@ -13,7 +13,7 @@ func TestSessionIdleWordDetection(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-idle",
 		Name:        "idle",
@@ -76,7 +76,7 @@ func TestRelaunchSurvivesStaleWatchers(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-relaunch-race",
 		Name:        "relaunch-race",

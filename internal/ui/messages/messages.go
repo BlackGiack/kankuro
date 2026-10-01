@@ -51,7 +51,7 @@ type SessionOutputMsg struct {
 // save/delete handler) can hand the actual refresh back to Update, which runs
 // on the main Bubble Tea goroutine. Building and immediately invoking
 // refreshData() inside such a closure would touch coordinator-goroutine state
-// (c.views, c.previewSessionID, ...) from the wrong goroutine.
+// (c.views, c.preview, ...) from the wrong goroutine.
 type DataRefreshRequestedMsg struct{}
 
 // PuppetsSyncedMsg signals that a background puppet-source sync has finished.
@@ -100,7 +100,7 @@ type AttachFinishedMsg struct {
 
 // IDELaunchedMsg signals that a requested IDE launch has completed (or
 // failed). Spawning the editor process happens inside a tea.Cmd, off the UI
-// goroutine - see Coordinator.launchIDE.
+// goroutine - see sessionActions.launchIDE.
 type IDELaunchedMsg struct {
 	Err error
 }
@@ -110,7 +110,7 @@ type IDELaunchedMsg struct {
 // restart, but its on-disk record failed to save - callers should still
 // attach, but surface the warning. Syncing driver files and spawning the new
 // PTY process happens inside a tea.Cmd, off the UI goroutine - see
-// Coordinator.switchAgentAsync.
+// sessionActions.switchAgent.
 type AgentSwitchedMsg struct {
 	SessionID string
 	Err       error

@@ -1,6 +1,7 @@
 package session_test
 
 import (
+	"errors"
 	"kankuro/internal/config"
 	"kankuro/internal/session"
 	"os"
@@ -31,7 +32,7 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: sourceDir, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(configDir, repo)
+	sm := newTestManager(t, configDir, repo)
 
 	card := config.IDCard{
 		ID:              "card-tmp",
@@ -115,7 +116,7 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 
 	// 6. Persistence check
 	// Create new manager (simulate restart)
-	sm2 := session.NewManager(configDir, repo)
+	sm2 := newTestManager(t, configDir, repo)
 	restoredSession, okRestored := sm2.GetSession(sid)
 	if !okRestored {
 		t.Fatalf("session not restored from disk")
@@ -157,7 +158,7 @@ func TestSwitchAgentReplacesSkillsInTmpWorkspace(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: sourceDir, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(configDir, repo)
+	sm := newTestManager(t, configDir, repo)
 
 	card1 := config.IDCard{
 		ID:              "card-tmp-1",
@@ -213,5 +214,54 @@ func TestSwitchAgentReplacesSkillsInTmpWorkspace(t *testing.T) {
 
 	if errKillAfter := sm.Kill(sid); errKillAfter != nil {
 		t.Fatalf("kill after switch: %v", errKillAfter)
+	}
+}
+
+// TestTmpWorkspaceDefaultsUnderConfigDir covers the location the package's
+// TestMain hides by setting KANKURO_TMP_DIR: with it unset, temporary
+// workspaces live under <config>/tmp, for both creation and Remove (which
+// share one fallback, Manager.tmpRoot).
+func TestTmpWorkspaceDefaultsUnderConfigDir(t *testing.T) {
+	t.Setenv("KANKURO_TMP_DIR", "")
+	tmpBase := t.TempDir()
+	configDir := filepath.Join(tmpBase, "config")
+	sourceDir := filepath.Join(tmpBase, "source")
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	repo, _ := config.NewFileRepository(configDir)
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: sourceDir, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+	sm := newTestManager(t, configDir, repo)
+
+	sid, err := sm.Launch(config.IDCard{
+		ID:              "card-default-tmp",
+		Name:            "default-tmp",
+		Driver:          "cat",
+		WorkspaceID:     workspaces[0].ID,
+		UseTmpWorkspace: true,
+	}, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+
+	s, _ := sm.GetSession(sid)
+	wantRoot := filepath.Join(configDir, "tmp", sid)
+	if want := filepath.Join(wantRoot, "source"); s.WorkingDir != want {
+		t.Fatalf("WorkingDir = %q, want %q", s.WorkingDir, want)
+	}
+	if _, errStat := os.Stat(s.WorkingDir); errStat != nil {
+		t.Fatalf("workspace copy missing: %v", errStat)
+	}
+
+	if errKill := sm.Kill(sid); errKill != nil {
+		t.Fatalf("kill: %v", errKill)
+	}
+	if errRemove := sm.Remove(sid); errRemove != nil {
+		t.Fatalf("remove: %v", errRemove)
+	}
+	if _, errStat := os.Stat(wantRoot); !errors.Is(errStat, os.ErrNotExist) {
+		t.Fatalf("Remove left %s behind (stat err: %v)", wantRoot, errStat)
 	}
 }

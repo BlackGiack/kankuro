@@ -9,7 +9,6 @@ import (
 
 	"kankuro/internal/app"
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
 )
@@ -28,7 +27,7 @@ func TestRefreshDataSurfacesErrorAndKeepsPreviousCards(t *testing.T) {
 	if errRepo != nil {
 		t.Fatalf("new repo: %v", errRepo)
 	}
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})

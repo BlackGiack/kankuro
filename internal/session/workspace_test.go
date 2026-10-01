@@ -2,7 +2,6 @@ package session_test
 
 import (
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +15,7 @@ func TestSessionAgentsMD(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	// Pre-create AGENTS.md in original workspace
 	originalContent := "# Original Content"
@@ -136,7 +135,7 @@ func TestSessionClaudeAgentsMD(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	card := config.IDCard{
 		ID:              "card-claude",
@@ -184,7 +183,7 @@ func TestSessionMCPs(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	mcps := []config.MCPServer{
 		{Name: "mcp1", Command: "node", Args: []string{"server.js"}},

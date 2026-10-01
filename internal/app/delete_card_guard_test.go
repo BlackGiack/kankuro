@@ -5,7 +5,6 @@ import (
 
 	"kankuro/internal/app"
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"kankuro/internal/ui/messages"
 )
 
@@ -19,7 +18,7 @@ func TestOnDeleteCardRefusesWhenSessionReferencesCard(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	if saveErr := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd}}); saveErr != nil {
@@ -79,7 +78,7 @@ func TestOnDeleteCardAllowsWhenNoSessionReferencesCard(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	if saveErr := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd}}); saveErr != nil {
