@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/creack/pty"
@@ -30,6 +31,15 @@ const (
 	readBufferSize = 4096
 	promptTimeout  = 15 * time.Second
 	copyTimeout    = 30 * time.Second
+
+	// defaultKillGrace is how long an agent gets to exit after SIGTERM;
+	// killReapWait is how long Kill then waits for the kernel to report the
+	// SIGKILLed leader.
+	defaultKillGrace = 2 * time.Second
+	killReapWait     = 2 * time.Second
+	// killPollInterval is how often Kill re-checks that the group is empty
+	// once the leader has exited.
+	killPollInterval = 20 * time.Millisecond
 )
 
 type AgentConfig struct {
@@ -79,11 +89,15 @@ type GenericCLIDriver struct {
 	done     chan struct{}
 	once     sync.Once
 	exitCode int
+
+	// killGrace is how long Kill waits after SIGTERM before SIGKILL. Zero
+	// means defaultKillGrace; tests shorten it.
+	killGrace time.Duration
 }
 
 // NewGenericCLIDriver returns the default PTY-backed CLI driver implementation.
 func NewGenericCLIDriver() *GenericCLIDriver {
-	return &GenericCLIDriver{status: StatusTerminated}
+	return &GenericCLIDriver{status: StatusTerminated, killGrace: defaultKillGrace}
 }
 
 func (d *GenericCLIDriver) GetAgentFolder() string { return ".agents" }
@@ -292,18 +306,61 @@ func (d *GenericCLIDriver) watchProcess(cmd *exec.Cmd) {
 	d.closeDone()
 }
 
-// Kill terminates the underlying process and closes its PTY. A process that
-// has already exited on its own is treated as a successful kill.
+// Kill terminates the agent's whole process group and closes its PTY. It asks
+// politely first (SIGTERM, so an agent such as Claude Code can save its
+// state), then escalates to SIGKILL if anything in the group - the leader or a
+// descendant - is still alive killGrace after the SIGTERM. A process that has
+// already exited on its own is treated as a successful kill.
+//
+// The signals go to the group (negative pid), not just the child: pty.Start
+// runs the child with Setsid, so it leads its own session and group, and the
+// tools and servers the agent started are in that group. Signalling only the
+// child would leave them to die from the SIGHUP the closing PTY sends, which
+// anything that ignores SIGHUP survives.
+//
+// The escalation looks at the group, not only the leader: an agent that exits
+// on SIGTERM (the normal case) must not let a child that ignores SIGTERM and
+// SIGHUP escape just because the leader is gone. Signalling -pid after the
+// leader was reaped is safe: the kernel does not reuse a pid while it is still
+// in use as a process group ID, so for as long as the group has members, -pid
+// can only mean this same group. (In a container whose init does not reap
+// orphans, an exited child stays a zombie and keeps the group "alive"; Kill
+// then waits out the grace period before a harmless SIGKILL.)
+//
+// Known limit: a descendant that calls setsid() or creates its own process
+// group (a daemonising tool, a job-control shell) is outside the group and
+// survives. Pdeathsig is no alternative: it fires when the spawning OS
+// *thread* exits, which in Go can happen at any time.
+//
+// d.mu is not held while waiting: watchProcess needs it to record the exit
+// and close done, so waiting for done under it would deadlock.
 func (d *GenericCLIDriver) Kill() error {
 	d.mu.Lock()
-	defer d.mu.Unlock()
-	if d.cmd == nil || d.cmd.Process == nil {
+	cmd, done, grace := d.cmd, d.done, d.killGrace
+	d.mu.Unlock()
+	if cmd == nil || cmd.Process == nil {
 		return nil
 	}
-	err := d.cmd.Process.Kill()
-	if errors.Is(err, os.ErrProcessDone) {
-		err = nil
+	if grace <= 0 {
+		grace = defaultKillGrace
 	}
+	pid := cmd.Process.Pid
+
+	deadline := time.Now().Add(grace)
+	err := signalGroup(pid, syscall.SIGTERM)
+	leaderGone := waitDone(done, grace)
+	for leaderGone && groupAlive(pid) && time.Now().Before(deadline) {
+		time.Sleep(killPollInterval)
+	}
+	if !leaderGone || groupAlive(pid) {
+		if errKill := signalGroup(pid, syscall.SIGKILL); err == nil {
+			err = errKill
+		}
+		waitDone(done, killReapWait)
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.status = StatusTerminated
 	if d.pty != nil {
 		_ = d.pty.Close()
@@ -311,6 +368,36 @@ func (d *GenericCLIDriver) Kill() error {
 	}
 	d.closeDone()
 	return err
+}
+
+// groupAlive reports whether the process group led by pid has any member left
+// (signal 0 only checks that the group can be signalled).
+func groupAlive(pid int) bool {
+	return syscall.Kill(-pid, 0) == nil
+}
+
+// signalGroup sends sig to the process group led by pid. ESRCH means the group
+// is already gone, which is what the caller wanted, so it counts as success -
+// the same treatment [os.ErrProcessDone] got when Kill used Process.Kill.
+func signalGroup(pid int, sig syscall.Signal) error {
+	err := syscall.Kill(-pid, sig)
+	if errors.Is(err, syscall.ESRCH) {
+		return nil
+	}
+	return err
+}
+
+// waitDone reports whether done was closed within timeout. A nil done never
+// closes, so it simply waits the timeout out.
+func waitDone(done <-chan struct{}, timeout time.Duration) bool {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return true
+	case <-timer.C:
+		return false
+	}
 }
 
 // SetSkills ensures skill assets are present in the session workspace.

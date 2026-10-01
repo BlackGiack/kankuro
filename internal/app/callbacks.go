@@ -2,13 +2,10 @@ package app
 
 import (
 	"errors"
-	"fmt"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
@@ -33,7 +30,7 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 			return c.attachSession(sessionID)
 		},
 
-		OnRelaunch: c.relaunchSession,
+		OnRelaunch: c.actions.relaunch,
 
 		OnKill: func(sessionID string) (tea.Cmd, error) {
 			return func() tea.Msg {
@@ -56,9 +53,7 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 		},
 
 		OnDeleteCard: func(cardID string) (tea.Cmd, error) {
-			return func() tea.Msg {
-				return c.deleteCard(cardID)
-			}, nil
+			return c.actions.deleteCard(cardID), nil
 		},
 
 		OnOpenMCP: func() tea.Cmd {
@@ -98,30 +93,6 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 	}
 }
 
-// deleteCard removes an ID card, refusing when a persisted session still
-// references it. DeleteIDCard itself has no reference guard (internal/config
-// cannot see sessions), so the check lives here where the session manager is
-// in hand: a card a session still points at cannot be deleted, or that
-// session's relaunch/switch would break with a bare "card not found".
-func (c *Coordinator) deleteCard(cardID string) tea.Msg {
-	var referencedBy []string
-	for _, s := range c.session.List() {
-		if s.CardID == cardID {
-			referencedBy = append(referencedBy, s.Name)
-		}
-	}
-	if len(referencedBy) > 0 {
-		return messages.ErrorMsg{Err: fmt.Errorf(
-			"cannot delete card: referenced by session(s) %s",
-			strings.Join(referencedBy, ", "),
-		)}
-	}
-	if err := c.repo.DeleteIDCard(cardID); err != nil {
-		return messages.ErrorMsg{Err: err}
-	}
-	return messages.DataRefreshRequestedMsg{}
-}
-
 func (c *Coordinator) launchCard(card config.IDCard) tea.Cmd {
 	launcher, ok := c.views[ViewSessionLauncher].(*views.SessionLauncher)
 	if !ok {
@@ -130,96 +101,21 @@ func (c *Coordinator) launchCard(card config.IDCard) tea.Cmd {
 	launcher.Reset()
 	launcher.SetCard(card)
 
+	// The view reset above is coordinator-goroutine work and has already
+	// happened; the blocking launch is sessionActions' closure.
 	return tea.Batch(
-		func() tea.Msg {
-			// Resolve capabilities inside the Cmd (off the UI goroutine) -
-			// each registry is read once here rather than by three
-			// separate LoadXxxForCard calls, and a failed read now aborts
-			// the launch instead of silently starting the agent with no
-			// skills/personas/MCPs (see debt_impl_plan_5.md step 2).
-			skills, personas, mcps, err := c.resolveCapabilities(card)
-			if err != nil {
-				return messages.SessionLaunchCompletedMsg{Err: err}
-			}
-			id, err := c.session.Launch(card, skills, personas, mcps)
-			return messages.SessionLaunchCompletedMsg{SessionID: id, Err: err}
-		},
+		c.actions.launch(card),
 		func() tea.Msg {
 			return messages.NavigateMsg{View: messages.ViewSessionLauncher}
 		},
 	)
 }
 
-func (c *Coordinator) relaunchSession(sessionID string) tea.Cmd {
-	return func() tea.Msg {
-		sessions := c.session.List()
-		var sess *session.Snapshot
-		for _, s := range sessions {
-			if s.ID == sessionID {
-				sess = &s
-				break
-			}
-		}
-		if sess == nil {
-			return messages.ErrorMsg{Err: fmt.Errorf("session not found: %s", sessionID)}
-		}
-		bundle, err := c.resolveCard(sess.CardID)
-		if err != nil {
-			return messages.ErrorMsg{Err: err}
-		}
-		relaunchErr := c.session.Relaunch(sessionID, bundle.Card, bundle.Skills, bundle.Personas, bundle.MCPs)
-		if relaunchErr != nil {
-			if !errors.Is(relaunchErr, session.ErrPersistFailed) {
-				return messages.ErrorMsg{Err: relaunchErr}
-			}
-			// The process did restart; only its on-disk record failed to
-			// save. Still attach, but let the user know.
-			return messages.SessionAttachRequestedMsg{SessionID: sessionID, Warning: relaunchErr}
-		}
-		return messages.SessionAttachRequestedMsg{SessionID: sessionID}
-	}
-}
-
-// switchAgentAsync performs the actual (blocking) agent switch: it syncs
-// driver files to disk and spawns a new PTY process. Callers must run it
-// inside a tea.Cmd closure, never synchronously inside Update - see
-// agentSwitchCallbacks' OnSwitch, the only caller. A synchronous wrapper
-// used to exist here for DashboardCallbacks.OnSwitch, which was never
-// invoked by the real Dashboard view (Dashboard.handleSwitch emits
-// AgentSwitchRequestedMsg instead); both were deleted together (review_dp_4_2.md
-// finding 4) rather than left as a dead, reachable-by-one-wiring-change copy
-// of the blocking-work-inside-Update bug step 3 removed.
-func (c *Coordinator) switchAgentAsync(sessionID, newCardID string) error {
-	bundle, err := c.resolveCard(newCardID)
-	if err != nil {
-		return err
-	}
-	return c.session.SwitchAgent(sessionID, bundle.Card, bundle.Skills, bundle.Personas, bundle.MCPs)
-}
-
-// launchIDE spawns the configured editor for a session's workspace. It
-// returns a tea.Cmd so the (potentially slow) process spawn runs off the UI
-// goroutine; completion is reported via messages.IDELaunchedMsg rather than a
-// synchronous error return.
+// launchIDE snapshots the IDE command here, on the coordinator goroutine:
+// c.settings is coordinator-goroutine state (SettingsSavedMsg writes it), so
+// the closure sessionActions builds must receive it by value.
 func (c *Coordinator) launchIDE(sessionID string) tea.Cmd {
-	return func() tea.Msg {
-		sessions := c.session.List()
-		for _, s := range sessions {
-			if s.ID != sessionID {
-				continue
-			}
-			workspacePath := s.WorkingDir
-			if workspacePath == "" {
-				return messages.IDELaunchedMsg{Err: errors.New("session has no workspace path")}
-			}
-			if c.settings.IDECommand == "" {
-				return messages.IDELaunchedMsg{Err: session.ErrIDENotConfigured}
-			}
-			launcher := session.NewIDELauncher(c.settings.IDECommand)
-			return messages.IDELaunchedMsg{Err: launcher.Launch(workspacePath)}
-		}
-		return messages.IDELaunchedMsg{Err: fmt.Errorf("session not found: %s", sessionID)}
-	}
+	return c.actions.launchIDE(sessionID, c.settings.IDECommand)
 }
 
 func (c *Coordinator) cardEditorCallbacks() views.CardEditorCallbacks {
@@ -492,119 +388,22 @@ func (c *Coordinator) sessionLauncherCallbacks() views.SessionLauncherCallbacks 
 
 func (c *Coordinator) agentSwitchCallbacks() views.AgentSwitchCallbacks {
 	return views.AgentSwitchCallbacks{
-		// OnSwitch must not call switchAgentAsync synchronously: this
-		// closure runs from inside AgentSwitchView.Update, on the main
-		// Bubble Tea goroutine, and switchAgentAsync syncs driver files to
-		// disk and spawns a PTY process - exactly the kind of blocking work
-		// that must run inside the returned tea.Cmd, off that goroutine.
-		// Completion is reported via AgentSwitchedMsg and handled in
-		// handleSessionMessages, which does the refresh + attach + warning
-		// dance below (moved there because it needs c.currentView, which
-		// this closure cannot safely touch either - see that handler's
-		// comment for the navigation hazard).
-		OnSwitch: func(sessionID, cardID string) tea.Cmd {
-			return func() tea.Msg {
-				err := c.switchAgentAsync(sessionID, cardID)
-				return messages.AgentSwitchedMsg{SessionID: sessionID, Err: err}
-			}
-		},
+		// OnSwitch must not switch synchronously: this closure runs from
+		// inside AgentSwitchView.Update, on the main Bubble Tea goroutine,
+		// and the switch syncs driver files to disk and spawns a PTY
+		// process - exactly the kind of blocking work that must run inside
+		// the returned tea.Cmd, off that goroutine. sessionActions.switchAgent
+		// builds that Cmd (it has no Coordinator pointer, so it cannot touch
+		// coordinator state). Completion is reported via AgentSwitchedMsg
+		// and handled in handleSessionMessages, which does the refresh +
+		// attach + warning dance (moved there because it needs
+		// c.currentView, which this closure cannot safely touch either - see
+		// that handler's comment for the navigation hazard).
+		OnSwitch: c.actions.switchAgent,
 		OnCancel: func() tea.Cmd {
 			return func() tea.Msg {
 				return messages.NavigateMsg{View: messages.ViewDashboard}
 			}
 		},
 	}
-}
-
-// cardBundle groups an ID card with its resolved capabilities, so a
-// launch/relaunch/switch only has to read each registry once - see
-// debt_impl_plan_5.md step 2.
-type cardBundle struct {
-	Card     config.IDCard
-	Skills   []config.Skill
-	Personas []config.Persona
-	MCPs     []config.MCPServer
-}
-
-// resolveCard reads the card registry once, finds cardID, and resolves its
-// capabilities via resolveCapabilities. It folds the old getCardByID's
-// not-found lookup together with propagating a failed registry read (step
-// 3): a read failure now surfaces as "list cards: ...", not the misleading
-// "card not found" a discarded error used to produce.
-func (c *Coordinator) resolveCard(cardID string) (cardBundle, error) {
-	cards, err := c.repo.ListIDCards()
-	if err != nil {
-		return cardBundle{}, fmt.Errorf("list cards: %w", err)
-	}
-	var card config.IDCard
-	found := false
-	for _, cd := range cards {
-		if cd.ID == cardID {
-			card = cd
-			found = true
-			break
-		}
-	}
-	if !found {
-		return cardBundle{}, fmt.Errorf("card not found: %s", cardID)
-	}
-	skills, personas, mcps, err := c.resolveCapabilities(card)
-	if err != nil {
-		return cardBundle{}, err
-	}
-	return cardBundle{Card: card, Skills: skills, Personas: personas, MCPs: mcps}, nil
-}
-
-// resolveCapabilities reads the skill/persona/MCP registries once each and
-// filters them down to card's referenced IDs, iterating each registry in its
-// own (name-sorted) order so results come out in registry order rather than
-// card-ID order - preserving the order previously written to disk/AGENTS.md
-// by the three separate ListXxx-then-nested-loop calls this replaces. Unlike
-// those calls, a failed registry read here aborts (returns an error) instead
-// of silently launching/relaunching/switching with no capabilities.
-func (c *Coordinator) resolveCapabilities(card config.IDCard) ([]config.Skill, []config.Persona, []config.MCPServer, error) {
-	allSkills, err := c.repo.ListSkills()
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("list skills: %w", err)
-	}
-	allPersonas, err := c.repo.ListPersonas()
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("list personas: %w", err)
-	}
-	allMCPs, err := c.repo.ListMCPs()
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("list mcps: %w", err)
-	}
-
-	skillIDs := toIDSet(card.SkillIDs)
-	personaIDs := toIDSet(card.PersonaIDs)
-	mcpIDs := toIDSet(card.MCPIDs)
-
-	var skills []config.Skill
-	for _, s := range allSkills {
-		if _, ok := skillIDs[s.ID]; ok {
-			skills = append(skills, s)
-		}
-	}
-	var personas []config.Persona
-	for _, p := range allPersonas {
-		if _, ok := personaIDs[p.ID]; ok {
-			personas = append(personas, p)
-		}
-	}
-	var mcps []config.MCPServer
-	for _, m := range allMCPs {
-		if _, ok := mcpIDs[m.ID]; ok {
-			mcps = append(mcps, m)
-		}
-	}
-	return skills, personas, mcps, nil
-}
-
-func toIDSet(ids []string) map[string]struct{} {
-	set := make(map[string]struct{}, len(ids))
-	for _, id := range ids {
-		set[id] = struct{}{}
-	}
-	return set
 }

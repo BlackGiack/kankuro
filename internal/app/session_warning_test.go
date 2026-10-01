@@ -116,7 +116,7 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 		}
 		time.Sleep(50 * time.Millisecond)
 
-		restore := makeSessionFileReadOnly(t, sessionsDir, sessionID)
+		restore := makeSessionsDirReadOnly(t, sessionsDir)
 		defer restore()
 
 		coord := app.NewCoordinator(repo, sm)
@@ -164,7 +164,7 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 		}
 		time.Sleep(50 * time.Millisecond)
 
-		restore := makeSessionFileReadOnly(t, sessionsDir, sessionID)
+		restore := makeSessionsDirReadOnly(t, sessionsDir)
 		defer restore()
 
 		coord := app.NewCoordinator(repo, sm)
@@ -297,26 +297,27 @@ func newPersistFailureFixture(t *testing.T) (config.Repository, *session.Manager
 	if errRepo != nil {
 		t.Fatalf("new repo: %v", errRepo)
 	}
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	sessionsDir := filepath.Join(repo.Dir(), "sessions")
 	return repo, sm, sessionsDir
 }
 
-// makeSessionFileReadOnly strips write permission from an already-persisted
-// session file so the next save through it fails deterministically. Returns
-// a restore func to put permissions back (idempotent, safe to call from a
-// defer even after an earlier explicit call).
-func makeSessionFileReadOnly(t *testing.T, sessionsDir, sessionID string) func() {
+// makeSessionsDirReadOnly strips write permission from the sessions directory
+// so the next session save fails deterministically. It has to be the
+// directory, not the record: records are written with temp-file + rename,
+// which replaces the target whatever its own mode is. Returns a restore func
+// to put permissions back (idempotent, safe to call from a defer even after
+// an earlier explicit call).
+func makeSessionsDirReadOnly(t *testing.T, sessionsDir string) func() {
 	t.Helper()
 	if os.Geteuid() == 0 {
 		t.Skip("running as root: file permissions are not enforced")
 	}
-	path := filepath.Join(sessionsDir, sessionID+".json")
-	if err := os.Chmod(path, 0o400); err != nil {
+	if err := os.Chmod(sessionsDir, 0o500); err != nil {
 		t.Fatalf("chmod: %v", err)
 	}
 	return func() {
-		_ = os.Chmod(path, 0o600)
+		_ = os.Chmod(sessionsDir, 0o700)
 	}
 }
 

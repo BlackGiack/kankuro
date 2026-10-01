@@ -1,10 +1,12 @@
 package views_test
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/messages"
@@ -136,6 +138,98 @@ func TestMCPForm_MalformedEnvPair_ProducesError(t *testing.T) {
 	}
 	if !strings.Contains(f.View(), "malformed key=value pair") {
 		t.Errorf("expected error rendered in view, got: %s", f.View())
+	}
+}
+
+// TestMCPFormRoundTripsEveryField sets an MCPServer with a distinct value in
+// every field, submits it through Update(Enter) and expects the same server
+// back. A swapped input index in SetMCP or handleSubmit moves a value into
+// the wrong field and fails here; the drift test cannot see that.
+func TestMCPFormRoundTripsEveryField(t *testing.T) {
+	var saved config.MCPServer
+	saveCalls := 0
+	f := views.NewMCPForm(views.MCPFormCallbacks{
+		OnSave: func(mcp config.MCPServer) tea.Cmd {
+			saved = mcp
+			saveCalls++
+			return nil
+		},
+	})
+
+	want := config.MCPServer{
+		ID:      "id-1",
+		Name:    "n",
+		Command: "cmd",
+		Args:    []string{"a1", "a,2"},
+		CWD:     "/cwd",
+		URL:     "http://u",
+		Env:     map[string]string{"E": "1"},
+		Headers: map[string]string{"H": "2"},
+	}
+	f.SetMCP(want)
+	f.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	if saveCalls != 1 {
+		t.Fatalf("expected OnSave to run once, ran %d times", saveCalls)
+	}
+	if saved.ID != want.ID {
+		t.Errorf("ID: got %q, want %q", saved.ID, want.ID)
+	}
+	if saved.Name != want.Name {
+		t.Errorf("Name: got %q, want %q", saved.Name, want.Name)
+	}
+	if saved.Command != want.Command {
+		t.Errorf("Command: got %q, want %q", saved.Command, want.Command)
+	}
+	if !reflect.DeepEqual(saved.Args, want.Args) {
+		t.Errorf("Args: got %q, want %q", saved.Args, want.Args)
+	}
+	if saved.CWD != want.CWD {
+		t.Errorf("CWD: got %q, want %q", saved.CWD, want.CWD)
+	}
+	if saved.URL != want.URL {
+		t.Errorf("URL: got %q, want %q", saved.URL, want.URL)
+	}
+	if !reflect.DeepEqual(saved.Env, want.Env) {
+		t.Errorf("Env: got %v, want %v", saved.Env, want.Env)
+	}
+	if !reflect.DeepEqual(saved.Headers, want.Headers) {
+		t.Errorf("Headers: got %v, want %v", saved.Headers, want.Headers)
+	}
+}
+
+// TestMCPFormLabelsMatchPlaceholders renders an empty form and expects each
+// label to precede its own input's placeholder, which catches a field-table
+// row whose label and input have drifted apart.
+func TestMCPFormLabelsMatchPlaceholders(t *testing.T) {
+	f := views.NewMCPForm(views.MCPFormCallbacks{})
+	view := ansi.Strip(f.View())
+
+	pairs := []struct{ label, placeholder string }{
+		{"Name", "Name"},
+		{"Command", "Command"},
+		{"Args", "Args (comma-separated"},
+		{"Working Directory", "Working directory"},
+		{"URL", "URL"},
+		{"Environment", "Environment (key=value"},
+		{"Headers", "Headers (key=value"},
+	}
+
+	// Walk the view in order: each label, then its placeholder on a later
+	// line, then the next label.
+	pos := 0
+	for _, p := range pairs {
+		li := strings.Index(view[pos:], p.label+"\n")
+		if li < 0 {
+			t.Fatalf("label %q not found after offset %d in:\n%s", p.label, pos, view)
+		}
+		pos += li + len(p.label) + 1
+		pi := strings.Index(view[pos:], p.placeholder)
+		nextLabelGap := strings.Index(view[pos:], "\n\n")
+		if pi < 0 || (nextLabelGap >= 0 && pi > nextLabelGap) {
+			t.Fatalf("placeholder %q does not directly follow label %q in:\n%s", p.placeholder, p.label, view)
+		}
+		pos += pi + len(p.placeholder)
 	}
 }
 

@@ -9,14 +9,13 @@ import (
 
 	"kankuro/internal/app"
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
 )
 
 func TestPreviewImmediateUpdate(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
@@ -56,7 +55,7 @@ func TestPreviewImmediateUpdate(t *testing.T) {
 
 func TestPreviewAutoSelection(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
@@ -97,7 +96,7 @@ func TestPreviewAutoSelection(t *testing.T) {
 
 func TestPreviewStreaming(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
@@ -156,7 +155,7 @@ func TestPreviewStreaming(t *testing.T) {
 
 func TestPreviewStreamingKitty(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})

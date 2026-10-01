@@ -276,7 +276,7 @@ func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config
 	// face box, which shatters the card. The built-in puppets all fit; this
 	// only affects user puppets drawn larger than the box. The face box's left
 	// border takes one of its FaceBoxWidth columns.
-	puppetStr := clipBlock(RenderAgentPuppet(card.Puppet, puppets), FaceBoxWidth-1, FaceBoxHeight)
+	puppetStr := ClipBlock(RenderAgentPuppet(card.Puppet, puppets), FaceBoxWidth-1, FaceBoxHeight)
 
 	driverLine := fmt.Sprintf("%s | %s", card.Driver, card.Model)
 
@@ -288,8 +288,8 @@ func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config
 	}
 
 	infoLines := []string{
-		titleStyle.Render(truncate(card.Name, truncateLen)),
-		descStyle.Render(truncate(driverLine, truncateLen)),
+		titleStyle.Render(truncate(DisplayText(card.Name), truncateLen)),
+		descStyle.Render(truncate(DisplayText(driverLine), truncateLen)),
 		"",
 		skillsLine,
 	}
@@ -418,7 +418,7 @@ func renderPills(skillNames, personaNames []string, maxWidth int) []string {
 		if len(pills) >= MaxPillsShown {
 			break
 		}
-		p := pillStyle(sp.bg, styles.White).Render(truncatePill(sp.name))
+		p := pillStyle(sp.bg, styles.White).Render(truncatePill(DisplayText(sp.name)))
 		w := lipgloss.Width(p)
 		if used+w > maxWidth {
 			break
@@ -446,9 +446,9 @@ func renderPills(skillNames, personaNames []string, maxWidth int) []string {
 	return pills
 }
 
-// clipBlock truncates a multi-line block to at most width display columns
+// ClipBlock truncates a multi-line block to at most width display columns
 // and height lines, without wrapping anything onto a new line.
-func clipBlock(block string, width, height int) string {
+func ClipBlock(block string, width, height int) string {
 	lines := strings.Split(block, "\n")
 	if len(lines) > height {
 		lines = lines[:height]
@@ -473,9 +473,9 @@ func pillStyle(bg, fg color.Color) lipgloss.Style {
 }
 
 func truncatePill(s string) string {
-	return truncateToVisibleWidthLeft(s, PillTextLimit)
+	return TruncateHead(s, PillTextLimit)
 }
 
 func truncate(s string, w int) string {
-	return truncateToVisibleWidthLeft(s, w)
+	return TruncateHead(s, w)
 }

@@ -14,9 +14,40 @@ import (
 	"kankuro/internal/ui/styles"
 )
 
+// Indices of the form's text inputs. Every field is a text input, so the
+// index is the position in MCPForm.inputs.
 const (
-	mcpInputCount = 7
+	mcpNameIdx = iota
+	mcpCommandIdx
+	mcpArgsIdx
+	mcpCWDIdx
+	mcpURLIdx
+	mcpEnvIdx
+	mcpHeadersIdx
+
+	mcpInputCount // keep last
 )
+
+type mcpField struct {
+	idx         int
+	label       string // shown above the input in View
+	placeholder string
+}
+
+// mcpFieldTable is the single source for the form's field order, labels and
+// placeholders. NewMCPForm and View both read it; SetMCP and handleSubmit
+// address inputs by the named constants above.
+func mcpFieldTable() []mcpField {
+	return []mcpField{
+		{mcpNameIdx, "Name", "Name"},
+		{mcpCommandIdx, "Command", "Command"},
+		{mcpArgsIdx, "Args", "Args (comma-separated, use \\, for a literal comma)"},
+		{mcpCWDIdx, "Working Directory", "Working directory"},
+		{mcpURLIdx, "URL", "URL"},
+		{mcpEnvIdx, "Environment", "Environment (key=value, comma-separated, use \\, for a literal comma)"},
+		{mcpHeadersIdx, "Headers", "Headers (key=value, comma-separated, use \\, for a literal comma)"},
+	}
+}
 
 // MCPInputCount is the number of inputs in the MCP form.
 const MCPInputCount = mcpInputCount
@@ -42,36 +73,14 @@ type MCPForm struct {
 // NewMCPForm creates a new MCP form.
 func NewMCPForm(callbacks MCPFormCallbacks) *MCPForm {
 	inputs := make([]textinput.Model, mcpInputCount)
+	for _, field := range mcpFieldTable() {
+		in := textinput.New()
+		in.Placeholder = field.placeholder
+		in.SetWidth(defaultInputWidth)
+		inputs[field.idx] = in
+	}
 
-	inputs[0] = textinput.New()
-	inputs[0].Placeholder = "Name"
-	inputs[0].SetWidth(defaultInputWidth)
-
-	inputs[1] = textinput.New()
-	inputs[1].Placeholder = "Command"
-	inputs[1].SetWidth(defaultInputWidth)
-
-	inputs[2] = textinput.New()
-	inputs[2].Placeholder = "Args (comma-separated, use \\, for a literal comma)"
-	inputs[2].SetWidth(defaultInputWidth)
-
-	inputs[3] = textinput.New()
-	inputs[3].Placeholder = "Working directory"
-	inputs[3].SetWidth(defaultInputWidth)
-
-	inputs[4] = textinput.New()
-	inputs[4].Placeholder = "URL"
-	inputs[4].SetWidth(defaultInputWidth)
-
-	inputs[5] = textinput.New()
-	inputs[5].Placeholder = "Environment (key=value, comma-separated, use \\, for a literal comma)"
-	inputs[5].SetWidth(defaultInputWidth)
-
-	inputs[6] = textinput.New()
-	inputs[6].Placeholder = "Headers (key=value, comma-separated, use \\, for a literal comma)"
-	inputs[6].SetWidth(defaultInputWidth)
-
-	inputs[0].Focus()
+	inputs[mcpNameIdx].Focus()
 
 	return &MCPForm{
 		inputs:    inputs,
@@ -92,13 +101,13 @@ func (f *MCPForm) HandleSubmit() tea.Cmd {
 // SetMCP sets the MCP server to edit.
 func (f *MCPForm) SetMCP(mcp config.MCPServer) {
 	f.mcp = mcp
-	f.inputs[0].SetValue(mcp.Name)
-	f.inputs[1].SetValue(mcp.Command)
-	f.inputs[2].SetValue(formatCommaList(mcp.Args))
-	f.inputs[3].SetValue(mcp.CWD)
-	f.inputs[4].SetValue(mcp.URL)
-	f.inputs[5].SetValue(formatKeyValueMap(mcp.Env))
-	f.inputs[6].SetValue(formatKeyValueMap(mcp.Headers))
+	f.inputs[mcpNameIdx].SetValue(mcp.Name)
+	f.inputs[mcpCommandIdx].SetValue(mcp.Command)
+	f.inputs[mcpArgsIdx].SetValue(formatCommaList(mcp.Args))
+	f.inputs[mcpCWDIdx].SetValue(mcp.CWD)
+	f.inputs[mcpURLIdx].SetValue(mcp.URL)
+	f.inputs[mcpEnvIdx].SetValue(formatKeyValueMap(mcp.Env))
+	f.inputs[mcpHeadersIdx].SetValue(formatKeyValueMap(mcp.Headers))
 }
 
 // Reset clears the form.
@@ -108,7 +117,7 @@ func (f *MCPForm) Reset() {
 		f.inputs[i].SetValue("")
 		f.inputs[i].Blur()
 	}
-	f.inputs[0].Focus()
+	f.inputs[mcpNameIdx].Focus()
 	f.err = nil
 }
 
@@ -152,22 +161,9 @@ func (f *MCPForm) View() string {
 
 	content.WriteString(styles.TitleStyle.Render("MCP Server Configuration") + "\n\n")
 
-	fields := []struct {
-		label string
-		input *textinput.Model
-	}{
-		{"Name", &f.inputs[0]},
-		{"Command", &f.inputs[1]},
-		{"Args", &f.inputs[2]},
-		{"Working Directory", &f.inputs[3]},
-		{"URL", &f.inputs[4]},
-		{"Environment", &f.inputs[5]},
-		{"Headers", &f.inputs[6]},
-	}
-
-	for _, field := range fields {
+	for _, field := range mcpFieldTable() {
 		content.WriteString(styles.LabelStyle.Render(field.label) + "\n")
-		content.WriteString(field.input.View() + "\n\n")
+		content.WriteString(f.inputs[field.idx].View() + "\n\n")
 	}
 
 	content.WriteString(styles.HelpStyle.Render("Tab: Next field | Enter: Save | Esc: Back"))
@@ -184,21 +180,21 @@ func (f *MCPForm) cycleFocus() {
 			return
 		}
 	}
-	f.inputs[0].Focus()
+	f.inputs[mcpNameIdx].Focus()
 }
 
 func (f *MCPForm) handleSubmit() tea.Cmd {
 	f.err = nil
 
-	args := parseCommaList(f.inputs[2].Value())
+	args := parseCommaList(f.inputs[mcpArgsIdx].Value())
 
-	env, err := parseKeyValueList(f.inputs[5].Value())
+	env, err := parseKeyValueList(f.inputs[mcpEnvIdx].Value())
 	if err != nil {
 		f.err = fmt.Errorf("environment: %w", err)
 		return nil
 	}
 
-	headers, err := parseKeyValueList(f.inputs[6].Value())
+	headers, err := parseKeyValueList(f.inputs[mcpHeadersIdx].Value())
 	if err != nil {
 		f.err = fmt.Errorf("headers: %w", err)
 		return nil
@@ -206,11 +202,11 @@ func (f *MCPForm) handleSubmit() tea.Cmd {
 
 	mcp := config.MCPServer{
 		ID:      f.mcp.ID,
-		Name:    strings.TrimSpace(f.inputs[0].Value()),
-		Command: strings.TrimSpace(f.inputs[1].Value()),
+		Name:    strings.TrimSpace(f.inputs[mcpNameIdx].Value()),
+		Command: strings.TrimSpace(f.inputs[mcpCommandIdx].Value()),
 		Args:    args,
-		CWD:     strings.TrimSpace(f.inputs[3].Value()),
-		URL:     strings.TrimSpace(f.inputs[4].Value()),
+		CWD:     strings.TrimSpace(f.inputs[mcpCWDIdx].Value()),
+		URL:     strings.TrimSpace(f.inputs[mcpURLIdx].Value()),
 		Env:     env,
 		Headers: headers,
 	}

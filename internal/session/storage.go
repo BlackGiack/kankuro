@@ -7,6 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"kankuro/internal/fsutil"
+)
+
+const (
+	sessionsDirMode = 0o700
+	sessionFileMode = 0o600
 )
 
 type Data struct {
@@ -72,16 +79,19 @@ func loadSessions(dir string) ([]*Data, error) {
 	return out, errors.Join(errs...)
 }
 
+// saveSession writes the record atomically (see [fsutil.WriteFileAtomic]): a
+// crash mid-write must not truncate the only pointer to a session's name and
+// temporary workspace.
 func saveSession(dir string, s *Data) error {
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	if err := os.MkdirAll(dir, sessionsDirMode); err != nil {
 		return err
 	}
 	path := filepath.Join(dir, s.ID+".json")
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal session %s: %w", s.ID, err)
 	}
-	return os.WriteFile(path, data, 0o600)
+	return fsutil.WriteFileAtomic(path, data, sessionFileMode)
 }
 
 func deleteSession(dir string, id string) error {

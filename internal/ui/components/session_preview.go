@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/mattn/go-runewidth"
 
 	"kankuro/internal/config"
 	"kankuro/internal/session"
@@ -20,7 +19,6 @@ import (
 const (
 	PreviewIDLabelPrefixLen   = 4
 	PreviewCardLabelPrefixLen = 6
-	PreviewEllipsisLen        = 3
 	PreviewBorderLines        = 2
 	PreviewMaxScrollbackBytes = 8 * 1024 // 8KB cap
 	PreviewContentHPadding    = 2
@@ -300,10 +298,10 @@ func (p *SessionPreview) renderPreview() string {
 
 	// Build header
 	headerLines := []string{
-		TitleStyle.Render(truncateString(sessionName, p.Width-WidthBorders)),
+		TitleStyle.Render(TruncateHead(sessionName, p.Width-WidthBorders)),
 		lipgloss.JoinHorizontal(lipgloss.Center, statusBadge),
 		lipgloss.NewStyle().Foreground(styles.Gray).Render(
-			"ID: " + truncateString(p.snapshot.ID, p.Width-PreviewIDLabelPrefixLen-WidthBorders),
+			"ID: " + TruncateHead(p.snapshot.ID, p.Width-PreviewIDLabelPrefixLen-WidthBorders),
 		),
 		lipgloss.NewStyle().Foreground(styles.Gray).Render("WS: " + wdStr),
 		lipgloss.NewStyle().Foreground(styles.Gray).Render("Started: " + startedStr),
@@ -312,7 +310,7 @@ func (p *SessionPreview) renderPreview() string {
 	if p.card != nil {
 		headerLines = append(headerLines,
 			lipgloss.NewStyle().Foreground(styles.Gray).Render(
-				"Card: "+truncateString(p.card.Name, p.Width-PreviewCardLabelPrefixLen-WidthBorders),
+				"Card: "+TruncateHead(p.card.Name, p.Width-PreviewCardLabelPrefixLen-WidthBorders),
 			),
 		)
 	}
@@ -383,7 +381,7 @@ func clampToSize(s string, maxWidth, maxHeight int) string {
 		clamped := ansi.Truncate(line, maxWidth, "")
 		if ansi.StringWidth(clamped) > maxWidth {
 			// Defensive fallback: strip ANSI and hard-truncate by visual width.
-			clamped = truncateToVisibleWidth(ansi.Strip(line), maxWidth)
+			clamped = TruncateTail(ansi.Strip(line), maxWidth)
 		}
 		lines[i] = clamped
 	}
@@ -619,7 +617,7 @@ func ExtractMeaningfulLines(text string, width, height int) []string {
 		// Width truncation: show the TAIL of long lines in the preview
 		// so that incremental updates to a single long line are visible.
 		if width > 5 && lipgloss.Width(trimmed) > width-PreviewContentHPadding {
-			meaningful = append(meaningful, truncateToVisibleWidth(trimmed, width-PreviewContentHPadding))
+			meaningful = append(meaningful, TruncateTail(trimmed, width-PreviewContentHPadding))
 		} else {
 			meaningful = append(meaningful, trimmed)
 		}
@@ -659,74 +657,4 @@ func StripAllControlCodes(s string) string {
 		}
 		return -1
 	}, s)
-}
-
-// TruncatePath truncates a path with ellipsis, keeping the tail (the most
-// specific path segments) visible.
-func TruncatePath(path string, limit int) string {
-	return truncateToVisibleWidth(path, limit)
-}
-
-// truncateString truncates a string with ellipsis, keeping the head visible.
-func truncateString(s string, w int) string {
-	return truncateToVisibleWidthLeft(s, w)
-}
-
-// truncateToVisibleWidth trims s so that lipgloss.Width(result) <= maxWidth,
-// keeping the tail (rightmost runes) and prefixing "..." when truncated.
-// Measures and slices by rune, not byte, so multibyte glyphs (CJK, emoji,
-// accented characters) are never cut mid-rune.
-func truncateToVisibleWidth(s string, maxWidth int) string {
-	if runewidth.StringWidth(s) <= maxWidth {
-		return s
-	}
-	if maxWidth <= PreviewEllipsisLen {
-		return s
-	}
-
-	runes := []rune(s)
-	budget := maxWidth - PreviewEllipsisLen
-	w := 0
-	i := len(runes)
-
-	// Walk from the tail computing width
-	for i > 0 {
-		rw := runewidth.RuneWidth(runes[i-1])
-		if w+rw > budget {
-			break
-		}
-		w += rw
-		i--
-	}
-
-	return "..." + string(runes[i:])
-}
-
-// truncateToVisibleWidthLeft trims s so that lipgloss.Width(result) <=
-// maxWidth, keeping the head (leftmost runes) and suffixing "..." when
-// truncated. Measures and slices by rune, not byte, so multibyte glyphs are
-// never cut mid-rune.
-func truncateToVisibleWidthLeft(s string, maxWidth int) string {
-	if runewidth.StringWidth(s) <= maxWidth {
-		return s
-	}
-	if maxWidth <= PreviewEllipsisLen {
-		return s
-	}
-
-	runes := []rune(s)
-	budget := maxWidth - PreviewEllipsisLen
-	w := 0
-	i := 0
-
-	for i < len(runes) {
-		rw := runewidth.RuneWidth(runes[i])
-		if w+rw > budget {
-			break
-		}
-		w += rw
-		i++
-	}
-
-	return string(runes[:i]) + "..."
 }

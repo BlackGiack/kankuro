@@ -41,6 +41,7 @@ An active or persisted instance of an ID Card.
     * **Temporary:** Clones the original workspace into a disposable folder (via `KANKURO_TMP_DIR` or `~/.config/kankuro/tmp/`). Changes made by the agent are isolated from the original source but persist across session relaunches.
 * **Detachment:** Users can "detach" from a session terminal using a global hotkey (e.g., `Ctrl+K`) to return to the dashboard without stopping the agent.
 * **Switch:** Users can switch ID cards keeping the same session.
+* **Quitting:** Quitting KANKURO (`q`, `Ctrl+C`, SIGTERM, or closing the terminal) kills every running session: its process group gets SIGTERM, then SIGKILL after 2 seconds. The session records stay on disk, so the sessions can be relaunched next time.
 
 ### 1.3 The Waiting status
 
@@ -130,6 +131,14 @@ type AgentDriver interface {
     * `c`: Open the settings view.
     * `Backspace/Delete` (on Session): Trigger a **confirmation dialog** to remove a terminated session (and its temporary workspace).
 
+* **Minimum terminal size:** 80×24. Below it every screen is replaced by a
+  "Terminal too small: need 80×24, have W×H" notice and keys other than quit (`q`, `Ctrl+C`)
+  are ignored, so nothing can be launched or deleted blind; the screen returns as soon as the terminal grows.
+
+* **Dashboard footer:** shows only the keys that apply: navigation, the focused pane's keys
+  (`[Card]` or `[Session]`) and the global keys. On a narrow terminal it drops whole groups
+  (`q=Quit` is the last to go) rather than being cut off.
+
 * **Settings View:**
     * Lets the user configure the IDE launch command.
     * Lets the user choose whether the Personas and MCPs capability lists are shown in the ID card editor.
@@ -146,6 +155,8 @@ type AgentDriver interface {
     * `Delete/Del` (on MCP List): Remove the highlighted MCP from the global registry (only if not referenced by any ID Card).
     * `Enter`: Save the ID Card and return to the Dashboard.
     * `Esc`: Cancel changes and return to the Dashboard.
+    * When the form is taller than the terminal it scrolls to keep the focused field visible;
+      `↑ more` / `↓ more` mark a cut edge.
 
 * **Workspace Manager Interactions:**
     * `n`: Add a new workspace source.

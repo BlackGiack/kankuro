@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,7 +22,11 @@ import (
 // while surfacing this as a (non-blocking) warning.
 var ErrPersistFailed = errors.New("session state could not be saved")
 
-// Launch starts a new session process from an ID card.
+// ErrManagerClosed is returned by Launch, Relaunch and SwitchAgent once
+// Shutdown has started: the manager no longer starts processes it could not
+// stop or watch.
+var ErrManagerClosed = errors.New("session manager is shut down")
+
 // syncDriverFiles clears temp directories (if needed) and syncs skill/persona/MCP files.
 func (m *Manager) syncDriverFiles(
 	card config.IDCard,
@@ -70,21 +75,81 @@ func (m *Manager) syncDriverFiles(
 
 func (m *Manager) Launch(card config.IDCard, skills []config.Skill, personas []config.Persona, mcps []config.MCPServer) (string, error) {
 	sid := uuid.NewString()
+	// The closed check and the Add share one critical section, the same
+	// ordering argument as startWatchLocked: Shutdown sets closed under m.mu
+	// before it Waits, so no Add can race a Wait that started at zero.
+	m.mu.Lock()
+	if m.closed {
+		m.mu.Unlock()
+		return sid, ErrManagerClosed
+	}
+	m.activations.Add(1)
+	m.mu.Unlock()
+	defer m.activations.Done()
 	return sid, m.startSession(sid, card, skills, personas, mcps, true, "")
+}
+
+// activationSnapshot holds the session fields Relaunch/SwitchAgent need while
+// the lock is not held, copied under m.mu so they are never read racily.
+type activationSnapshot struct {
+	WorkingDir      string
+	UseTmpWorkspace bool
+}
+
+// reserveForActivation checks, under m.mu, that the session can be
+// (re)activated and marks it as activating. It takes the lock itself; the
+// caller must call releaseActivation on every failure path (success clears
+// the mark in activateSessionLocked).
+//
+// On success it has also registered the activation with m.activations (in the
+// same critical section as the !closed check), and the caller must call
+// m.activations.Done() when the activation is over, after any
+// releaseActivation, so Shutdown does not return while it is still working.
+func (m *Manager) reserveForActivation(id, notTerminatedMsg string) (activationSnapshot, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed {
+		return activationSnapshot{}, ErrManagerClosed
+	}
+	s, ok := m.sessions[id]
+	if !ok {
+		return activationSnapshot{}, fmt.Errorf("session not found: %s", id)
+	}
+	if s.Status != StatusTerminated {
+		return activationSnapshot{}, errors.New(notTerminatedMsg)
+	}
+	if s.activating {
+		return activationSnapshot{}, errors.New("session is already being started")
+	}
+	s.activating = true
+	m.activations.Add(1)
+	return activationSnapshot{WorkingDir: s.WorkingDir, UseTmpWorkspace: s.UseTmpWorkspace}, nil
+}
+
+// releaseActivation clears the reservation taken by reserveForActivation after
+// an activation that did not happen.
+func (m *Manager) releaseActivation(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if s, ok := m.sessions[id]; ok {
+		s.activating = false
+	}
 }
 
 // Relaunch restarts a terminated session using its existing workspace (if tmp).
 func (m *Manager) Relaunch(id string, card config.IDCard, skills []config.Skill, personas []config.Persona, mcps []config.MCPServer) error {
-	m.mu.RLock()
-	s, ok := m.sessions[id]
-	m.mu.RUnlock()
-	if !ok {
-		return fmt.Errorf("session not found: %s", id)
+	snap, err := m.reserveForActivation(id, "session is already running")
+	if err != nil {
+		return err
 	}
-	if s.Status != StatusTerminated {
-		return errors.New("session is already running")
+	defer m.activations.Done()
+	err = m.startSession(id, card, skills, personas, mcps, false, snap.WorkingDir)
+	// ErrPersistFailed means the activation did happen (and already cleared
+	// the reservation); any other error means it did not.
+	if err != nil && !errors.Is(err, ErrPersistFailed) {
+		m.releaseActivation(id)
 	}
-	return m.startSession(id, card, skills, personas, mcps, false, s.WorkingDir)
+	return err
 }
 
 // SwitchAgent restarts a terminated session using its existing workspace, but with a new agent card.
@@ -95,17 +160,19 @@ func (m *Manager) SwitchAgent(
 	personas []config.Persona,
 	mcps []config.MCPServer,
 ) error {
-	m.mu.RLock()
-	s, ok := m.sessions[id]
-	m.mu.RUnlock()
-	if !ok {
-		return fmt.Errorf("session not found: %s", id)
+	snap, err := m.reserveForActivation(id, "session must be terminated before switching agents")
+	if err != nil {
+		return err
 	}
-	if s.Status != StatusTerminated {
-		return errors.New("session must be terminated before switching agents")
-	}
+	defer m.activations.Done() // registered first, so it runs after releaseActivation below
+	activated := false
+	defer func() {
+		if !activated {
+			m.releaseActivation(id)
+		}
+	}()
 
-	finalWD := s.WorkingDir
+	finalWD := snap.WorkingDir
 	if finalWD == "" {
 		return errors.New("session workspace is empty")
 	}
@@ -114,7 +181,7 @@ func (m *Manager) SwitchAgent(
 	}
 
 	// Clear tmp directories if using tmp workspace
-	clearTmp := s.UseTmpWorkspace
+	clearTmp := snap.UseTmpWorkspace
 	// SwitchAgent should replace agents.md content, not append
 	d, err := m.syncDriverFiles(card, skills, personas, mcps, finalWD, clearTmp, false)
 	if err != nil {
@@ -141,19 +208,29 @@ func (m *Manager) SwitchAgent(
 	}
 
 	m.mu.Lock()
+	if m.closed {
+		// Shutdown started during the unlocked spawn. The process is already
+		// running and no watcher will ever own it: kill it here, outside the
+		// lock (Kill can block on teardown). The deferred releaseActivation
+		// runs after this return.
+		m.mu.Unlock()
+		_ = d.Kill()
+		return ErrManagerClosed
+	}
 	defer m.mu.Unlock()
-	s, ok = m.sessions[id]
+	s, ok := m.sessions[id]
 	if !ok {
 		return fmt.Errorf("session not found: %s", id)
 	}
 
 	m.activateSessionLocked(s, card, d, h, pid, now)
+	activated = true
 	s.PendingAttachHeader = fmt.Appendf(nil, "\r\n--- Switched agent to %s at %s ---\r\n\r\n",
 		card.Name, now.Format(time.RFC3339))
 	gen := s.generation
 
 	go m.trackOutput(id, gen, h.Output)
-	go m.watch(id, gen, d)
+	m.startWatchLocked(id, gen, d)
 
 	// A persist failure here must not unwind the spawn: the agent process is
 	// already running. Surface the error so the caller can report it, but
@@ -166,6 +243,27 @@ func (m *Manager) SwitchAgent(
 	return nil
 }
 
+// resolveWorkspacePath returns the override when given, else the path of the
+// card's registered workspace.
+func (m *Manager) resolveWorkspacePath(card config.IDCard, override string) (string, error) {
+	if override != "" {
+		return override, nil
+	}
+	workspaces, err := m.repo.ListWorkspaces()
+	if err != nil {
+		return "", fmt.Errorf("list workspaces: %w", err)
+	}
+	for _, w := range workspaces {
+		if w.ID == card.WorkspaceID && w.Path != "" {
+			return w.Path, nil
+		}
+	}
+	return "", fmt.Errorf("workspace not found: %s", card.WorkspaceID)
+}
+
+// startSession runs one activation. Its callers hold an m.activations
+// registration (Launch, or reserveForActivation for Relaunch), which is also
+// what guarantees Shutdown had not started when they began.
 func (m *Manager) startSession(
 	sid string,
 	card config.IDCard,
@@ -175,23 +273,9 @@ func (m *Manager) startSession(
 	isNew bool,
 	workspaceOverride string,
 ) error {
-	var wd string
-	if workspaceOverride != "" {
-		wd = workspaceOverride
-	} else {
-		workspaces, err := m.repo.ListWorkspaces()
-		if err != nil {
-			return fmt.Errorf("list workspaces: %w", err)
-		}
-		for _, w := range workspaces {
-			if w.ID == card.WorkspaceID {
-				wd = w.Path
-				break
-			}
-		}
-		if wd == "" {
-			return fmt.Errorf("workspace not found: %s", card.WorkspaceID)
-		}
+	wd, err := m.resolveWorkspacePath(card, workspaceOverride)
+	if err != nil {
+		return err
 	}
 
 	finalWD, errPrep := m.prepareWorkspace(sid, card, wd, isNew)
@@ -228,6 +312,16 @@ func (m *Manager) startSession(
 	}
 
 	m.mu.Lock()
+	if m.closed {
+		// Shutdown started during the unlocked spawn; see SwitchAgent. A new
+		// session has no record, so nothing would ever point at its tmp copy.
+		m.mu.Unlock()
+		_ = d.Kill()
+		if isNew && card.UseTmpWorkspace {
+			_ = os.RemoveAll(filepath.Join(m.tmpRoot(), sid))
+		}
+		return ErrManagerClosed
+	}
 	defer m.mu.Unlock()
 
 	s, exists := m.sessions[sid]
@@ -255,7 +349,7 @@ func (m *Manager) startSession(
 	gen := s.generation
 
 	go m.trackOutput(sid, gen, h.Output)
-	go m.watch(sid, gen, d)
+	m.startWatchLocked(sid, gen, d)
 
 	// A persist failure here must not unwind the spawn: the agent process is
 	// already running. Surface the error so the caller can report it, but
@@ -277,6 +371,7 @@ func (m *Manager) activateSessionLocked(
 	now time.Time,
 ) {
 	s.generation++
+	s.activating = false
 	s.CardID = card.ID
 	if s.Name == "" {
 		s.Name = card.Name
@@ -318,20 +413,35 @@ func (m *Manager) persistSessionLocked(s *Session) {
 func (m *Manager) Kill(id string) error {
 	m.mu.RLock()
 	s, ok := m.sessions[id]
+	var d driver.AgentDriver
+	var gen uint64
+	if ok {
+		d, gen = s.Driver, s.generation
+	}
 	m.mu.RUnlock()
 	if !ok {
 		return fmt.Errorf("session not found: %s", id)
 	}
+
+	// Called with no lock held on purpose: it can block on process teardown,
+	// and watch needs m.mu in the meantime.
 	var killErr error
-	if s.Driver != nil {
-		killErr = s.Driver.Kill()
+	if d != nil {
+		killErr = d.Kill()
 	}
+
 	m.mu.Lock()
+	defer m.mu.Unlock()
+	// Only mark terminated if this is still the same activation of the same
+	// session. The lock was released above, so a Remove in that window must
+	// not have its deleted record re-created by our persist, and a Relaunch
+	// must not have its new, running activation marked dead.
+	if cur, still := m.sessions[id]; !still || cur != s || s.generation != gen {
+		return killErr
+	}
 	s.Status = StatusTerminated
 	s.Pinged = false
-	persistErr := m.persistSessionLockedErr(s)
-	m.mu.Unlock()
-	return errors.Join(killErr, persistErr)
+	return errors.Join(killErr, m.persistSessionLockedErr(s))
 }
 
 // Remove deletes a terminated session from the registry.
@@ -344,6 +454,11 @@ func (m *Manager) Remove(id string) error {
 	}
 	if s.Status != StatusTerminated {
 		return fmt.Errorf("session still running: %s", id)
+	}
+	// A relaunch/switch in its unlocked phase is still Terminated; removing
+	// now would delete the tmp workspace it is syncing into.
+	if s.activating {
+		return fmt.Errorf("session is being started: %s", id)
 	}
 
 	sessionsDir := filepath.Join(m.configDir, "sessions")
@@ -358,11 +473,7 @@ func (m *Manager) Remove(id string) error {
 
 	var rmErr error
 	if s.UseTmpWorkspace {
-		tmpRoot := os.Getenv("KANKURO_TMP_DIR")
-		if tmpRoot == "" {
-			tmpRoot = filepath.Join(m.configDir, "tmp")
-		}
-		sessionRoot := filepath.Join(tmpRoot, id)
+		sessionRoot := filepath.Join(m.tmpRoot(), id)
 		// G703: Path traversal via taint analysis.
 		// sessionRoot is derived from managed ID.
 		rmErr = os.RemoveAll(sessionRoot)
@@ -382,15 +493,62 @@ func (m *Manager) Remove(id string) error {
 	return errors.Join(errs...)
 }
 
-// Shutdown terminates all managed sessions, used when Kankuro exits.
-func (m *Manager) Shutdown() {
+// RunningCount reports how many sessions are running or waiting, so a caller
+// can announce a Shutdown before it blocks.
+func (m *Manager) RunningCount() int {
 	m.mu.RLock()
-	ids := make([]string, 0, len(m.sessions))
-	for id := range m.sessions {
-		ids = append(ids, id)
+	defer m.mu.RUnlock()
+	n := 0
+	for _, s := range m.sessions {
+		if s.Status != StatusTerminated {
+			n++
+		}
 	}
-	m.mu.RUnlock()
-	for _, id := range ids {
-		_ = m.Kill(id)
+	return n
+}
+
+// Shutdown terminates all managed sessions, waits for activations that were
+// already in flight to finish (each notices the shutdown at its final check,
+// kills the process it just spawned and removes a new session's tmp copy), and
+// stops the watchers. It returns only once no process it could still be
+// responsible for is running and no watcher can write to disk any more. It is
+// idempotent. It returns how many sessions were running or waiting when it
+// started.
+//
+// An activation that passed its final check before closed was set is already
+// Running; Shutdown collects its live list in the same critical section that
+// sets closed, so it kills that session like any other.
+//
+// Sessions are killed concurrently: each Kill may spend a grace period on a
+// graceful stop, and doing them one after another would multiply it by the
+// session count. Kill comes before the watchers are stopped, so each record is
+// persisted as Terminated by Kill itself; the watchers then exit on m.stop
+// without their redundant final persist. One consequence: a watcher no longer
+// records ExitCode after a Shutdown kill - for a killed process that is just
+// the signal, so nothing is lost.
+//
+// Sessions already Terminated are left alone: their record is current, and
+// rewriting every historic record on each quit would be pure churn.
+func (m *Manager) Shutdown() int {
+	m.mu.Lock()
+	m.closed = true
+	var live []string
+	for id, s := range m.sessions {
+		if s.Status != StatusTerminated {
+			live = append(live, id)
+		}
 	}
+	m.mu.Unlock()
+
+	var wg sync.WaitGroup
+	for _, id := range live {
+		wg.Go(func() { _ = m.Kill(id) })
+	}
+	wg.Wait()
+
+	m.activations.Wait()
+
+	m.stopOnce.Do(func() { close(m.stop) })
+	m.watchers.Wait()
+	return len(live)
 }
