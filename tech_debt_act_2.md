@@ -263,7 +263,20 @@ The card is now fixed and guarded
 row by measured width with a `+N` summary, the info and face boxes are capped
 with `MaxWidth`, puppet art is clipped rather than wrapped, and a sweep renders
 eight skill sets and an oversized puppet at every width from `CardListMinWidth`
-to 160. No other view has that coverage.
+to 160. The other views now have the same kind of sweep; see Status below.
+
+### Status
+
+Written (`impl_plan_2.md`): shape tests for the session list, the session
+preview, the dashboard, the card editor and the three modals, on a shared
+`internal/ui/uitest` package; `assertIntactCard` now uses it. The sweeps found 12
+layout bugs. One is fixed: the sessions list's built-in help line was wider than
+its pane on 80- and 120-column terminals and made the pane grow two rows, so the
+list no longer shows it (`SetShowHelp(false)`). The other 11 are skipped tests that
+fail against the current code (three-bug limit); the list is in `impl_plan_2.md`,
+"Found, not fixed". The ones to look at first: the card editor is taller than a
+24-row terminal with default settings, the AGENTS.md modal wraps once any text row
+fills its text area, and the footer is a fixed 150 columns.
 
 ### What to test
 

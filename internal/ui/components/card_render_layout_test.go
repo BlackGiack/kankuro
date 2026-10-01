@@ -9,6 +9,7 @@ import (
 
 	"kankuro/internal/config"
 	"kankuro/internal/ui/components"
+	"kankuro/internal/ui/uitest"
 )
 
 // renderedCardHeight is the line count of a correctly laid-out card: the face
@@ -45,18 +46,7 @@ func cardWithSkills(names []string) (config.IDCard, []config.Skill) {
 // face box's art spilling onto new lines at the left edge.
 func assertIntactCard(t *testing.T, out, label string) {
 	t.Helper()
-	lines := strings.Split(out, "\n")
-	if len(lines) != renderedCardHeight {
-		t.Errorf("%s: %d lines, want %d:\n%s", label, len(lines), renderedCardHeight, ansi.Strip(out))
-		return
-	}
-	want := ansi.StringWidth(lines[0])
-	for i, l := range lines {
-		if got := ansi.StringWidth(l); got != want {
-			t.Errorf("%s: line %d is %d wide, want %d:\n%s", label, i, got, want, ansi.Strip(out))
-			return
-		}
-	}
+	uitest.AssertExactRect(t, out, ansi.StringWidth(strings.SplitN(out, "\n", 2)[0]), renderedCardHeight, label)
 }
 
 // assertSinglePillRow fails if the capability pills spill past their one row.

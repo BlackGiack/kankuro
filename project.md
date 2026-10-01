@@ -281,10 +281,22 @@ to reproduce a user's bug is fine; writing to it is not.
 - `collectMsgs` (two copies: `session_warning_test.go` and
   `refresh_cadence_internal_test.go`) unwraps `tea.BatchMsg` only; commands built with
   `tea.Sequence` come back opaque.
-- Rendering tests: `components/card_render_layout_test.go` sweeps widths and asserts
-  every line has the same width, the line count is exact, and content stays in its
-  region. Its helpers (`assertIntactCard`, `assertSinglePillRow`, `builtinPuppets`,
-  `cardWithSkills`) are the pattern for other views.
+- Rendering tests: `internal/ui/uitest` holds the shape assertions and adversarial
+  fixtures (a normal package, imported only from `_test` files). Every view or
+  component has a layout test with its contract written in a header comment, and the
+  contract is one of two kinds. **Exact**: every line is exactly `W` columns and there
+  are exactly `H` lines (`AssertExactRect`) — anything bordered or placed into a fixed
+  box, such as the dashboard body, `lipgloss.Place` overlays, the card. **Bounded**: no
+  line wider than `W`, at most `H` lines (`AssertWithin`) — unpadded components such as
+  `SessionList`, `SessionPreview` and `CardEditor`, whose parent pads them. Add a
+  region check (`uitest.Region`) wherever the layout has fixed regions, since a
+  rectangle can survive a spill. **Test a component's own output, not only after its
+  parent's clamp**: `Dashboard.renderPreviewPane` clamps the preview, so a preview
+  that only fits because of that clamp would pass a dashboard test. Files:
+  `components/card_render_layout_test.go`, `session_list_layout_test.go`,
+  `session_preview_layout_test.go`, `views/dashboard_layout_test.go`,
+  `card_editor_layout_test.go`, `modals_layout_test.go`. Known layout bugs found this
+  way are `t.Skip("bug: ...")` tests listed in `impl_plan_2.md` "Found, not fixed".
 - **Make sure each new test can fail.** Remove the fix, run the test, watch it fail, put
   the fix back. The recurring problem in past work was tests that passed with the bug
   still present.

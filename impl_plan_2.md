@@ -214,13 +214,92 @@ Assert that the editor's `View()` while the modal is open has the editor's exact
 
 ## Done when
 
-- [ ] `internal/ui/uitest` exists; `assertIntactCard` uses it and the card sweep is still green, and still red with fitting reverted.
-- [ ] Layout tests exist for the session list, session preview, dashboard, card editor and the three modals, each with its contract written at the top.
-- [ ] Each new test file has been seen to fail at least once (bug found, or fix reverted). Write down which in the test's comment.
-- [ ] Bugs found are fixed, or skipped with a reason and listed below.
-- [ ] `project.md` §7 and `tech_debt_act_2.md` §5 updated.
-- [ ] All five gates clean.
+- [x] `internal/ui/uitest` exists; `assertIntactCard` uses it and the card sweep is still green, and still red with fitting reverted.
+- [x] Layout tests exist for the session list, session preview, dashboard, card editor and the three modals, each with its contract written at the top.
+- [x] Each new test file has been seen to fail at least once (bug found, or fix reverted). Write down which in the test's comment.
+- [x] Bugs found are fixed, or skipped with a reason and listed below.
+- [x] `project.md` §7 and `tech_debt_act_2.md` §5 updated.
+- [x] All five gates clean.
 
 ## Found, not fixed
 
-_(fill in during the session if the three-bug limit is hit)_
+The sweeps found 12 distinct layout bugs, well past the three-bug limit. Review
+asked for #1 to be fixed anyway - it is one line, it is the bug users hit first, and
+while it was open it hid the whole 80-90 column band from the dashboard sweep - so
+that one is **fixed**. The other 11 each have a test that currently fails and is marked
+`t.Skip("bug: ...")` with the number below; remove the Skip line when fixing.
+Where a sweep would otherwise be red for a known cause, it excludes exactly that
+cause (a tab-free name set, a minimum height) and says so in the test's header
+comment.
+
+Ordered by how likely a user is to hit it:
+
+1. **FIXED - the sessions list's help line was wider than the list**
+   (`TestSessionListFitsEveryWidth`). bubbles' help is rendered with 2 columns of
+   left padding that `Help.Width` does not account for, and at some widths was not
+   truncated at all (list widths 17-20, 26-28, 35-36, and below 17 when empty). The
+   sessions pane word-wrapped it and grew two rows, on a stock 80- and 120-column
+   terminal. `NewSessionList` now calls `SetShowHelp(false)`: the dashboard footer
+   already lists the keys, and the list's help advertised `q quit`. The regression
+   test sweeps every list width from 10 to 80; the dashboard sweep and search-state
+   test now cover 80 columns with sessions present.
+2. **User text is truncated by byte** (`TestSessionListDescriptionIsValidUTF8`,
+   `TestCardEditorAgentsMDSummaryIsValidUTF8`). `SessionListItem.Description` slices
+   the working dir, and `renderAgentsMDRow` slices the AGENTS.md content and path, at a
+   byte offset, so CJK or emoji text is cut in the middle of a rune and invalid
+   UTF-8 reaches the terminal. `truncateToVisibleWidth` in `session_preview.go` already
+   does it right.
+3. **The dashboard footer is a fixed 150 columns** (`TestDashboardFooterFitsWidth`),
+   so it is cut off on any terminal narrower than that.
+4. **Tabs in names** (`TestSessionListNameWithTabsFitsWidth`): lipgloss expands a tab
+   to four spaces after the list delegate has truncated the title, so the row ends up
+   wider than the list.
+5. **No behaviour below 80 columns** (`TestDashboardBelowMinimumWidth`). `SetSize`
+   forces the cards pane to 46 columns and takes the difference from the preview,
+   whose width goes negative below about 62 columns; from 62 to 79 the render grows a
+   row. There is no "terminal too small" screen. The tests treat 80x24 as the smallest
+   supported terminal, which is an assumption of this plan, not a documented
+   requirement.
+6. **Opening the delete modal shrinks the screen by four rows**
+   (`TestDashboardDeleteModalFillsTheScreen`): `renderWithOverlay` places the modal in
+   `d.Height`, which is the terminal rows minus `heightAdjustment`.
+7. **A long search query wraps the pane title** (`TestDashboardLongSearchQueryFits`):
+   the `Search: ...` / `Filter: ...` line is not truncated, so the dashboard grows by
+   two to four rows. The plan expected the search line to add a row; in fact it replaces
+   a blank spacer, and the test asserts the size does not change. It starts early on
+   a narrow terminal: at 80 columns a 9-character query already wraps in the sessions
+   pane (the dashboard search test uses a 4-character no-match query for that reason).
+8. **The card editor overflows on small terminals** (`TestCardEditorFitsSmallTerminal`).
+   The capability lists are floored at `minCapListHeight`, so below 34 rows with the
+   default settings (Personas and MCPs both on) the form is taller than its box and the
+   help line is cut off. At 24 rows the editor is 30 lines tall in a 20-line box.
+9. **Card editor lines are not clipped** (`TestCardEditorLongLinesAreClipped`): the
+   Workspace and Puppet lines and the capability list labels are written out as is, so
+   a long name widens the line past the editor.
+10. **The workspace picker is not placed** (`TestWorkspacePickerModalHasTheEditorsSize`):
+    `CardEditor.View` returns it bare, at two thirds of the width, top-left, while the
+    other two modals are centred in the full size.
+11. **The puppet selector's width comes from the art**
+    (`TestPuppetSelectorModalClipsUserPuppets`): all puppets sit side by side in one
+    row and the modal has no `SetSize`, so one wide user puppet makes it wider than the
+    terminal and `Place` cannot pad it down. The built-in puppets fit.
+12. **The AGENTS.md editor modal** (`TestAgentsMDEditorModalWrapsLongLines`,
+    `TestAgentsMDEditorModalHonoursItsWidth`, `TestAgentsMDEditorModalFitsSmallTerminal`):
+    the text area is 80% of the screen plus its marker, wider than the box's inner
+    width. The box comes out 6 columns wider than declared, and any text row that fills
+    the area wraps, doubling the modal's height. Separately the modal is 22 rows tall at
+    the 80x24 minimum.
+
+Also noted, not a bug: the session list is bounded rather than exact, and the
+dashboard header and footer are not padded to the width, so "the whole render is an
+exact rectangle" in step 4 holds only for the body (rows 2 to h+2). The tests assert
+that and pin the total to `h + 4` lines.
+
+## Outcome
+
+Landed (and the one-line fix for #1): `internal/ui/uitest` (`AssertExactRect`, `AssertWithin`, `Region`,
+`AdversarialNames`, `NamesWithoutTabs`, `UserPuppet`), `assertIntactCard` rebuilt on it,
+and layout tests `session_list_layout_test.go`, `session_preview_layout_test.go`,
+`dashboard_layout_test.go`, `card_editor_layout_test.go`, `modals_layout_test.go`. Each
+has its contract in a header comment and lists how it was seen to fail. `components`
+and `views` take about 5-6 s each.

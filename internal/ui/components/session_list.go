@@ -78,6 +78,11 @@ func NewSessionList(callbacks SessionListCallbacks) *SessionList {
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
+	// The bubbles help line ("↑/k up • … • q quit") is wider than a narrow
+	// sessions pane at several widths (it is padded by 2 columns that
+	// Help.Width ignores), which made the pane wrap it and grow two rows. The
+	// dashboard footer already lists the keys, and "q quit" is the dashboard's.
+	l.SetShowHelp(false)
 
 	return &SessionList{
 		list:           l,
