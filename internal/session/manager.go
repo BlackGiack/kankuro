@@ -61,6 +61,12 @@ type Session struct {
 	// It lets goroutines started by a previous activation detect that they
 	// are stale and stop touching the session.
 	generation uint64
+	// activating is set, under m.mu, by Relaunch/SwitchAgent between passing
+	// the "must be terminated" guard and activateSessionLocked (or failure).
+	// It is what makes that guard exclusive: the unlocked middle of an
+	// activation (workspace sync, Spawn) is long, and Status stays
+	// Terminated throughout it.
+	activating bool
 }
 
 type AttachHandle struct {

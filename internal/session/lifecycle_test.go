@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -412,15 +413,15 @@ func TestSetNamePropagatesPersistFailure(t *testing.T) {
 	defer sm.Kill(sid)
 	time.Sleep(100 * time.Millisecond)
 
-	// The session file already exists from the Launch persist above, so
-	// restricting the *directory* would not block a write to an
-	// already-open, already-writable file. Strip write permission from the
-	// file itself instead.
-	sessionFile := filepath.Join(repo.Dir(), "sessions", sid+".json")
-	if errChmod := os.Chmod(sessionFile, 0o400); errChmod != nil {
+	// Session records are written with temp-file + rename, which replaces the
+	// target regardless of its own mode - so making the file read-only no
+	// longer blocks a write. Strip write permission from the *directory*
+	// instead: creating the temp file there is what fails.
+	sessionsDir := filepath.Join(repo.Dir(), "sessions")
+	if errChmod := os.Chmod(sessionsDir, 0o500); errChmod != nil {
 		t.Fatalf("chmod: %v", errChmod)
 	}
-	defer os.Chmod(sessionFile, 0o600)
+	defer os.Chmod(sessionsDir, 0o700)
 
 	if errSet := sm.SetName(sid, "new-name"); errSet == nil {
 		t.Fatalf("expected SetName to surface the persist failure")
@@ -508,4 +509,368 @@ func TestRemoveOnlyDeletesTerminatedSessions(t *testing.T) {
 			t.Fatalf("expected session to be removed")
 		}
 	}
+}
+
+// gateDriver is a fake driver whose Spawn and Kill can block on channels the
+// test controls, so tests can hold a Relaunch/SwitchAgent/Kill in its
+// unlocked phase and interleave other calls deterministically (no sleeps).
+type gateDriver struct {
+	spawns *atomic.Int32
+
+	// spawnEntered (buffered) is signalled once Spawn is running; Spawn then
+	// blocks until spawnGate is closed. A nil channel disables that step.
+	spawnEntered chan struct{}
+	spawnGate    chan struct{}
+	spawnErr     error
+
+	// killEntered/killGate do the same for Kill.
+	killEntered chan struct{}
+	killGate    chan struct{}
+
+	mu         sync.Mutex
+	output     chan []byte
+	done       chan struct{}
+	terminated atomic.Bool
+}
+
+func (d *gateDriver) Spawn(_ driver.AgentConfig) (*driver.SessionHandle, error) {
+	d.spawns.Add(1)
+	if d.spawnEntered != nil {
+		d.spawnEntered <- struct{}{}
+	}
+	if d.spawnGate != nil {
+		<-d.spawnGate
+	}
+	if d.spawnErr != nil {
+		return nil, d.spawnErr
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.output = make(chan []byte)
+	d.done = make(chan struct{})
+	return &driver.SessionHandle{Output: d.output, Done: d.done}, nil
+}
+
+func (d *gateDriver) Kill() error {
+	if d.killEntered != nil {
+		d.killEntered <- struct{}{}
+	}
+	if d.killGate != nil {
+		<-d.killGate
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.terminated.CompareAndSwap(false, true) && d.output != nil {
+		close(d.output)
+		close(d.done)
+	}
+	return nil
+}
+
+func (d *gateDriver) SetAgentsMD(_ config.IDCard, _ []config.Persona, _ []config.MCPServer, _ string, _ bool) error {
+	return nil
+}
+func (d *gateDriver) SetSkills(_ []config.Skill, _ ...string) error      { return nil }
+func (d *gateDriver) SetPersonas(_ []config.Persona, _ ...string) error  { return nil }
+func (d *gateDriver) SelectMCPs(_ []config.MCPServer, _ ...string) error { return nil }
+func (d *gateDriver) SetModel(_ string) []string                         { return nil }
+func (d *gateDriver) SendInput(_ string) error                           { return nil }
+func (d *gateDriver) SendInputBytes(_ []byte) (int, error)               { return 0, nil }
+func (d *gateDriver) GetAgentFolder() string                             { return ".agents" }
+
+func (d *gateDriver) GetStatus() driver.SessionStatus {
+	if d.terminated.Load() {
+		return driver.StatusTerminated
+	}
+	return driver.StatusRunning
+}
+
+// gateHarness builds a Manager whose driver registry hands out gateDrivers.
+// setup is called for the n-th driver constructed (0 = the one used by the
+// initial Launch), letting a test gate individual activations.
+type gateHarness struct {
+	sm       *session.Manager
+	repoDir  string
+	card     config.IDCard
+	spawns   *atomic.Int32
+	driverMu sync.Mutex
+	made     int
+}
+
+func newGateHarness(t *testing.T, useTmp bool, setup func(n int, d *gateDriver)) *gateHarness {
+	t.Helper()
+	root := t.TempDir()
+	if useTmp {
+		t.Setenv("KANKURO_TMP_DIR", filepath.Join(root, "tmp"))
+	}
+	repo, _ := config.NewFileRepository(filepath.Join(root, "config"))
+	wd := filepath.Join(root, "ws")
+	if err := os.MkdirAll(wd, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
+	workspaces, _ := repo.ListWorkspaces()
+
+	h := &gateHarness{repoDir: repo.Dir(), spawns: &atomic.Int32{}}
+	reg := driver.NewRegistry()
+	reg.Register("gate", func() driver.AgentDriver {
+		h.driverMu.Lock()
+		n := h.made
+		h.made++
+		h.driverMu.Unlock()
+		d := &gateDriver{spawns: h.spawns}
+		if setup != nil {
+			setup(n, d)
+		}
+		return d
+	})
+	h.sm = session.NewManager(repo.Dir(), repo, session.WithDriverRegistry(reg))
+	h.card = config.IDCard{
+		ID:              "card-gate",
+		Name:            "gate",
+		Driver:          "gate",
+		WorkspaceID:     workspaces[0].ID,
+		UseTmpWorkspace: useTmp,
+	}
+	return h
+}
+
+// launchTerminated launches a session and leaves it Terminated.
+func (h *gateHarness) launchTerminated(t *testing.T) string {
+	t.Helper()
+	sid, err := h.sm.Launch(h.card, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+	if errKill := h.sm.Kill(sid); errKill != nil {
+		t.Fatalf("kill: %v", errKill)
+	}
+	return sid
+}
+
+func waitSignal(t *testing.T, ch <-chan struct{}, what string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for %s", what)
+	}
+}
+
+func waitErr(t *testing.T, ch <-chan error, what string) error {
+	t.Helper()
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for %s", what)
+		return nil
+	}
+}
+
+// gateSecondSpawn gates the second driver's Spawn (the first relaunch).
+func gateSecondSpawn(entered chan struct{}, gate chan struct{}) func(int, *gateDriver) {
+	return func(n int, d *gateDriver) {
+		if n == 1 {
+			d.spawnEntered, d.spawnGate = entered, gate
+		}
+	}
+}
+
+// TestConcurrentRelaunchStartsOnce: while one Relaunch is in its unlocked
+// phase (status still Terminated), a second must be rejected, not spawn again.
+func TestConcurrentRelaunchStartsOnce(t *testing.T) {
+	entered, gate := make(chan struct{}, 1), make(chan struct{})
+	h := newGateHarness(t, false, gateSecondSpawn(entered, gate))
+	sid := h.launchTerminated(t)
+
+	first := make(chan error, 1)
+	go func() { first <- h.sm.Relaunch(sid, h.card, nil, nil, nil) }()
+	waitSignal(t, entered, "first Relaunch to enter Spawn")
+
+	if err := h.sm.Relaunch(sid, h.card, nil, nil, nil); err == nil {
+		t.Fatal("second Relaunch during an in-flight Relaunch must be rejected")
+	}
+
+	close(gate)
+	if err := waitErr(t, first, "first Relaunch"); err != nil {
+		t.Fatalf("first Relaunch: %v", err)
+	}
+	if got := h.spawns.Load(); got != 2 { // the initial Launch + one Relaunch
+		t.Fatalf("expected exactly 2 spawns (Launch + one Relaunch), got %d", got)
+	}
+	s, _ := h.sm.GetSession(sid)
+	if s.Status != session.StatusRunning {
+		t.Fatalf("expected Running, got %s", s.Status)
+	}
+	_ = h.sm.Kill(sid)
+}
+
+// TestSwitchAgentDuringRelaunchRejected: same guard, entered via SwitchAgent.
+func TestSwitchAgentDuringRelaunchRejected(t *testing.T) {
+	entered, gate := make(chan struct{}, 1), make(chan struct{})
+	h := newGateHarness(t, false, gateSecondSpawn(entered, gate))
+	sid := h.launchTerminated(t)
+
+	first := make(chan error, 1)
+	go func() { first <- h.sm.Relaunch(sid, h.card, nil, nil, nil) }()
+	waitSignal(t, entered, "Relaunch to enter Spawn")
+
+	if err := h.sm.SwitchAgent(sid, h.card, nil, nil, nil); err == nil {
+		t.Fatal("SwitchAgent during an in-flight Relaunch must be rejected")
+	}
+
+	close(gate)
+	if err := waitErr(t, first, "Relaunch"); err != nil {
+		t.Fatalf("Relaunch: %v", err)
+	}
+	if got := h.spawns.Load(); got != 2 {
+		t.Fatalf("expected exactly 2 spawns, got %d", got)
+	}
+	_ = h.sm.Kill(sid)
+}
+
+// TestFailedRelaunchReleasesReservation: a Relaunch that fails before the
+// session activates must not leave it permanently "being started".
+func TestFailedRelaunchReleasesReservation(t *testing.T) {
+	errSpawn := errors.New("spawn failed")
+	h := newGateHarness(t, false, func(n int, d *gateDriver) {
+		if n == 1 {
+			d.spawnErr = errSpawn
+		}
+	})
+	sid := h.launchTerminated(t)
+
+	if err := h.sm.Relaunch(sid, h.card, nil, nil, nil); !errors.Is(err, errSpawn) {
+		t.Fatalf("expected spawn error, got %v", err)
+	}
+	if err := h.sm.Relaunch(sid, h.card, nil, nil, nil); err != nil {
+		t.Fatalf("Relaunch after a failed one must succeed, got %v", err)
+	}
+	_ = h.sm.Kill(sid)
+}
+
+// TestFailedSwitchAgentReleasesReservation: same for SwitchAgent's early
+// returns, here a Spawn failure.
+func TestFailedSwitchAgentReleasesReservation(t *testing.T) {
+	errSpawn := errors.New("spawn failed")
+	h := newGateHarness(t, false, func(n int, d *gateDriver) {
+		if n == 1 {
+			d.spawnErr = errSpawn
+		}
+	})
+	sid := h.launchTerminated(t)
+
+	if err := h.sm.SwitchAgent(sid, h.card, nil, nil, nil); !errors.Is(err, errSpawn) {
+		t.Fatalf("expected spawn error, got %v", err)
+	}
+	if err := h.sm.SwitchAgent(sid, h.card, nil, nil, nil); err != nil {
+		t.Fatalf("SwitchAgent after a failed one must succeed, got %v", err)
+	}
+	_ = h.sm.Kill(sid)
+}
+
+// TestRemoveDuringRelaunchRejected: a relaunching session is still Terminated,
+// but Remove must not delete the tmp workspace that is being synced into.
+func TestRemoveDuringRelaunchRejected(t *testing.T) {
+	entered, gate := make(chan struct{}, 1), make(chan struct{})
+	h := newGateHarness(t, true, gateSecondSpawn(entered, gate))
+	sid := h.launchTerminated(t)
+	s, _ := h.sm.GetSession(sid)
+	tmpWD := s.WorkingDir
+	if _, err := os.Stat(tmpWD); err != nil {
+		t.Fatalf("tmp workspace should exist: %v", err)
+	}
+
+	first := make(chan error, 1)
+	go func() { first <- h.sm.Relaunch(sid, h.card, nil, nil, nil) }()
+	waitSignal(t, entered, "Relaunch to enter Spawn")
+
+	if err := h.sm.Remove(sid); err == nil {
+		t.Fatal("Remove during an in-flight Relaunch must be rejected")
+	}
+	if _, err := os.Stat(tmpWD); err != nil {
+		t.Fatalf("tmp workspace must survive the rejected Remove: %v", err)
+	}
+	if _, ok := h.sm.GetSession(sid); !ok {
+		t.Fatal("session must still be registered")
+	}
+
+	close(gate)
+	if err := waitErr(t, first, "Relaunch"); err != nil {
+		t.Fatalf("Relaunch: %v", err)
+	}
+	_ = h.sm.Kill(sid)
+}
+
+// TestKillAfterRemoveDoesNotResurrectRecord: Kill released the lock around the
+// (slow) driver Kill; if the session was removed meanwhile, Kill must not
+// persist it and re-create the record Remove just deleted.
+func TestKillAfterRemoveDoesNotResurrectRecord(t *testing.T) {
+	entered, gate := make(chan struct{}, 1), make(chan struct{})
+	h := newGateHarness(t, false, func(n int, d *gateDriver) {
+		if n == 0 {
+			d.killEntered, d.killGate = entered, gate
+		}
+	})
+	sid, err := h.sm.Launch(h.card, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+
+	killed := make(chan error, 1)
+	go func() { killed <- h.sm.Kill(sid) }()
+	waitSignal(t, entered, "Kill to enter the driver")
+
+	// Simulate the process exiting on its own while Kill is still blocked.
+	h.sm.SetStatusForTest(sid, session.StatusTerminated)
+	if errRemove := h.sm.Remove(sid); errRemove != nil {
+		t.Fatalf("remove: %v", errRemove)
+	}
+
+	close(gate)
+	if errKill := waitErr(t, killed, "Kill"); errKill != nil {
+		t.Fatalf("kill: %v", errKill)
+	}
+
+	record := filepath.Join(h.repoDir, "sessions", sid+".json")
+	if _, errStat := os.Stat(record); !errors.Is(errStat, os.ErrNotExist) {
+		t.Fatalf("Kill resurrected the removed session's record (stat err: %v)", errStat)
+	}
+}
+
+// TestKillDuringRelaunchDoesNotTerminateNewActivation: a Kill that is still
+// tearing down the old process must not mark the relaunched session dead.
+func TestKillDuringRelaunchDoesNotTerminateNewActivation(t *testing.T) {
+	entered, gate := make(chan struct{}, 1), make(chan struct{})
+	h := newGateHarness(t, false, func(n int, d *gateDriver) {
+		if n == 0 {
+			d.killEntered, d.killGate = entered, gate
+		}
+	})
+	sid, err := h.sm.Launch(h.card, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+
+	killed := make(chan error, 1)
+	go func() { killed <- h.sm.Kill(sid) }()
+	waitSignal(t, entered, "Kill to enter the driver")
+
+	// The old process exits, then the user relaunches before Kill returns.
+	h.sm.SetStatusForTest(sid, session.StatusTerminated)
+	if errRelaunch := h.sm.Relaunch(sid, h.card, nil, nil, nil); errRelaunch != nil {
+		t.Fatalf("relaunch: %v", errRelaunch)
+	}
+
+	close(gate)
+	if errKill := waitErr(t, killed, "Kill"); errKill != nil {
+		t.Fatalf("kill: %v", errKill)
+	}
+
+	s, _ := h.sm.GetSession(sid)
+	if s.Status == session.StatusTerminated {
+		t.Fatal("the stale Kill marked the new activation Terminated")
+	}
+	_ = h.sm.Kill(sid)
 }

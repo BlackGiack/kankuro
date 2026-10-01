@@ -72,6 +72,7 @@ internal/
     driver.go                #   GenericCLIDriver (.agents/, AGENTS.md) and ClaudeCodeDriver (.claude/, CLAUDE.md);
                              #   Spawn, Kill, SendInputBytes, skill/persona/MCP file sync, IsPromptLike
     registry.go factory.go   #   name → driver constructor ("claude" built in; unknown names get the generic driver)
+  fsutil/                    # WriteFileAtomic: temp file + fsync + rename, shared by config and session
   session/                   # process lifecycle and persistence
     manager.go               #   Manager, Session/Snapshot types and their mapping functions
     lifecycle.go             #   Launch, Relaunch, SwitchAgent, Kill, Remove, persistence calls
@@ -178,8 +179,9 @@ tmp/<session-id>/                                # temporary workspace copies (o
 ```
 
 - Every YAML write goes through `WriteAtomic` under the repository mutex.
-- Session JSON is written with a plain `os.WriteFile` — not atomic yet
-  (`tech_debt_act_2.md` §1).
+- Session JSON goes through the same `fsutil.WriteFileAtomic` as config, under the
+  manager mutex. A crash leaves a `.<id>.json.<rand>.tmp` at worst, which the
+  `*.json` glob in `loadSessions` ignores.
 - Loading a session always marks it `terminated`: a process cannot survive a restart.
 - The debug log (`--debug`) goes to `os.UserCacheDir()/kankuro/kankuro.log`. Without
   `--debug`, the session package's logger discards output — **never write to stdout or
@@ -326,7 +328,7 @@ to reproduce a user's bug is fine; writing to it is not.
 |---|---|
 | Add a new agent CLI | `internal/driver/driver.go` (embed `GenericCLIDriver`, override only what differs — agent folder, instruction file name, model flag), register it in `driver/registry.go` |
 | Change what gets written into a session's workspace | `driver.go` (`SetAgentsMD`, `SetSkills`, `SetPersonas`, `SelectMCPs` → `.kankuro/mcp-servers.json`), `session/lifecycle.go` `syncDriverFiles` (which also clears generated skills/personas from temporary workspaces on each launch) |
-| Change session lifecycle or status detection | `session/lifecycle.go`, `session/watch.go`, `session/io.go`, `driver.IsPromptLike`; mind the generation counter |
+| Change session lifecycle or status detection | `session/lifecycle.go`, `session/watch.go`, `session/io.go`, `driver.IsPromptLike`; mind the generation counter **and the `activating` reservation** |
 | Change attach / detach / keyboard handling during attach | `app/attach.go` |
 | Add a field to ID cards | `config/types.go`, `config/validation.go`; if the form edits it, `views/card_editor.go` (`SetCard`, `Card`, `focusTargetTable`); invariant 5 |
 | Add a new config registry or source type | `config/repository.go` (interfaces, filename), a new `config/*.go`, `Update*Sources`, `Fingerprint`'s file list in `config/storage.go` |
@@ -342,11 +344,7 @@ to reproduce a user's bug is fine; writing to it is not.
 
 ## 11. Known quirks / pitfalls (check before "fixing")
 
-- **Session records aren't written atomically**, unlike config (`tech_debt_act_2.md` §1).
 - **`navigateTo` clears the error banner** — see invariant 4.
-- **`Manager.Kill` reads `s.Driver` after releasing the lock**, and `Relaunch` /
-  `SwitchAgent` check status after releasing it. Latent only because the UI issues one
-  action at a time.
 - **`mcp_form.go` addresses its inputs as `f.inputs[0]` … `f.inputs[6]`**; a swapped
   index writes one field into another. The card editor uses named constants — copy that.
 - **Key/value fields in the MCP form** use `,` as the separator with `\` escaping
