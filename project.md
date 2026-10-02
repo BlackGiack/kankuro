@@ -87,6 +87,7 @@ internal/
     components/              #   reusable pieces: card_list, session_list, session_preview, capability_list,
                              #   source_list, modal, filter (generic search), renderer (puppets)
     component/ styles/       #   base component type; the colour palette (see crow_puppet_theme.md)
+  testenv/                   # test-only: private TMPDIR root + leak guard for TestMain (session, app)
   ascii/                     # canvas and built-in puppet/face art (cat, darth, default, kankuro, strawhat, totoro)
 ```
 
@@ -132,7 +133,16 @@ codebase — see invariant 1 in §6.
 2. **Attach** (`app/attach.go`): Bubble Tea releases the terminal, the scrollback is
    replayed, stdin goes to the agent. **Ctrl+K** detaches, both as the legacy byte and
    as a Kitty keyboard-protocol sequence.
-3. **Kill / termination**: status becomes `terminated`; the record stays on disk.
+3. **Kill / termination**: SIGTERM to the agent's process group, then SIGKILL after 2 s
+   if anything in the group is still alive (`GenericCLIDriver.Kill`) — the leader or a
+   descendant that ignores SIGTERM. Status becomes `terminated`; the record stays on disk.
+   **Quit**: every running session is terminated this way before kankuro exits —
+   `main.go` calls `Manager.Shutdown` after `p.Run()` returns, whatever it returned, and
+   turns SIGHUP (closing the terminal window) into a normal quit. `Shutdown` kills the
+   sessions in parallel, waits for launches/relaunches/switches already in flight (each
+   kills its own just-spawned process and removes a new session's tmp copy; this is the
+   `Manager.activations` WaitGroup), stops the watchers, and refuses later activations
+   (`ErrManagerClosed`).
 4. **Relaunch / switch agent**: a terminated session restarts in the *same* workspace,
    with the same card or a different one. Each activation bumps a generation counter so
    goroutines left over from the previous run stop touching the session.
@@ -273,6 +283,18 @@ to reproduce a user's bug is fine; writing to it is not.
 - `internal/session` tests use `t.TempDir()` and real short-lived processes (`cat`) as
   agents; they include deliberate sleeps past the 2-second watch interval, which is why
   that package takes about 10 seconds.
+- **Tests that launch sessions must build the manager with `newTestManager`** (in each
+  package's `main_test.go`; `app` has a second copy in `helpers_internal_test.go`), never
+  `session.NewManager` directly. It registers a `Shutdown` cleanup, so the manager's watcher
+  goroutines stop before `t.TempDir()` is removed — a watcher that outlives its test
+  recreates `<tempdir>/sessions/` to write a record, and nobody cleans that up.
+  `internal/testenv` (called from both `TestMain`s) redirects `TMPDIR` and
+  `KANKURO_TMP_DIR` into a private root, and after the run waits 3 s (longer than the
+  watch interval) and fails the package if anything is left in that root. That costs
+  about 3 s per package. The root is always removed, so even a failure never leaks into the
+  real `/tmp`.
+- `internal/driver` kill tests run real `sh` scripts in a PTY and register a cleanup that
+  SIGKILLs the process group, so a failing test does not leave `sleep 1000` running.
 - The coordinator is tested by driving it: `app.NewCoordinator(repo, sm)`, then
   `coord.Update(msg)`, then inspect `coord.View()`, `coord.CurrentView()`,
   `coord.Views()`. Go through `Update` rather than calling a callback directly —
@@ -340,7 +362,7 @@ to reproduce a user's bug is fine; writing to it is not.
 |---|---|
 | Add a new agent CLI | `internal/driver/driver.go` (embed `GenericCLIDriver`, override only what differs — agent folder, instruction file name, model flag), register it in `driver/registry.go` |
 | Change what gets written into a session's workspace | `driver.go` (`SetAgentsMD`, `SetSkills`, `SetPersonas`, `SelectMCPs` → `.kankuro/mcp-servers.json`), `session/lifecycle.go` `syncDriverFiles` (which also clears generated skills/personas from temporary workspaces on each launch) |
-| Change session lifecycle or status detection | `session/lifecycle.go`, `session/watch.go`, `session/io.go`, `driver.IsPromptLike`; mind the generation counter **and the `activating` reservation** |
+| Change session lifecycle or status detection | `session/lifecycle.go`, `session/watch.go`, `session/io.go`, `driver.IsPromptLike`; mind the generation counter **and the `activating` reservation**; goroutines that can write to disk must be stoppable by `Shutdown` (see `Manager.stop` / `startWatchLocked`) |
 | Change attach / detach / keyboard handling during attach | `app/attach.go` |
 | Add a field to ID cards | `config/types.go`, `config/validation.go`; if the form edits it, `views/card_editor.go` (`SetCard`, `Card`, `focusTargetTable`); invariant 5 |
 | Add a new config registry or source type | `config/repository.go` (interfaces, filename), a new `config/*.go`, `Update*Sources`, `Fingerprint`'s file list in `config/storage.go` |
@@ -368,6 +390,10 @@ to reproduce a user's bug is fine; writing to it is not.
   the card is narrow — deliberate, so the row never wraps.
 - **The agent-switch search matches the concatenation `Name Driver Model`**, so a query
   spanning two fields matches too.
+- **`Kill` (and so quit) only reaches the agent's process group.** A descendant that starts
+  its own session or process group (a daemonising tool, a job-control shell) survives it.
+  `Pdeathsig` is no fix: it fires when the spawning OS *thread* exits, which in Go can
+  happen at any time.
 - **The `commands` package and `app/wiring.go` are gone.** Older documents still mention
   them; they were dead code.
 

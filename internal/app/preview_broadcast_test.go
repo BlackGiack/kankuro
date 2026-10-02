@@ -10,7 +10,6 @@ import (
 
 	"kankuro/internal/app"
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
 )
@@ -30,7 +29,7 @@ import (
 // fixes matter independently - see debt_impl_plan_4.md step 2b, point 4.
 func TestPartialPreviewBroadcastDoesNotWipeCardEditor(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
@@ -95,7 +94,7 @@ func TestTransientSkillsReadFailureDoesNotWipeCardEditor(t *testing.T) {
 	if errRepo != nil {
 		t.Fatalf("new repo: %v", errRepo)
 	}
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
@@ -156,7 +155,7 @@ func TestTransientSkillsReadFailureDoesNotWipeCardEditor(t *testing.T) {
 // must not be reachable from a partial preview update either.
 func TestPartialPreviewBroadcastDoesNotEmptyAgentSwitchCardList(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
@@ -223,7 +222,7 @@ func TestTransientCardsReadFailureDoesNotEmptyAgentSwitchCardList(t *testing.T) 
 	if errRepo != nil {
 		t.Fatalf("new repo: %v", errRepo)
 	}
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
@@ -301,7 +300,7 @@ func TestTransientCardsReadFailureDoesNotEmptyAgentSwitchCardList(t *testing.T) 
 // navigateTo.
 func TestWaitForOutputNilChannelIsSafe(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})

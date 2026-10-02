@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 )
 
 // TestLoadSessionsSkipsCorruptButReportsError exercises loadSessions
@@ -20,7 +19,7 @@ func TestLoadSessionsSkipsCorruptButReportsError(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-corrupt",
 		Name:        "corrupt",
@@ -41,7 +40,7 @@ func TestLoadSessionsSkipsCorruptButReportsError(t *testing.T) {
 		t.Fatalf("write corrupt file: %v", errWrite)
 	}
 
-	sm2 := session.NewManager(repo.Dir(), repo)
+	sm2 := newTestManager(t, repo.Dir(), repo)
 
 	loadErr := sm2.LoadErrors()
 	if loadErr == nil {
@@ -68,7 +67,7 @@ func TestSaveSessionIsAtomic(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{ID: "card-atomic", Name: "atomic", Driver: "cat", WorkspaceID: workspaces[0].ID}
 	sid, err := sm.Launch(card, nil, nil, nil)
 	if err != nil {
@@ -109,7 +108,7 @@ func TestLoadSessionsIgnoresLeftoverTempFiles(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{ID: "card-leftover", Name: "leftover", Driver: "cat", WorkspaceID: workspaces[0].ID}
 	sid, err := sm.Launch(card, nil, nil, nil)
 	if err != nil {
@@ -124,7 +123,7 @@ func TestLoadSessionsIgnoresLeftoverTempFiles(t *testing.T) {
 		t.Fatalf("write leftover: %v", errWrite)
 	}
 
-	sm2 := session.NewManager(repo.Dir(), repo)
+	sm2 := newTestManager(t, repo.Dir(), repo)
 	if loadErr := sm2.LoadErrors(); loadErr != nil {
 		t.Fatalf("leftover temp file must be ignored, got load error: %v", loadErr)
 	}

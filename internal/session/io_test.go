@@ -3,7 +3,6 @@ package session_test
 import (
 	"bytes"
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"testing"
 	"time"
 )
@@ -14,7 +13,7 @@ func TestSessionPendingLineCapped(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-pending",
 		Name:        "pending",

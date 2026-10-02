@@ -41,6 +41,7 @@ An active or persisted instance of an ID Card.
     * **Temporary:** Clones the original workspace into a disposable folder (via `KANKURO_TMP_DIR` or `~/.config/kankuro/tmp/`). Changes made by the agent are isolated from the original source but persist across session relaunches.
 * **Detachment:** Users can "detach" from a session terminal using a global hotkey (e.g., `Ctrl+K`) to return to the dashboard without stopping the agent.
 * **Switch:** Users can switch ID cards keeping the same session.
+* **Quitting:** Quitting KANKURO (`q`, `Ctrl+C`, SIGTERM, or closing the terminal) kills every running session: its process group gets SIGTERM, then SIGKILL after 2 seconds. The session records stay on disk, so the sessions can be relaunched next time.
 
 ### 1.3 The Waiting status
 

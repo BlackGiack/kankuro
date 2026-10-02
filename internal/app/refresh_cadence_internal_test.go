@@ -17,7 +17,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"kankuro/internal/ui/messages"
 )
 
@@ -48,7 +47,7 @@ func newCountingCoordinator(t *testing.T) (*Coordinator, *countingRepo, *config.
 		t.Fatalf("new repo: %v", err)
 	}
 	repo := &countingRepo{Repository: base}
-	sm := session.NewManager(base.Dir(), base)
+	sm := newTestManager(t, base.Dir(), base)
 	return NewCoordinator(repo, sm), repo, base
 }
 
@@ -181,7 +180,7 @@ func TestResolveCapabilitiesPreservesRegistryOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
-	sm := session.NewManager(base.Dir(), base)
+	sm := newTestManager(t, base.Dir(), base)
 	c := NewCoordinator(base, sm)
 
 	// Upsert out of name order; ListSkills always returns them sorted by
@@ -226,7 +225,7 @@ func TestResolveCapabilitiesAbortsOnRegistryReadError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
-	sm := session.NewManager(base.Dir(), base)
+	sm := newTestManager(t, base.Dir(), base)
 	c := NewCoordinator(base, sm)
 
 	skillsPath := filepath.Join(base.Dir(), config.SkillsFilename)
@@ -327,7 +326,7 @@ func TestLaunchCardAbortsOnRegistryReadError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
-	sm := session.NewManager(base.Dir(), base)
+	sm := newTestManager(t, base.Dir(), base)
 	c := NewCoordinator(base, sm)
 
 	wd := t.TempDir()
@@ -392,7 +391,7 @@ func TestResolveCardSurfacesListCardsErrorNotNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
-	sm := session.NewManager(base.Dir(), base)
+	sm := newTestManager(t, base.Dir(), base)
 	c := NewCoordinator(base, sm)
 
 	idCardsPath := filepath.Join(base.Dir(), config.IDCardsFilename)

@@ -297,7 +297,7 @@ func newPersistFailureFixture(t *testing.T) (config.Repository, *session.Manager
 	if errRepo != nil {
 		t.Fatalf("new repo: %v", errRepo)
 	}
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	sessionsDir := filepath.Join(repo.Dir(), "sessions")
 	return repo, sm, sessionsDir
 }

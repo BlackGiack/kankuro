@@ -326,6 +326,35 @@ Two things the card fix taught that apply to all of them:
 
 ---
 
+## Found during Act 2 — fixed by plan 2.2
+
+Two problems with one root (the session manager had no way to stop what it
+started), found while checking what the test suite leaves behind:
+
+- **Tests littered `/tmp`.** Each `Manager.watch` goroutine only returned on a
+  dead process or a stale generation; after a test's `Kill` its next tick
+  re-persisted the record, and when the test's `t.TempDir()` was already gone,
+  `saveSession`'s `MkdirAll` recreated `<tempdir>/001/sessions/`. About 30
+  directories per `go test ./...`. Fixed: `Manager.Shutdown` closes a stop
+  channel and waits for the watchers, activations after it return
+  `ErrManagerClosed`, every test manager is built with `newTestManager` (which
+  shuts it down), and `internal/testenv` fails a package that leaves anything
+  in its private temp root.
+- **Quitting the app did not kill the agents.** `q` returned from `run()`
+  without `Shutdown`; agents died only by accident, from the SIGHUP of the
+  closing PTY, and anything ignoring SIGHUP (or a child it started) survived,
+  orphaned. `Kill` was a bare SIGKILL to the direct child. Fixed: `Kill` sends
+  SIGTERM to the process group, SIGKILL after a 2 s grace if anything in the
+  group (not just the leader) is still alive; `Shutdown` kills in parallel and
+  waits for launches already in flight; `main.go` shuts down after `p.Run()` on every path and turns
+  SIGHUP into a quit. Known limit: descendants that start their own session or
+  process group still survive.
+
+Possible follow-up, not done: a "N sessions are running, quit anyway?"
+confirmation on the dashboard's `q`.
+
+---
+
 ## Suggested order
 
 1. **Session atomic writes (§1)** — small, contained, and it closes the last

@@ -7,13 +7,12 @@ import (
 
 	"kankuro/internal/app"
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"kankuro/internal/ui/messages"
 )
 
 func TestCoordinator_NavigationKeys(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	coord := app.NewCoordinator(repo, sm)
 	coord.Init()

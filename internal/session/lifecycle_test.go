@@ -70,7 +70,7 @@ func TestSessionLaunchAndKill(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-1",
 		Name:        "echo",
@@ -118,7 +118,7 @@ func TestKillIsIdempotent(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-kill-twice",
 		Name:        "kill-twice",
@@ -169,7 +169,7 @@ func TestKillPersistsTerminatedDespiteDriverError(t *testing.T) {
 	reg := driver.NewRegistry()
 	reg.Register("stub-kill-fail", func() driver.AgentDriver { return stub })
 
-	sm := session.NewManager(repo.Dir(), repo, session.WithDriverRegistry(reg))
+	sm := newTestManager(t, repo.Dir(), repo, session.WithDriverRegistry(reg))
 	card := config.IDCard{
 		ID:          "card-kill-fail",
 		Name:        "kill-fail",
@@ -238,7 +238,7 @@ func TestLaunchWrapsErrPersistFailedButSessionStaysUsable(t *testing.T) {
 	}
 	defer os.Chmod(sessionsDir, 0o700)
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-persist-fail",
 		Name:        "persist-fail",
@@ -277,7 +277,7 @@ func TestSessionSwitchAgent(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card1 := config.IDCard{
 		ID:          "card-1",
 		Name:        "alpha",
@@ -338,7 +338,7 @@ func TestSessionSwitchAgentPreservesCustomName(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card1 := config.IDCard{
 		ID:          "card-1",
 		Name:        "alpha",
@@ -398,7 +398,7 @@ func TestSetNamePropagatesPersistFailure(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-setname-fail",
 		Name:        "setname-fail",
@@ -439,7 +439,7 @@ func TestRemoveIsBenignForMissingSessionFile(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-remove-missing",
 		Name:        "remove-missing",
@@ -478,7 +478,7 @@ func TestRemoveOnlyDeletesTerminatedSessions(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-3",
 		Name:        "remove",
@@ -526,6 +526,8 @@ type gateDriver struct {
 	// killEntered/killGate do the same for Kill.
 	killEntered chan struct{}
 	killGate    chan struct{}
+	// killDelay makes Kill take that long, like a graceful stop would.
+	killDelay time.Duration
 
 	mu         sync.Mutex
 	output     chan []byte
@@ -558,6 +560,7 @@ func (d *gateDriver) Kill() error {
 	if d.killGate != nil {
 		<-d.killGate
 	}
+	time.Sleep(d.killDelay)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.terminated.CompareAndSwap(false, true) && d.output != nil {
@@ -624,7 +627,7 @@ func newGateHarness(t *testing.T, useTmp bool, setup func(n int, d *gateDriver))
 		}
 		return d
 	})
-	h.sm = session.NewManager(repo.Dir(), repo, session.WithDriverRegistry(reg))
+	h.sm = newTestManager(t, repo.Dir(), repo, session.WithDriverRegistry(reg))
 	h.card = config.IDCard{
 		ID:              "card-gate",
 		Name:            "gate",

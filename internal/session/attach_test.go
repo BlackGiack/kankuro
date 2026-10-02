@@ -2,7 +2,6 @@ package session_test
 
 import (
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"sync"
 	"testing"
 	"time"
@@ -14,7 +13,7 @@ func TestSessionAttachReplay(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-attach",
 		Name:        "attach",
@@ -62,7 +61,7 @@ func TestAttachInputSurvivesConcurrentKill(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-attach-kill-race",
 		Name:        "attach-kill-race",
@@ -108,7 +107,7 @@ func TestSessionOutputBroadcasting(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-broadcast",
 		Name:        "broadcast",

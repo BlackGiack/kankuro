@@ -3,25 +3,28 @@ package app_test
 import (
 	"os"
 	"testing"
+
+	"kankuro/internal/session"
+	"kankuro/internal/testenv"
 )
 
-// TestMain points KANKURO_TMP_DIR at a throwaway directory for the whole
-// package. Tests that launch with UseTmpWorkspace otherwise inherit the
-// developer's KANKURO_TMP_DIR from the shell and leave a workspace copy in
-// their real tmp root on every run. A test may still override it with
-// t.Setenv.
+// TestMain runs the package inside testenv's private temp root: TMPDIR and
+// KANKURO_TMP_DIR point into it, so nothing reaches the developer's real
+// directories, and the package fails if a test leaves anything behind - which
+// is what a manager without a Shutdown cleanup does (see newTestManager). A
+// test may still override KANKURO_TMP_DIR with t.Setenv.
 func TestMain(m *testing.M) {
-	os.Exit(runWithTmpDir(m))
+	os.Exit(testenv.Run(m, "app"))
 }
 
-func runWithTmpDir(m *testing.M) int {
-	dir, err := os.MkdirTemp("", "kankuro-app-test-")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(dir)
-	if err = os.Setenv("KANKURO_TMP_DIR", dir); err != nil {
-		panic(err)
-	}
-	return m.Run()
+// newTestManager is session.NewManager plus a Cleanup that shuts it down.
+// t.Cleanup runs last-in-first-out, so as long as the config dir's
+// t.TempDir() was created *before* this call - always the case when the
+// manager is built from it - Shutdown runs before that dir is removed, and no
+// watcher can write into it afterwards.
+func newTestManager(t testing.TB, configDir string, repo session.WorkspaceReader) *session.Manager {
+	t.Helper()
+	sm := session.NewManager(configDir, repo)
+	t.Cleanup(func() { sm.Shutdown() })
+	return sm
 }

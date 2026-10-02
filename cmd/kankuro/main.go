@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -71,12 +73,49 @@ func run(registry driver.Registry) error {
 	}
 
 	p := tea.NewProgram(application)
-	if _, err = p.Run(); err != nil {
-		sm.Shutdown()
-		return fmt.Errorf("runtime error: %w", err)
-	}
 
+	// Bubble Tea catches SIGINT (Run returns ErrInterrupted) and SIGTERM (it
+	// becomes a QuitMsg) but not SIGHUP, which is what closing the terminal
+	// window sends. Go's default action for SIGHUP would end kankuro on the
+	// spot, before any cleanup, so turn it into a normal quit. If the terminal
+	// is really gone, Run may return a write error instead of nil; the
+	// shutdown below runs either way.
+	hup := make(chan os.Signal, 1)
+	signal.Notify(hup, syscall.SIGHUP)
+	defer signal.Stop(hup)
+	go func() {
+		<-hup // blocks until SIGHUP; the process exits long before it matters otherwise
+		p.Quit()
+	}()
+
+	_, runErr := p.Run()
+
+	// Every exit path - q, ctrl+c, SIGINT, SIGTERM, SIGHUP, a runtime error -
+	// ends up here, and running agents must not outlive kankuro. Plain
+	// sequential code, not a defer, so the order is visible: the TUI is gone,
+	// then the agents are stopped, then the error (if any) is returned.
+	//
+	// Bubble Tea has released the terminal by now, so one line to stderr is
+	// safe here and only here; the "never write to stdout/stderr" rule is
+	// about the TUI being live. Do not copy this into app code. While this
+	// waits, Bubble Tea no longer handles signals, so a second ctrl+c or
+	// SIGTERM gets Go's default action and exits at once - an acceptable
+	// "force quit".
+	stopSessions(sm)
+
+	if runErr != nil {
+		return fmt.Errorf("runtime error: %w", runErr)
+	}
 	return nil
+}
+
+// stopSessions kills every running session, announcing it on stderr when
+// there is anything to wait for. See the caller for why stderr is allowed.
+func stopSessions(sm *session.Manager) {
+	if n := sm.RunningCount(); n > 0 {
+		fmt.Fprintf(os.Stderr, "kankuro: stopping %d running session(s)…\n", n)
+	}
+	sm.Shutdown()
 }
 
 // logDir resolves the directory where debug logs are written.

@@ -117,6 +117,28 @@ type Manager struct {
 	drivers   driver.Registry
 	loadErr   error
 	logger    *slog.Logger
+
+	// stop is closed by Shutdown to make every watch goroutine return without
+	// a final tick; watchers counts them so Shutdown can wait. closed (under
+	// mu) refuses new activations once Shutdown has started, so no watcher can
+	// be added after the Wait begins.
+	//
+	// Only watch is tied to these: it is the one per-activation goroutine that
+	// writes to disk. trackOutput touches only memory (scrollback and
+	// subscribers) and ends when the driver closes its output channel, so it
+	// needs no such handle - do not add one for symmetry.
+	//
+	// activations counts Launch/Relaunch/SwitchAgent calls in progress, from
+	// the moment they pass the !closed check (under mu, with the Add in the
+	// same critical section) until they return. Shutdown waits for them: an
+	// activation is mostly unlocked work (workspace copy, Spawn), and one that
+	// notices closed only afterwards must still get to kill its own process
+	// and remove its tmp copy before the app exits.
+	stop        chan struct{}
+	stopOnce    sync.Once
+	watchers    sync.WaitGroup
+	activations sync.WaitGroup
+	closed      bool
 }
 
 // Option configures the Manager.
@@ -149,6 +171,7 @@ func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager
 		repo:      repo,
 		drivers:   driver.NewBuiltinRegistry(), // default builtin registry
 		logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		stop:      make(chan struct{}),
 	}
 	for _, opt := range opts {
 		opt(m)

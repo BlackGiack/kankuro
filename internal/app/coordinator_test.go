@@ -12,12 +12,11 @@ import (
 
 	"kankuro/internal/app"
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 )
 
 func TestCoordinator_New(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	coord := app.NewCoordinator(repo, sm)
 
@@ -36,7 +35,7 @@ func TestCoordinator_New(t *testing.T) {
 
 func TestCoordinator_Navigate(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
@@ -53,7 +52,7 @@ func TestCoordinator_Navigate(t *testing.T) {
 
 func TestCoordinator_ResizeAll(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
@@ -73,7 +72,7 @@ func TestCoordinator_ResizeAll(t *testing.T) {
 
 func TestApp_BackwardsCompatibility(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	app, err := app.New(repo, sm)
 	if err != nil {
@@ -110,7 +109,7 @@ func TestApp_BackwardsCompatibility(t *testing.T) {
 // alone (before any Update) emits the disable sequence.
 func TestInitDisablesKittyProtocolAtStartup(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 
 	coord := app.NewCoordinator(repo, sm)
 	cmd := coord.Init()

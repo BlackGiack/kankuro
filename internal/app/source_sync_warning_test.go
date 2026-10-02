@@ -7,7 +7,6 @@ import (
 
 	"kankuro/internal/app"
 	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"kankuro/internal/ui/messages"
 	"kankuro/internal/ui/views"
 )
@@ -22,7 +21,7 @@ func TestSaveSimpleSourceSurfacesSyncFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	coord := app.NewCoordinator(repo, sm)
 	coord.Init()
 

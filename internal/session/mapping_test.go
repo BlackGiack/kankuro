@@ -50,7 +50,7 @@ func TestSessionRoundTripSurvivesPersistence(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	sm := session.NewManager(repo.Dir(), repo)
+	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{
 		ID:          "card-roundtrip",
 		Name:        "roundtrip",
@@ -75,7 +75,7 @@ func TestSessionRoundTripSurvivesPersistence(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Reload through a fresh Manager to exercise Data.restore().
-	sm2 := session.NewManager(repo.Dir(), repo)
+	sm2 := newTestManager(t, repo.Dir(), repo)
 	if errLoad := sm2.LoadErrors(); errLoad != nil {
 		t.Fatalf("unexpected load error: %v", errLoad)
 	}
