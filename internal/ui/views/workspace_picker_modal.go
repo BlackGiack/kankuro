@@ -13,13 +13,11 @@ import (
 // WorkspacePickerModal allows selecting a workspace.
 type WorkspacePickerModal struct {
 	component.Base
+	components.ModalState
 
 	list        list.Model
 	workspaces  []config.Workspace
 	selectedID  string
-	confirmed   bool
-	cancelled   bool
-	open        bool
 	searchQuery string
 	modalWidth  int
 	modalHeight int
@@ -116,22 +114,10 @@ func (m *WorkspacePickerModal) SelectedID() string {
 }
 
 func (m *WorkspacePickerModal) Open() {
-	m.open = true
-	m.confirmed = false
-	m.cancelled = false
+	m.ModalState.Open()
 	// Reset transient state to ensure clean state on reopen
 	m.resetTransientState()
 }
-
-func (m *WorkspacePickerModal) Close() {
-	m.open = false
-	m.confirmed = false
-	m.cancelled = false
-}
-
-func (m *WorkspacePickerModal) IsOpen() bool    { return m.open }
-func (m *WorkspacePickerModal) Confirmed() bool { return m.confirmed }
-func (m *WorkspacePickerModal) Cancelled() bool { return m.cancelled }
 
 func (m *WorkspacePickerModal) Init() tea.Cmd { return nil }
 
@@ -151,7 +137,7 @@ func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.Code {
 		case tea.KeyEnter:
-			m.confirmed = true
+			m.Confirm()
 			// Save the currently selected workspace before resetting state
 			m.selectedID = m.SelectedID()
 			// Reset transient state before closing to prepare for next open
@@ -163,7 +149,7 @@ func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 				m.refreshItems()
 				return m, nil
 			}
-			m.cancelled = true
+			m.Cancel()
 			// Reset transient state before closing to prepare for next open
 			m.resetTransientState()
 			return m, nil

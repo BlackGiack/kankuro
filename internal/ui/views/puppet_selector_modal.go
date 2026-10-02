@@ -8,19 +8,16 @@ import (
 	"kankuro/internal/ascii/characters"
 	"kankuro/internal/config"
 	"kankuro/internal/ui/component"
+	"kankuro/internal/ui/components"
 )
-
-// TODO use modal component
 
 // PuppetSelectorModal allows selecting a puppet style.
 type PuppetSelectorModal struct {
 	component.Base
+	components.ModalState
 
-	puppets   []config.Puppet
-	cursor    int
-	confirmed bool
-	cancelled bool
-	open      bool
+	puppets []config.Puppet
+	cursor  int
 }
 
 // NewPuppetSelectorModal creates a new puppet selector.
@@ -75,12 +72,6 @@ func (m *PuppetSelectorModal) Selected() string {
 	return defaultPuppetStyle
 }
 
-func (m *PuppetSelectorModal) Open()           { m.open = true; m.confirmed = false; m.cancelled = false }
-func (m *PuppetSelectorModal) Close()          { m.open = false; m.confirmed = false; m.cancelled = false }
-func (m *PuppetSelectorModal) IsOpen() bool    { return m.open }
-func (m *PuppetSelectorModal) Confirmed() bool { return m.confirmed }
-func (m *PuppetSelectorModal) Cancelled() bool { return m.cancelled }
-
 func (m *PuppetSelectorModal) Init() tea.Cmd { return nil }
 
 func (m *PuppetSelectorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
@@ -99,9 +90,9 @@ func (m *PuppetSelectorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 				m.cursor = 0
 			}
 		case tea.KeyEnter:
-			m.confirmed = true
+			m.Confirm()
 		case tea.KeyEsc:
-			m.cancelled = true
+			m.Cancel()
 		default:
 			return m, nil
 		}

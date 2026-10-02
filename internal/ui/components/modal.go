@@ -7,14 +7,44 @@ import (
 	"kankuro/internal/ui/component"
 )
 
+// ModalState is the open/confirmed/cancelled bookkeeping shared by every
+// modal. Embed it (by value) in a modal type to get Open, Close, IsOpen,
+// Confirmed and Cancelled; call Confirm/Cancel from the modal's Update. A
+// modal that needs extra work on open defines its own Open and calls
+// ModalState.Open from it, otherwise a stale confirm/cancel survives a reopen.
+type ModalState struct {
+	open, confirmed, cancelled bool
+}
+
+// Open shows the modal and clears any previous confirm/cancel.
+func (s *ModalState) Open() { s.open = true; s.confirmed = false; s.cancelled = false }
+
+// Close hides the modal and clears any confirm/cancel.
+func (s *ModalState) Close() { s.open = false; s.confirmed = false; s.cancelled = false }
+
+// IsOpen returns whether the modal is currently visible.
+func (s *ModalState) IsOpen() bool { return s.open }
+
+// Confirmed returns whether the user confirmed since the modal was opened.
+func (s *ModalState) Confirmed() bool { return s.confirmed }
+
+// Cancelled returns whether the user cancelled since the modal was opened.
+func (s *ModalState) Cancelled() bool { return s.cancelled }
+
+// Confirm records a confirmation. It does not close the modal.
+func (s *ModalState) Confirm() { s.confirmed = true }
+
+// Cancel records a cancellation. It does not close the modal.
+func (s *ModalState) Cancel() { s.cancelled = true }
+
 // Modal is a reusable overlay component for dialogs.
 type Modal struct {
 	component.Base
+	ModalState
 
 	title      string
 	content    string
 	legend     string
-	open       bool
 	modalWidth int
 }
 
@@ -22,7 +52,6 @@ type Modal struct {
 func NewModal(title string) *Modal {
 	return &Modal{
 		title:      title,
-		open:       false,
 		modalWidth: 40, //nolint:mnd // responsive sizing
 	}
 }
@@ -43,21 +72,6 @@ func (m *Modal) SetLegend(legend string) {
 	m.legend = legend
 }
 
-// Open makes the modal visible.
-func (m *Modal) Open() {
-	m.open = true
-}
-
-// Close hides the modal.
-func (m *Modal) Close() {
-	m.open = false
-}
-
-// IsOpen returns whether modal is currently visible.
-func (m *Modal) IsOpen() bool {
-	return m.open
-}
-
 // Init implements component.Model.
 func (m *Modal) Init() tea.Cmd {
 	return nil
@@ -72,7 +86,7 @@ func (m *Modal) Update(_ tea.Msg) (component.Model, tea.Cmd) {
 
 // View renders the modal overlay.
 func (m *Modal) View() string {
-	if !m.open {
+	if !m.IsOpen() {
 		return ""
 	}
 

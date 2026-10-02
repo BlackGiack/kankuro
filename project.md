@@ -83,7 +83,7 @@ internal/
   ui/
     messages/messages.go     #   every tea.Msg the app exchanges — read this before adding one
     views/                   #   full screens: dashboard, card_editor, mcp_form, source_manager, settings,
-                             #   session_launcher, agent_switch, and three modals
+                             #   session_launcher, agent_switch, and three modals (each embeds components.ModalState)
     components/              #   reusable pieces: card_list, session_list, session_preview, capability_list,
                              #   source_list, modal, filter (generic search), renderer (puppets)
     component/ styles/       #   base component type; the colour palette (see crow_puppet_theme.md)
@@ -379,8 +379,6 @@ to reproduce a user's bug is fine; writing to it is not.
 ## 11. Known quirks / pitfalls (check before "fixing")
 
 - **`navigateTo` clears the error banner** — see invariant 4.
-- **`mcp_form.go` addresses its inputs as `f.inputs[0]` … `f.inputs[6]`**; a swapped
-  index writes one field into another. The card editor uses named constants — copy that.
 - **Key/value fields in the MCP form** use `,` as the separator with `\` escaping
   (`\,`, `\\`); keys containing `=` and surrounding whitespace in values do not
   round-trip (neither can occur in env or header names).

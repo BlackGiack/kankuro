@@ -212,6 +212,9 @@ the driver and generation under the lock, then act on the captured values.
 
 ### 3c. `mcp_form.go` indexes its inputs by literal position
 
+**Status: done in plan 3.** Named `mcp*Idx` constants plus `mcpFieldTable()`; drift
+test `TestMCPFieldTableMatchesConstants`, round-trip test `TestMCPFormRoundTripsEveryField`.
+
 `internal/ui/views/mcp_form.go` (~23 `f.inputs[N]` accesses, e.g. `SetMCP` at `:95-101`)
 
 The same disease Plan 6 cured in the card editor: seven text inputs addressed as
@@ -224,6 +227,9 @@ the URL, say — and neither the compiler nor the current tests would notice.
 slice. The card editor's `TestInputIndexConstantsMatchTargets` is the template.
 
 ## 4. Duplicated modal boilerplate [low]
+
+**Status: done in plan 3.** `components.ModalState` carries open/confirmed/cancelled;
+`components.Modal` and the three modals embed it, and the `TODO use modal component` is gone.
 
 `internal/ui/views/workspace_picker_modal.go:118`,
 `internal/ui/views/agentsmd_editor_modal.go:69`,

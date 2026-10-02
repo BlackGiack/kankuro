@@ -7,20 +7,19 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"kankuro/internal/ui/component"
+	"kankuro/internal/ui/components"
 	"kankuro/internal/ui/styles"
 )
 
 // AgentsMDEditorModal allows editing agents.md content or path.
 type AgentsMDEditorModal struct {
 	component.Base
+	components.ModalState
 
 	mode       int // 0 = content, 1 = path
 	editor     textarea.Model
 	pathInput  textinput.Model
 	preferPath bool
-	confirmed  bool
-	cancelled  bool
-	open       bool
 }
 
 // NewAgentsMDEditorModal creates a new agents.md editor.
@@ -66,12 +65,6 @@ func (m *AgentsMDEditorModal) State() AgentsMDState {
 	}
 }
 
-func (m *AgentsMDEditorModal) Open()           { m.open = true; m.confirmed = false; m.cancelled = false }
-func (m *AgentsMDEditorModal) Close()          { m.open = false; m.confirmed = false; m.cancelled = false }
-func (m *AgentsMDEditorModal) IsOpen() bool    { return m.open }
-func (m *AgentsMDEditorModal) Confirmed() bool { return m.confirmed }
-func (m *AgentsMDEditorModal) Cancelled() bool { return m.cancelled }
-
 func (m *AgentsMDEditorModal) Init() tea.Cmd { return nil }
 
 // SetSize implements component.Model.
@@ -92,11 +85,11 @@ func (m *AgentsMDEditorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			if m.mode == 1 { // Path mode - enter confirms
 				m.preferPath = true
-				m.confirmed = true
+				m.Confirm()
 				return m, nil
 			}
 		case tea.KeyEsc:
-			m.cancelled = true
+			m.Cancel()
 			return m, nil
 		case tea.KeyTab:
 			m.mode = 1 - m.mode
@@ -112,7 +105,7 @@ func (m *AgentsMDEditorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 
 		if keyMsg.String() == "ctrl+enter" {
 			m.preferPath = m.mode == 1
-			m.confirmed = true
+			m.Confirm()
 			return m, nil
 		}
 	}
