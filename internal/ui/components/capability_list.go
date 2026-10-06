@@ -14,8 +14,12 @@ import (
 
 const (
 	cursorCenterDivisor = 2
-	viewHeightOffset    = 2 // header and potential footer (ellipsis)
 	focusPrefix         = "> "
+	ellipsisRow         = "  ..."
+
+	// minIndicatorSlots is the smallest body that can spare two rows for the
+	// "..." indicators and still show an item.
+	minIndicatorSlots = 3
 )
 
 // CapabilityItem represents an item in a capability list.
@@ -29,6 +33,8 @@ type CapabilityItem interface {
 type CapabilityListConfig struct {
 	Title      string
 	SourceHint string // e.g., "ctrl+e=sources"
+	// MaxVisible is how many items an unsized list shows. Once the list has a
+	// height (SetSize) the height decides.
 	MaxVisible int
 }
 
@@ -199,10 +205,18 @@ func (c *CapabilityList) handleKey(keyMsg bubbletea.KeyPressMsg) {
 }
 
 // View renders the capability list.
+//
+// A list that was given a height renders exactly that many lines, with no
+// trailing newline, and every element keeps its row whatever the cursor or the
+// search does (see viewSized). An unsized list renders what its items need.
 func (c *CapabilityList) View() string {
-	var sb strings.Builder
+	if c.Height > 0 {
+		return c.viewSized()
+	}
+	return c.viewUnsized()
+}
 
-	// Header
+func (c *CapabilityList) renderHeader() string {
 	header := c.title
 	if c.sourceHint != "" {
 		header += " (" + c.sourceHint + ")"
@@ -218,55 +232,108 @@ func (c *CapabilityList) View() string {
 		header += label + query
 		header = c.fit(header, 0)
 	}
-	sb.WriteString(lipgloss.NewStyle().Foreground(styles.Gray).Render(header) + "\n")
+	return lipgloss.NewStyle().Foreground(styles.Gray).Render(header)
+}
+
+func (c *CapabilityList) renderEmpty() string {
+	text := c.fit("(no matching items)", len(focusPrefix))
+	if c.focused {
+		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(focusPrefix + text)
+	}
+	return text
+}
+
+func (c *CapabilityList) renderItem(i int, item CapabilityItem) string {
+	prefix := "  "
+	if c.focused && i == c.cursor {
+		prefix = focusPrefix
+	}
+
+	mark := " "
+	if c.IsSelected(item.GetID()) {
+		mark = "x"
+	}
+
+	// The prefix and the "[x] " box are fixed; the label gets what is left.
+	label := c.fit(item.GetLabel(), len(prefix)+len("[x] "))
+	line := fmt.Sprintf("%s[%s] %s", prefix, mark, label)
+
+	if c.focused && i == c.cursor {
+		line = lipgloss.NewStyle().Foreground(styles.HighlightColor).Render(line)
+	}
+	return line
+}
+
+// viewUnsized is the layout of a list that has no height: the header, a
+// "..." row on each cut edge and up to maxVisible items. Components that are
+// built before SetSize runs use it.
+func (c *CapabilityList) viewUnsized() string {
+	var sb strings.Builder
+	sb.WriteString(c.renderHeader() + "\n")
 
 	filtered := c.FilteredItems()
-
 	if len(filtered) == 0 {
-		text := c.fit("(no matching items)", len(focusPrefix))
-		if c.focused {
-			sb.WriteString(lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(focusPrefix + text))
-		} else {
-			sb.WriteString(text)
-		}
+		sb.WriteString(c.renderEmpty())
 		return sb.String()
 	}
 
-	// Calculate visible window
-	start, end := c.calculateWindow(len(filtered))
-
+	start, end := c.calculateWindow(len(filtered), c.maxVisible)
 	if start > 0 {
-		sb.WriteString("  ...\n")
+		sb.WriteString(ellipsisRow + "\n")
 	}
-
 	for i := start; i < end; i++ {
-		item := filtered[i]
-		prefix := "  "
-		if c.focused && i == c.cursor {
-			prefix = focusPrefix
-		}
-
-		mark := " "
-		if c.IsSelected(item.GetID()) {
-			mark = "x"
-		}
-
-		// The prefix and the "[x] " box are fixed; the label gets what is left.
-		label := c.fit(item.GetLabel(), len(prefix)+len("[x] "))
-		line := fmt.Sprintf("%s[%s] %s", prefix, mark, label)
-
-		if c.focused && i == c.cursor {
-			line = lipgloss.NewStyle().Foreground(styles.HighlightColor).Render(line)
-		}
-
-		sb.WriteString(line + "\n")
+		sb.WriteString(c.renderItem(i, filtered[i]) + "\n")
 	}
-
 	if end < len(filtered) {
-		sb.WriteString("  ...\n")
+		sb.WriteString(ellipsisRow + "\n")
+	}
+	return sb.String()
+}
+
+// viewSized renders exactly c.Height lines in a layout that does not depend on
+// the scroll position or on the search:
+//
+//	row 0   the header
+//	rows 1+ the body, Height-1 rows
+//
+// The body layout is decided from the unfiltered item count. When every item
+// fits, items start on row 1. When they do not (and the body has room for
+// them), the first and last body rows belong to the "..." indicators and are
+// blank when nothing is cut off on that side. Rows the filtered items do not
+// fill are plain empty lines.
+func (c *CapabilityList) viewSized() string {
+	lines := make([]string, c.Height)
+	lines[0] = c.renderHeader()
+
+	slots := c.Height - 1
+	if slots <= 0 {
+		return lines[0]
 	}
 
-	return sb.String()
+	itemRows, firstItem, indicators := slots, 1, false
+	if len(c.items) > slots && slots >= minIndicatorSlots {
+		itemRows, firstItem, indicators = slots-2, 2, true //nolint:mnd // one indicator row on each side
+	}
+
+	filtered := c.FilteredItems()
+	if len(filtered) == 0 {
+		lines[firstItem] = c.renderEmpty()
+		return strings.Join(lines, "\n")
+	}
+
+	start, end := c.calculateWindow(len(filtered), itemRows)
+	for i := start; i < end; i++ {
+		lines[firstItem+i-start] = c.renderItem(i, filtered[i])
+	}
+	if indicators {
+		if start > 0 {
+			lines[1] = ellipsisRow
+		}
+		if end < len(filtered) {
+			lines[c.Height-1] = ellipsisRow
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // fit makes user text safe for one line of this list and clips it to the
@@ -297,25 +364,18 @@ func (c *CapabilityList) FilteredItems() []CapabilityItem {
 	return filtered
 }
 
-// calculateWindow returns the visible window based on cursor position.
-func (c *CapabilityList) calculateWindow(total int) (int, int) {
-	half := c.maxVisible / cursorCenterDivisor // Divide by 2 to center the cursor
+// calculateWindow returns the window of rows items that keeps the cursor
+// roughly centred, as indexes into the filtered items.
+func (c *CapabilityList) calculateWindow(total, rows int) (int, int) {
+	rows = max(rows, 1)
+	half := rows / cursorCenterDivisor // Divide by 2 to center the cursor
 	start := max(c.cursor-half, 0)
 
-	end := start + c.maxVisible
+	end := start + rows
 	if end > total {
 		end = total
-		start = max(end-c.maxVisible, 0)
+		start = max(end-rows, 0)
 	}
 
 	return start, end
-}
-
-// SetSize implements component.Model.
-func (c *CapabilityList) SetSize(width, height int) {
-	c.Base.SetSize(width, height)
-	// Clamp to ensure a finite window. We subtract viewHeightOffset to
-	// account for the header and a conservative budget for at least one
-	// ellipsis ("...") line to prevent overflow.
-	c.maxVisible = max(1, height-viewHeightOffset)
 }

@@ -321,3 +321,163 @@ func TestPuppetSelectorScrollsToTheCursor(t *testing.T) {
 		}
 	}
 }
+
+// Contract (bonus_impl_plan.md, part A): the workspace picker keeps its
+// elements in place. The column of the title, of the first item, of the page
+// dots and of the legend (measured from the box's left border) and the row of
+// the legend depend on the size of the picker only - not on which page is shown
+// or on whether a search is active. Shape tests above check that the box fits;
+// these check where things are.
+//
+// Seen to fail: the list was padded to its widest line and joined centred, so
+// the list block and the legend moved sideways from page to page (columns
+// 7/4/6/2 became 5/2/4/2 and the legend 4, 5, 7, 8, 10), and the legend moved
+// down a row when a search started.
+
+// mixedWorkspaces has short paths on the first and last pages and long ones in
+// the middle, so the widest line on a page changes as it is paged through.
+func mixedWorkspaces() []config.Workspace {
+	ws := make([]config.Workspace, 40)
+	for i := range ws {
+		path := "/tmp/x"
+		if i >= 10 && i < 30 {
+			path = "/home/user/projects/" + strings.Repeat("a-rather-long-segment/", 6) + "end"
+		}
+		ws[i] = config.Workspace{ID: fmt.Sprintf("ws-%02d", i), Name: fmt.Sprintf("name-%02d", i), Path: path}
+	}
+	return ws
+}
+
+// pickerPlace is where the picker's elements sit: columns from the left border
+// (-1 when absent) and the legend's row.
+type pickerPlace struct {
+	title, item, dots, legend, legendRow int
+}
+
+func measurePicker(out string) pickerPlace {
+	p := pickerPlace{-1, -1, -1, -1, -1}
+	col := func(line, needle string) int {
+		beforeBorder, _, okBorder := strings.Cut(line, "│")
+		beforeNeedle, _, okNeedle := strings.Cut(line, needle)
+		if !okBorder || !okNeedle {
+			return -1
+		}
+		return ansi.StringWidth(beforeNeedle) - ansi.StringWidth(beforeBorder)
+	}
+	for row, line := range strings.Split(ansi.Strip(out), "\n") {
+		if c := col(line, "Select Workspace"); c >= 0 {
+			p.title = c
+		}
+		if c := col(line, "name-"); c >= 0 && p.item < 0 {
+			p.item = c
+		}
+		// The page dots are the line that holds nothing but dots.
+		if inner := strings.Trim(line, "│ "); inner != "" && strings.Trim(inner, "•") == "" {
+			p.dots = col(line, "•")
+		}
+		if c := col(line, "Enter=select"); c >= 0 {
+			p.legend, p.legendRow = c, row
+		}
+	}
+	return p
+}
+
+// pickerViews builds the picker the two ways it is shown: the modal on its own
+// and through the card editor, for terminals of 80x24 and 120x30.
+func pickerViews(t *testing.T, sz [2]int, ws []config.Workspace) map[string]struct {
+	view func() string
+	send func(tea.Msg)
+} {
+	t.Helper()
+	type pv = struct {
+		view func() string
+		send func(tea.Msg)
+	}
+	m := views.NewWorkspacePickerModal()
+	m.SetWorkspaces(ws)
+	m.SetSize(sz[0], sz[1])
+	m.Open()
+
+	e := newModalEditor(t, sz[0], sz[1], messages.DataLoadedMsg{Workspaces: ws})
+	openModal(t, e, views.FocusWorkspace)
+	return map[string]pv{
+		"modal":  {m.View, func(msg tea.Msg) { m.Update(msg) }},
+		"editor": {e.View, func(msg tea.Msg) { e.Update(msg) }},
+	}
+}
+
+var pickerTerminalSizes = [][2]int{{80, 20}, {120, 26}} //nolint:gochecknoglobals // shared test fixture
+
+// firstWorkspaceName is the name of the first item on the page.
+func firstWorkspaceName(plain string) string {
+	_, rest, _ := strings.Cut(plain, "name-")
+	return "name-" + rest[:len("00")]
+}
+
+type pickerPage struct {
+	firstName, plain string
+	place            pickerPlace
+}
+
+// pagePicker pages through the picker with → until the first page comes back
+// and returns what each page looked like.
+func pagePicker(view func() string, send func(tea.Msg)) []pickerPage {
+	var pages []pickerPage
+	seen := map[string]bool{}
+	for range 40 {
+		out := view()
+		plain := ansi.Strip(out)
+		name := firstWorkspaceName(plain)
+		if seen[name] {
+			break
+		}
+		seen[name] = true
+		pages = append(pages, pickerPage{name, plain, measurePicker(out)})
+		send(tea.KeyPressMsg{Code: tea.KeyRight})
+	}
+	return pages
+}
+
+func TestWorkspacePickerKeepsColumnsAcrossPages(t *testing.T) {
+	for _, sz := range pickerTerminalSizes {
+		for name, pv := range pickerViews(t, sz, mixedWorkspaces()) {
+			label := fmt.Sprintf("%s %dx%d", name, sz[0], sz[1])
+			pages := pagePicker(pv.view, pv.send)
+			if len(pages) < 6 {
+				t.Fatalf("%s: only %d pages, the test needs at least 6", label, len(pages))
+			}
+			first := pages[0].place
+			if first.title < 0 || first.item < 0 || first.dots < 0 || first.legend < 0 {
+				t.Fatalf("%s: an element is missing %+v:\n%s", label, first, pages[0].plain)
+			}
+			for i, page := range pages {
+				if page.place != first {
+					t.Errorf("%s page %d (%s): elements at %+v, want %+v as on page 0:\n%s",
+						label, i, page.firstName, page.place, first, page.plain)
+				}
+			}
+		}
+	}
+}
+
+func TestWorkspacePickerLegendRowIsStable(t *testing.T) {
+	for _, sz := range pickerTerminalSizes {
+		for name, pv := range pickerViews(t, sz, mixedWorkspaces()) {
+			want := measurePicker(pv.view()).legendRow
+			if want < 0 {
+				t.Fatalf("%s %dx%d: no legend:\n%s", name, sz[0], sz[1], ansi.Strip(pv.view()))
+			}
+			for _, typed := range []string{"n", "zzz"} {
+				pv.send(tea.KeyPressMsg{Code: 0, Text: typed})
+				if got := measurePicker(pv.view()).legendRow; got != want {
+					t.Errorf("%s %dx%d after typing %q: legend on row %d, want %d:\n%s",
+						name, sz[0], sz[1], typed, got, want, ansi.Strip(pv.view()))
+				}
+			}
+			pv.send(tea.KeyPressMsg{Code: tea.KeyEsc})
+			if got := measurePicker(pv.view()).legendRow; got != want {
+				t.Errorf("%s %dx%d after clearing the search: legend on row %d, want %d", name, sz[0], sz[1], got, want)
+			}
+		}
+	}
+}

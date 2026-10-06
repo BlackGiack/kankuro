@@ -6,6 +6,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"kankuro/internal/config"
@@ -318,5 +319,99 @@ func TestCardEditorFitsEveryWidth(t *testing.T) {
 			uitest.AssertWithin(t, e.View(), w, cardEditorMinRows, fmt.Sprintf("width=%d focus=%d", w, e.FocusIndex()))
 			e.CycleFocus(1)
 		}
+	}
+}
+
+// rowOf returns the first row of the plain view that starts with prefix, or -1.
+func rowOf(plain, prefix string) int {
+	for i, line := range strings.Split(plain, "\n") {
+		if strings.HasPrefix(line, prefix) {
+			return i
+		}
+	}
+	return -1
+}
+
+func typeInto(e *views.CardEditor, text string) {
+	for _, ch := range text {
+		e.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+	}
+}
+
+func pressKey(e *views.CardEditor, code rune, n int) {
+	for range n {
+		e.Update(tea.KeyPressMsg{Code: code})
+	}
+}
+
+// TestCardEditorListsKeepTheirPlace: the capability lists are stacked, so a
+// list that changes height moves everything below it. On a terminal tall
+// enough that the form does not scroll, the rows of every list header and of
+// the help line must not change when a list scrolls or is searched.
+//
+// Seen to fail: scrolling a list into its middle pushed the next header down a
+// row (both "..." rows), and a search matching 1 item or none pulled it up.
+func TestCardEditorListsKeepTheirPlace(t *testing.T) {
+	// 14 rows of fields + 3 lists of 7 rows + 2 separator rows each + the help
+	// line = 41 rows: the form fits without scrolling. (30 terminal rows would
+	// floor the lists at minCapListHeight and scroll.)
+	const terminalRows = 46
+	h := terminalRows - views.CoordinatorRows
+	e := newLayoutEditor(true, true, 0, false)
+	for _, l := range []struct {
+		name string
+		list *components.CapabilityList
+	}{{"skill", e.SkillList()}, {"persona", e.PersonaList()}, {"mcp", e.MCPList()}} {
+		items := make([]components.CapabilityItem, 20)
+		for i := range items {
+			items[i] = layoutItem{label: fmt.Sprintf("%s-%02d", l.name, i)}
+		}
+		l.list.SetItems(items)
+	}
+	e.SetSize(80, h)
+
+	places := func() [4]int {
+		plain := ansi.Strip(e.View())
+		if strings.Contains(plain, moreAbove) || strings.Contains(plain, moreBelow) {
+			t.Fatalf("the form scrolls at %d rows; pick a taller terminal:\n%s", terminalRows, plain)
+		}
+		return [4]int{rowOf(plain, "Skills ("), rowOf(plain, "Personas ("), rowOf(plain, "MCPs ("), rowOf(plain, "Enter=save")}
+	}
+	base := places()
+	for i, row := range base {
+		if row < 0 {
+			t.Fatalf("element %d is not on screen:\n%s", i, ansi.Strip(e.View()))
+		}
+	}
+
+	for _, target := range []struct {
+		name   string
+		prefix string
+	}{{"skills", "skill"}, {"personas", "persona"}} {
+		if target.name == "personas" {
+			e.CycleFocus(1)
+		} else {
+			for e.FocusIndex() != views.FocusSkills {
+				e.CycleFocus(1)
+			}
+		}
+		check := func(state string) {
+			t.Helper()
+			if got := places(); got != base {
+				t.Errorf("%s, %s: rows of [skills personas mcps help] are %v, want %v:\n%s",
+					target.name, state, got, base, ansi.Strip(e.View()))
+			}
+		}
+		pressKey(e, tea.KeyDown, 10)
+		check("cursor in the middle")
+		pressKey(e, tea.KeyDown, 10)
+		check("cursor at the bottom")
+		typeInto(e, target.prefix+"-07")
+		check("search matching 1 item")
+		pressKey(e, tea.KeyBackspace, len(target.prefix+"-07"))
+		typeInto(e, "zzz")
+		check("search matching nothing")
+		pressKey(e, tea.KeyBackspace, len("zzz"))
+		check("search cleared")
 	}
 }

@@ -21,6 +21,7 @@ type WorkspacePickerModal struct {
 	searchQuery string
 	modalWidth  int
 	modalHeight int
+	listWidth   int
 }
 
 // NewWorkspacePickerModal creates a new workspace picker.
@@ -34,11 +35,21 @@ func NewWorkspacePickerModal() *WorkspacePickerModal {
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false) // Use manual filtering
 
-	return &WorkspacePickerModal{
+	m := &WorkspacePickerModal{
 		list:        l,
 		modalWidth:  40, //nolint:mnd // responsive sizing
 		modalHeight: 30, //nolint:mnd // responsive sizing
 	}
+	m.applyListSize()
+	return m
+}
+
+// applyListSize sizes the list to fit within the box and leaves room for the
+// search row and the legend. listWidth is the width View gives the list's block.
+func (m *WorkspacePickerModal) applyListSize() {
+	m.listWidth = max(1, m.modalWidth-widthPadding*2-workspacePickerListWidthPadding)
+	listHeight := max(1, m.modalHeight-heightPadding*2-workspacePickerListHeightPadding)
+	m.list.SetSize(m.listWidth, listHeight)
 }
 
 // resetTransientState clears all transient state that should not survive between openings.
@@ -68,9 +79,7 @@ func (m *WorkspacePickerModal) rebuildList() {
 
 	// Restore the current size to preserve terminal dimensions
 	if m.modalWidth > 0 && m.modalHeight > 0 {
-		listWidth := max(1, m.modalWidth-widthPadding*2-workspacePickerListWidthPadding)
-		listHeight := max(1, m.modalHeight-heightPadding*2-workspacePickerListHeightPadding)
-		m.list.SetSize(listWidth, listHeight)
+		m.applyListSize()
 	}
 
 	// Restore selection if possible
@@ -129,10 +138,7 @@ func (m *WorkspacePickerModal) SetSize(width, height int) {
 	m.modalWidth = min(width, max(40, width*2/3)) //nolint:mnd // responsive sizing
 	m.modalHeight = height
 
-	// Adjust list size to fit within the box and leave room for help/search
-	listWidth := max(1, m.modalWidth-widthPadding*2-workspacePickerListWidthPadding)
-	listHeight := max(1, m.modalHeight-heightPadding*2-workspacePickerListHeightPadding)
-	m.list.SetSize(listWidth, listHeight)
+	m.applyListSize()
 }
 
 func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
@@ -188,21 +194,29 @@ func (m *WorkspacePickerModal) View() string {
 		help = "Enter=select • Esc=clear search • Type to search"
 	}
 
-	searchDisplay := ""
+	// The search row is always there, blank until a query is typed, so the
+	// legend's row does not depend on whether a search is active.
+	searchRow := ""
 	if m.searchQuery != "" {
-		searchDisplay = lipgloss.NewStyle().
+		searchRow = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#ADF")).
-			Render("\nSearch: " + components.TruncateTail(
+			Render("Search: " + components.TruncateTail(
 				components.DisplayText(m.searchQuery),
 				max(0, m.modalWidth-pickerBoxChrome-len("Search: ")),
 			))
 	}
 
+	// Nothing here is positioned against its neighbours' content. The list is
+	// padded to the width it was given (bubbles pads only to its widest line,
+	// which changes from page to page) and everything is joined left-aligned,
+	// so the legend is left-aligned with the list and sits at a fixed place.
 	return boxStyle.Render(
-		lipgloss.JoinVertical(lipgloss.Center,
-			m.list.View(),
-			searchDisplay,
-			"\n",
+		lipgloss.JoinVertical(lipgloss.Left,
+			lipgloss.NewStyle().Width(m.listWidth).Render(m.list.View()),
+			"",
+			searchRow,
+			"",
+			"",
 			pickerHelpStyle.Render(help),
 		),
 	)

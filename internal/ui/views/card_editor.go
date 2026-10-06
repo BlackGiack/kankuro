@@ -888,14 +888,27 @@ func (e *CardEditor) fieldBlocks() []formBlock {
 	}
 }
 
+// listBlock is a capability list followed by the blank rows that separate it
+// from what is below. A sized list renders exactly its height with no trailing
+// newline; an unsized one ends with one.
+func listBlock(focus int, l *components.CapabilityList) formBlock {
+	view := l.View()
+	if l.Height <= 0 {
+		// Only the unsized list's newline is a terminator. A sized list's last
+		// row may itself be blank and must stay.
+		view = strings.TrimSuffix(view, "\n")
+	}
+	return blockOf(focus, view+"\n\n\n")
+}
+
 // listBlocks returns one block per visible capability list.
 func (e *CardEditor) listBlocks() []formBlock {
-	blocks := []formBlock{blockOf(FocusSkills, e.skillList.View()+"\n\n")}
+	blocks := []formBlock{listBlock(FocusSkills, e.skillList)}
 	if e.settings.ShowPersonasInCardEditor {
-		blocks = append(blocks, blockOf(FocusPersonas, e.personaList.View()+"\n\n"))
+		blocks = append(blocks, listBlock(FocusPersonas, e.personaList))
 	}
 	if e.settings.ShowMCPsInCardEditor {
-		blocks = append(blocks, blockOf(FocusMCPs, e.mcpList.View()+"\n\n"))
+		blocks = append(blocks, listBlock(FocusMCPs, e.mcpList))
 	}
 	return blocks
 }
@@ -1124,9 +1137,7 @@ const (
 func (e *CardEditor) SetSize(width, height int) {
 	e.Base.SetSize(width, height)
 
-	// One row of slack: a capability list showing both of its "..." rows is
-	// one line taller than the height it is given.
-	headerHeight := 1
+	headerHeight := 0
 	for _, b := range e.fieldBlocks() {
 		headerHeight += len(b.lines)
 	}

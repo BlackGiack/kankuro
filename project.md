@@ -294,6 +294,17 @@ least once; none of them is enforced by the compiler.
    hanging past the box edge, and one extra column makes the outer border wrap the whole
    row. Clip art, don't wrap it. See `components/card_list.go` (`renderPills`,
    `clipBlock`) and its sweep test.
+   **A component that is given a size keeps its elements in place.** Where an element
+   sits (its row, and its column from the box edge) depends on the size the component was
+   given, never on what it happens to show: which page, how far it scrolled, what the
+   search matched. In practice: pad a list to the width it was given (Bubbles pads only to
+   its widest line) and join pieces `lipgloss.Left`, not `Center`; reserve the rows of
+   optional elements (the picker's search row, a capability list's `...` rows) and fill
+   them with plain empty lines. The pattern for any list-like component is
+   `TestWorkspacePickerKeepsColumnsAcrossPages` (column offsets across pages) and
+   `TestCapabilityListItemsKeepTheirRows` / `TestCardEditorListsKeepTheirPlace` (rows
+   across scroll and search). A sized `CapabilityList` renders exactly its `Height` lines
+   (no trailing newline); an unsized one keeps the old content-driven layout.
 
 ---
 
@@ -375,6 +386,10 @@ to reproduce a user's bug is fine; writing to it is not.
   these sweeps found are all fixed (`impl_plan_5.md`); a new one found this way is a
   `t.Skip("bug: ...")` test listed under "Found, not fixed" in the plan that found it. The sweeps
   use `uitest.AdversarialNames` in full (tabs included) and no longer exclude any known cause.
+- Shape tests check *fit* (the render stays in its box); the position tests above
+  (`components/capability_list_layout_test.go`, `TestWorkspacePicker…` in
+  `modals_layout_test.go`, `TestCardEditorListsKeepTheirPlace`) check *position* (elements
+  stay put as the content changes). A new list-like component needs both.
 - **Make sure each new test can fail.** Remove the fix, run the test, watch it fail, put
   the fix back. The recurring problem in past work was tests that passed with the bug
   still present.

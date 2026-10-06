@@ -370,6 +370,28 @@ confirmation on the dashboard's `q`.
 
 ---
 
+## Found after Act 2 by hand — fixed by `bonus_impl_plan.md`
+
+Two layout problems that the shape tests could not see, because every render
+still fit its box; elements *moved* when the content changed:
+
+- **Workspace picker: list and legend shifted sideways from page to page, and
+  the legend dropped a row when a search started.** The Bubbles list pads only
+  to the widest line on the page and `JoinVertical(Center)` centred every piece
+  against that. Fixed: the list is padded to its assigned width, pieces are
+  joined left-aligned (the legend is left-aligned with the list), and the search
+  row is always reserved.
+- **Capability lists in the card editor changed height while scrolling or
+  searching** (one row taller with both `...` rows, two rows with a search that
+  matched 0 or 1 item), moving everything below them. Fixed: a sized list
+  renders exactly its height in a fixed layout (indicator rows reserved from the
+  unfiltered item count), and the one-row slack in `CardEditor.SetSize` is gone.
+
+New rule in `project.md` §6 invariant 9 (position, not only fit) and new
+position tests next to the shape tests.
+
+---
+
 ## Suggested order
 
 1. **Session atomic writes (§1)** — small, contained, and it closes the last
