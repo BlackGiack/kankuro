@@ -140,6 +140,11 @@ measured write rate above, a per-write fsync is not a concern.
 
 ## 2. The coordinator is the architectural hotspot [structural]
 
+**Status: done in plan 4.** `coordinator.go` is down to ~350 lines of routing; the rest is
+`navigation.go`, `refresh.go`, `preview.go`, `session_actions.go` and `handlers.go`.
+`refresher` and `sessionActions` hold no `*Coordinator`, and `TestCommandClosuresDoNotRaceCoordinator`
+checks invariant 1 under `-race`. The text below is the original analysis.
+
 `internal/app/coordinator.go` (~815 lines, 44 functions), with
 `internal/app/callbacks.go` (~610) as its other half
 
@@ -179,6 +184,9 @@ plan owned them. Each is small; each has either already caused a bug or is the
 same shape as one that did.
 
 ### 3a. `navigateTo` clears the error banner unconditionally
+
+**Status: done in plan 4.** Navigation leaves the banner alone; `Coordinator.Update` clears it
+on the next keypress (`ClearErrorMsg` still works). `error_banner_test.go` covers it.
 
 `internal/app/coordinator.go:495-509`
 

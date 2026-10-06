@@ -201,7 +201,7 @@ func TestResolveCapabilitiesPreservesRegistryOrder(t *testing.T) {
 	// Reference them in a different order on the card.
 	card := config.IDCard{SkillIDs: []string{zeta.ID, alpha.ID, mid.ID}}
 
-	skills, _, _, err := c.resolveCapabilities(card)
+	skills, _, _, err := c.actions.resolveCapabilities(card)
 	if err != nil {
 		t.Fatalf("resolveCapabilities: %v", err)
 	}
@@ -233,7 +233,7 @@ func TestResolveCapabilitiesAbortsOnRegistryReadError(t *testing.T) {
 		t.Fatalf("corrupt skills.yaml: %v", writeErr)
 	}
 
-	_, _, _, err = c.resolveCapabilities(config.IDCard{SkillIDs: []string{"whatever"}})
+	_, _, _, err = c.actions.resolveCapabilities(config.IDCard{SkillIDs: []string{"whatever"}})
 	if err == nil {
 		t.Fatal("expected resolveCapabilities to surface the corrupt skills.yaml read error")
 	}
@@ -399,7 +399,7 @@ func TestResolveCardSurfacesListCardsErrorNotNotFound(t *testing.T) {
 		t.Fatalf("corrupt id_cards.yaml: %v", writeErr)
 	}
 
-	_, err = c.resolveCard("some-card-id")
+	_, err = c.actions.resolveCard("some-card-id")
 	if err == nil {
 		t.Fatal("expected resolveCard to surface the corrupt id_cards.yaml read error")
 	}

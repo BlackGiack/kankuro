@@ -3,7 +3,7 @@
 Read this first. It covers what the project does, how it is built, where everything
 lives, the rules the code relies on, and which files to open for a given kind of task.
 `kankuro_specs.md` describes what the product should do; this file describes how the
-code actually does it. Last reviewed: 2026-09-29 (commit `46580b4`).
+code actually does it. Last reviewed: 2026-10-02 (after Act 2 plan 4).
 
 ---
 
@@ -57,8 +57,13 @@ kankuro_skills/mcp-cli/      # the one built-in skill's source
 internal/
   app/                       # glue between the UI and everything else
     app.go                   #   tea.Model wrapper around the Coordinator
-    coordinator.go           #   ★ view routing, message dispatch, data refresh, preview subscription
-    callbacks.go             #   every view's callbacks: launch, relaunch, switch, sources, IDE, delete card
+    coordinator.go           #   ★ the Coordinator struct (fields grouped by goroutine), Update, message routing
+    handlers.go              #   coordinator-goroutine halves of refresh and preview: snapshot state, apply results to views
+    navigation.go            #   navigateTo (invariant 2 lives in its doc comment), initViews, resize, broadcast to views
+    refresh.go               #   `refresher`: config/session read commands, fingerprint check, tick. No Coordinator pointer
+    preview.go               #   `previewSub`: the live-output subscription (coordinator-goroutine state)
+    session_actions.go       #   `sessionActions`: launch, relaunch, switch, delete card/MCP, IDE, capability resolution. No Coordinator pointer
+    callbacks.go             #   wiring: every view's callbacks (the one place closures can still reach `c`)
     attach.go                #   raw-PTY attach/detach (releases Bubble Tea, forwards stdin, detects Ctrl+K)
   config/                    # YAML repository for everything the user configures
     repository.go            #   FileRepository (one mutex for all read-modify-write), interfaces, app settings
@@ -205,29 +210,52 @@ These came out of real bugs during the 2026-09 tech-debt work. Each one has bitt
 least once; none of them is enforced by the compiler.
 
 1. **No `tea.Cmd` closure touches coordinator state.** A command's closure runs on its
-   own goroutine, so it must never read or write `c.views`, `c.previewSessionID`,
-   `c.previewSubChan`, `c.currentView` or `c.err` — doing so is a concurrent map access
-   that can crash the app. `refreshData()` snapshots what it needs *before* returning its
-   closure. Code already inside a closure requests a refresh with
+   own goroutine, so it must never read or write `c.views`, `c.preview`, `c.currentView`,
+   `c.err` or `c.settings` — doing so is a concurrent map access that can crash the app.
+   The `Coordinator` struct groups its fields by which goroutine may touch them. Two
+   helper types make this hold *by construction*: `refresher` (`refresh.go`) and
+   `sessionActions` (`session_actions.go`) hold no `*Coordinator`, so a closure they build
+   can only reach the repository, the session manager and the values passed in. The
+   coordinator's thin wrappers (`refreshDataSeeded`, `launchIDE`, …) snapshot what a
+   command needs — the preview session ID, the fingerprint baseline, the IDE command —
+   *before* calling them. The risk now lives only in `callbacks.go` (closures there
+   still capture `c`) and in the few closures that capture a channel, like
+   `previewSub.next`. Code already inside a closure requests a refresh with
    `messages.DataRefreshRequestedMsg{}` (or `refreshRequestedCmd()`), never by building
-   `refreshData()` there. Check: `grep -n "c.refreshData()" internal/app/callbacks.go`
-   must be empty. **The tests do not catch a violation; the grep does.**
+   `refreshData()` there. Two checks, run both:
+   - `grep -n "c.refreshData()" internal/app/callbacks.go` must be empty, and
+     `grep -n "\bc\." internal/app/refresh.go internal/app/session_actions.go internal/app/preview.go`
+     must be empty;
+   - `go test -race -run TestCommandClosuresDoNotRaceCoordinator ./internal/app` is a
+     runtime backstop on top of the greps and the structure, not a proof. It runs the
+     commands each message returns on their own goroutines while the test goroutine writes
+     coordinator state through `Update`. It reports a read only if a write lands before the
+     test receives that closure's result, so it catches reads made early in a closure
+     (fast ones included) but can miss one made late, after other work or a delay. Its
+     can-fail check is documented in the test's header: plant
+     `if c.settings.IDECommand == "planted" {…}` in a closure wrapping `launchIDE`'s
+     command (the bug plan 4 fixed) and the test must fail. Use the value in a condition;
+     a bare `_ = c.settings.X` is a dead load the compiler can drop. It only means
+     something under `-race`; redo the check if you change the harness.
 2. **Never navigate from inside a view's `Update`.** `Coordinator.Update` writes the view
    returned by `updateCurrentView` back into `c.views[c.currentView]` *after* the view's
    `Update` returns. A callback that calls `navigateTo` during that `Update` changes
    `c.currentView` first, and the old view is then stored under the new view's key —
    this once replaced the dashboard with the agent-switch view. Navigate from a message
    handler in `handleSpecialMessages` / `handleSessionMessages`; those return early and
-   never write `c.views`.
+   never write `c.views`. The full explanation is the doc comment on `navigateTo`
+   (`navigation.go`).
 3. **`DataLoadedMsg` is always a full snapshot.** A `nil` field means "that registry could
    not be read this round — keep what you have", never "this update doesn't concern that
    field". Partial updates have their own messages (`PreviewDataMsg`,
    `SessionsRefreshedMsg`). Every `SetData` guards each field with `if msg.X != nil`.
    This matters because `CapabilityList.SelectedIDs()` only returns IDs whose items are
    currently loaded: wipe the items and saving the card silently drops its skills.
-4. **The error banner is cleared by `navigateTo`.** Never batch an `ErrorMsg` beside a
-   navigation; set `c.err` in the handler *after* navigating
-   (`tech_debt_act_2.md` §3a proposes removing this trap).
+4. **The error banner is cleared by the next keypress or `ClearErrorMsg`; navigation
+   leaves it alone.** `Coordinator.Update` clears `c.err` on any `tea.KeyPressMsg` before
+   routing it. That is safe because an error always arrives as a *later* message than the
+   keypress that caused it. So an `ErrorMsg` batched beside a `NavigateMsg` survives in
+   either delivery order (`TestErrorSurvivesNavigationInEitherOrder`).
 5. **The card editor overlays, it does not rebuild.** `CardEditor.Card()` starts from the
    card loaded by `SetCard()` and assigns only the fields the form edits, so fields the
    form doesn't show (`SystemInstruction`, `Env`, timestamps, anything added later)
@@ -300,6 +328,8 @@ to reproduce a user's bug is fine; writing to it is not.
   `coord.Views()`. Go through `Update` rather than calling a callback directly —
   calling `coord.AgentSwitchCallbacks().OnSwitch(...)` skips the write-back where
   invariant 2 breaks.
+- `command_race_internal_test.go` is the runtime check for invariant 1: it executes the
+  commands a message returns concurrently with `Update` writes, so it needs `-race`.
 - `collectMsgs` (two copies: `session_warning_test.go` and
   `refresh_cadence_internal_test.go`) unwraps `tea.BatchMsg` only; commands built with
   `tea.Sequence` come back opaque.
@@ -366,19 +396,20 @@ to reproduce a user's bug is fine; writing to it is not.
 | Change attach / detach / keyboard handling during attach | `app/attach.go` |
 | Add a field to ID cards | `config/types.go`, `config/validation.go`; if the form edits it, `views/card_editor.go` (`SetCard`, `Card`, `focusTargetTable`); invariant 5 |
 | Add a new config registry or source type | `config/repository.go` (interfaces, filename), a new `config/*.go`, `Update*Sources`, `Fingerprint`'s file list in `config/storage.go` |
-| Add a screen | `ui/views/`, register it in `coordinator.initViews`, add a `ViewType`, wire callbacks in `app/callbacks.go` |
-| Add a message | `ui/messages/messages.go`, handle it in `coordinator.go`; if it carries partial data, give it its own type (invariant 3) |
+| Add a screen | `ui/views/`, register it in `initViews` (`navigation.go`), add a `ViewType`, wire callbacks in `app/callbacks.go` |
+| Add a message | `ui/messages/messages.go`, handle it in `coordinator.go` (`handleSpecialMessages` / `handleSessionMessages`); if it carries partial data, give it its own type (invariant 3) |
 | Change how cards look | `components/card_list.go` (`RenderCardItem`), `components/renderer.go` (puppets), `styles/styles.go`; invariant 9 and the sweep test |
 | Add or change a puppet | built-in art in `internal/ascii/characters`; user puppets are `.puppet` text files found in puppet source dirs (`config/puppet_sources.go`, which also truncates oversized art on read) |
 | Change dashboard layout or keys | `views/dashboard.go`, then update the key table in §4 and in `kankuro_specs.md` |
-| Change refresh behaviour | `coordinator.go` (`refreshData`, `refreshSessions`, `maybeRefreshConfig`), `config.Fingerprint` |
+| Change refresh behaviour | `refresh.go` (the commands) and `handlers.go` (applying results), `config.Fingerprint` |
+| Add a session-level action (Phase 1 linking) | a method on `sessionActions` in `session_actions.go` that returns a `tea.Cmd` and takes any coordinator state *by value*, plus a message and a handler in `coordinator.go`; wire the trigger in `callbacks.go` |
+| Change the preview subscription | `preview.go` (`previewSub`) and `handlers.go` (`handlePreviewRequest`, `handleSessionOutput`) |
 | Pick up known debt | `tech_debt_act_2.md` |
 
 ---
 
 ## 11. Known quirks / pitfalls (check before "fixing")
 
-- **`navigateTo` clears the error banner** — see invariant 4.
 - **Key/value fields in the MCP form** use `,` as the separator with `\` escaping
   (`\,`, `\\`); keys containing `=` and surrounding whitespace in values do not
   round-trip (neither can occur in env or header names).
