@@ -14,30 +14,31 @@ import (
 	"kankuro/internal/ui/views"
 )
 
-// Contract (step 0 of impl_plan_2.md). The card editor renders a modal as a
-// REPLACEMENT for the form, never as a composite over it, so "an overflowing
-// modal corrupts the view underneath" really means "the modal is larger than
-// the screen, so lipgloss.Place passes it through unpadded and unclipped".
+// Contract (step 0 of impl_plan_2.md, reworked by impl_plan_5.md D). The card
+// editor renders a modal as a REPLACEMENT for the form, never as a composite
+// over it, so "an overflowing modal corrupts the view underneath" really means
+// "the modal is larger than the screen, so lipgloss.Place passes it through
+// unpadded and unclipped".
 //
-//   - AgentsMDEditorModal and PuppetSelectorModal go through
-//     CardEditor.renderWithOverlay = lipgloss.Place(W, H, centre, centre, modal):
-//     when the modal fits, the editor's View is EXACTLY W x H; when it does not,
-//     Place returns the modal as is, larger than W x H.
-//   - WorkspacePickerModal is returned bare: the editor's View is the modal's
-//     own size (2/3 of the width), which is neither W x H nor centred.
+// All three modals go through CardEditor.renderWithOverlay =
+// lipgloss.Place(W, H, centre, centre, modal), so the contract, asserted through
+// the editor, is EXACT: while any modal is open the editor's View is exactly
+// W x H - the screen does not jump when a modal opens. A modal larger than the
+// screen would come out larger than W x H, which is what the *StaysWithin*
+// sweeps catch (and what the user puppet, the long AGENTS.md line and the
+// 20-row editor used to do). The modals' own boxes are exact too, at the width
+// each one declares (TestWorkspacePickerModalIsAnExactBox,
+// TestAgentsMDEditorModalHonoursItsWidth).
 //
-// So the contract asserted for all three, through the editor, is BOUNDED
-// (nothing wider or taller than W x H), and the strict contract - the editor's
-// View is exactly W x H while any modal is open, i.e. the screen does not jump
-// when a modal opens - is a skipped test per modal where current code breaks it.
-//
-// Seen to fail: every skipped test below failed against current code; the
-// bounded sweeps and exact-box tests were seen red by making the workspace
-// picker's box 2 rows taller, the AGENTS.md text area 10 rows taller, and the
-// puppet selector's padding 30 columns wider.
+// Seen to fail: before impl_plan_5.md the workspace picker (returned bare),
+// puppet selector (width from the art) and the three AGENTS.md tests (box 6
+// columns too wide, wrapped rows, 22 rows tall) all failed; the bounded sweeps
+// and exact-box tests were seen red by making the workspace picker's box 2 rows
+// taller, the AGENTS.md text area 10 rows taller, and the puppet selector's
+// padding 30 columns wider.
 
 // modalSizes are view sizes for terminals from 80x24 to 160x60 (rows minus
-// heightAdjustment).
+// views.CoordinatorRows).
 var modalSizes = [][2]int{ //nolint:gochecknoglobals // shared test fixture
 	{80, 20},
 	{81, 21},
@@ -58,7 +59,7 @@ func openModal(t *testing.T, e *views.CardEditor, focus int) {
 }
 
 func workspaceFixtures(n int) []config.Workspace {
-	names := uitest.NamesWithoutTabs()
+	names := uitest.AdversarialNames
 	paths := []string{
 		"/home/user/projects/a-rather-long-directory-name/with/many/segments/and/more/segments/still",
 		"/home/用户/项目/日本語のディレクトリ/とても長い名前",
@@ -99,11 +100,10 @@ func TestWorkspacePickerModalStaysWithinTheScreen(t *testing.T) {
 	}
 }
 
-// TestWorkspacePickerModalHasTheEditorsSize: the picker is returned bare, so it
-// is 2/3 of the width and not centred: the form disappears and a smaller box
-// appears at the top-left.
+// TestWorkspacePickerModalHasTheEditorsSize: the picker used to be returned
+// bare, so it was 2/3 of the width and not centred: the form disappeared and a
+// smaller box appeared at the top-left.
 func TestWorkspacePickerModalHasTheEditorsSize(t *testing.T) {
-	t.Skip("bug: workspace picker is not placed in the editor's W x H - see impl_plan_2.md 'Found, not fixed' #10")
 	for _, sz := range modalSizes {
 		e := newModalEditor(t, sz[0], sz[1], messages.DataLoadedMsg{Workspaces: workspaceFixtures(5)})
 		openModal(t, e, views.FocusWorkspace)
@@ -125,12 +125,11 @@ func TestPuppetSelectorModalStaysWithinTheScreen(t *testing.T) {
 	}
 }
 
-// TestPuppetSelectorModalClipsUserPuppets: the selector has no SetSize and its
-// width comes from the art - every puppet side by side in one row - so a wide
-// user puppet (or enough of them) makes the modal wider than the terminal, and
-// Place cannot pad it down.
+// TestPuppetSelectorModalClipsUserPuppets: the selector's width used to come
+// from the art - every puppet side by side in one row - so a wide user puppet
+// (or enough of them) made the modal wider than the terminal, and Place could
+// not pad it down. Every puppet now has a fixed cell and the row scrolls.
 func TestPuppetSelectorModalClipsUserPuppets(t *testing.T) {
-	t.Skip("bug: puppet selector width comes from the art and is not clipped - see impl_plan_2.md 'Found, not fixed' #11")
 	for _, sz := range modalSizes {
 		puppets := append(append([]config.Puppet(nil), builtinPuppetsForViews(t)...), uitest.UserPuppet(60, 12))
 		e := newModalEditor(t, sz[0], sz[1], messages.DataLoadedMsg{Puppets: puppets})
@@ -148,9 +147,6 @@ func TestAgentsMDEditorModalStaysWithinTheScreen(t *testing.T) {
 		for _, path := range []bool{false, true} {
 			for _, sz := range modalSizes {
 				w, h := sz[0], sz[1]
-				if h < 26 {
-					continue // below 26 rows the modal's fixed parts overflow; see TestAgentsMDEditorModalFitsSmallTerminal
-				}
 				e := newLayoutEditor(true, true, 3, false)
 				e.SetCard(config.IDCard{
 					ID:                 "c1",
@@ -170,12 +166,11 @@ func TestAgentsMDEditorModalStaysWithinTheScreen(t *testing.T) {
 	}
 }
 
-// TestAgentsMDEditorModalWrapsLongLines: the text area is as wide as 80% of the
-// screen (+ its "> " marker) but the box's inner width is 6 columns narrower
-// (border and padding), so every text row that fills the area wraps, doubling
-// the modal's height past the screen.
+// TestAgentsMDEditorModalWrapsLongLines: the text area used to be as wide as 80%
+// of the screen (+ its "> " marker) but the box's inner width is 6 columns
+// narrower (border and padding), so every text row that filled the area wrapped,
+// doubling the modal's height past the screen.
 func TestAgentsMDEditorModalWrapsLongLines(t *testing.T) {
-	t.Skip("bug: AGENTS.md text area is wider than the modal's inner width - see impl_plan_2.md 'Found, not fixed' #12")
 	for name, content := range map[string]string{
 		"long-line":  strings.Repeat("word ", 200),
 		"wide-runes": strings.Repeat("漢字のコンテンツ🚀", 60),
@@ -191,10 +186,10 @@ func TestAgentsMDEditorModalWrapsLongLines(t *testing.T) {
 }
 
 // TestAgentsMDEditorModalFitsSmallTerminal: at the 80x24 minimum (20 rows for
-// the view) the modal's fixed rows plus its 10-row text area are taller than
-// the screen, so Place passes it through and the editor's View is 22 rows.
+// the view) the modal's fixed rows plus a 10-row text area were taller than the
+// screen, so Place passed it through and the editor's View was 22 rows. The text
+// area now takes the rows that are left.
 func TestAgentsMDEditorModalFitsSmallTerminal(t *testing.T) {
-	t.Skip("bug: AGENTS.md editor modal is taller than a 24-row terminal - see impl_plan_2.md 'Found, not fixed' #12")
 	e := newLayoutEditor(true, true, 3, false)
 	e.SetSize(80, 20)
 	openModal(t, e, views.FocusAgentsMD)
@@ -206,10 +201,10 @@ func firstLineWidth(out string) int {
 	return ansi.StringWidth(strings.SplitN(out, "\n", 2)[0])
 }
 
-// TestWorkspacePickerModalIsAnExactBox tests the picker directly. It is
-// returned bare by the editor, so its own box - Width(2/3 of the screen, at
-// least 40) x Height(the screen's rows, at least 15), border included - must
-// come out exactly that size whatever the list holds.
+// TestWorkspacePickerModalIsAnExactBox tests the picker directly: its own box -
+// Width(2/3 of the screen, at least 40, at most the screen) x Height(the
+// screen's rows), border included - must come out exactly that size whatever
+// the list holds.
 func TestWorkspacePickerModalIsAnExactBox(t *testing.T) {
 	for _, n := range []int{0, 1, 200} {
 		for _, typed := range []string{"", "a"} {
@@ -221,7 +216,7 @@ func TestWorkspacePickerModalIsAnExactBox(t *testing.T) {
 				if typed != "" {
 					m.Update(tea.KeyPressMsg{Code: 0, Text: typed})
 				}
-				wantW, wantH := max(40, sz[0]*2/3), max(15, sz[1])
+				wantW, wantH := min(sz[0], max(40, sz[0]*2/3)), sz[1]
 				uitest.AssertExactRect(t, m.View(), wantW, wantH, fmt.Sprintf("workspaces=%d typed=%q %dx%d", n, typed, sz[0], sz[1]))
 			}
 		}
@@ -269,19 +264,60 @@ func TestAgentsMDEditorModalIsAnIntactBox(t *testing.T) {
 	}
 }
 
-// TestAgentsMDEditorModalHonoursItsWidth: the box is declared Width(max(50, 4/5
-// of the screen)) but comes out 6 columns wider with an empty or short text
-// area - the text area (80% of the screen plus its "> " marker) is wider than
-// the box's inner width, and only content that wraps makes the box obey.
+// TestAgentsMDEditorModalHonoursItsWidth: the box is declared
+// min(W, max(50, 4/5 of W)) wide; it used to come out 6 columns wider with an
+// empty or short text area - the text area was wider than the box's inner
+// width, and only content that wrapped made the box obey.
 func TestAgentsMDEditorModalHonoursItsWidth(t *testing.T) {
-	t.Skip("bug: AGENTS.md box is 6 columns wider than its declared width - see impl_plan_2.md 'Found, not fixed' #12")
 	for _, sz := range modalSizes {
 		m := views.NewAgentsMDEditorModal()
 		m.SetSize(sz[0], sz[1])
 		m.SetState(views.AgentsMDState{Content: "short", Path: "/a/path"})
 		m.Open()
-		if got, want := firstLineWidth(m.View()), max(50, sz[0]*4/5); got != want {
+		if got, want := firstLineWidth(m.View()), min(sz[0], max(50, sz[0]*4/5)); got != want {
 			t.Errorf("%dx%d: box is %d wide, want %d", sz[0], sz[1], got, want)
+		}
+	}
+}
+
+// TestPuppetSelectorScrollsToTheCursor: with more puppets than fit, moving the
+// cursor past the visible window scrolls it. The selected puppet is always
+// drawn with its highlight border, an arrow marks each edge that has more, and
+// the box keeps its shape and the editor's size.
+func TestPuppetSelectorScrollsToTheCursor(t *testing.T) {
+	var puppets []config.Puppet
+	for i := range 14 {
+		p := uitest.UserPuppet(10, 5)
+		p.Name = fmt.Sprintf("user-%02d", i)
+		p.Lines[2] = fmt.Sprintf("|%-8d|", i) // tells the cells apart
+		puppets = append(puppets, p)
+	}
+	puppets = append(builtinPuppetsForViews(t), puppets...)
+
+	for _, sz := range modalSizes {
+		e := newModalEditor(t, sz[0], sz[1], messages.DataLoadedMsg{Puppets: puppets})
+		openModal(t, e, views.FocusPuppet)
+		sawLeft, sawRight := false, false
+		for i := range puppets {
+			label := fmt.Sprintf("%dx%d cursor=%d", sz[0], sz[1], i)
+			out := e.View()
+			uitest.AssertExactRect(t, out, sz[0], sz[1], label)
+			plain := ansi.Strip(out)
+			if got := strings.Count(plain, "╭"); got < 2 { // the modal's own corner and the cursor's
+				t.Fatalf("%s: the selected puppet has no highlight border:\n%s", label, plain)
+			}
+			if i >= len(builtinPuppetsForViews(t)) {
+				want := fmt.Sprintf("|%-8d|", i-len(builtinPuppetsForViews(t)))
+				if !strings.Contains(plain, want) {
+					t.Fatalf("%s: the selected puppet %q is not on screen:\n%s", label, want, plain)
+				}
+			}
+			sawLeft = sawLeft || strings.Contains(plain, "‹")
+			sawRight = sawRight || strings.Contains(plain, "›")
+			e.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+		}
+		if !sawLeft || !sawRight {
+			t.Errorf("%dx%d: arrows seen left=%v right=%v, want both", sz[0], sz[1], sawLeft, sawRight)
 		}
 	}
 }

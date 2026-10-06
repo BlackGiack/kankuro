@@ -24,19 +24,6 @@ var AdversarialNames = []string{ //nolint:gochecknoglobals // shared test fixtur
 	"name\twith\ttabs", "trailing space   ", "\x1b[31mred\x1b[0m",
 }
 
-// NamesWithoutTabs is AdversarialNames minus the tab-containing entry. Sweeps
-// use it while tabs-in-names is a known, skipped bug (impl_plan_2.md "Found,
-// not fixed" #4); each sweep has a dedicated skipped test for the tab case.
-func NamesWithoutTabs() []string {
-	var out []string
-	for _, n := range AdversarialNames {
-		if !strings.Contains(n, "\t") {
-			out = append(out, n)
-		}
-	}
-	return out
-}
-
 // UserPuppet builds a user puppet whose art is w columns wide and h lines
 // tall, for testing puppets larger than the box they are drawn into.
 func UserPuppet(w, h int) config.Puppet {

@@ -226,11 +226,12 @@ Assert that the editor's `View()` while the modal is open has the editor's exact
 The sweeps found 12 distinct layout bugs, well past the three-bug limit. Review
 asked for #1 to be fixed anyway - it is one line, it is the bug users hit first, and
 while it was open it hid the whole 80-90 column band from the dashboard sweep - so
-that one is **fixed**. The other 11 each have a test that currently fails and is marked
-`t.Skip("bug: ...")` with the number below; remove the Skip line when fixing.
-Where a sweep would otherwise be red for a known cause, it excludes exactly that
-cause (a tab-free name set, a minimum height) and says so in the test's header
-comment.
+that one is **fixed**. The other 11 each had a test that failed and was marked
+`t.Skip("bug: ...")` with the number below. **All 11 are now fixed by plan 5** (`impl_plan_5.md`):
+the skips are removed and the sweeps cover every cause with no exclusions.
+(While they were open, a sweep excluded exactly its known cause - a tab-free name set, a
+minimum height - and said so in its header comment.) #5's test, `TestDashboardBelowMinimumWidth`,
+became the coordinator's `TestCoordinatorTooSmallScreenIsExact` in `app/size_guard_test.go`.
 
 Ordered by how likely a user is to hit it:
 
@@ -243,47 +244,58 @@ Ordered by how likely a user is to hit it:
    already lists the keys, and the list's help advertised `q quit`. The regression
    test sweeps every list width from 10 to 80; the dashboard sweep and search-state
    test now cover 80 columns with sessions present.
-2. **User text is truncated by byte** (`TestSessionListDescriptionIsValidUTF8`,
+2. **FIXED (plan 5)** - `components/text.go` `TruncateTail` / `TruncateHead` measure by display width; `Description()` and the AGENTS.md row use them.
+   _Was:_ **User text is truncated by byte** (`TestSessionListDescriptionIsValidUTF8`,
    `TestCardEditorAgentsMDSummaryIsValidUTF8`). `SessionListItem.Description` slices
    the working dir, and `renderAgentsMDRow` slices the AGENTS.md content and path, at a
    byte offset, so CJK or emoji text is cut in the middle of a rune and invalid
    UTF-8 reaches the terminal. `truncateToVisibleWidth` in `session_preview.go` already
    does it right.
-3. **The dashboard footer is a fixed 150 columns** (`TestDashboardFooterFitsWidth`),
+3. **FIXED (plan 5)** - the footer shows `[Nav]`, the focused pane's group and `[Global]`, drops groups as the width shrinks, and clips only as a last resort (`footerText`).
+   _Was:_ **The dashboard footer is a fixed 150 columns** (`TestDashboardFooterFitsWidth`),
    so it is cut off on any terminal narrower than that.
-4. **Tabs in names** (`TestSessionListNameWithTabsFitsWidth`): lipgloss expands a tab
+4. **FIXED (plan 5)** - `DisplayText` turns tabs and line breaks into a space and strips escapes before the text is fitted, in every one-line slot (lists, card, search lines, editor lines); the sweeps now use every adversarial name.
+   _Was:_ **Tabs in names** (`TestSessionListNameWithTabsFitsWidth`): lipgloss expands a tab
    to four spaces after the list delegate has truncated the title, so the row ends up
    wider than the list.
-5. **No behaviour below 80 columns** (`TestDashboardBelowMinimumWidth`). `SetSize`
+5. **FIXED (plan 5)** - 80x24 is the documented minimum (`views.MinTerminalWidth/Height`); below it the coordinator shows a "Terminal too small" notice in exactly the terminal's size and drops keys except quit (`app/size_guard.go`). `Dashboard.SetSize` never goes negative.
+   _Was:_ **No behaviour below 80 columns** (`TestDashboardBelowMinimumWidth`). `SetSize`
    forces the cards pane to 46 columns and takes the difference from the preview,
    whose width goes negative below about 62 columns; from 62 to 79 the render grows a
    row. There is no "terminal too small" screen. The tests treat 80x24 as the smallest
    supported terminal, which is an assumption of this plan, not a documented
    requirement.
-6. **Opening the delete modal shrinks the screen by four rows**
+6. **FIXED (plan 5)** - `renderWithOverlay` places the modal in `renderedHeight()` (header + panes + footer rows, named constants), not `d.Height`.
+   _Was:_ **Opening the delete modal shrinks the screen by four rows**
    (`TestDashboardDeleteModalFillsTheScreen`): `renderWithOverlay` places the modal in
    `d.Height`, which is the terminal rows minus `heightAdjustment`.
-7. **A long search query wraps the pane title** (`TestDashboardLongSearchQueryFits`):
+7. **FIXED (plan 5)** - `renderPaneTitle` keeps the label and clips the head of the query (`TruncateTail`) to the pane's inner width.
+   _Was:_ **A long search query wraps the pane title** (`TestDashboardLongSearchQueryFits`):
    the `Search: ...` / `Filter: ...` line is not truncated, so the dashboard grows by
    two to four rows. The plan expected the search line to add a row; in fact it replaces
    a blank spacer, and the test asserts the size does not change. It starts early on
    a narrow terminal: at 80 columns a 9-character query already wraps in the sessions
    pane (the dashboard search test uses a 4-character no-match query for that reason).
-8. **The card editor overflows on small terminals** (`TestCardEditorFitsSmallTerminal`).
+8. **FIXED (plan 5)** - the form scrolls: it is a list of focus-tagged blocks, `scrollOffset` keeps the focused block inside the window, `↑ more` / `↓ more` mark cut edges and the help line is pinned.
+   _Was:_ **The card editor overflows on small terminals** (`TestCardEditorFitsSmallTerminal`).
    The capability lists are floored at `minCapListHeight`, so below 34 rows with the
    default settings (Personas and MCPs both on) the form is taller than its box and the
    help line is cut off. At 24 rows the editor is 30 lines tall in a 20-line box.
-9. **Card editor lines are not clipped** (`TestCardEditorLongLinesAreClipped`): the
+9. **FIXED (plan 5)** - workspace/puppet lines, capability labels and the search header are clipped to their width, and the text inputs' width is derived from the editor's.
+   _Was:_ **Card editor lines are not clipped** (`TestCardEditorLongLinesAreClipped`): the
    Workspace and Puppet lines and the capability list labels are written out as is, so
    a long name widens the line past the editor.
-10. **The workspace picker is not placed** (`TestWorkspacePickerModalHasTheEditorsSize`):
+10. **FIXED (plan 5)** - `CardEditor.View` routes the picker through `renderWithOverlay`; its box is capped at the space given.
+   _Was:_ **The workspace picker is not placed** (`TestWorkspacePickerModalHasTheEditorsSize`):
     `CardEditor.View` returns it bare, at two thirds of the width, top-left, while the
     other two modals are centred in the full size.
-11. **The puppet selector's width comes from the art**
+11. **FIXED (plan 5)** - every puppet is drawn in a fixed cell (the largest built-in's size, user art clipped with `ClipBlock`) and the row scrolls horizontally with `‹` / `›`.
+   _Was:_ **The puppet selector's width comes from the art**
     (`TestPuppetSelectorModalClipsUserPuppets`): all puppets sit side by side in one
     row and the modal has no `SetSize`, so one wide user puppet makes it wider than the
     terminal and `Place` cannot pad it down. The built-in puppets fit.
-12. **The AGENTS.md editor modal** (`TestAgentsMDEditorModalWrapsLongLines`,
+12. **FIXED (plan 5)** - sizes are derived from the inside out in `SetSize`, the `> ` marker is its own column, and the text area takes the rows left after the fixed ones.
+   _Was:_ **The AGENTS.md editor modal** (`TestAgentsMDEditorModalWrapsLongLines`,
     `TestAgentsMDEditorModalHonoursItsWidth`, `TestAgentsMDEditorModalFitsSmallTerminal`):
     the text area is 80% of the screen plus its marker, wider than the box's inner
     width. The box comes out 6 columns wider than declared, and any text row that fills

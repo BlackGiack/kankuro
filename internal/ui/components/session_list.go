@@ -294,9 +294,9 @@ func (i SessionListItem) Title() string {
 		return lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF69B4")).
 			Bold(true).
-			Render(i.Session.Name)
+			Render(DisplayText(i.Session.Name))
 	}
-	return i.Session.Name
+	return DisplayText(i.Session.Name)
 }
 
 func (i SessionListItem) Description() string {
@@ -305,6 +305,7 @@ func (i SessionListItem) Description() string {
 	if i.Card != nil {
 		cardName = i.Card.Name
 	}
+	cardName = DisplayText(cardName)
 
 	// Render face
 	faceStyle := "neutral"
@@ -316,22 +317,14 @@ func (i SessionListItem) Description() string {
 	cardLine := cardName + " " + face
 	descLine := fmt.Sprintf("%s pid=%d", i.Session.Status, i.Session.PID)
 
-	const (
-		maxWorkspaceLen = 25
-		ellipsisLen     = 3
-	)
+	const maxWorkspaceLen = 25
 
 	// Session detail (ID or working dir)
 	var detailLine string
 	if i.Session.UseTmpWorkspace {
 		detailLine = "ID: " + i.Session.ID
 	} else {
-		wsPath := i.Session.WorkingDir
-		if len(wsPath) > maxWorkspaceLen {
-			// Trim workspace path to fit, accounting for ellipsis length (3 chars)
-			wsPath = "..." + wsPath[len(wsPath)-(maxWorkspaceLen-ellipsisLen):]
-		}
-		detailLine = "WS: " + wsPath
+		detailLine = "WS: " + TruncateTail(DisplayText(i.Session.WorkingDir), maxWorkspaceLen)
 	}
 
 	// Apply waiting status styling

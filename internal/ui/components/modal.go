@@ -59,7 +59,7 @@ func NewModal(title string) *Modal {
 // SetSize implements component.Model.
 func (m *Modal) SetSize(width, height int) {
 	m.Base.SetSize(width, height)
-	m.modalWidth = max(40, width*3/5) //nolint:mnd // responsive sizing
+	m.modalWidth = min(width, max(40, width*3/5)) //nolint:mnd // responsive sizing; never wider than the space given
 }
 
 // SetContent sets the modal's content string.

@@ -154,3 +154,22 @@ func TestRenderCardItemClipsOversizedPuppet(t *testing.T) {
 		assertIntactCard(t, out, fmt.Sprintf("oversized puppet width=%d", width))
 	}
 }
+
+// TestRenderCardItemSanitisesUserText: tabs, line breaks and escapes in a
+// card's name, driver, model and skill names must not change the card's shape.
+// lipgloss expands a tab to four columns after the text was fitted, so a name
+// of 18 tab-separated letters is 18 columns to the fitting code and 57 to the
+// terminal. Seen to fail with DisplayText removed from the name line.
+func TestRenderCardItemSanitisesUserText(t *testing.T) {
+	puppets := builtinPuppets(t)
+	messy := "a\tb\tc\td\te\tf\tg\th\ti\tj\nk\r\x1b[31ml\x1b[0m"
+	card, skills := cardWithSkills([]string{messy, "clean-code"})
+	card.Name, card.Driver, card.Model = messy, messy, messy
+	for width := components.CardListMinWidth; width <= 160; width++ {
+		out := components.RenderCardItem(card, skills, nil, puppets, false, width)
+		assertIntactCard(t, out, fmt.Sprintf("width=%d", width))
+		if strings.ContainsAny(ansi.Strip(out), "\t\r") {
+			t.Fatalf("width=%d: a control character reached the output: %q", width, ansi.Strip(out))
+		}
+	}
+}

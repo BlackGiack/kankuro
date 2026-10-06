@@ -14,38 +14,31 @@ import (
 	"kankuro/internal/ui/views"
 )
 
-// Contract (step 0 of impl_plan_2.md): CardEditor.View() is BOUNDED. It is a
-// plain top-to-bottom form with no border, so it does not pad to its size: no
-// line wider than the width it was given and no more lines than the height it
-// was given (the coordinator gives it terminal rows - 4).
+// Contract (step 0 of impl_plan_2.md, reworked by impl_plan_5.md): CardEditor.View()
+// is BOUNDED. It is a plain top-to-bottom form with no border, so it does not
+// pad to its size: no line wider than the width it was given and no more lines
+// than the height it was given (the coordinator gives it terminal rows - 4, so
+// 20 rows on the 80x24 minimum terminal).
 //
 // Region contract: the form is title, text inputs, workspace/puppet lines, the
 // AGENTS.md row, then one capability list per visible section (Skills always,
 // Personas and MCPs by app settings), then the help line - and the help line
-// must be the LAST line for every combination. A section that grows would push
-// it past the height or wrap it; a section that is hidden must really be gone.
+// must be the LAST line for every combination. A section that is hidden must
+// really be gone while the form is not scrolled.
 //
-// Per-combination minimum height: the form's fixed part plus every visible list
-// at its minimum height (components' viewHeightOffset + minCapListHeight) and
-// the help line. cardEditorMinHeight measures that from a render; below it the
-// editor does not shrink, it overflows - TestCardEditorFitsSmallTerminal (skipped) and
-// impl_plan_2.md "Found, not fixed" #8. With both optional sections on, which
-// is the default, that includes a stock 24-row terminal.
+// When the form is taller than its box it scrolls: the focused block stays on
+// screen and a dim "more" row marks each cut edge
+// (TestCardEditorFocusedFieldAlwaysVisible). The sweep therefore only checks
+// the section list on forms that fit; the scroll tests check the rest.
 //
-// Seen to fail: the sweep was seen red at 80x20 (the bug above) before the
-// minimum-height split; it was red when the Personas list was rendered
-// regardless of its setting, and when a trailing newline followed the help
-// line.
+// Seen to fail: the sweep was seen red at 80x20 before the form scrolled (the
+// form was 30 lines tall), when the Personas list was rendered regardless of
+// its setting, and when a trailing newline followed the help line.
 
-// cardEditorMinHeight is the fewest rows the editor can lay out in without
-// overflowing, by section: the height it renders at when asked for a 1-row box,
-// where every capability list sits at its floor (minCapListHeight). It is read
-// from a render, not copied from the layout constants, so it follows them.
-func cardEditorMinHeight(personas, mcps bool) int {
-	e := newLayoutEditor(personas, mcps, 40, false)
-	e.SetSize(80, 1)
-	return strings.Count(e.View(), "\n") + 1
-}
+const moreAbove, moreBelow = "↑ more", "↓ more"
+
+// cardEditorMinRows is the editor height on the smallest supported terminal.
+const cardEditorMinRows = views.MinTerminalHeight - views.CoordinatorRows
 
 type layoutItem struct{ label, desc string }
 
@@ -54,11 +47,9 @@ func (i layoutItem) GetLabel() string       { return i.label }
 func (i layoutItem) GetDescription() string { return i.desc }
 
 // layoutItems builds n capability items. Labels are clipped to maxLabel columns
-// because the list does not clip them itself (skipped
-// TestCardEditorLongLinesAreClipped, "Found, not fixed" #9); pass a large
-// maxLabel to see that.
+// here; pass a large maxLabel to see the list clip them itself.
 func layoutItems(n, maxLabel int) []components.CapabilityItem {
-	names := uitest.NamesWithoutTabs()
+	names := uitest.AdversarialNames
 	items := make([]components.CapabilityItem, n)
 	for i := range items {
 		items[i] = layoutItem{
@@ -114,7 +105,7 @@ func cardEditorCases() []cardEditorCase {
 	var cases []cardEditorCase
 	for _, sections := range [][2]bool{{false, false}, {false, true}, {true, false}, {true, true}} {
 		personas, mcps := sections[0], sections[1]
-		minH := cardEditorMinHeight(personas, mcps)
+		minH := cardEditorMinRows
 		for _, content := range []struct {
 			items int
 			long  bool
@@ -155,6 +146,9 @@ func assertCardEditorShape(t *testing.T, e *views.CardEditor, personas, mcps boo
 	if last := lines[len(lines)-1]; last != "Enter=save Tab=next Esc=cancel" {
 		t.Errorf("%s: last line is %q, want the help line:\n%s", label, last, ansi.Strip(out))
 	}
+	if strings.Contains(out, moreAbove) || strings.Contains(out, moreBelow) {
+		return // scrolled: which sections are on screen depends on the focus
+	}
 	for section, want := range map[string]bool{"Skills (": true, "Personas (": personas, "MCPs (": mcps} {
 		if got := strings.Contains(strings.Join(lines, "\n"), section); got != want {
 			t.Errorf("%s: section %q present=%v, want %v:\n%s", label, section, got, want, ansi.Strip(out))
@@ -162,29 +156,28 @@ func assertCardEditorShape(t *testing.T, e *views.CardEditor, personas, mcps boo
 	}
 }
 
-// TestCardEditorFitsSmallTerminal: below cardEditorMinHeight the editor does
-// not shrink further (the lists are floored at minCapListHeight), it grows past
-// its box, so the bottom - help line included - is cut off. With the default
-// settings that is the stock 24-row terminal.
+// TestCardEditorFitsSmallTerminal: the editor must fit its box on every
+// terminal from the 24-row minimum up. The capability lists are floored at
+// minCapListHeight, so on a short terminal the form is taller than its box and
+// has to scroll instead of overflowing (it used to be 30 lines in a 20-line
+// box at 80x24 with the default settings, help line cut off).
 func TestCardEditorFitsSmallTerminal(t *testing.T) {
-	t.Skip("bug: the card editor overflows below ~35 rows with default settings - see impl_plan_2.md 'Found, not fixed' #8")
 	for _, personas := range []bool{false, true} {
 		for _, mcps := range []bool{false, true} {
-			for rows := 24; rows < 40; rows++ {
+			for rows := views.MinTerminalHeight; rows < 40; rows++ {
 				e := newLayoutEditor(personas, mcps, 40, false)
-				e.SetSize(80, rows-heightAdjustment)
-				uitest.AssertWithin(t, e.View(), 80, rows-heightAdjustment,
+				e.SetSize(80, rows-views.CoordinatorRows)
+				uitest.AssertWithin(t, e.View(), 80, rows-views.CoordinatorRows,
 					fmt.Sprintf("personas=%v mcps=%v rows=%d", personas, mcps, rows))
 			}
 		}
 	}
 }
 
-// TestCardEditorAgentsMDSummaryIsValidUTF8: the AGENTS.md row trims its content
-// and path summaries by byte, so non-ASCII text is cut mid-rune (same defect
-// as the session list's working-dir trimming).
+// TestCardEditorAgentsMDSummaryIsValidUTF8: the AGENTS.md row used to trim its
+// content and path summaries by byte, so non-ASCII text was cut mid-rune (same
+// defect as the session list's working-dir trimming).
 func TestCardEditorAgentsMDSummaryIsValidUTF8(t *testing.T) {
-	t.Skip("bug: AGENTS.md summaries are sliced by byte - see impl_plan_2.md 'Found, not fixed' #2")
 	e := newLayoutEditor(false, false, 0, false)
 	card := config.IDCard{
 		ID:           "c1",
@@ -199,15 +192,131 @@ func TestCardEditorAgentsMDSummaryIsValidUTF8(t *testing.T) {
 }
 
 // TestCardEditorLongLinesAreClipped: the workspace and puppet lines and the
-// capability list labels are written out unclipped, so a long workspace name, a
-// long puppet name or a long skill/MCP name makes the line wider than the
-// editor (the terminal then wraps it, pushing the help line off the bottom).
+// capability list labels used to be written out unclipped, so a long workspace
+// name, a long puppet name or a long skill/MCP name made the line wider than
+// the editor (the terminal then wraps it, pushing the help line off the bottom).
 func TestCardEditorLongLinesAreClipped(t *testing.T) {
-	t.Skip("bug: workspace/puppet lines and capability labels are not clipped - see impl_plan_2.md 'Found, not fixed' #9")
 	e := newLayoutEditor(true, true, 0, false)
 	e.SkillList().SetItems(layoutItems(5, 500))
 	card := config.IDCard{ID: "c1", Name: "n", Puppet: strings.Repeat("p", 200), WorkspaceID: strings.Repeat("w", 200)}
 	e.SetCard(card)
 	e.SetSize(80, 50)
 	uitest.AssertWithin(t, e.View(), 80, 50, "long lines")
+}
+
+// focusMarkerLine returns what the view must show for the focused target: the
+// text of the line that marks focus. Text inputs have no "> " marker (the
+// cursor is the marker), so their label is checked - it is the line's start,
+// and is present only when the line is on screen.
+func focusMarkerLine(focus int) []string {
+	switch focus {
+	case views.FocusName:
+		return []string{"Name: "}
+	case views.FocusDriver:
+		return []string{"Driver: "}
+	case views.FocusModel:
+		return []string{"Model: "}
+	case views.FocusFaceStyle:
+		return []string{"Face Style: "}
+	case views.FocusUseTmp:
+		return []string{"Use Tmp Workspace: "}
+	case views.FocusWorkspace:
+		return []string{"> Workspace: "}
+	case views.FocusPuppet:
+		return []string{"> Puppet: "}
+	case views.FocusAgentsMD:
+		return []string{"> x [ Content: ", "> x [ Path: ", ">   [ Content: ", ">   [ Path: "}
+	case views.FocusSkills, views.FocusPersonas, views.FocusMCPs:
+		return []string{"> [", "> (no matching"} // the list's cursor row
+	}
+	return nil
+}
+
+// TestCardEditorFocusedFieldAlwaysVisible: on short terminals the form
+// scrolls, and Tab through every target must keep the focused one on screen
+// and the view inside its box. Below the 24-row minimum (20 and 16 editor rows)
+// is covered too: the editor is still sized then, behind the "too small" screen.
+//
+// Seen to fail: with scrollOffset frozen at 0 (syncScroll returning early) every
+// target below the AGENTS.md block went red at 80x20 and at 80x24.
+func TestCardEditorFocusedFieldAlwaysVisible(t *testing.T) {
+	for _, sections := range [][2]bool{{false, false}, {false, true}, {true, false}, {true, true}} {
+		personas, mcps := sections[0], sections[1]
+		for _, rows := range []int{20, views.MinTerminalHeight} {
+			for _, items := range []int{0, 40} {
+				e := newLayoutEditor(personas, mcps, items, false)
+				e.SetSize(80, rows-views.CoordinatorRows)
+				visited := 0
+				for {
+					assertFocusedVisible(t, e, fmt.Sprintf("personas=%v mcps=%v rows=%d items=%d focus=%d",
+						personas, mcps, rows, items, e.FocusIndex()), rows-views.CoordinatorRows)
+					visited++
+					e.CycleFocus(1)
+					if e.FocusIndex() == views.FocusName {
+						break
+					}
+				}
+				if want := 9 + btoi(personas) + btoi(mcps); visited != want {
+					t.Fatalf("visited %d focus targets, want %d", visited, want)
+				}
+			}
+		}
+	}
+}
+
+func assertFocusedVisible(t *testing.T, e *views.CardEditor, label string, h int) {
+	t.Helper()
+	out := e.View()
+	uitest.AssertWithin(t, out, 80, h, label)
+	plain := ansi.Strip(out)
+	for _, marker := range focusMarkerLine(e.FocusIndex()) {
+		if strings.Contains(plain, marker) {
+			return
+		}
+	}
+	t.Errorf("%s: the focused target is not on screen:\n%s", label, plain)
+}
+
+// TestCardEditorScrollIndicators: a form cut at an edge says so on that edge
+// only, in the row the cut content would have used, and the help line stays last.
+func TestCardEditorScrollIndicators(t *testing.T) {
+	e := newLayoutEditor(true, true, 40, false)
+	e.SetSize(80, cardEditorMinRows)
+	top := strings.Split(ansi.Strip(e.View()), "\n")
+	if strings.Contains(top[0], moreAbove) || !strings.Contains(top[len(top)-2], moreBelow) {
+		t.Errorf("at the top want no %q and %q on the row above the help line:\n%s", moreAbove, moreBelow, strings.Join(top, "\n"))
+	}
+	for e.FocusIndex() != views.FocusMCPs {
+		e.CycleFocus(1)
+	}
+	bottom := strings.Split(ansi.Strip(e.View()), "\n")
+	if !strings.Contains(bottom[0], moreAbove) || strings.Contains(bottom[len(bottom)-2], moreBelow) {
+		t.Errorf("at the bottom want %q on top and no %q:\n%s", moreAbove, moreBelow, strings.Join(bottom, "\n"))
+	}
+	if len(bottom) != cardEditorMinRows {
+		t.Errorf("scrolled form is %d lines, want exactly %d", len(bottom), cardEditorMinRows)
+	}
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// TestCardEditorFitsEveryWidth sweeps each width from the minimum to well past
+// it with long and adversarial content: the text inputs sit after a label, so
+// their width is derived from the editor's, and a derivation that is off by one
+// shows up at some widths only (the way the card's pill row did).
+func TestCardEditorFitsEveryWidth(t *testing.T) {
+	for w := views.MinTerminalWidth; w <= 200; w++ {
+		e := newLayoutEditor(true, true, 40, true)
+		e.SkillList().SetItems(layoutItems(5, 500))
+		e.SetSize(w, cardEditorMinRows)
+		for range views.FocusCount {
+			uitest.AssertWithin(t, e.View(), w, cardEditorMinRows, fmt.Sprintf("width=%d focus=%d", w, e.FocusIndex()))
+			e.CycleFocus(1)
+		}
+	}
 }

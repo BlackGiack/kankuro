@@ -1,6 +1,8 @@
 package views
 
 import (
+	"strings"
+
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -20,7 +22,24 @@ type AgentsMDEditorModal struct {
 	editor     textarea.Model
 	pathInput  textinput.Model
 	preferPath bool
+
+	// modalWidth is the box's width, border and padding included. The editor
+	// and path input are sized from it by SetSize, from the inside out.
+	modalWidth int
 }
+
+// Layout of the box. The fixed text rows are the title, a blank, "Content:",
+// a blank, "Path:", the path input, a blank and the help line; the text area
+// takes whatever height is left.
+const (
+	agentsMDMinModalWidth = 50
+	agentsMDMarkerWidth   = 2 // "> " in front of the focused field
+	agentsMDBorder        = 2
+	agentsMDBoxChrome     = agentsMDBorder + 2*hPadding // columns the box takes from its width
+	agentsMDFixedRows     = 8
+	agentsMDMinEditorRows = 3
+	agentsMDTextInputPad  = 3 // a text input draws its "> " prompt and cursor beyond its width
+)
 
 // NewAgentsMDEditorModal creates a new agents.md editor.
 func NewAgentsMDEditorModal() *AgentsMDEditorModal {
@@ -39,8 +58,9 @@ func NewAgentsMDEditorModal() *AgentsMDEditorModal {
 	pathInput.SetWidth(smallInputWidth)
 
 	return &AgentsMDEditorModal{
-		editor:    editor,
-		pathInput: pathInput,
+		editor:     editor,
+		pathInput:  pathInput,
+		modalWidth: agentsMDMinModalWidth,
 	}
 }
 
@@ -67,16 +87,25 @@ func (m *AgentsMDEditorModal) State() AgentsMDState {
 
 func (m *AgentsMDEditorModal) Init() tea.Cmd { return nil }
 
-// SetSize implements component.Model.
+// SetSize implements component.Model. Sizes are derived from the inside out so
+// that nothing is wider than the box it sits in: the box is at most the space
+// given, its inner width is the box minus border and padding, and the fields
+// get the inner width minus the marker column.
 func (m *AgentsMDEditorModal) SetSize(width, height int) {
 	m.Base.SetSize(width, height)
 
-	editorWidth := max(40, width*8/10) //nolint:mnd // responsive sizing
-	editorHeight := max(10, height/3)  //nolint:mnd // responsive sizing
-	m.editor.SetWidth(editorWidth)
-	m.editor.SetHeight(editorHeight)
+	m.modalWidth = agentsMDMinModalWidth
+	if width > 0 {
+		m.modalWidth = min(width, max(agentsMDMinModalWidth, width*4/5)) //nolint:mnd // responsive sizing
+	}
+	inner := m.modalWidth - agentsMDBoxChrome
+	fieldWidth := max(1, inner-agentsMDMarkerWidth)
+	m.editor.SetWidth(fieldWidth)
+	m.pathInput.SetWidth(max(1, fieldWidth-agentsMDTextInputPad))
 
-	m.pathInput.SetWidth(max(30, width*3/5)) //nolint:mnd // responsive sizing
+	chrome := agentsMDBorder + 2*vPadding + agentsMDFixedRows
+	editorHeight := max(agentsMDMinEditorRows, min(max(10, height/3), height-chrome)) //nolint:mnd // responsive sizing
+	m.editor.SetHeight(editorHeight)
 }
 
 func (m *AgentsMDEditorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
@@ -119,28 +148,30 @@ func (m *AgentsMDEditorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// markedField draws a field with the focus marker as its own column. Prefixing the
+// text with "> " would mark only its first line and make the rows wider than
+// the area; a column keeps both focus states the same width.
+func markedField(view string, focused bool) string {
+	marker := strings.Repeat(" ", agentsMDMarkerWidth)
+	if focused {
+		marker = lipgloss.NewStyle().Foreground(styles.HighlightColor).Render("> ")
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, marker, view)
+}
+
 func (m *AgentsMDEditorModal) View() string {
-	modalWidth := max(50, m.Width*4/5) //nolint:mnd // responsive sizing
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#8E44AD")).
 		Padding(vPadding, hPadding).
-		Width(modalWidth)
+		Width(m.modalWidth)
 
 	var content string
 	content += "AGENTS.md Editor\n\n"
 	content += "Content:\n"
-	if m.mode == 0 {
-		content += lipgloss.NewStyle().Foreground(styles.HighlightColor).Render("> "+m.editor.View()) + "\n"
-	} else {
-		content += m.editor.View() + "\n"
-	}
+	content += markedField(m.editor.View(), m.mode == 0) + "\n"
 	content += "\nPath:\n"
-	if m.mode == 1 {
-		content += lipgloss.NewStyle().Foreground(styles.HighlightColor).Render("> "+m.pathInput.View()) + "\n"
-	} else {
-		content += m.pathInput.View() + "\n"
-	}
+	content += markedField(m.pathInput.View(), m.mode == 1) + "\n"
 	content += "\nTab=switch Ctrl+Enter=confirm Esc=cancel"
 
 	return boxStyle.Render(content)

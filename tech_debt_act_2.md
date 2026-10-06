@@ -281,16 +281,17 @@ to 160. The other views now have the same kind of sweep; see Status below.
 
 ### Status
 
-Written (`impl_plan_2.md`): shape tests for the session list, the session
-preview, the dashboard, the card editor and the three modals, on a shared
-`internal/ui/uitest` package; `assertIntactCard` now uses it. The sweeps found 12
-layout bugs. One is fixed: the sessions list's built-in help line was wider than
-its pane on 80- and 120-column terminals and made the pane grow two rows, so the
-list no longer shows it (`SetShowHelp(false)`). The other 11 are skipped tests that
-fail against the current code (three-bug limit); the list is in `impl_plan_2.md`,
-"Found, not fixed". The ones to look at first: the card editor is taller than a
-24-row terminal with default settings, the AGENTS.md modal wraps once any text row
-fills its text area, and the footer is a fixed 150 columns.
+**Done in plans 2 and 5.** Written (`impl_plan_2.md`): shape tests for the session list, the
+session preview, the dashboard, the card editor and the three modals, on a shared
+`internal/ui/uitest` package; `assertIntactCard` now uses it. The sweeps found 12 layout bugs;
+plan 2 fixed one (the sessions list's help line) and skipped the other 11 as failing tests,
+and **plan 5 fixed all of them** (`impl_plan_5.md`; each is marked FIXED in `impl_plan_2.md`
+"Found, not fixed"). Among them: the card editor now scrolls instead of overflowing a 24-row
+terminal, the AGENTS.md modal fits its box, and the footer fits its width. **The minimum
+terminal size is 80×24**: below it the coordinator shows a "terminal too small" notice instead
+of any view. User text goes into fixed slots through `components/text.go` (`DisplayText`,
+`TruncateHead`, `TruncateTail`). The sweep exclusions (tab-free names, a minimum card-editor
+height, the dashboard's 80-column floor) are gone.
 
 ### What to test
 

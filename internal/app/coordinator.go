@@ -163,6 +163,14 @@ func (c *Coordinator) Init() tea.Cmd {
 }
 
 func (c *Coordinator) Update(msg tea.Msg) (*Coordinator, tea.Cmd) {
+	// Below the minimum terminal size the user cannot see the view, so input
+	// must not reach it (see size_guard.go).
+	if c.tooSmall() {
+		if handled, cmd := c.guardKey(msg); handled {
+			return c, cmd
+		}
+	}
+
 	// The error banner clears when the user acts, not as a side effect of
 	// navigation. Every error reaches the coordinator as a later message
 	// (ErrorMsg, CardSavedMsg{Err}, ...), never inside the Update of the
@@ -342,6 +350,9 @@ func (c *Coordinator) handleAgentSwitched(m messages.AgentSwitchedMsg) tea.Cmd {
 }
 
 func (c *Coordinator) View() string {
+	if c.tooSmall() {
+		return c.tooSmallView()
+	}
 	if c.err != nil {
 		return styles.ErrorStyle.Render(c.err.Error()) + "\n\n" + c.currentViewView()
 	}

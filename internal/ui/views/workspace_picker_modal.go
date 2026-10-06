@@ -124,8 +124,10 @@ func (m *WorkspacePickerModal) Init() tea.Cmd { return nil }
 func (m *WorkspacePickerModal) SetSize(width, height int) {
 	m.Base.SetSize(width, height)
 
-	m.modalWidth = max(40, width*2/3) //nolint:mnd // responsive sizing
-	m.modalHeight = max(15, height)   //nolint:mnd // responsive sizing
+	// Never larger than the space given, or Place cannot centre it and the
+	// editor's view stops being the size of its box.
+	m.modalWidth = min(width, max(40, width*2/3)) //nolint:mnd // responsive sizing
+	m.modalHeight = height
 
 	// Adjust list size to fit within the box and leave room for help/search
 	listWidth := max(1, m.modalWidth-widthPadding*2-workspacePickerListWidthPadding)
@@ -190,7 +192,10 @@ func (m *WorkspacePickerModal) View() string {
 	if m.searchQuery != "" {
 		searchDisplay = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#ADF")).
-			Render("\nSearch: " + m.searchQuery)
+			Render("\nSearch: " + components.TruncateTail(
+				components.DisplayText(m.searchQuery),
+				max(0, m.modalWidth-pickerBoxChrome-len("Search: ")),
+			))
 	}
 
 	return boxStyle.Render(
@@ -233,10 +238,14 @@ func (m *WorkspacePickerModal) normalizeSelection() {
 	}
 }
 
+// pickerBoxChrome is the columns the box takes from its width: the border and
+// the horizontal padding on both sides.
+const pickerBoxChrome = 2 + 2*widthPadding
+
 type workspaceItem struct {
 	workspace config.Workspace
 }
 
-func (i workspaceItem) Title() string       { return i.workspace.Name }
-func (i workspaceItem) Description() string { return i.workspace.Path }
+func (i workspaceItem) Title() string       { return components.DisplayText(i.workspace.Name) }
+func (i workspaceItem) Description() string { return components.DisplayText(i.workspace.Path) }
 func (i workspaceItem) FilterValue() string { return i.workspace.Name }

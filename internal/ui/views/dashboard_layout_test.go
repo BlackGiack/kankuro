@@ -21,7 +21,7 @@ import (
 )
 
 // Contract (step 0 of impl_plan_2.md). The coordinator sizes the dashboard to
-// (terminal width, terminal rows - 4) - app.heightAdjustment - and
+// (terminal width, terminal rows - 4) - app.views.CoordinatorRows - and
 // Dashboard.SetSize's comment promises the full render then fills the terminal:
 //
 //	row 0               header   "K A N K U R O"   BOUNDED (17 wide; not padded)
@@ -33,7 +33,7 @@ import (
 // so the whole render is exactly T = h+4 lines (dashboardChrome below pins the
 // +4). "Exact" is the dashboard's contract only for the body: the header and
 // footer are not padded to W, which is deliberate for the header and a bug for
-// a footer wider than the terminal (TestDashboardFooterFitsWidth, skipped).
+// a footer wider than the terminal (TestDashboardFooterFitsWidth).
 //
 // Region contract: the panes keep their columns. With cards = cw, preview = pw
 // and sessions = W-cw-pw (Dashboard.CardsWidth / PreviewWidth), a vertical
@@ -42,27 +42,24 @@ import (
 // column moves its neighbour's border, which this catches even when the total
 // width survives.
 //
-// Smallest supported terminal: 80x24 (what a stock terminal opens at). Below
-// that the layout is undefined - there is no "terminal too small" handling and
-// the preview width goes negative under ~62 columns; see
-// TestDashboardBelowMinimumWidth (skipped, impl_plan_2.md "Found, not fixed").
+// Smallest supported terminal: 80x24 (views.MinTerminalWidth/Height). Below that
+// the coordinator shows a "terminal too small" notice instead of any view
+// (app/size_guard_test.go); the dashboard is still sized then, and only has to
+// not go negative (TestDashboardSizeNeverNegative).
 //
 // Seen to fail: the shape/region sweeps were red at 80 and 120 columns against
 // the old code because of the session list help line (fixed since, by
-// SetShowHelp(false)); the delete-modal size, footer, narrow-width and
-// long-query tests fail against current code and are skipped with the reasons
-// in impl_plan_2.md. The sweeps were also seen red by widening the preview pane
+// SetShowHelp(false)); the delete-modal size, footer and long-query tests were
+// red until impl_plan_5.md fixed them (they were skipped, with their causes in
+// impl_plan_2.md). The sweeps were also seen red by widening the preview pane
 // by one column (Width(d.previewWidth + 1)) and by shortening the body by one
 // row; the focus test by swapping which pane gets the focused border.
 
 const (
-	dashboardMinWidth = 80
-	dashboardMinRows  = 24
 	// dashboardChrome is the rows around the panes: header (1) + its blank
 	// margin row (1) + footer (1). With the panes' own h+1 rows that makes the
-	// full render h+4 = terminal rows, matching app.heightAdjustment = 4.
-	dashboardChrome  = 3
-	heightAdjustment = 4 // app.heightAdjustment; the dashboard is sized to rows-4
+	// full render h+4 = terminal rows, (h + views.CoordinatorRows).
+	dashboardChrome = 3
 )
 
 var (
@@ -93,7 +90,7 @@ type dashboardData struct {
 
 func dashboardFixtures(t testing.TB, d dashboardData) messages.DataLoadedMsg {
 	t.Helper()
-	names := uitest.NamesWithoutTabs()
+	names := uitest.AdversarialNames
 	puppets := append(append([]config.Puppet(nil), builtinPuppetsForViews(t)...), uitest.UserPuppet(60, 20))
 	statuses := []session.Status{session.StatusRunning, session.StatusWaiting, session.StatusTerminated}
 	skillNames := []string{"architecture", "clean-code", "golang", "plan-writing", "日本語のスキル"}
@@ -144,7 +141,7 @@ var previewContentsForDashboard = [][]byte{ //nolint:gochecknoglobals // shared 
 func newDashboard(t testing.TB, w, rows int, d dashboardData) *views.Dashboard {
 	t.Helper()
 	dash := views.NewDashboard(views.DashboardCallbacks{})
-	dash.SetSize(w, rows-heightAdjustment)
+	dash.SetSize(w, rows-views.CoordinatorRows)
 	dash.SetData(dashboardFixtures(t, d))
 	if len(d.preview) > 0 && dash.PreviewSessionID() != "" {
 		dash.SetPreviewData(messages.PreviewDataMsg{SessionID: dash.PreviewSessionID(), Scrollback: d.preview})
@@ -165,7 +162,9 @@ func assertDashboardShape(t *testing.T, d *views.Dashboard, w, rows int, label s
 	if ansi.StringWidth(header) > w || strings.TrimSpace(ansi.Strip(lines[1])) != "" {
 		t.Errorf("%s: header rows malformed:\n%s", label, ansi.Strip(out))
 	}
-	// The footer's width is checked by the skipped TestDashboardFooterFitsWidth.
+	if got := ansi.StringWidth(lines[rows-1]); got > w {
+		t.Errorf("%s: footer is %d columns wide:\n%s", label, got, ansi.Strip(lines[rows-1]))
+	}
 	body := strings.Join(lines[2:rows-1], "\n")
 	uitest.AssertExactRect(t, body, w, rows-dashboardChrome, label+" body")
 	assertPaneBorders(t, body, d, w, rows-dashboardChrome, label)
@@ -232,7 +231,7 @@ func TestDashboardLayoutSweep(t *testing.T) {
 func TestDashboardSearchStates(t *testing.T) {
 	eachSize([]int{80, 90, 100, 120, 161}, []int{24, 40}, func(w, rows int) {
 		for _, focus := range []views.Pane{views.PaneCards, views.PaneSessions} {
-			for _, query := range []string{"a", "漢字", "zzzz"} {
+			for _, query := range []string{"a", "漢字", "zzzz", strings.Repeat("long query ", 10)} {
 				assertSearchState(t, w, rows, focus, query)
 			}
 		}
@@ -259,12 +258,12 @@ func assertSearchState(t *testing.T, w, rows int, focus views.Pane, query string
 }
 
 // TestDashboardLongSearchQueryFits: the "Search: ..." / "Filter: ..." line under
-// a pane title is not truncated, so a query wider than the pane wraps inside
-// it and the dashboard grows by one to four rows (2 to 4 at 100 columns with an
-// 80-character query).
+// a pane title used to be written untruncated, so a query wider than the pane
+// wrapped inside it and the dashboard grew by one to four rows (2 to 4 at 100
+// columns with an 80-character query). The label stays and the head of the
+// query is clipped: the end is where the user is typing.
 func TestDashboardLongSearchQueryFits(t *testing.T) {
-	t.Skip("bug: long search query wraps in the pane title - see impl_plan_2.md 'Found, not fixed' #7")
-	for _, w := range []int{100, 130} {
+	for _, w := range []int{80, 100, 130} {
 		for _, focus := range []views.Pane{views.PaneCards, views.PaneSessions} {
 			d := newDashboard(t, w, 30, dashboardData{sessions: 3, cards: 3})
 			if focus == views.PaneSessions {
@@ -315,7 +314,6 @@ func TestDashboardFocusedBorderColour(t *testing.T) {
 // the terminal rows minus 4, so the screen shrinks by four rows when the modal
 // opens and grows back when it closes.
 func TestDashboardDeleteModalFillsTheScreen(t *testing.T) {
-	t.Skip("bug: delete-modal overlay is 4 rows shorter than the dashboard - see impl_plan_2.md 'Found, not fixed' #6")
 	for _, w := range []int{80, 100, 160} {
 		for _, rows := range []int{24, 40} {
 			d := newDashboard(t, w, rows, dashboardData{sessions: 2, cards: 2})
@@ -328,9 +326,8 @@ func TestDashboardDeleteModalFillsTheScreen(t *testing.T) {
 	}
 }
 
-// TestDashboardDeleteModalIsCentredAndIntact is what holds today: the overlay
-// is exactly as wide as the screen, so the shape is right even though its
-// height is not (above).
+// TestDashboardDeleteModalIsCentredAndIntact: the overlay is exactly the
+// screen's size, the modal's text is there and it sits in the vertical middle.
 func TestDashboardDeleteModalIsCentredAndIntact(t *testing.T) {
 	eachSize([]int{80, 100, 160}, []int{24, 40}, func(w, rows int) {
 		d := newDashboard(t, w, rows, dashboardData{sessions: 2, cards: 2})
@@ -340,7 +337,7 @@ func TestDashboardDeleteModalIsCentredAndIntact(t *testing.T) {
 		}
 		out := d.View()
 		label := fmt.Sprintf("%dx%d modal open", w, rows)
-		uitest.AssertExactRect(t, out, w, rows-heightAdjustment, label)
+		uitest.AssertExactRect(t, out, w, rows, label)
 		if !strings.Contains(ansi.Strip(out), "Delete this ID card?") {
 			t.Errorf("%s: modal content missing:\n%s", label, ansi.Strip(out))
 		}
@@ -366,30 +363,69 @@ func verticalGaps(out string) (int, int) {
 	return top, len(rows) - 1 - bottom
 }
 
-// TestDashboardFooterFitsWidth: the footer key legend is a fixed 150 columns
-// wide, so it is cut off (or wrapped, depending on the terminal) on anything
-// narrower.
+// TestDashboardFooterFitsWidth: the footer key legend used to be a fixed 150
+// columns wide, so it was cut off (or wrapped) on anything narrower. It now
+// shows the navigation group, the focused pane's group and the global group,
+// and gives up groups, not characters, as the terminal narrows.
 func TestDashboardFooterFitsWidth(t *testing.T) {
-	t.Skip("bug: footer legend is 150 columns wide - see impl_plan_2.md 'Found, not fixed' #3")
-	for _, w := range []int{80, 100, 120} {
-		d := newDashboard(t, w, 30, dashboardData{sessions: 1, cards: 1})
-		lines := strings.Split(d.View(), "\n")
-		if got := ansi.StringWidth(lines[len(lines)-1]); got > w {
-			t.Errorf("width %d: footer is %d columns wide", w, got)
+	for w := 1; w <= 200; w++ {
+		for _, focus := range []views.Pane{views.PaneCards, views.PaneSessions} {
+			d := newDashboard(t, w, 30, dashboardData{sessions: 1, cards: 1})
+			if focus == views.PaneSessions {
+				d.TogglePane()
+			}
+			lines := strings.Split(d.View(), "\n")
+			if got := ansi.StringWidth(lines[len(lines)-1]); got > w {
+				t.Errorf("width %d focus %d: footer is %d columns wide", w, focus, got)
+			}
 		}
 	}
 }
 
-// TestDashboardBelowMinimumWidth probes the narrow end. Below ~62 columns
-// SetSize forces the cards pane to 46 and takes the difference from the
-// preview, whose width then goes negative; between 62 and 79 the preview pane
-// is under 14 columns and the render grows a row. Whatever the fix (a "terminal
-// too small" screen, or a proper responsive layout), the render must fit.
-func TestDashboardBelowMinimumWidth(t *testing.T) {
-	t.Skip("bug: no behaviour below 80 columns, preview width goes negative - see impl_plan_2.md 'Found, not fixed' #5")
-	for w := 40; w < dashboardMinWidth; w++ {
-		d := newDashboard(t, w, dashboardMinRows, dashboardData{sessions: 1, cards: 1})
-		out := d.View()
-		uitest.AssertWithin(t, out, w, dashboardMinRows, fmt.Sprintf("width %d", w))
+// TestDashboardFooterShowsFocusedPaneKeys: at every width from the 80-column
+// minimum the footer carries the focused pane's keys, never the other pane's,
+// and always q=Quit.
+func TestDashboardFooterShowsFocusedPaneKeys(t *testing.T) {
+	for w := views.MinTerminalWidth; w <= 200; w++ {
+		for _, tc := range []struct {
+			pane        views.Pane
+			want, other string
+		}{
+			{views.PaneCards, "[Card] Enter=Launch", "[Session]"},
+			{views.PaneSessions, "[Session] Enter=Attach/Relaunch", "[Card]"},
+		} {
+			d := newDashboard(t, w, 30, dashboardData{sessions: 1, cards: 1})
+			if d.FocusedPane() != tc.pane {
+				d.TogglePane()
+			}
+			lines := strings.Split(ansi.Strip(d.View()), "\n")
+			footer := lines[len(lines)-1]
+			if !strings.Contains(footer, tc.want) || strings.Contains(footer, tc.other) || !strings.Contains(footer, "q=Quit") {
+				t.Errorf("width %d focus %d: footer %q, want %q, not %q, and q=Quit", w, tc.pane, footer, tc.want, tc.other)
+			}
+		}
+	}
+	// With room to spare, the whole legend of the focused pane is there.
+	d := newDashboard(t, 200, 30, dashboardData{sessions: 1, cards: 1})
+	lines := strings.Split(ansi.Strip(d.View()), "\n")
+	footer := lines[len(lines)-1]
+	for _, want := range []string{"[Nav] Tab", "[Card] Enter=Launch n=New e=Edit", "[Global] m=MCP w=Workspaces c=Settings q=Quit"} {
+		if !strings.Contains(footer, want) {
+			t.Errorf("wide footer %q is missing %q", footer, want)
+		}
+	}
+}
+
+// TestDashboardSizeNeverNegative: below the minimum terminal size the
+// dashboard is not drawn (the coordinator shows a notice) but it is still
+// sized; its panes must not get a negative width, which would panic the
+// renderer.
+func TestDashboardSizeNeverNegative(t *testing.T) {
+	for w := 1; w < views.MinTerminalWidth; w++ {
+		d := newDashboard(t, w, views.MinTerminalHeight, dashboardData{sessions: 1, cards: 1})
+		if d.PreviewWidth() < 0 || d.CardsWidth() < 0 {
+			t.Errorf("width %d: cards %d preview %d", w, d.CardsWidth(), d.PreviewWidth())
+		}
+		_ = d.View()
 	}
 }

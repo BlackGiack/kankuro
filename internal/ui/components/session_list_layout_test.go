@@ -26,12 +26,13 @@ import (
 // so a status row must sit at 5*k+2 for every item k on the page and nowhere
 // else - an item whose name or card wrapped would push it out of place.
 //
-// Seen to fail: the two skipped tests below each failed against current code
-// (bugs this plan found, listed in impl_plan_2.md "Found, not fixed" and
-// skipped per its three-bug limit); the sweeps were seen red before those
-// cases were split out, and again with the list's help line re-enabled (they
-// then measure the raw View(), trailing padding included); the item-row test
-// was seen red by shifting the expected status row by one.
+// Seen to fail: the two tests that were skipped here (working dir sliced by
+// byte, tabs in names) failed against the code before impl_plan_5.md fixed them
+// ("Found, not fixed" #2 and #4 in impl_plan_2.md); the sweeps were seen red
+// before those cases were split out, and again with the list's help line
+// re-enabled (they then measure the raw View(), trailing padding included); the
+// item-row test was seen red by shifting the expected status row by one. The
+// sweeps use every adversarial name, tabs included.
 
 const sessionItemRows = components.SessionDelegateHeight + 1 // item rows + spacing row
 
@@ -48,7 +49,7 @@ const sessionListMinHeight = 17
 // columns. TestSessionListFitsEveryWidth covers narrower lists too.
 const sessionListMinWidth = 18
 
-func sweepNames() []string { return uitest.NamesWithoutTabs() }
+func sweepNames() []string { return uitest.AdversarialNames }
 
 func sessionFixtures(n int, names []string) ([]session.Snapshot, []config.IDCard) {
 	faces := []string{"", "happy", "focused", "thinking", "neutral"}
@@ -167,7 +168,6 @@ func TestSessionListEmptyAndFilteredAway(t *testing.T) {
 // the cut produced invalid UTF-8, which terminals draw as replacement boxes
 // and which breaks width measurement.
 func TestSessionListDescriptionIsValidUTF8(t *testing.T) {
-	t.Skip("bug: Description() slices the working dir by byte - see impl_plan_2.md 'Found, not fixed' #2")
 	for _, dir := range []string{
 		"/home/用户/项目/日本語のディレクトリ/とても長い名前",
 		"/home/user/🚀/🚀/🚀/🚀/🚀/🚀/🚀/🚀",
@@ -204,7 +204,6 @@ func TestSessionListFitsEveryWidth(t *testing.T) {
 // after the delegate has measured and truncated the title, so a name with tabs
 // ends up wider than the list.
 func TestSessionListNameWithTabsFitsWidth(t *testing.T) {
-	t.Skip("bug: tabs in names are expanded after truncation - see impl_plan_2.md 'Found, not fixed' #4")
 	sessions, cards := sessionFixtures(3, []string{"name\twith\ttabs and more text"})
 	sl := components.NewSessionList(components.SessionListCallbacks{})
 	sl.SetSize(30, sessionListMinHeight)

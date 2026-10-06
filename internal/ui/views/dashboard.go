@@ -3,6 +3,7 @@ package views
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
@@ -780,10 +781,7 @@ func (d *Dashboard) togglePane() {
 func (d *Dashboard) SetSize(width, height int) {
 	d.Base.SetSize(width, height)
 
-	const (
-		cardListMinWidth = 46
-		headerFooter     = 3
-	)
+	const cardListMinWidth = 46
 
 	d.sessionsWidth = width / dashboardSessionsWidthRatio
 	d.previewWidth = (width / dashboardSessionsWidthRatio) * dashboardPreviewWidthRatio
@@ -794,12 +792,15 @@ func (d *Dashboard) SetSize(width, height int) {
 		d.cardsWidth += diff
 		d.previewWidth -= diff
 	}
+	// Below the minimum terminal size the coordinator shows a "too small"
+	// screen instead of this view, but it is still sized; never go negative.
+	d.previewWidth = max(0, d.previewWidth)
 
-	// In the coordinator, the dashboard is sized to (terminal height - 4).
-	// To make the total dashboard render (header + body + footer) fill the entire
-	// terminal screen (0 gap), the outer pane height (body height) must be exactly:
-	// terminal height - headerFooter (3) = (height + 4) - 3 = height + 1.
-	paneHeight := height + 1
+	// The coordinator sizes the dashboard to (terminal rows - CoordinatorRows).
+	// For the whole render (header + body + footer) to fill the terminal with no
+	// gap, the body - the outer pane height - is every terminal row minus the
+	// header and footer rows.
+	paneHeight := height + CoordinatorRows - dashboardHeaderRows - dashboardFooterRows
 	d.contentHeight = paneHeight
 
 	// In border-box, lists must fit inside outer Height - borders (2) - title block (2) = paneHeight - 4.
@@ -861,19 +862,8 @@ func (d *Dashboard) renderCardsPane() string {
 		style = style.BorderForeground(focusedBorderColor)
 	}
 
-	title := styles.TitleStyle.Render("ID Cards")
-
-	// Search indicator
-	switch {
-	case d.search.IsActive && d.focusedPane == PaneCards:
-		title += "\n" + lipgloss.NewStyle().Foreground(styles.Gray).
-			Render("Search: "+d.search.CardsQuery)
-	case d.search.CardsQuery != "":
-		title += "\n" + lipgloss.NewStyle().Foreground(styles.Gray).
-			Render("Filter: "+d.search.CardsQuery)
-	default:
-		title += "\n "
-	}
+	title := d.renderPaneTitle("ID Cards", d.search.CardsQuery,
+		d.search.IsActive && d.focusedPane == PaneCards, d.cardsWidth)
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		lipgloss.NewStyle().Padding(0, 1).Render(title),
@@ -921,7 +911,45 @@ func (d *Dashboard) renderPreviewPane() string {
 const (
 	paneBorderRing    = 2
 	previewTitleBlock = 2
+
+	// paneTitlePadding is the columns the title block's horizontal padding
+	// (Padding(0, 1)) takes from a pane's inner width.
+	paneTitlePadding = 2
 )
+
+// Rows of the dashboard render, top to bottom: the header and its bottom
+// margin, the panes, the footer. The dashboard fills all of the terminal's rows
+// (CoordinatorRows, defined in constants.go, is what the coordinator holds back
+// before sizing it).
+const (
+	dashboardHeaderRows = 2
+	dashboardFooterRows = 1
+)
+
+// renderedHeight is how many rows renderBase produces: every terminal row.
+func (d *Dashboard) renderedHeight() int {
+	return dashboardHeaderRows + d.contentHeight + dashboardFooterRows
+}
+
+// renderPaneTitle renders a pane's two-line title block: the title, then the
+// search or filter line (or a blank spacer). The query is user text; the
+// label stays and the head of the query is clipped, because its end is where
+// the user is typing. width is the pane's outer width.
+func (d *Dashboard) renderPaneTitle(title, query string, searching bool, width int) string {
+	const searchLabel, filterLabel = "Search: ", "Filter: "
+
+	label := filterLabel
+	switch {
+	case searching:
+		label = searchLabel
+	case query == "":
+		return styles.TitleStyle.Render(title) + "\n "
+	}
+	inner := max(0, width-paneBorderRing-paneTitlePadding)
+	query = components.TruncateTail(components.DisplayText(query), inner-len(label))
+	return styles.TitleStyle.Render(title) + "\n" +
+		lipgloss.NewStyle().Foreground(styles.Gray).Render(label+query)
+}
 
 // renderSessionsPane renders the right pane.
 func (d *Dashboard) renderSessionsPane() string {
@@ -935,19 +963,8 @@ func (d *Dashboard) renderSessionsPane() string {
 		style = style.BorderForeground(focusedBorderColor)
 	}
 
-	title := styles.TitleStyle.Render("Active Sessions")
-
-	// Search indicator
-	switch {
-	case d.search.IsActive && d.focusedPane == PaneSessions:
-		title += "\n" + lipgloss.NewStyle().Foreground(styles.Gray).
-			Render("Search: "+d.search.SessionsQuery)
-	case d.search.SessionsQuery != "":
-		title += "\n" + lipgloss.NewStyle().Foreground(styles.Gray).
-			Render("Filter: "+d.search.SessionsQuery)
-	default:
-		title += "\n "
-	}
+	title := d.renderPaneTitle("Active Sessions", d.search.SessionsQuery,
+		d.search.IsActive && d.focusedPane == PaneSessions, d.sessionsWidth)
 
 	var content string
 	if len(d.sessions) == 0 && !d.search.IsActive && d.search.SessionsQuery == "" {
@@ -965,19 +982,51 @@ func (d *Dashboard) renderSessionsPane() string {
 	return style.Render(pane)
 }
 
-// renderFooter renders the keyboard shortcuts.
+// Footer key groups. The footer shows the navigation group, the group of the
+// focused pane and the global group, so it carries only keys that do
+// something here.
+const (
+	footerNav           = "[Nav] Tab"
+	footerCards         = "[Card] Enter=Launch n=New e=Edit"
+	footerSessions      = "[Session] Enter=Attach/Relaunch s=Switch x=Kill Del=Remove"
+	footerGlobal        = "[Global] m=MCP w=Workspaces c=Settings q=Quit"
+	footerGlobalMinimal = "[Global] q=Quit"
+	footerGroupGap      = "  "
+)
+
+// footerText picks the richest key legend that fits width. It gives up, in
+// order: the navigation group, the rest of the global group (q=Quit stays),
+// the focused pane's group - and as a last resort clips the line.
+func (d *Dashboard) footerText(width int) string {
+	pane := footerCards
+	if d.focusedPane == PaneSessions {
+		pane = footerSessions
+	}
+	candidates := [][]string{
+		{footerNav, pane, footerGlobal},
+		{pane, footerGlobal},
+		{pane, footerGlobalMinimal},
+		{footerGlobalMinimal},
+	}
+	if width <= 0 { // not sized yet: nothing to fit
+		return strings.Join(candidates[0], footerGroupGap)
+	}
+	for _, groups := range candidates {
+		if text := strings.Join(groups, footerGroupGap); lipgloss.Width(text) <= width {
+			return text
+		}
+	}
+	return components.TruncateHead(footerGlobalMinimal, width)
+}
+
+// renderFooter renders the keyboard shortcuts, fitted to the dashboard's width.
 func (d *Dashboard) renderFooter() string {
-	return lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().Foreground(styles.Gray).Render("[Nav] Tab "),
-		lipgloss.NewStyle().Foreground(styles.Gray).Render(" [Card] Enter=Launch n=New e=Edit "),
-		lipgloss.NewStyle().Foreground(styles.Gray).Render(" [Session] Enter=Attach/Relaunch s=Switch x=Kill Del=Remove "),
-		lipgloss.NewStyle().Foreground(styles.Gray).Render(" [Global] m=MCP w=Workspaces c=Settings q=Quit"),
-	)
+	return lipgloss.NewStyle().Foreground(styles.Gray).Render(d.footerText(d.Width))
 }
 
 // renderWithOverlay renders dashboard with modal overlay.
 func (d *Dashboard) renderWithOverlay(modalContent string) string {
-	return lipgloss.Place(d.Width, d.Height, lipgloss.Center, lipgloss.Center, modalContent)
+	return lipgloss.Place(d.Width, d.renderedHeight(), lipgloss.Center, lipgloss.Center, modalContent)
 }
 
 // renderEmptySessionsState renders the empty state artwork.

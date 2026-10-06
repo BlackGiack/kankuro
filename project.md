@@ -3,7 +3,7 @@
 Read this first. It covers what the project does, how it is built, where everything
 lives, the rules the code relies on, and which files to open for a given kind of task.
 `kankuro_specs.md` describes what the product should do; this file describes how the
-code actually does it. Last reviewed: 2026-10-02 (after Act 2 plan 4).
+code actually does it. Last reviewed: 2026-10-06 (after Act 2 plan 5).
 
 ---
 
@@ -65,6 +65,7 @@ internal/
     session_actions.go       #   `sessionActions`: launch, relaunch, switch, delete card/MCP, IDE, capability resolution. No Coordinator pointer
     callbacks.go             #   wiring: every view's callbacks (the one place closures can still reach `c`)
     attach.go                #   raw-PTY attach/detach (releases Bubble Tea, forwards stdin, detects Ctrl+K)
+    size_guard.go            #   below 80x24: the "too small" notice, and keys dropped except quit
   config/                    # YAML repository for everything the user configures
     repository.go            #   FileRepository (one mutex for all read-modify-write), interfaces, app settings
     storage.go               #   WriteAtomic (temp file + fsync + rename), Fingerprint (mtime+size per registry)
@@ -90,7 +91,8 @@ internal/
     views/                   #   full screens: dashboard, card_editor, mcp_form, source_manager, settings,
                              #   session_launcher, agent_switch, and three modals (each embeds components.ModalState)
     components/              #   reusable pieces: card_list, session_list, session_preview, capability_list,
-                             #   source_list, modal, filter (generic search), renderer (puppets)
+                             #   source_list, modal, filter (generic search), renderer (puppets),
+                             #   text (DisplayText, TruncateHead, TruncateTail)
     component/ styles/       #   base component type; the colour palette (see crow_puppet_theme.md)
   testenv/                   # test-only: private TMPDIR root + leak guard for TestMain (session, app)
   ascii/                     # canvas and built-in puppet/face art (cat, darth, default, kankuro, strawhat, totoro)
@@ -171,8 +173,23 @@ Three panes: ID cards (left), the preview of the selected session (centre), sess
 | `q` | quit |
 | `Ctrl+K` | detach from an attached session |
 
+The footer is context-sensitive: `[Nav]`, the focused pane's group (`[Card]` or `[Session]`)
+and `[Global]`. When that is wider than the terminal it drops the navigation group, then
+shrinks `[Global]` to `q=Quit`, then clips (`dashboard.go` `footerText`).
+
+**Minimum terminal size: 80×24** (`views.MinTerminalWidth` / `MinTerminalHeight`). Below it
+`Coordinator.View()` shows a centred "Terminal too small" notice in exactly the terminal's
+size and `Update` drops every key except `q` / `ctrl+c` (`app/size_guard.go`). Other messages
+still flow, so the real view is current when the terminal grows. A size of 0×0 means "no
+`WindowSizeMsg` yet" and is not guarded. The views are still sized at small sizes
+(`Dashboard.SetSize` never goes negative) but their layout there is undefined. Views are sized to
+terminal rows − `views.CoordinatorRows` (4): the single definition, used by `app.resizeAll` and by
+the dashboard to fill the terminal exactly.
+
 The card editor's own keys (`Tab` between fields, `Space` to toggle, `Ctrl+E` to add a
-source) are listed in `kankuro_specs.md` §4.
+source) are listed in `kankuro_specs.md` §4. The form scrolls when it is taller than its box
+(`card_editor.go` `layout` / `syncScroll`): the focused block stays in view and `↑ more` /
+`↓ more` replace the first / last row of a cut edge; the help line is pinned to the last row.
 
 ---
 
@@ -333,6 +350,13 @@ to reproduce a user's bug is fine; writing to it is not.
 - `collectMsgs` (two copies: `session_warning_test.go` and
   `refresh_cadence_internal_test.go`) unwraps `tea.BatchMsg` only; commands built with
   `tea.Sequence` come back opaque.
+- **User text goes into a fixed slot through `components/text.go`.** `DisplayText(s)` makes it
+  one-line safe (tabs and line breaks become a space; other control bytes and ANSI escapes are
+  dropped) and `TruncateHead(s, w)` / `TruncateTail(s, w)` fit it to `w` display columns, keeping
+  the start / the end and marking the cut with `...`. Use `TruncateTail` for paths and for text
+  being typed. Never slice a string by byte for display, and sanitise at display time: the stored
+  text stays what the user typed. A tab left in is expanded by lipgloss after the text was fitted,
+  which is how a name overflowed its row.
 - Rendering tests: `internal/ui/uitest` holds the shape assertions and adversarial
   fixtures (a normal package, imported only from `_test` files). Every view or
   component has a layout test with its contract written in a header comment, and the
@@ -347,8 +371,10 @@ to reproduce a user's bug is fine; writing to it is not.
   that only fits because of that clamp would pass a dashboard test. Files:
   `components/card_render_layout_test.go`, `session_list_layout_test.go`,
   `session_preview_layout_test.go`, `views/dashboard_layout_test.go`,
-  `card_editor_layout_test.go`, `modals_layout_test.go`. Known layout bugs found this
-  way are `t.Skip("bug: ...")` tests listed in `impl_plan_2.md` "Found, not fixed".
+  `card_editor_layout_test.go`, `modals_layout_test.go`. The 12 layout bugs
+  these sweeps found are all fixed (`impl_plan_5.md`); a new one found this way is a
+  `t.Skip("bug: ...")` test listed under "Found, not fixed" in the plan that found it. The sweeps
+  use `uitest.AdversarialNames` in full (tabs included) and no longer exclude any known cause.
 - **Make sure each new test can fail.** Remove the fix, run the test, watch it fail, put
   the fix back. The recurring problem in past work was tests that passed with the bug
   still present.
@@ -400,7 +426,9 @@ to reproduce a user's bug is fine; writing to it is not.
 | Add a message | `ui/messages/messages.go`, handle it in `coordinator.go` (`handleSpecialMessages` / `handleSessionMessages`); if it carries partial data, give it its own type (invariant 3) |
 | Change how cards look | `components/card_list.go` (`RenderCardItem`), `components/renderer.go` (puppets), `styles/styles.go`; invariant 9 and the sweep test |
 | Add or change a puppet | built-in art in `internal/ascii/characters`; user puppets are `.puppet` text files found in puppet source dirs (`config/puppet_sources.go`, which also truncates oversized art on read) |
-| Change dashboard layout or keys | `views/dashboard.go`, then update the key table in §4 and in `kankuro_specs.md` |
+| Change dashboard layout or keys | `views/dashboard.go` (`footerText` for the footer), then update the key table in §4 and in `kankuro_specs.md` |
+| Put user text into a fixed-width slot | `components/text.go` (`DisplayText`, `TruncateHead`, `TruncateTail`) |
+| Change the minimum terminal size or the "too small" screen | `views/constants.go` (`MinTerminalWidth/Height`), `app/size_guard.go` |
 | Change refresh behaviour | `refresh.go` (the commands) and `handlers.go` (applying results), `config.Fingerprint` |
 | Add a session-level action (Phase 1 linking) | a method on `sessionActions` in `session_actions.go` that returns a `tea.Cmd` and takes any coordinator state *by value*, plus a message and a handler in `coordinator.go`; wire the trigger in `callbacks.go` |
 | Change the preview subscription | `preview.go` (`previewSub`) and `handlers.go` (`handlePreviewRequest`, `handleSessionOutput`) |
@@ -423,6 +451,13 @@ to reproduce a user's bug is fine; writing to it is not.
   its own session or process group (a daemonising tool, a job-control shell) survives it.
   `Pdeathsig` is no fix: it fires when the spawning OS *thread* exits, which in Go can
   happen at any time.
+- **Below 80×24 there is only the "too small" notice.** There is no degraded layout (for
+  example hiding the preview pane under 80 columns and keeping cards and sessions usable);
+  that would be a second layout to build and test. Possible follow-up.
+- **Backspace in a search box deletes a byte, not a rune** (dashboard, card-editor lists,
+  workspace picker): `query[:len(query)-1]`. Deleting the last rune of a multi-byte character
+  leaves invalid UTF-8 in the query. Display is safe (`DisplayText` / `TruncateTail`); the
+  editing is not fixed.
 - **The `commands` package and `app/wiring.go` are gone.** Older documents still mention
   them; they were dead code.
 

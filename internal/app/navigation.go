@@ -67,11 +67,9 @@ func (c *Coordinator) navigateTo(vt ViewType) tea.Cmd {
 	return nil
 }
 
-const heightAdjustment = 4
-
 func (c *Coordinator) resizeAll() {
 	for _, view := range c.views {
-		view.SetSize(c.width, c.height-heightAdjustment)
+		view.SetSize(c.width, c.height-views.CoordinatorRows)
 	}
 }
 

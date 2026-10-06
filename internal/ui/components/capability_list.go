@@ -15,6 +15,7 @@ import (
 const (
 	cursorCenterDivisor = 2
 	viewHeightOffset    = 2 // header and potential footer (ellipsis)
+	focusPrefix         = "> "
 )
 
 // CapabilityItem represents an item in a capability list.
@@ -202,21 +203,29 @@ func (c *CapabilityList) View() string {
 	var sb strings.Builder
 
 	// Header
-	header := lipgloss.NewStyle().Foreground(styles.Gray).Render(c.title)
+	header := c.title
 	if c.sourceHint != "" {
-		header += lipgloss.NewStyle().Foreground(styles.Gray).Render(" (" + c.sourceHint + ")")
+		header += " (" + c.sourceHint + ")"
 	}
+	header = c.fit(header, 0)
 	if c.SearchQuery != "" {
-		header += lipgloss.NewStyle().Foreground(styles.Gray).Render(" | Search: " + c.SearchQuery)
+		// The end of the query is where the user is typing, so clip its head.
+		const label = " | Search: "
+		query := DisplayText(c.SearchQuery)
+		if c.Width > 0 {
+			query = TruncateTail(query, c.Width-lipgloss.Width(header)-len(label))
+		}
+		header += label + query
+		header = c.fit(header, 0)
 	}
-	sb.WriteString(header + "\n")
+	sb.WriteString(lipgloss.NewStyle().Foreground(styles.Gray).Render(header) + "\n")
 
 	filtered := c.FilteredItems()
 
 	if len(filtered) == 0 {
-		text := "(no matching items)"
+		text := c.fit("(no matching items)", len(focusPrefix))
 		if c.focused {
-			sb.WriteString(lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render("> " + text))
+			sb.WriteString(lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(focusPrefix + text))
 		} else {
 			sb.WriteString(text)
 		}
@@ -234,7 +243,7 @@ func (c *CapabilityList) View() string {
 		item := filtered[i]
 		prefix := "  "
 		if c.focused && i == c.cursor {
-			prefix = "> "
+			prefix = focusPrefix
 		}
 
 		mark := " "
@@ -242,7 +251,9 @@ func (c *CapabilityList) View() string {
 			mark = "x"
 		}
 
-		line := fmt.Sprintf("%s[%s] %s", prefix, mark, item.GetLabel())
+		// The prefix and the "[x] " box are fixed; the label gets what is left.
+		label := c.fit(item.GetLabel(), len(prefix)+len("[x] "))
+		line := fmt.Sprintf("%s[%s] %s", prefix, mark, label)
 
 		if c.focused && i == c.cursor {
 			line = lipgloss.NewStyle().Foreground(styles.HighlightColor).Render(line)
@@ -256,6 +267,17 @@ func (c *CapabilityList) View() string {
 	}
 
 	return sb.String()
+}
+
+// fit makes user text safe for one line of this list and clips it to the
+// list's width minus the fixed text already on that line. An unsized list
+// (width 0) does not clip.
+func (c *CapabilityList) fit(s string, fixed int) string {
+	s = DisplayText(s)
+	if c.Width <= 0 {
+		return s
+	}
+	return TruncateHead(s, c.Width-fixed)
 }
 
 // FilteredItems returns items matching the search query.
