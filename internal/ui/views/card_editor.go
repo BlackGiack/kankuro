@@ -23,6 +23,7 @@ const (
 	FocusDriver
 	FocusModel
 	FocusWorkspace
+	FocusSubWorkspaces
 	FocusFaceStyle
 	FocusPuppet
 	FocusUseTmp
@@ -49,7 +50,6 @@ const (
 	driverInputIdx
 	modelInputIdx
 	faceStyleInputIdx
-	useTmpInputIdx
 )
 
 // notAnInput marks a focusTarget that has no corresponding text input.
@@ -76,9 +76,10 @@ func focusTargetTable() []focusTarget {
 		{focus: FocusDriver, inputIdx: driverInputIdx, placeholder: "Driver (e.g., claude, gemini)..."},
 		{focus: FocusModel, inputIdx: modelInputIdx, placeholder: "Model (e.g., claude-3-opus)..."},
 		{focus: FocusWorkspace, inputIdx: notAnInput},
+		{focus: FocusSubWorkspaces, inputIdx: notAnInput},
 		{focus: FocusFaceStyle, inputIdx: faceStyleInputIdx, placeholder: "Face style..."},
 		{focus: FocusPuppet, inputIdx: notAnInput},
-		{focus: FocusUseTmp, inputIdx: useTmpInputIdx, placeholder: "Use tmp workspace (y/n)..."},
+		{focus: FocusUseTmp, inputIdx: notAnInput},
 		{focus: FocusAgentsMD, inputIdx: notAnInput},
 		{focus: FocusSkills, inputIdx: notAnInput},
 		{
@@ -120,11 +121,13 @@ type CardEditor struct {
 	agentsMDEditor  *AgentsMDEditorModal
 
 	// State
-	loaded      config.IDCard // card as loaded by SetCard; Card() overlays edits onto this
-	focusIndex  int
-	puppet      string
-	workspaceID string
-	agentsMD    AgentsMDState
+	loaded          config.IDCard // card as loaded by SetCard; Card() overlays edits onto this
+	focusIndex      int
+	puppet          string
+	workspaceID     string
+	subWorkspaceIDs []string
+	useTmpWorkspace bool
+	agentsMD        AgentsMDState
 
 	// scrollOffset is the first form line shown when the form is taller than
 	// the editor. It is derived state: layout() keeps the focused block inside
@@ -170,7 +173,7 @@ func NewCardEditor(callbacks CardEditorCallbacks) *CardEditor {
 	// Initialize capability lists
 	skillList := components.NewCapabilityList(components.CapabilityListConfig{
 		Title:      "Skills",
-		SourceHint: "ctrl+e=sources",
+		SourceHint: "ctrl+e=sources ctrl+s=selected",
 		MaxVisible: maxVisibleCaps,
 	})
 
@@ -267,11 +270,9 @@ func (e *CardEditor) SetCard(card config.IDCard) {
 	if e.puppet == "" {
 		e.puppet = defaultPuppetStyle
 	}
-	tmpVal := "n"
-	if card.UseTmpWorkspace {
-		tmpVal = "y"
-	}
-	e.inputs[useTmpInputIdx].SetValue(tmpVal)
+	e.useTmpWorkspace = card.UseTmpWorkspace
+	e.subWorkspaceIDs = slices.Clone(card.SubWorkspaceIDs)
+	e.skillList.SetSelectedOnly(false)
 	e.agentsMD.Content = card.AgentsMD
 	e.agentsMD.Path = card.AgentsMDPath
 	e.agentsMD.PreferPath = card.AgentsMDPreferPath
@@ -292,6 +293,9 @@ func (e *CardEditor) Reset() {
 	}
 	e.loaded = config.IDCard{}
 	e.workspaceID = ""
+	e.subWorkspaceIDs = nil
+	e.useTmpWorkspace = false
+	e.skillList.SetSelectedOnly(false)
 	e.puppet = "kankuro"
 	e.agentsMD = AgentsMDState{}
 	e.skillList.SetSelected(nil)
@@ -362,7 +366,8 @@ func (e *CardEditor) Card() config.IDCard {
 	card.WorkspaceID = e.workspaceID
 	card.FaceStyle = strings.TrimSpace(e.inputs[faceStyleInputIdx].Value())
 	card.Puppet = e.puppet
-	card.UseTmpWorkspace = strings.ToLower(strings.TrimSpace(e.inputs[useTmpInputIdx].Value())) == "y"
+	card.UseTmpWorkspace = e.useTmpWorkspace
+	card.SubWorkspaceIDs = slices.Clone(e.subWorkspaceIDs)
 	card.AgentsMD = e.agentsMD.Content
 	card.AgentsMDPath = e.agentsMD.Path
 	card.AgentsMDPreferPath = e.agentsMD.PreferPath
@@ -421,54 +426,81 @@ func (e *CardEditor) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 
 // handleKey processes global key events.
 func (e *CardEditor) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
-	if keyMsg.String() == "ctrl+c" {
+	switch editorKeyIdentity(keyMsg) {
+	case keyCtrlC:
 		return tea.Quit, true
-	}
-
-	if keyMsg.String() == keyShiftTab {
+	case keyShiftTab:
 		e.clearSearches()
 		e.CycleFocus(-1)
 		return nil, true
-	}
-
-	switch keyMsg.Code {
-	case tea.KeyEsc:
+	case "esc":
 		e.handleEscape()
 		if e.callbacks.OnCancel != nil {
 			return e.callbacks.OnCancel(), true
 		}
 		return nil, true
 
-	case tea.KeyTab:
+	case "tab":
 		e.clearSearches()
 		e.CycleFocus(1)
 		return nil, true
 
-	case tea.KeyUp:
+	case "up":
 		e.handleNav(false)
 		return nil, true
 
-	case tea.KeyDown:
+	case "down":
 		e.handleNav(true)
 		return nil, true
 
-	case tea.KeySpace:
+	case "space":
 		return nil, e.handleSpace()
 
-	case tea.KeyEnter:
+	case "enter":
 		return e.handleSubmit(), true
 
-	case tea.KeyDelete:
-		if e.focusIndex == FocusMCPs {
-			return e.deleteSelectedMCP(), true
+	case "delete":
+		if e.focusIndex != FocusMCPs {
+			return nil, false
 		}
-	}
-
-	if keyMsg.String() == keyCtrlE {
+		return e.deleteSelectedMCP(), true
+	case keyCtrlS:
+		if e.focusIndex != FocusSkills {
+			return nil, false
+		}
+		e.skillList.SetSelectedOnly(!e.skillList.SelectedOnly())
+		e.skillList.SetCursor(0)
+		return nil, true
+	case keyCtrlE:
 		return e.handleCtrlE()
 	}
-
 	return nil, false
+}
+
+func editorKeyIdentity(keyMsg tea.KeyPressMsg) string {
+	identity := keyMsg.String()
+	switch identity {
+	case keyCtrlC, keyCtrlS, keyCtrlE, keyShiftTab:
+		return identity
+	}
+	switch keyMsg.Code {
+	case tea.KeyEsc:
+		return "esc"
+	case tea.KeyTab:
+		return "tab"
+	case tea.KeyUp:
+		return "up"
+	case tea.KeyDown:
+		return "down"
+	case tea.KeySpace:
+		return "space"
+	case tea.KeyEnter:
+		return "enter"
+	case tea.KeyDelete:
+		return "delete"
+	default:
+		return identity
+	}
 }
 
 // handleEscape handles escape key based on current state.
@@ -499,6 +531,15 @@ func (e *CardEditor) handleSpace() bool {
 	case FocusWorkspace:
 		e.workspacePicker.SetSelectedID(e.workspaceID)
 		e.workspacePicker.Open()
+		return true
+	case FocusSubWorkspaces:
+		e.workspacePicker.SetMultiple(true)
+		e.workspacePicker.SetExcludedID(e.workspaceID)
+		e.workspacePicker.SetSelectedIDs(e.subWorkspaceIDs)
+		e.workspacePicker.Open()
+		return true
+	case FocusUseTmp:
+		e.useTmpWorkspace = !e.useTmpWorkspace
 		return true
 
 	case FocusPuppet:
@@ -538,6 +579,11 @@ func (e *CardEditor) handleSpace() bool {
 // handleCtrlE handles ctrl+e for opening source editors.
 func (e *CardEditor) handleCtrlE() (tea.Cmd, bool) {
 	switch e.focusIndex {
+	case FocusWorkspace, FocusSubWorkspaces:
+		if e.callbacks.OnOpenWorkspaces != nil {
+			return e.callbacks.OnOpenWorkspaces(), true
+		}
+		return nil, true
 	case FocusSkills:
 		if e.callbacks.OnOpenSources != nil {
 			return e.callbacks.OnOpenSources("skills"), true
@@ -770,7 +816,12 @@ func (e *CardEditor) updateWorkspacePicker(msg tea.Msg) (component.Model, tea.Cm
 	e.workspacePicker, _ = model.(*WorkspacePickerModal)
 
 	if e.workspacePicker.Confirmed() {
-		e.workspaceID = e.workspacePicker.SelectedID()
+		if e.focusIndex == FocusSubWorkspaces {
+			e.subWorkspaceIDs = e.workspacePicker.SelectedIDs()
+			e.workspacePicker.SetMultiple(false)
+		} else {
+			e.workspaceID = e.workspacePicker.SelectedID()
+		}
 		e.workspacePicker.Close()
 	}
 
@@ -881,9 +932,10 @@ func (e *CardEditor) fieldBlocks() []formBlock {
 		blockOf(FocusDriver, "Driver: "+e.inputs[driverInputIdx].View()+"\n"),
 		blockOf(FocusModel, "Model: "+e.inputs[modelInputIdx].View()+"\n"),
 		blockOf(FocusWorkspace, e.renderWorkspaceLine()+"\n"),
+		blockOf(FocusSubWorkspaces, e.renderSubWorkspacesLine()+"\n"),
 		blockOf(FocusFaceStyle, "Face Style: "+e.inputs[faceStyleInputIdx].View()+"\n"),
 		blockOf(FocusPuppet, e.renderPuppetLine()+"\n"),
-		blockOf(FocusUseTmp, "Use Tmp Workspace: "+e.inputs[useTmpInputIdx].View()+"\n\n"),
+		blockOf(FocusUseTmp, e.renderTmpWorkspaceLine()+"\n\n"),
 		blockOf(FocusAgentsMD, "AGENTS.md:\n"+e.renderAgentsMDRow()+"\n\n"),
 	}
 }
@@ -1051,9 +1103,46 @@ const (
 func (e *CardEditor) renderWorkspaceLine() string {
 	// Budget for the focused prefix in both states, so the line keeps its
 	// width when focus moves onto it.
-	line := workspaceLabel + e.fitField(e.WorkspaceSummary(), len(focusMarker)+len(workspaceLabel))
+	line := workspaceLabel + e.fitField(e.WorkspaceSummary()+" (ctrl+e=sources)", len(focusMarker)+len(workspaceLabel))
 
 	if e.focusIndex == FocusWorkspace {
+		line = focusMarker + line
+		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(line)
+	}
+	return line
+}
+
+func (e *CardEditor) renderTmpWorkspaceLine() string {
+	mark := "[ ]"
+	if e.useTmpWorkspace {
+		mark = "[x]"
+	}
+	line := "Use Tmp Workspace: " + mark
+	if e.focusIndex == FocusUseTmp {
+		line = focusMarker + line
+		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(line)
+	}
+	return line
+}
+
+func (e *CardEditor) renderSubWorkspacesLine() string {
+	names := make([]string, 0, len(e.subWorkspaceIDs))
+	for _, id := range e.subWorkspaceIDs {
+		name := id
+		for _, ws := range e.workspaces {
+			if ws.ID == id {
+				name = ws.Name
+				break
+			}
+		}
+		names = append(names, components.DisplayText(name))
+	}
+	value := "none"
+	if len(names) > 0 {
+		value = strings.Join(names, ", ")
+	}
+	line := "Sub Workspaces: " + e.fitField(value+" (ctrl+e=sources)", len(focusMarker)+len("Sub Workspaces: "))
+	if e.focusIndex == FocusSubWorkspaces {
 		line = focusMarker + line
 		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(line)
 	}

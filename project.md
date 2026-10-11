@@ -18,7 +18,7 @@ The core concepts:
 
 | Concept | What it is | Where |
 |---|---|---|
-| **ID card** | A saved agent template: driver (which CLI), model, workspace, whether to use a temporary workspace, selected skills / personas / MCP servers, AGENTS.md content, env, face and puppet style. | `config.IDCard` |
+| **ID card** | A saved agent template: driver (which CLI), model, workspace, optional sub workspaces, whether to use a temporary workspace, selected skills / personas / MCP servers, AGENTS.md content, env, face and puppet style. | `config.IDCard` |
 | **Workspace registry** | Directories you can run agents in. A *source* is either one workspace or a root whose direct children each become a workspace. Cards reference a workspace by ID, never by path. | `config/workspaces.go` |
 | **Capability registries** | Skills, personas and puppets are discovered from source directories; MCP servers are entered by hand. Cards reference them by ID. | `config/*_sources.go`, `config/mcps.go` |
 | **Session** | A running (or stopped, relaunchable) instance of a card: a child process in a PTY, its scrollback, and a JSON record on disk so it survives restarts. | `internal/session` |

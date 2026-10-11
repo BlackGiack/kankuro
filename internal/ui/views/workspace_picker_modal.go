@@ -1,6 +1,8 @@
 package views
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -15,13 +17,18 @@ type WorkspacePickerModal struct {
 	component.Base
 	components.ModalState
 
-	list        list.Model
-	workspaces  []config.Workspace
-	selectedID  string
-	searchQuery string
-	modalWidth  int
-	modalHeight int
-	listWidth   int
+	list                  list.Model
+	workspaces            []config.Workspace
+	selectedID            string
+	searchQuery           string
+	modalWidth            int
+	modalHeight           int
+	listWidth             int
+	multiple              bool
+	selectedIDs           []string
+	checked               map[string]bool
+	excludedID            string
+	selectedWorkspaceInfo map[string]config.Workspace
 }
 
 // NewWorkspacePickerModal creates a new workspace picker.
@@ -64,14 +71,15 @@ func (m *WorkspacePickerModal) rebuildList() {
 	delegate := list.NewDefaultDelegate()
 	delegate.SetHeight(workspacePickerDelegateHeight)
 
-	items := make([]list.Item, len(m.workspaces))
-	for i, ws := range m.workspaces {
-		items[i] = workspaceItem{workspace: ws}
+	workspaces := m.filterWorkspaces()
+	items := make([]list.Item, len(workspaces))
+	for i, ws := range workspaces {
+		items[i] = workspaceItem{workspace: ws, checked: m.multiple && m.checked[ws.ID], multiple: m.multiple}
 	}
 
 	l := list.New(items, delegate, 40, 30) //nolint:mnd // responsive sizing
 	l.SetShowTitle(true)
-	l.Title = "Select Workspace"
+	l.Title = m.title()
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false) // Use manual filtering
 
@@ -82,17 +90,38 @@ func (m *WorkspacePickerModal) rebuildList() {
 		m.applyListSize()
 	}
 
-	// Restore selection if possible
-	m.SetSelectedID(m.selectedID)
+	if !m.multiple {
+		m.restoreSingleSelection()
+	}
+}
+
+func (m *WorkspacePickerModal) title() string {
+	if m.multiple {
+		return "Select Sub Workspaces"
+	}
+	return "Select Workspace"
 }
 
 func (m *WorkspacePickerModal) SetWorkspaces(workspaces []config.Workspace) {
+	for _, workspace := range m.workspaces {
+		if m.checked[workspace.ID] {
+			m.rememberWorkspace(workspace)
+		}
+	}
 	m.workspaces = workspaces
 	m.refreshItems()
 }
 
+func (m *WorkspacePickerModal) SetExcludedID(id string) { m.excludedID = id; m.refreshItems() }
+
 func (m *WorkspacePickerModal) SetSelectedID(id string) {
+	m.multiple = false
 	m.selectedID = id
+	m.restoreSingleSelection()
+}
+
+func (m *WorkspacePickerModal) restoreSingleSelection() {
+	id := m.selectedID
 	if id == "" {
 		return
 	}
@@ -111,6 +140,47 @@ func (m *WorkspacePickerModal) SetSelectedID(id string) {
 	if len(items) > 0 {
 		m.list.Select(0)
 	}
+}
+
+func (m *WorkspacePickerModal) SetMultiple(enabled bool) { m.multiple = enabled; m.rebuildList() }
+func (m *WorkspacePickerModal) SetSelectedIDs(ids []string) {
+	m.multiple = true
+	m.selectedIDs = append([]string(nil), ids...)
+	m.checked = make(map[string]bool)
+	m.selectedWorkspaceInfo = make(map[string]config.Workspace)
+	for _, id := range ids {
+		m.checked[id] = true
+		for _, workspace := range m.workspaces {
+			if workspace.ID == id {
+				m.rememberWorkspace(workspace)
+				break
+			}
+		}
+	}
+	m.refreshItems()
+}
+func (m *WorkspacePickerModal) SelectedIDs() []string {
+	out := make([]string, 0, len(m.checked))
+	for _, ws := range m.workspaces {
+		if m.checked[ws.ID] {
+			out = append(out, ws.ID)
+		}
+	}
+	for _, id := range m.selectedIDs {
+		if m.checked[id] {
+			found := false
+			for _, ws := range m.workspaces {
+				if ws.ID == id {
+					found = true
+					break
+				}
+			}
+			if !found {
+				out = append(out, id)
+			}
+		}
+	}
+	return out
 }
 
 func (m *WorkspacePickerModal) SelectedID() string {
@@ -141,10 +211,17 @@ func (m *WorkspacePickerModal) SetSize(width, height int) {
 	m.applyListSize()
 }
 
+//nolint:gocognit,nestif // modal key handling preserves distinct confirm/cancel/search behavior.
 func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.Code {
 		case tea.KeyEnter:
+			if m.multiple {
+				m.Confirm()
+				m.selectedIDs = m.SelectedIDs()
+				m.resetTransientState()
+				return m, nil
+			}
 			m.Confirm()
 			// Save the currently selected workspace before resetting state
 			m.selectedID = m.SelectedID()
@@ -167,6 +244,23 @@ func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 				m.refreshItems()
 			}
 			return m, nil
+		case tea.KeySpace:
+			if m.multiple {
+				if item := m.list.SelectedItem(); item != nil {
+					wi, itemOK := item.(workspaceItem)
+					if !itemOK {
+						return m, nil
+					}
+					m.toggleChecked(wi.workspace.ID)
+					m.refreshItems()
+				}
+				return m, nil
+			}
+			if keyMsg.Text != "" {
+				m.searchQuery += keyMsg.Text
+				m.refreshItems()
+			}
+			return m, nil
 		default:
 			if len(keyMsg.Text) > 0 {
 				m.searchQuery += keyMsg.Text
@@ -181,6 +275,39 @@ func (m *WorkspacePickerModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m *WorkspacePickerModal) toggleChecked(id string) {
+	if m.checked[id] {
+		delete(m.checked, id)
+		m.selectedIDs = removeID(m.selectedIDs, id)
+		return
+	}
+	m.checked[id] = true
+	if item := m.list.SelectedItem(); item != nil {
+		if workspace, ok := item.(workspaceItem); ok {
+			m.rememberWorkspace(workspace.workspace)
+		}
+	}
+	if !slices.Contains(m.selectedIDs, id) {
+		m.selectedIDs = append(m.selectedIDs, id)
+	}
+}
+
+func (m *WorkspacePickerModal) rememberWorkspace(workspace config.Workspace) {
+	if m.selectedWorkspaceInfo == nil {
+		m.selectedWorkspaceInfo = make(map[string]config.Workspace)
+	}
+	m.selectedWorkspaceInfo[workspace.ID] = workspace
+}
+
+func removeID(ids []string, target string) []string {
+	for i, id := range ids {
+		if id == target {
+			return append(ids[:i], ids[i+1:]...)
+		}
+	}
+	return ids
+}
+
 func (m *WorkspacePickerModal) View() string {
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -190,8 +317,15 @@ func (m *WorkspacePickerModal) View() string {
 		Height(m.modalHeight)
 	pickerHelpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	help := "Enter=select • Esc=back • Type to search"
+	if m.multiple {
+		help = "Space=toggle • Enter=confirm • Esc=back • Type to search"
+	}
 	if m.searchQuery != "" {
-		help = "Enter=select • Esc=clear search • Type to search"
+		if m.multiple {
+			help = "Space=toggle • Enter=confirm • Esc=clear search • Type to search"
+		} else {
+			help = "Enter=select • Esc=clear search • Type to search"
+		}
 	}
 
 	// The search row is always there, blank until a query is typed, so the
@@ -226,7 +360,7 @@ func (m *WorkspacePickerModal) refreshItems() {
 	filtered := m.filterWorkspaces()
 	items := make([]list.Item, len(filtered))
 	for i, ws := range filtered {
-		items[i] = workspaceItem{workspace: ws}
+		items[i] = workspaceItem{workspace: ws, checked: m.multiple && m.checked[ws.ID], multiple: m.multiple}
 	}
 	m.list.SetItems(items)
 	// Normalize selection after refreshing items
@@ -234,7 +368,31 @@ func (m *WorkspacePickerModal) refreshItems() {
 }
 
 func (m *WorkspacePickerModal) filterWorkspaces() []config.Workspace {
-	return components.Filter(m.workspaces, m.searchQuery, func(ws config.Workspace) string {
+	workspaces := make([]config.Workspace, 0, len(m.workspaces)+len(m.checked))
+	registered := make(map[string]bool, len(m.workspaces))
+	for _, ws := range m.workspaces {
+		registered[ws.ID] = true
+		if m.multiple && ws.ID == m.excludedID && !m.checked[ws.ID] {
+			continue
+		}
+		workspaces = append(workspaces, ws)
+	}
+	if m.multiple {
+		for _, id := range m.selectedIDs {
+			if registered[id] || !m.checked[id] {
+				continue
+			}
+			workspace := m.selectedWorkspaceInfo[id]
+			name := "[missing] " + id
+			path := "Not in workspace registry"
+			if workspace.Name != "" {
+				name = "[missing] " + workspace.Name + " (" + id + ")"
+				path = workspace.Path
+			}
+			workspaces = append(workspaces, config.Workspace{ID: id, Name: name, Path: path})
+		}
+	}
+	return components.Filter(workspaces, m.searchQuery, func(ws config.Workspace) string {
 		return ws.Name + " " + ws.Path
 	})
 }
@@ -258,8 +416,21 @@ const pickerBoxChrome = 2 + 2*widthPadding
 
 type workspaceItem struct {
 	workspace config.Workspace
+	checked   bool
+	multiple  bool
 }
 
-func (i workspaceItem) Title() string       { return components.DisplayText(i.workspace.Name) }
+func (i workspaceItem) Title() string {
+	if !i.multiple {
+		return components.DisplayText(i.workspace.Name)
+	}
+	mark := ""
+	if i.checked {
+		mark = "[x] "
+	} else if i.workspace.Name != "" {
+		mark = "[ ] "
+	}
+	return mark + components.DisplayText(i.workspace.Name)
+}
 func (i workspaceItem) Description() string { return components.DisplayText(i.workspace.Path) }
 func (i workspaceItem) FilterValue() string { return i.workspace.Name }

@@ -30,12 +30,12 @@ func TestFocusCountMatchesTargets(t *testing.T) {
 }
 
 // TestInputIndexConstantsMatchTargets guards the other half of the drift #1
-// left unclosed: nameInputIdx..useTmpInputIdx must cover exactly the input
+// left unclosed: nameInputIdx..faceStyleInputIdx must cover exactly the input
 // slots focusTargetTable() allocates for, or a constant added without a
 // matching table entry leaves a hole (and an index-out-of-range at
 // construction if it is the highest).
 func TestInputIndexConstantsMatchTargets(t *testing.T) {
-	if got, want := inputCountFromTargets(), useTmpInputIdx+1; got != want {
+	if got, want := inputCountFromTargets(), faceStyleInputIdx+1; got != want {
 		t.Fatalf("input index constants and focusTargets disagree: %d vs %d", want, got)
 	}
 }

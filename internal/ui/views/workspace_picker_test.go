@@ -50,6 +50,131 @@ func TestWorkspacePicker_SearchAndFilter(t *testing.T) {
 	}
 }
 
+func TestWorkspacePickerSpaceSearchesNamesWithSpaces(t *testing.T) {
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
+	e.SetData(messages.DataLoadedMsg{Workspaces: []config.Workspace{
+		{ID: "spaced", Name: "Alpha Project", Path: "/work/with space"},
+		{ID: "joined", Name: "AlphaProject", Path: "/work/joined"},
+	}})
+	e.CycleFocus(views.FocusWorkspace)
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	for _, key := range []tea.KeyPressMsg{{Text: "Alpha"}, {Code: tea.KeySpace, Text: " "}, {Text: "Project"}} {
+		e.Update(key)
+	}
+	view := e.View()
+	hasExpectedQuery := strings.Contains(view, "Search: Alpha Project")
+	hasSpacedWorkspace := strings.Contains(view, "Alpha Project")
+	hasJoinedWorkspace := strings.Contains(view, "AlphaProject")
+	if !hasExpectedQuery || !hasSpacedWorkspace || hasJoinedWorkspace {
+		t.Fatalf("space should remain part of a single-picker search:\n%s", view)
+	}
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := e.WorkspaceID(); got != "spaced" {
+		t.Fatalf("selected workspace = %q, want spaced", got)
+	}
+}
+
+func TestSubWorkspacePickerMultipleUnresolvedAndMainModes(t *testing.T) {
+	workspaces := []config.Workspace{
+		{ID: "main", Name: "Main", Path: "/main"},
+		{ID: "sub-a", Name: "Alpha", Path: "/alpha"},
+		{ID: "sub-b", Name: "Beta", Path: "/beta"},
+	}
+	var saved config.IDCard
+	e := views.NewCardEditor(views.CardEditorCallbacks{OnSave: func(card config.IDCard) tea.Cmd { saved = card; return nil }})
+	e.SetData(messages.DataLoadedMsg{Workspaces: workspaces})
+	e.SetCard(config.IDCard{WorkspaceID: "main", SubWorkspaceIDs: []string{"removed"}})
+	e.CycleFocus(views.FocusSubWorkspaces)
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	out := e.View()
+	if !strings.Contains(out, "Select Sub Workspaces") || !strings.Contains(out, "[missing] removed") || strings.Contains(out, "Main") {
+		t.Fatalf("multiple picker must show unresolved selection and exclude unselected main workspace:\n%s", out)
+	}
+	// Provisional changes across searches are discarded by cancellation.
+	e.Update(tea.KeyPressMsg{Code: 0, Text: "removed"})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEsc}) // clear search first
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEsc}) // cancel without committing
+	if got := e.Card().SubWorkspaceIDs; len(got) != 1 || got[0] != "removed" {
+		t.Fatalf("cancel changed editor selection: %v", got)
+	}
+	// Reopen, clear unresolved explicitly, and commit two checked IDs.
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	e.Update(tea.KeyPressMsg{Code: 0, Text: "removed"})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	e.Update(tea.KeyPressMsg{Code: 0, Text: "Alpha"})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	e.Update(tea.KeyPressMsg{Code: 0, Text: "Beta"})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := e.Card().SubWorkspaceIDs; len(got) != 2 || got[0] != "sub-a" || got[1] != "sub-b" {
+		t.Fatalf("confirmed sub workspace IDs = %v, want [sub-a sub-b]", got)
+	}
+	// Opening the main picker must switch back to single-select mode.
+	e.CycleFocus(-1)
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	mainPickerView := e.View()
+	if !strings.Contains(mainPickerView, "Select Workspace") || strings.Contains(mainPickerView, "Select Sub Workspaces") {
+		t.Fatalf("main picker retained multiple mode:\n%s", mainPickerView)
+	}
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if len(saved.SubWorkspaceIDs) != 2 || saved.SubWorkspaceIDs[0] != "sub-a" || saved.SubWorkspaceIDs[1] != "sub-b" {
+		t.Fatalf("saved repaired card has sub workspace IDs %v", saved.SubWorkspaceIDs)
+	}
+}
+
+func TestSubWorkspaceNewSelectionSurvivesRegistryRefresh(t *testing.T) {
+	alpha := config.Workspace{ID: "a", Name: "Alpha", Path: "/alpha"}
+	beta := config.Workspace{ID: "b", Name: "Beta", Path: "/beta"}
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
+	e.SetData(messages.DataLoadedMsg{Workspaces: []config.Workspace{alpha, beta}})
+	e.SetCard(config.IDCard{WorkspaceID: "main"})
+	e.CycleFocus(views.FocusSubWorkspaces)
+
+	openAndSelectAlpha := func() {
+		t.Helper()
+		e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+		e.Update(tea.KeyPressMsg{Text: "Alpha"})
+		e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	}
+
+	openAndSelectAlpha()
+	e.SetData(messages.DataLoadedMsg{Workspaces: []config.Workspace{beta}})
+	if view := e.View(); !strings.Contains(view, "[missing] Alpha (a)") {
+		t.Fatalf("newly checked workspace disappeared after removal:\n%s", view)
+	}
+	e.SetData(messages.DataLoadedMsg{Workspaces: []config.Workspace{alpha, beta}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEsc}) // clear search
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEsc}) // cancel
+	if got := e.Card().SubWorkspaceIDs; len(got) != 0 {
+		t.Fatalf("cancel committed provisional selection: %v", got)
+	}
+
+	// Reopen, remove Alpha again, and explicitly deselect its unresolved row.
+	openAndSelectAlpha()
+	e.SetData(messages.DataLoadedMsg{Workspaces: []config.Workspace{beta}})
+	if view := e.View(); !strings.Contains(view, "[missing] Alpha (a)") {
+		t.Fatalf("missing workspace was not available for deselection:\n%s", view)
+	}
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := e.Card().SubWorkspaceIDs; len(got) != 0 {
+		t.Fatalf("explicitly deselected ID remains: %v", got)
+	}
+
+	// A newly checked ID that is absent at confirmation remains selected.
+	e.SetData(messages.DataLoadedMsg{Workspaces: []config.Workspace{alpha, beta}})
+	openAndSelectAlpha()
+	e.SetData(messages.DataLoadedMsg{Workspaces: []config.Workspace{beta}})
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := e.Card().SubWorkspaceIDs; len(got) != 1 || got[0] != "a" {
+		t.Fatalf("newly checked ID disappeared on confirmation: %v", got)
+	}
+}
+
 func TestWorkspacePicker_EscapeBehavior(t *testing.T) {
 	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	e.SetData(messages.DataLoadedMsg{Workspaces: []config.Workspace{{ID: "1", Name: "Alpha"}}})

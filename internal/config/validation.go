@@ -23,8 +23,26 @@ func (r *FileRepository) ValidateCard(card IDCard) error {
 		return err
 	}
 
-	if err := r.validateWorkspaceRef(card.WorkspaceID); err != nil {
-		return err
+	workspaces, workspaceErr := r.listWorkspacesLocked()
+	if workspaceErr != nil {
+		return workspaceErr
+	}
+	workspaceSet := idSet(workspaces, func(w Workspace) string { return w.ID })
+	if _, ok := workspaceSet[card.WorkspaceID]; !ok {
+		return fmt.Errorf("workspace reference not found: %s", card.WorkspaceID)
+	}
+	seenSubWorkspaces := make(map[string]struct{}, len(card.SubWorkspaceIDs))
+	for _, id := range card.SubWorkspaceIDs {
+		if _, ok := workspaceSet[id]; !ok {
+			return fmt.Errorf("sub workspace reference not found: %s", id)
+		}
+		if id == card.WorkspaceID {
+			return fmt.Errorf("sub workspace cannot be the main workspace: %s", id)
+		}
+		if _, ok := seenSubWorkspaces[id]; ok {
+			return fmt.Errorf("duplicate sub workspace reference: %s", id)
+		}
+		seenSubWorkspaces[id] = struct{}{}
 	}
 
 	if err := r.validateSkillRefs(card.SkillIDs); err != nil {
@@ -36,18 +54,6 @@ func (r *FileRepository) ValidateCard(card IDCard) error {
 	}
 
 	return r.validateMCPRefs(card.MCPIDs)
-}
-
-func (r *FileRepository) validateWorkspaceRef(workspaceID string) error {
-	workspaces, err := r.listWorkspacesLocked()
-	if err != nil {
-		return err
-	}
-	set := idSet(workspaces, func(w Workspace) string { return w.ID })
-	if _, ok := set[workspaceID]; !ok {
-		return fmt.Errorf("workspace reference not found: %s", workspaceID)
-	}
-	return nil
 }
 
 func (r *FileRepository) validateSkillRefs(skillIDs []string) error {
