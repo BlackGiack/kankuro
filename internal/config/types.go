@@ -15,6 +15,7 @@ type IDCard struct {
 	Model              string            `yaml:"model"`
 	WorkspaceID        string            `yaml:"workspace_id"`
 	UseTmpWorkspace    bool              `yaml:"use_tmp_workspace"`
+	SubWorkspaceIDs    []string          `yaml:"sub_workspace_ids,omitempty"`
 	SystemInstruction  string            `yaml:"system_instruction"`
 	SkillIDs           []string          `yaml:"skill_ids"`
 	PersonaIDs         []string          `yaml:"persona_ids"`

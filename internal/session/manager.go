@@ -110,13 +110,14 @@ type WorkspaceReader interface {
 }
 
 type Manager struct {
-	mu        sync.RWMutex
-	sessions  map[string]*Session
-	configDir string
-	repo      WorkspaceReader
-	drivers   driver.Registry
-	loadErr   error
-	logger    *slog.Logger
+	mu             sync.RWMutex
+	subWorkspaceMu sync.Mutex
+	sessions       map[string]*Session
+	configDir      string
+	repo           WorkspaceReader
+	drivers        driver.Registry
+	loadErr        error
+	logger         *slog.Logger
 
 	// stop is closed by Shutdown to make every watch goroutine return without
 	// a final tick; watchers counts them so Shutdown can wait. closed (under

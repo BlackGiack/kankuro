@@ -119,6 +119,220 @@ func TestSessionAgentsMD(t *testing.T) {
 	}
 }
 
+func TestLaunchCopiesSubWorkspaceAndRetainsManagedEdits(t *testing.T) {
+	repo, _ := config.NewFileRepository(t.TempDir())
+	mainDir, subDir := t.TempDir(), t.TempDir()
+	if err := os.WriteFile(filepath.Join(subDir, "source.txt"), []byte("source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: mainDir}, {Path: subDir}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, listErr := repo.ListWorkspaces()
+	if listErr != nil {
+		t.Fatal(listErr)
+	}
+	var mainID, subID string
+	for _, workspace := range workspaces {
+		if workspace.Path == mainDir {
+			mainID = workspace.ID
+		}
+		if workspace.Path == subDir {
+			subID = workspace.ID
+		}
+	}
+	sm := newTestManager(t, repo.Dir(), repo)
+	sid, launchErr := sm.Launch(config.IDCard{
+		ID: "sub-card", Name: "sub", Driver: "cat", WorkspaceID: mainID,
+		SubWorkspaceIDs: []string{subID},
+	}, nil, nil, nil)
+	if launchErr != nil {
+		t.Fatalf("launch: %v", launchErr)
+	}
+	snapshot, ok := sm.GetSession(sid)
+	if !ok {
+		t.Fatal("session missing")
+	}
+	copyPath := filepath.Join(snapshot.WorkingDir, "tmp", filepath.Base(subDir))
+	if _, statErr := os.Stat(filepath.Join(copyPath, "source.txt")); statErr != nil {
+		t.Fatalf("copied source: %v", statErr)
+	}
+	edit := filepath.Join(copyPath, "agent.txt")
+	if writeErr := os.WriteFile(edit, []byte("agent edit"), 0o600); writeErr != nil {
+		t.Fatal(writeErr)
+	}
+	if killErr := sm.Kill(sid); killErr != nil {
+		t.Fatal(killErr)
+	}
+	relaunchErr := sm.Relaunch(sid, config.IDCard{
+		ID: "sub-card", Name: "sub", Driver: "cat", WorkspaceID: mainID,
+		SubWorkspaceIDs: []string{subID},
+	}, nil, nil, nil)
+	if relaunchErr != nil {
+		t.Fatalf("relaunch: %v", relaunchErr)
+	}
+	if content, readErr := os.ReadFile(edit); readErr != nil || string(content) != "agent edit" {
+		t.Fatalf("managed edit not retained: %q, %v", content, readErr)
+	}
+	if killErr := sm.Kill(sid); killErr != nil {
+		t.Fatal(killErr)
+	}
+}
+
+func TestFailedTemporaryLaunchRemovesSessionRoot(t *testing.T) {
+	repo, _ := config.NewFileRepository(t.TempDir())
+	mainDir, subDir, tmpRoot := t.TempDir(), t.TempDir(), t.TempDir()
+	t.Setenv("KANKURO_TMP_DIR", tmpRoot)
+	if err := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: mainDir}, {Path: subDir}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, err := repo.ListWorkspaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mainID, subID string
+	for _, workspace := range workspaces {
+		if workspace.Path == mainDir {
+			mainID = workspace.ID
+		}
+		if workspace.Path == subDir {
+			subID = workspace.ID
+		}
+	}
+	sm := newTestManager(t, repo.Dir(), repo)
+	for _, card := range []config.IDCard{
+		{ID: "missing-cli", Name: "missing", Driver: filepath.Join(tmpRoot, "no-such-cli"), WorkspaceID: mainID, UseTmpWorkspace: true, SubWorkspaceIDs: []string{subID}},
+		{ID: "missing-source", Name: "source", Driver: "cat", WorkspaceID: mainID, UseTmpWorkspace: true, SubWorkspaceIDs: []string{"missing-workspace"}},
+	} {
+		sid, launchErr := sm.Launch(card, nil, nil, nil)
+		if launchErr == nil {
+			t.Fatalf("Launch(%s) unexpectedly succeeded", card.ID)
+		}
+		if _, statErr := os.Lstat(filepath.Join(tmpRoot, sid)); !os.IsNotExist(statErr) {
+			t.Fatalf("failed launch left temporary session root: %v", statErr)
+		}
+	}
+}
+
+func TestTemporaryLaunchSyncFailureRemovesSessionRoot(t *testing.T) {
+	repo, _ := config.NewFileRepository(t.TempDir())
+	mainDir, tmpRoot := t.TempDir(), t.TempDir()
+	t.Setenv("KANKURO_TMP_DIR", tmpRoot)
+	if err := os.Mkdir(filepath.Join(mainDir, "AGENTS.md"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: mainDir}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, err := repo.ListWorkspaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sm := newTestManager(t, repo.Dir(), repo)
+	sid, launchErr := sm.Launch(config.IDCard{
+		ID: "sync-failure", Name: "sync", Driver: "generic", WorkspaceID: workspaces[0].ID,
+		UseTmpWorkspace: true, AgentsMD: "instruction",
+	}, nil, nil, nil)
+	if launchErr == nil {
+		t.Fatal("expected instruction-file sync failure")
+	}
+	if _, statErr := os.Lstat(filepath.Join(tmpRoot, sid)); !os.IsNotExist(statErr) {
+		t.Fatalf("sync failure left temporary session root: %v", statErr)
+	}
+}
+
+func TestSymlinkedSubWorkspaceCopiesContentsWithoutLinkingSource(t *testing.T) {
+	repo, _ := config.NewFileRepository(t.TempDir())
+	mainDir, sourceDir, aliasDir := t.TempDir(), t.TempDir(), filepath.Join(t.TempDir(), "source-alias")
+	if err := os.WriteFile(filepath.Join(sourceDir, "data.txt"), []byte("original"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(sourceDir, aliasDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: mainDir}, {Path: aliasDir}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, err := repo.ListWorkspaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mainID, subID string
+	for _, workspace := range workspaces {
+		if workspace.Path == mainDir {
+			mainID = workspace.ID
+		}
+		if workspace.Path == aliasDir {
+			subID = workspace.ID
+		}
+	}
+	sm := newTestManager(t, repo.Dir(), repo)
+	card := config.IDCard{ID: "symlink-sub", Name: "symlink", Driver: "cat", WorkspaceID: mainID, SubWorkspaceIDs: []string{subID}}
+	sid, err := sm.Launch(card, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+	snapshot, _ := sm.GetSession(sid)
+	copyDir := filepath.Join(snapshot.WorkingDir, "tmp", filepath.Base(aliasDir))
+	info, err := os.Lstat(copyDir)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		t.Fatalf("copy is not a real directory: %v, %v", info, err)
+	}
+	if writeErr := os.WriteFile(filepath.Join(copyDir, "data.txt"), []byte("edited"), 0o600); writeErr != nil {
+		t.Fatal(writeErr)
+	}
+	original, err := os.ReadFile(filepath.Join(sourceDir, "data.txt"))
+	if err != nil || string(original) != "original" {
+		t.Fatalf("source was modified: %q, %v", original, err)
+	}
+	if killErr := sm.Kill(sid); killErr != nil {
+		t.Fatal(killErr)
+	}
+	if relaunchErr := sm.Relaunch(sid, card, nil, nil, nil); relaunchErr != nil {
+		t.Fatalf("relaunch managed symlink source: %v", relaunchErr)
+	}
+	if killErr := sm.Kill(sid); killErr != nil {
+		t.Fatal(killErr)
+	}
+}
+
+func TestSubWorkspaceContainmentResolvesSymlinkedAncestor(t *testing.T) {
+	repo, _ := config.NewFileRepository(t.TempDir())
+	realParent := t.TempDir()
+	mainDir := filepath.Join(realParent, "main")
+	if err := os.Mkdir(mainDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	aliasDir := filepath.Join(t.TempDir(), "parent-alias")
+	if err := os.Symlink(realParent, aliasDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: mainDir}, {Path: aliasDir}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, err := repo.ListWorkspaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mainID, parentID string
+	for _, workspace := range workspaces {
+		if workspace.Path == mainDir {
+			mainID = workspace.ID
+		}
+		if workspace.Path == aliasDir {
+			parentID = workspace.ID
+		}
+	}
+	sm := newTestManager(t, repo.Dir(), repo)
+	card := config.IDCard{
+		ID: "contained", Name: "contained", Driver: "cat", WorkspaceID: mainID,
+		SubWorkspaceIDs: []string{parentID},
+	}
+	if _, launchErr := sm.Launch(card, nil, nil, nil); launchErr == nil {
+		t.Fatal("expected sub workspace containing the destination to be rejected")
+	}
+}
+
 func TestSessionClaudeAgentsMD(t *testing.T) {
 	// Setup dummy claude binary
 	tmpPath := t.TempDir()

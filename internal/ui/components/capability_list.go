@@ -46,11 +46,12 @@ type CapabilityList struct {
 	sourceHint string
 	maxVisible int
 
-	items       []CapabilityItem
-	cursor      int
-	selected    map[string]bool
-	SearchQuery string
-	focused     bool
+	items        []CapabilityItem
+	cursor       int
+	selected     map[string]bool
+	SearchQuery  string
+	focused      bool
+	selectedOnly bool
 }
 
 // NewCapabilityList creates a new capability list.
@@ -68,6 +69,7 @@ func (c *CapabilityList) Items() []CapabilityItem { return c.items }
 // SetItems updates the list items.
 func (c *CapabilityList) SetItems(items []CapabilityItem) {
 	c.items = items
+	c.normalizeCursor()
 }
 
 // IsSelected reports whether id is currently selected.
@@ -78,11 +80,13 @@ func (c *CapabilityList) IsSelected(id string) bool {
 // Select marks id as selected.
 func (c *CapabilityList) Select(id string) {
 	c.selected[id] = true
+	c.normalizeCursor()
 }
 
 // Deselect clears id's selection.
 func (c *CapabilityList) Deselect(id string) {
 	delete(c.selected, id)
+	c.normalizeCursor()
 }
 
 // Toggle flips id's selection state.
@@ -92,6 +96,7 @@ func (c *CapabilityList) Toggle(id string) {
 	} else {
 		c.selected[id] = true
 	}
+	c.normalizeCursor()
 }
 
 // SetSelected sets the selected IDs.
@@ -100,6 +105,7 @@ func (c *CapabilityList) SetSelected(ids []string) {
 	for _, id := range ids {
 		c.selected[id] = true
 	}
+	c.normalizeCursor()
 }
 
 // SelectedIDs returns the selected IDs.
@@ -118,6 +124,23 @@ func (c *CapabilityList) SetFocused(focused bool) {
 	c.focused = focused
 }
 
+func (c *CapabilityList) SetSelectedOnly(enabled bool) { c.selectedOnly = enabled; c.normalizeCursor() }
+func (c *CapabilityList) SelectedOnly() bool           { return c.selectedOnly }
+
+func (c *CapabilityList) normalizeCursor() {
+	filtered := c.FilteredItems()
+	if len(filtered) == 0 {
+		c.cursor = 0
+		return
+	}
+	if c.cursor < 0 {
+		c.cursor = 0
+	}
+	if c.cursor >= len(filtered) {
+		c.cursor = len(filtered) - 1
+	}
+}
+
 // SetSearchQuery filters the displayed items.
 func (c *CapabilityList) SetSearchQuery(query string) {
 	c.SearchQuery = query
@@ -132,6 +155,10 @@ func (c *CapabilityList) Cursor() int {
 // SetCursor sets the cursor position.
 func (c *CapabilityList) SetCursor(pos int) {
 	filtered := c.FilteredItems()
+	if len(filtered) == 0 {
+		c.cursor = 0
+		return
+	}
 	if pos < 0 {
 		pos = 0
 	}
@@ -149,6 +176,7 @@ func (c *CapabilityList) ToggleSelected() {
 	}
 
 	c.Toggle(filtered[c.cursor].GetID())
+	c.normalizeCursor()
 }
 
 // SelectedItem returns the item at cursor.
@@ -218,6 +246,9 @@ func (c *CapabilityList) View() string {
 
 func (c *CapabilityList) renderHeader() string {
 	header := c.title
+	if c.selectedOnly {
+		header += " [selected]"
+	}
 	if c.sourceHint != "" {
 		header += " (" + c.sourceHint + ")"
 	}
@@ -349,14 +380,17 @@ func (c *CapabilityList) fit(s string, fixed int) string {
 
 // FilteredItems returns items matching the search query.
 func (c *CapabilityList) FilteredItems() []CapabilityItem {
-	if c.SearchQuery == "" {
+	if c.SearchQuery == "" && !c.selectedOnly {
 		return c.items
 	}
 
 	q := strings.ToLower(c.SearchQuery)
 	var filtered []CapabilityItem
 	for _, item := range c.items {
-		if strings.Contains(strings.ToLower(item.GetLabel()), q) ||
+		if c.selectedOnly && !c.IsSelected(item.GetID()) {
+			continue
+		}
+		if q == "" || strings.Contains(strings.ToLower(item.GetLabel()), q) ||
 			strings.Contains(strings.ToLower(item.GetDescription()), q) {
 			filtered = append(filtered, item)
 		}

@@ -125,6 +125,7 @@ func TestCardEditorPreservesUnmanagedFields(t *testing.T) {
 		Driver:             "orig-driver",
 		Model:              "orig-model",
 		WorkspaceID:        "ws-1",
+		SubWorkspaceIDs:    []string{"ws-2"},
 		UseTmpWorkspace:    true,
 		SystemInstruction:  "be a test",
 		SkillIDs:           []string{"s1"},
@@ -172,6 +173,26 @@ func TestCardEditorPreservesUnmanagedFields(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Card() after editing only Name changed other fields too, or "+
 			"dropped one it should have preserved:\ngot:  %+v\nwant: %+v", got, want)
+	}
+}
+
+func TestSelectedOnlySkillCursorNormalizesAfterRegistryRefresh(t *testing.T) {
+	e := views.NewCardEditor(views.CardEditorCallbacks{})
+	e.SetData(messages.DataLoadedMsg{Skills: []config.Skill{
+		{ID: "a", Name: "A"}, {ID: "b", Name: "B"}, {ID: "c", Name: "C"},
+	}})
+	e.SkillList().SetSelected([]string{"a", "b"})
+	e.SkillList().SetSelectedOnly(true)
+	e.SkillList().SetCursor(1)
+	e.SetData(messages.DataLoadedMsg{Skills: []config.Skill{{ID: "a", Name: "A"}, {ID: "c", Name: "C"}}})
+	item, ok := e.SkillList().SelectedItem()
+	if !ok || item.GetID() != "a" {
+		t.Fatalf("selected-only cursor item = %v, %v; want A", item, ok)
+	}
+	e.CycleFocus(views.FocusSkills)
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	if e.SkillList().IsSelected("a") {
+		t.Fatal("Space did not toggle the normalized visible skill")
 	}
 }
 

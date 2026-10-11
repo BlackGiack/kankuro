@@ -19,6 +19,7 @@ A saved configuration template for an agent. It encapsulates:
 * **Workspace:** A selected workspace from the workspace registry.
 * **System Instruction:** Default behavior overrides.
 * **Temporary Workspace:** Option to run sessions in an isolated directory.
+* **Sub workspaces:** Optional workspace registry entries copied into `tmp/<workspace basename>` under the session working directory. Managed copies and ownership metadata (`.kankuro/sub-workspaces.json`) persist across activations; occupied or mismatched destinations are errors. With temporary mode disabled, these writes occur in the original workspace.
 * **Capabilities:** Assigned **Skills**, **MCPs** (Model Context Protocol through cli), **Personas**.
 * **Face Style:** Visual identity used in the dashboard.
 

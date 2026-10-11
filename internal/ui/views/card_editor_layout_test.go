@@ -223,6 +223,8 @@ func focusMarkerLine(focus int) []string {
 		return []string{"Use Tmp Workspace: "}
 	case views.FocusWorkspace:
 		return []string{"> Workspace: "}
+	case views.FocusSubWorkspaces:
+		return []string{"> Sub Workspaces: "}
 	case views.FocusPuppet:
 		return []string{"> Puppet: "}
 	case views.FocusAgentsMD:
@@ -257,7 +259,7 @@ func TestCardEditorFocusedFieldAlwaysVisible(t *testing.T) {
 						break
 					}
 				}
-				if want := 9 + btoi(personas) + btoi(mcps); visited != want {
+				if want := 10 + btoi(personas) + btoi(mcps); visited != want {
 					t.Fatalf("visited %d focus targets, want %d", visited, want)
 				}
 			}
@@ -352,10 +354,10 @@ func pressKey(e *views.CardEditor, code rune, n int) {
 // Seen to fail: scrolling a list into its middle pushed the next header down a
 // row (both "..." rows), and a search matching 1 item or none pulled it up.
 func TestCardEditorListsKeepTheirPlace(t *testing.T) {
-	// 14 rows of fields + 3 lists of 7 rows + 2 separator rows each + the help
+	// 15 rows of fields + 3 lists of 7 rows + 2 separator rows each + the help
 	// line = 41 rows: the form fits without scrolling. (30 terminal rows would
 	// floor the lists at minCapListHeight and scroll.)
-	const terminalRows = 46
+	const terminalRows = 47
 	h := terminalRows - views.CoordinatorRows
 	e := newLayoutEditor(true, true, 0, false)
 	for _, l := range []struct {

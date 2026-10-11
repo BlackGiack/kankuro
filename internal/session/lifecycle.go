@@ -179,6 +179,9 @@ func (m *Manager) SwitchAgent(
 	if _, errStat := os.Stat(finalWD); errStat != nil {
 		return fmt.Errorf("session workspace missing: %w", errStat)
 	}
+	if prepareErr := m.prepareSubWorkspaces(card, finalWD); prepareErr != nil {
+		return prepareErr
+	}
 
 	// Clear tmp directories if using tmp workspace
 	clearTmp := snap.UseTmpWorkspace
@@ -280,7 +283,10 @@ func (m *Manager) startSession(
 
 	finalWD, errPrep := m.prepareWorkspace(sid, card, wd, isNew)
 	if errPrep != nil {
-		return errPrep
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errPrep)
+	}
+	if prepareErr := m.prepareSubWorkspaces(card, finalWD); prepareErr != nil {
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, prepareErr)
 	}
 
 	// Sync driver files (clear generated content for tmp workspaces on every launch)
@@ -289,7 +295,7 @@ func (m *Manager) startSession(
 	appendAgentsMD := card.UseTmpWorkspace && isNew
 	d, err := m.syncDriverFiles(card, skills, personas, mcps, finalWD, clearTmp, appendAgentsMD)
 	if err != nil {
-		return err
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, err)
 	}
 
 	args := d.SetModel(card.Model)
@@ -302,7 +308,7 @@ func (m *Manager) startSession(
 		Env:               card.Env,
 	})
 	if errSpawn != nil {
-		return errSpawn
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errSpawn)
 	}
 
 	now := time.Now().UTC()
@@ -316,11 +322,7 @@ func (m *Manager) startSession(
 		// Shutdown started during the unlocked spawn; see SwitchAgent. A new
 		// session has no record, so nothing would ever point at its tmp copy.
 		m.mu.Unlock()
-		_ = d.Kill()
-		if isNew && card.UseTmpWorkspace {
-			_ = os.RemoveAll(filepath.Join(m.tmpRoot(), sid))
-		}
-		return ErrManagerClosed
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ErrManagerClosed, d.Kill()))
 	}
 	defer m.mu.Unlock()
 
@@ -360,6 +362,13 @@ func (m *Manager) startSession(
 		return fmt.Errorf("%w: %w", ErrPersistFailed, persistErr)
 	}
 	return nil
+}
+
+func (m *Manager) cleanupNewTemporaryWorkspace(sid string, card config.IDCard, isNew bool, cause error) error {
+	if !isNew || !card.UseTmpWorkspace {
+		return cause
+	}
+	return errors.Join(cause, os.RemoveAll(filepath.Join(m.tmpRoot(), sid)))
 }
 
 func (m *Manager) activateSessionLocked(
