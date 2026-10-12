@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"kankuro/internal/driver"
+	"github.com/BlackGiack/kankuro/internal/driver"
 )
 
 var pidLineRE = regexp.MustCompile(`(\d+)\r?\n`)

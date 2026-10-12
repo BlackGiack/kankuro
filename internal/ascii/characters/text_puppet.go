@@ -1,7 +1,7 @@
 package characters
 
 import (
-	"kankuro/internal/ascii"
+	"github.com/BlackGiack/kankuro/internal/ascii"
 )
 
 // TextPuppet is a generic ASCII puppet backed by fixed lines of text.

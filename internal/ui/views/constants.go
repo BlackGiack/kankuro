@@ -48,4 +48,5 @@ const (
 	keyShiftTab = "shift+tab"
 	keyCtrlE    = "ctrl+e"
 	keyCtrlS    = "ctrl+s"
+	keyCtrlX    = "ctrl+x"
 )

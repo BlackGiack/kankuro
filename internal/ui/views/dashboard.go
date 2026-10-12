@@ -9,12 +9,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"kankuro/internal/config"
-	"kankuro/internal/session"
-	"kankuro/internal/ui/component"
-	"kankuro/internal/ui/components"
-	"kankuro/internal/ui/messages"
-	"kankuro/internal/ui/styles"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
 // Pane identifiers.

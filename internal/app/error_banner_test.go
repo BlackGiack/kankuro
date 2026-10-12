@@ -7,9 +7,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/app"
-	"kankuro/internal/config"
-	"kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/app"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
 func newBannerCoordinator(t *testing.T) *app.Coordinator {

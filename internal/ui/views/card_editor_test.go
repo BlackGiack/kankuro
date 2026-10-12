@@ -1,6 +1,7 @@
 package views_test
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -8,10 +9,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/config"
-	"kankuro/internal/ui/components"
-	"kankuro/internal/ui/messages"
-	"kankuro/internal/ui/views"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 func TestCardEditor_New(t *testing.T) {
@@ -193,6 +194,144 @@ func TestSelectedOnlySkillCursorNormalizesAfterRegistryRefresh(t *testing.T) {
 	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	if e.SkillList().IsSelected("a") {
 		t.Fatal("Space did not toggle the normalized visible skill")
+	}
+}
+
+func TestCtrlXClearsOnlySubWorkspaceSelection(t *testing.T) {
+	original := config.IDCard{
+		ID: "clear-test", Name: "Card", Driver: "claude", Model: "model",
+		WorkspaceID: "main", SubWorkspaceIDs: []string{"sub", "removed"},
+		UseTmpWorkspace: true, SkillIDs: []string{"skill"}, PersonaIDs: []string{"persona"},
+		MCPIDs: []string{"mcp"}, Puppet: "cat", FaceStyle: "face", AgentsMD: "instruction",
+	}
+	var saves, cancels int
+	e := views.NewCardEditor(views.CardEditorCallbacks{
+		OnSave:   func(config.IDCard) tea.Cmd { saves++; return nil },
+		OnCancel: func() tea.Cmd { cancels++; return nil },
+	})
+	e.SetData(messages.DataLoadedMsg{
+		Workspaces: []config.Workspace{{ID: "main", Name: "Main"}, {ID: "sub", Name: "Sub"}},
+		Skills:     []config.Skill{{ID: "skill", Name: "Skill"}},
+		Personas:   []config.Persona{{ID: "persona", Name: "Persona"}},
+		MCPs:       []config.MCPServer{{ID: "mcp", Name: "MCP"}},
+	})
+	e.SetCard(original)
+	e.CycleFocus(views.FocusSubWorkspaces)
+	focus := e.FocusIndex()
+	ctrlX := tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl}
+	e.Update(ctrlX)
+	if got := e.Card(); len(got.SubWorkspaceIDs) != 0 {
+		t.Fatalf("Ctrl+X left sub workspace IDs: %v", got.SubWorkspaceIDs)
+	}
+	if e.FocusIndex() != focus {
+		t.Fatalf("Ctrl+X changed focus from %d to %d", focus, e.FocusIndex())
+	}
+	want := original
+	want.SubWorkspaceIDs = nil
+	if got := e.Card(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("Ctrl+X changed unrelated card fields:\ngot:  %+v\nwant: %+v", got, want)
+	}
+	if saves != 0 || cancels != 0 {
+		t.Fatalf("Ctrl+X invoked callbacks: saves=%d cancels=%d", saves, cancels)
+	}
+	if view := e.View(); !strings.Contains(view, "Sub Workspaces: none") || !strings.Contains(view, "ctrl+x=clear") {
+		t.Fatalf("cleared focused field is not rendered with its shortcut:\n%s", view)
+	}
+	e.Update(ctrlX) // clearing an empty selection is harmless
+	if saves != 0 || cancels != 0 {
+		t.Fatalf("empty Ctrl+X invoked callbacks: saves=%d cancels=%d", saves, cancels)
+	}
+
+	e.SetCard(original)
+	e.CycleFocus(views.FocusSubWorkspaces)
+	e.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
+	if got := e.Card().SubWorkspaceIDs; !reflect.DeepEqual(got, original.SubWorkspaceIDs) {
+		t.Fatalf("plain x cleared sub workspaces: %v", got)
+	}
+}
+
+func TestCtrlXOutsideSubWorkspaceFieldPreservesSelection(t *testing.T) {
+	for _, focus := range []int{
+		views.FocusName, views.FocusDriver, views.FocusModel, views.FocusWorkspace,
+		views.FocusFaceStyle, views.FocusPuppet, views.FocusUseTmp, views.FocusAgentsMD,
+		views.FocusSkills, views.FocusPersonas, views.FocusMCPs,
+	} {
+		t.Run(fmt.Sprintf("focus-%d", focus), func(t *testing.T) {
+			e := views.NewCardEditor(views.CardEditorCallbacks{})
+			e.SetData(messages.DataLoadedMsg{Skills: []config.Skill{{ID: "skill", Name: "Skill"}}})
+			e.SetCard(config.IDCard{SubWorkspaceIDs: []string{"sub", "unresolved"}, SkillIDs: []string{"skill"}})
+			e.CycleFocus(focus)
+			e.Update(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
+			if got := e.Card().SubWorkspaceIDs; !reflect.DeepEqual(got, []string{"sub", "unresolved"}) {
+				t.Fatalf("Ctrl+X at focus %d changed sub workspace IDs: %v", focus, got)
+			}
+		})
+	}
+}
+
+func TestCtrlXPickerSaveAndCancelFlow(t *testing.T) {
+	workspaces := []config.Workspace{
+		{ID: "main", Name: "Main"}, {ID: "sub-a", Name: "Sub A"}, {ID: "sub-b", Name: "Sub B"},
+	}
+	original := config.IDCard{ID: "picker-clear", Name: "Card", WorkspaceID: "main", SubWorkspaceIDs: []string{"sub-a", "missing"}}
+	var saved config.IDCard
+	saves, cancels := 0, 0
+	e := views.NewCardEditor(views.CardEditorCallbacks{
+		OnSave:   func(card config.IDCard) tea.Cmd { saved = card; saves++; return nil },
+		OnCancel: func() tea.Cmd { cancels++; return nil },
+	})
+	e.SetData(messages.DataLoadedMsg{Workspaces: workspaces})
+	e.SetCard(original)
+	e.CycleFocus(views.FocusSubWorkspaces)
+	e.Update(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	if view := e.View(); strings.Contains(view, "[x]") {
+		t.Fatalf("reopened picker retained cleared selections:\n%s", view)
+	}
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEnter}) // confirm empty selection
+	if got := e.Card().SubWorkspaceIDs; len(got) != 0 {
+		t.Fatalf("empty picker confirmation restored selection: %v", got)
+	}
+
+	// A provisional picker selection is unaffected by Ctrl+X while the modal owns input.
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}) // check Sub A
+	e.Update(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
+	if got := e.Card().SubWorkspaceIDs; len(got) != 0 {
+		t.Fatalf("picker Ctrl+X changed the underlying form: %v", got)
+	}
+	if view := e.View(); !strings.Contains(view, "[x] Sub A") {
+		t.Fatalf("picker Ctrl+X changed provisional selection:\n%s", view)
+	}
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := e.Card().SubWorkspaceIDs; !reflect.DeepEqual(got, []string{"sub-a"}) {
+		t.Fatalf("ordinary picker confirmation selected %v, want [sub-a]", got)
+	}
+
+	e.Update(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
+	if saves != 0 || cancels != 0 {
+		t.Fatalf("clear invoked callbacks before save: saves=%d cancels=%d", saves, cancels)
+	}
+	e.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if saves != 1 || len(saved.SubWorkspaceIDs) != 0 {
+		t.Fatalf("Enter save = %d, IDs=%v; want one save with no sub workspaces", saves, saved.SubWorkspaceIDs)
+	}
+
+	cancelEditor := views.NewCardEditor(views.CardEditorCallbacks{
+		OnSave:   func(config.IDCard) tea.Cmd { t.Error("cancel path called OnSave"); return nil },
+		OnCancel: func() tea.Cmd { cancels++; return nil },
+	})
+	cancelEditor.SetData(messages.DataLoadedMsg{Workspaces: workspaces})
+	cancelEditor.SetCard(original)
+	cancelEditor.CycleFocus(views.FocusSubWorkspaces)
+	cancelEditor.Update(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
+	cancelEditor.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	if cancels != 1 {
+		t.Fatalf("Esc cancel count = %d, want 1", cancels)
+	}
+	cancelEditor.SetCard(original)
+	if got := cancelEditor.Card().SubWorkspaceIDs; !reflect.DeepEqual(got, original.SubWorkspaceIDs) {
+		t.Fatalf("reloading original card after cancel got %v, want %v", got, original.SubWorkspaceIDs)
 	}
 }
 

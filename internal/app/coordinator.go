@@ -5,12 +5,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/config"
-	"kankuro/internal/session"
-	"kankuro/internal/ui/component"
-	"kankuro/internal/ui/messages"
-	"kankuro/internal/ui/styles"
-	"kankuro/internal/ui/views"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/styles"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 type ViewType int

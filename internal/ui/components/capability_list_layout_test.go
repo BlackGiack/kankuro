@@ -8,7 +8,7 @@ import (
 	bubbletea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
 )
 
 // Contract (bonus_impl_plan.md, part B): a CapabilityList that was given a

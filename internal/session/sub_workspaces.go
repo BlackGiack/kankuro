@@ -13,8 +13,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"kankuro/internal/config"
-	"kankuro/internal/fsutil"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/fsutil"
 )
 
 const (

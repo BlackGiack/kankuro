@@ -3,13 +3,14 @@ package driver_test
 import (
 	"bytes"
 	"encoding/json"
-	"kankuro/internal/config"
-	"kankuro/internal/driver"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/driver"
 )
 
 func TestIsPromptLike(t *testing.T) {
@@ -154,6 +155,8 @@ func TestNewCLIDriverClaude(t *testing.T) {
 }
 
 func TestSetSkillsBuiltinSkill(t *testing.T) {
+	fixture := []byte("---\nname: mcp-cli\n---\n# MCP-CLI\ntest fixture\n")
+	setBuiltinSkillFixture(t, fixture)
 	d := driver.NewGenericCLIDriver()
 	wd := t.TempDir()
 
@@ -185,19 +188,13 @@ func TestSetSkillsBuiltinSkill(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read SKILL.md: %v", err)
 	}
-	if len(content) == 0 {
-		t.Fatalf("expected non-empty SKILL.md")
-	}
-	// Verify content matches embedded file
-	if !containsBytes(content, []byte("mcp-cli")) {
-		t.Fatalf("SKILL.md should contain mcp-cli references")
-	}
-	if !containsBytes(content, []byte("# MCP-CLI")) {
-		t.Fatalf("SKILL.md should contain # MCP-CLI header")
+	if !bytes.Equal(content, fixture) {
+		t.Fatalf("SKILL.md = %q, want injected fixture %q", content, fixture)
 	}
 }
 
 func TestSetSkillsMixedBuiltinAndRegular(t *testing.T) {
+	setBuiltinSkillFixture(t, []byte("---\nname: mcp-cli\n---\n# MCP-CLI\n"))
 	d := driver.NewGenericCLIDriver()
 	wd := t.TempDir()
 
@@ -245,6 +242,7 @@ func TestSetSkillsMixedBuiltinAndRegular(t *testing.T) {
 }
 
 func TestSetSkillsBuiltinSkillDeduplication(t *testing.T) {
+	setBuiltinSkillFixture(t, []byte("---\nname: mcp-cli\n---\n# MCP-CLI\n"))
 	d := driver.NewGenericCLIDriver()
 	wd := t.TempDir()
 
@@ -276,6 +274,19 @@ func TestSetSkillsBuiltinSkillDeduplication(t *testing.T) {
 	}
 }
 
+func setBuiltinSkillFixture(t *testing.T, content []byte) {
+	t.Helper()
+	previous, hadPrevious := config.GetBuiltinSkillContent("mcp-cli")
+	config.SetBuiltinMCPCLISkillContent(content)
+	t.Cleanup(func() {
+		if hadPrevious {
+			config.SetBuiltinMCPCLISkillContent(previous)
+		} else {
+			config.SetBuiltinMCPCLISkillContent(nil)
+		}
+	})
+}
+
 func TestSetSkillsRejectsNonBuiltinWithEmptySource(t *testing.T) {
 	d := driver.NewGenericCLIDriver()
 	wd := t.TempDir()
@@ -295,8 +306,4 @@ func TestSetSkillsRejectsNonBuiltinWithEmptySource(t *testing.T) {
 	if !strings.Contains(err.Error(), "no source directory") {
 		t.Fatalf("expected 'no source directory' error, got: %v", err)
 	}
-}
-
-func containsBytes(data, sub []byte) bool {
-	return bytes.Contains(data, sub)
 }

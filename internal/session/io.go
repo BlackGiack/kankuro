@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"time"
 
-	"kankuro/internal/driver"
+	"github.com/BlackGiack/kankuro/internal/driver"
 )
 
 func (m *Manager) trackOutput(sessionID string, gen uint64, output <-chan []byte) {

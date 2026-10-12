@@ -2,12 +2,13 @@ package session_test
 
 import (
 	"errors"
-	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
 )
 
 func TestTmpWorkspaceLifecycle(t *testing.T) {

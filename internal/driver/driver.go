@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"kankuro/internal/config"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +15,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/BlackGiack/kankuro/internal/config"
 
 	"github.com/creack/pty"
 )

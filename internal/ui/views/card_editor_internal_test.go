@@ -3,7 +3,7 @@ package views
 import (
 	"testing"
 
-	"kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 // TestFocusCountMatchesTargets guards against the FocusCount/focusTargets

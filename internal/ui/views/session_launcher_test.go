@@ -8,9 +8,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/config"
-	"kankuro/internal/session"
-	"kankuro/internal/ui/views"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 func TestSessionLauncher_LaunchFlow(t *testing.T) {

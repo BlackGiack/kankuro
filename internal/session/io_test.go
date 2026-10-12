@@ -2,9 +2,10 @@ package session_test
 
 import (
 	"bytes"
-	"kankuro/internal/config"
 	"testing"
 	"time"
+
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 func TestSessionPendingLineCapped(t *testing.T) {

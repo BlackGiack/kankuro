@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"kankuro/internal/config"
-	"kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
 )
 
 // TestSnapshotCoversPersistedFields is a divergence guard: it fails when a

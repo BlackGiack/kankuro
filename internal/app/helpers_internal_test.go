@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/session"
 )
 
 // newTestManager is session.NewManager plus a Cleanup that shuts it down. It

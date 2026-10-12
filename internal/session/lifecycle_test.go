@@ -3,9 +3,6 @@ package session_test
 import (
 	"encoding/json"
 	"errors"
-	"kankuro/internal/config"
-	"kankuro/internal/driver"
-	"kankuro/internal/session"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +10,10 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/driver"
+	"github.com/BlackGiack/kankuro/internal/session"
 )
 
 var errStubKill = errors.New("stub kill error")

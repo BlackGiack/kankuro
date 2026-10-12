@@ -1,8 +1,8 @@
 package messages
 
 import (
-	"kankuro/internal/config"
-	"kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
 )
 
 // ViewType represents the current view mode.

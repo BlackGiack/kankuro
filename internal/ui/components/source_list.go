@@ -9,8 +9,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"kankuro/internal/config"
-	"kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/component"
 )
 
 // SourceListMode determines if showing list or form.

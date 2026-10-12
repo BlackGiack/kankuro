@@ -11,9 +11,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"kankuro/internal/config"
-	"kankuro/internal/ui/component"
-	"kankuro/internal/ui/styles"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
 // Card styling .

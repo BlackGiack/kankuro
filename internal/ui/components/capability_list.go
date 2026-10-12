@@ -8,8 +8,8 @@ import (
 	bubbletea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"kankuro/internal/ui/component"
-	"kankuro/internal/ui/styles"
+	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
 const (

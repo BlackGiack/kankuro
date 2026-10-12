@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 // TestLoadSessionsSkipsCorruptButReportsError exercises loadSessions

@@ -9,10 +9,10 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"kankuro/internal/config"
-	"kankuro/internal/session"
-	"kankuro/internal/ui/components"
-	"kankuro/internal/ui/uitest"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/ui/uitest"
 )
 
 // Contract (step 0 of impl_plan_2.md): SessionList.View() is a bare

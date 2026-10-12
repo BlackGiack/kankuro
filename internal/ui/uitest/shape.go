@@ -9,7 +9,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 const (

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"kankuro/internal/driver"
+	"github.com/BlackGiack/kankuro/internal/driver"
 )
 
 // driverInputWriter adapts a driver.AgentDriver to [io.Writer] by routing

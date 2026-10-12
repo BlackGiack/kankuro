@@ -1,8 +1,9 @@
 package ascii_test
 
 import (
-	"kankuro/internal/ascii"
 	"testing"
+
+	"github.com/BlackGiack/kankuro/internal/ascii"
 )
 
 func TestCanvasCreation(t *testing.T) {

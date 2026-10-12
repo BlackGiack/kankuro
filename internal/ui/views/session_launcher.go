@@ -7,11 +7,11 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/config"
-	"kankuro/internal/session"
-	"kankuro/internal/ui/component"
-	"kankuro/internal/ui/messages"
-	"kankuro/internal/ui/styles"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
 // SessionLauncherCallbacks defines callbacks for session launcher actions.

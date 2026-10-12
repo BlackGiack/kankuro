@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"kankuro/internal/fsutil"
+	"github.com/BlackGiack/kankuro/internal/fsutil"
 )
 
 const (

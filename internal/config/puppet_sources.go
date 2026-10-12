@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"kankuro/internal/ascii/characters"
+	"github.com/BlackGiack/kankuro/internal/ascii/characters"
 )
 
 const (

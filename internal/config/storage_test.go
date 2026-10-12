@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/config"
 
 	"gopkg.in/yaml.v3"
 )

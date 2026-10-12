@@ -16,8 +16,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/config"
-	"kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
 // countingRepo wraps a real Repository and counts calls to the List* methods

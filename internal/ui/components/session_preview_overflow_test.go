@@ -6,9 +6,9 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"kankuro/internal/config"
-	"kankuro/internal/session"
-	"kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
 )
 
 func TestSessionPreview_WidthClamp_WideRunes(t *testing.T) {

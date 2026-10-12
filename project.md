@@ -33,7 +33,9 @@ LLM controller, a notification stack).
 
 ## 2. Tech stack
 
-- Go **1.26.1**, single module `kankuro`. No CGO.
+- Go **1.26.1**, single module `github.com/BlackGiack/kankuro`. No CGO. With the
+  standard `GOTOOLCHAIN=auto` behavior, a compatible Go command can automatically
+  download/select the required toolchain declared by `go.mod`.
 - TUI: **Bubble Tea v2**, **Lip Gloss v2**, **Bubbles v2** (`charm.land/*/v2`), plus
   `charmbracelet/x/ansi` and `x/term`. The project was migrated from v1 to v2;
   `impl_plan.md` and `review.md` record that migration.
@@ -43,15 +45,15 @@ LLM controller, a notification stack).
   puppets and workspaces derived from their source path.
 - No test framework beyond the standard library.
 - One file embedded into the binary: the built-in `mcp-cli` skill
-  (`embed_skills.go` → `kankuro_skills/mcp-cli/SKILL.md`).
+  (`main.go` → `kankuro_skills/mcp-cli/SKILL.md`), injected into config at startup.
 
 ---
 
 ## 3. Repository map
 
 ```
-cmd/kankuro/main.go          # flags, debug logger, repository, driver registry, session manager, tea.Program
-embed_skills.go              # //go:embed of kankuro_skills/mcp-cli/SKILL.md (module root, so it can reach the dir)
+main.go                      # root command, embed, flags, logging, repository, drivers, session manager, tea.Program
+main_test.go                 # embedded skill → config → driver deployment integration
 kankuro_skills/mcp-cli/      # the one built-in skill's source
 .golangci.yml                # lint config — the suite exits 0 and must stay that way
 internal/
@@ -186,8 +188,8 @@ still flow, so the real view is current when the terminal grows. A size of 0×0 
 terminal rows − `views.CoordinatorRows` (4): the single definition, used by `app.resizeAll` and by
 the dashboard to fill the terminal exactly.
 
-The card editor's own keys (`Tab` between fields, `Space` to toggle, `Ctrl+E` to add a
-source) are listed in `kankuro_specs.md` §4. The form scrolls when it is taller than its box
+The card editor's own keys (`Tab` between fields, `Space` to toggle/open, `Ctrl+E` to add a
+source, and `Ctrl+X` to clear Sub Workspaces while focused) are listed in `kankuro_specs.md` §4. The form scrolls when it is taller than its box
 (`card_editor.go` `layout` / `syncScroll`): the focused block stays in view and `↑ more` /
 `↓ more` replace the first / last row of a cut edge; the help line is pinned to the last row.
 
@@ -314,7 +316,7 @@ least once; none of them is enforced by the compiler.
 go build ./...
 go vet ./...
 go test ./...
-go test -race ./internal/...          # must stay clean
+go test -race ./...                   # must stay clean, including root integration tests
 golangci-lint run                     # must exit 0
 ```
 
@@ -326,8 +328,13 @@ All five are clean as of the review date. Run all five before calling a change d
 ```bash
 KANKURO_TMP_DIR=/tmp/kankuro-test/tmp \
 KANKURO_CONFIG_DIR=/tmp/kankuro-test/config \
-  go run ./cmd/kankuro --debug
+  go run . --debug
 ```
+
+For local development, use `go run .`, `go build .`, or `go install .`. A Go
+installation places the executable in `GOBIN`, or the default Go bin directory
+when `GOBIN` is unset; that directory must be on `PATH` to invoke `kankuro`.
+Public installation is `go install github.com/BlackGiack/kankuro@latest`.
 
 Both variables are read at startup. Without them, a test run writes real cards and
 session records into `~/.config/kankuro`, and every temporary-workspace session leaves

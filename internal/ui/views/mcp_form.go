@@ -8,10 +8,10 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/config"
-	"kankuro/internal/ui/component"
-	"kankuro/internal/ui/messages"
-	"kankuro/internal/ui/styles"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
 // Indices of the form's text inputs. Every field is a text input, so the

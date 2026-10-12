@@ -7,8 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"kankuro/internal/ui/components"
-	"kankuro/internal/ui/views"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 // The views are laid out for a terminal of at least views.MinTerminalWidth ×

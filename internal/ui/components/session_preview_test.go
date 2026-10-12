@@ -8,9 +8,9 @@ import (
 
 	"github.com/mattn/go-runewidth"
 
-	"kankuro/internal/config"
-	"kankuro/internal/session"
-	"kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
 )
 
 func TestSessionPreview_RedrawOverwrites(t *testing.T) {

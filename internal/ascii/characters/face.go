@@ -2,7 +2,7 @@
 package characters
 
 import (
-	"kankuro/internal/ascii"
+	"github.com/BlackGiack/kankuro/internal/ascii"
 )
 
 const defaultFaceWidth = 5

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 func TestListPuppetSources_EmptyDefault(t *testing.T) {

@@ -45,8 +45,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/config"
-	"kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
 // raceNoopMsg is a message no handler knows, so Update routes it to the

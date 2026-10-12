@@ -10,8 +10,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"kankuro/internal/config"
-	"kankuro/internal/driver"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/driver"
 )
 
 // ErrPersistFailed marks a "started, but its record could not be saved"

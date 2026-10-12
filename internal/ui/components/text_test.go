@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
 )
 
 func truncateInputs() []string {

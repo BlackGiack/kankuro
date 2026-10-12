@@ -3,10 +3,10 @@ package app_test
 import (
 	"testing"
 
-	"kankuro/internal/app"
-	"kankuro/internal/config"
-	"kankuro/internal/ui/messages"
-	"kankuro/internal/ui/views"
+	"github.com/BlackGiack/kankuro/internal/app"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 func TestFullSessionLaunchFlow(t *testing.T) {

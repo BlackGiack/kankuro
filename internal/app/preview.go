@@ -3,8 +3,8 @@ package app
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/session"
-	"kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
 // previewSub owns the dashboard preview's live-output subscription. It is

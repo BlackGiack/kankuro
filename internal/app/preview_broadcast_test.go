@@ -8,10 +8,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/app"
-	"kankuro/internal/config"
-	"kankuro/internal/ui/messages"
-	"kankuro/internal/ui/views"
+	"github.com/BlackGiack/kankuro/internal/app"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 // TestPartialPreviewBroadcastDoesNotWipeCardEditor pins finding #17 from

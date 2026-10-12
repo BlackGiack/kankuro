@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/session"
 )
 
 // persistedStatus reads a session's status straight from its JSON record.
