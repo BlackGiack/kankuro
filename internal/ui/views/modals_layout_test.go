@@ -8,10 +8,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"kankuro/internal/config"
-	"kankuro/internal/ui/messages"
-	"kankuro/internal/ui/uitest"
-	"kankuro/internal/ui/views"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/uitest"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 // Contract (step 0 of impl_plan_2.md, reworked by impl_plan_5.md D). The card

@@ -9,11 +9,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"kankuro/internal/config"
-	"kankuro/internal/ui/component"
-	"kankuro/internal/ui/components"
-	"kankuro/internal/ui/messages"
-	"kankuro/internal/ui/styles"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
 // Focus indices for the card form. focusCount is a sentinel that must stay
@@ -471,6 +471,12 @@ func (e *CardEditor) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		e.skillList.SetSelectedOnly(!e.skillList.SelectedOnly())
 		e.skillList.SetCursor(0)
 		return nil, true
+	case keyCtrlX:
+		if e.focusIndex != FocusSubWorkspaces {
+			return nil, false
+		}
+		e.subWorkspaceIDs = nil
+		return nil, true
 	case keyCtrlE:
 		return e.handleCtrlE()
 	}
@@ -480,7 +486,7 @@ func (e *CardEditor) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 func editorKeyIdentity(keyMsg tea.KeyPressMsg) string {
 	identity := keyMsg.String()
 	switch identity {
-	case keyCtrlC, keyCtrlS, keyCtrlE, keyShiftTab:
+	case keyCtrlC, keyCtrlS, keyCtrlE, keyCtrlX, keyShiftTab:
 		return identity
 	}
 	switch keyMsg.Code {
@@ -1141,8 +1147,18 @@ func (e *CardEditor) renderSubWorkspacesLine() string {
 	if len(names) > 0 {
 		value = strings.Join(names, ", ")
 	}
-	line := "Sub Workspaces: " + e.fitField(value+" (ctrl+e=sources)", len(focusMarker)+len("Sub Workspaces: "))
-	if e.focusIndex == FocusSubWorkspaces {
+	label := "Sub Workspaces: "
+	hint := " (ctrl+e=sources)"
+	focused := e.focusIndex == FocusSubWorkspaces
+	if focused {
+		hint = " (ctrl+e=sources ctrl+x=clear)"
+	}
+	if e.Width > 0 {
+		value = components.TruncateHead(components.DisplayText(value),
+			e.Width-len(focusMarker)-len(label)-lipgloss.Width(hint))
+	}
+	line := label + value + hint
+	if focused {
 		line = focusMarker + line
 		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(line)
 	}

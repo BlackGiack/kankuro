@@ -1,10 +1,11 @@
 package session_test
 
 import (
-	"kankuro/internal/config"
-	"kankuro/internal/session"
 	"testing"
 	"time"
+
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
 )
 
 func TestSessionIdleWordDetection(t *testing.T) {

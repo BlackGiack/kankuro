@@ -1,9 +1,9 @@
 package components
 
 import (
-	"kankuro/internal/ascii"
-	"kankuro/internal/ascii/characters"
-	"kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ascii"
+	"github.com/BlackGiack/kankuro/internal/ascii/characters"
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 func RenderAgentFace(faceStyle string) string {

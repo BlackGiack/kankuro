@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
 )
 
 func TestModal_OpenClose(t *testing.T) {

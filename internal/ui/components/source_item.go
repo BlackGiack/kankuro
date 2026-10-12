@@ -3,7 +3,7 @@ package components
 import (
 	"fmt"
 
-	"kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 // SourceItem defines the interface for items in a source list.

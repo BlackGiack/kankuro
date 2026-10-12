@@ -55,7 +55,7 @@ KANKURO detects when the agents are stopped either because they are done or beca
 ### 2.1 Project Structure
 
 ```text
-/cmd/kankuro/main.go   # Entry point
+ /main.go               # Root executable entry point and embedded built-in skill
 /internal/
   /driver/             # Interface implementations for different CLIs
   /ui/                 # Bubble Tea TUI components
@@ -148,9 +148,10 @@ type AgentDriver interface {
     * `Esc`: Return to the previous view.
 
 * **Agent Card Editor Interactions:**
-    * `Tab`: Cycle focus between fields (Name, Driver, Model, Workspace, Face, Tmp, AgentsMD, Skills, Personas, MCPs).
+    * `Tab`: Cycle focus between fields (Name, Driver, Model, Workspace, Sub Workspaces, Face, Tmp, AgentsMD, Skills, Personas, MCPs).
       Persona and MCP sections are optional and disappear from focus order when disabled in Settings.
     * `Space` (on Workspace): Open the searchable workspace picker.
+    * `Ctrl+X` (on Sub Workspaces): Clear all sub workspace selections in the form; Enter saves the change.
     * `Space` (on Lists): Toggle selection of the highlighted Skill, Persona, or MCP.
     * `ctrl+e` (on Lists): Open the specialized form to add a new Skill Source, Persona Source, or MCP Server.
     * `Delete/Del` (on MCP List): Remove the highlighted MCP from the global registry (only if not referenced by any ID Card).
@@ -192,7 +193,7 @@ Point both overrides at a throwaway location before launching:
 ```bash
 KANKURO_TMP_DIR=/tmp/kankuro-test/tmp \
 KANKURO_CONFIG_DIR=/tmp/kankuro-test/config \
-  go run ./cmd/kankuro
+  go run .
 ```
 
 * **`KANKURO_TMP_DIR`** — root for temporary workspaces. Defaults to

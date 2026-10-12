@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/ui/views"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 func TestPuppetSelectorModal(t *testing.T) {

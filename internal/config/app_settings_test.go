@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 func TestAppSettingsPersistence(t *testing.T) {

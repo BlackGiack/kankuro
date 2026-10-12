@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -11,14 +12,18 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/app"
-	"kankuro/internal/config"
-	"kankuro/internal/driver"
-	"kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/app"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/driver"
+	"github.com/BlackGiack/kankuro/internal/session"
 )
+
+//go:embed kankuro_skills/mcp-cli/SKILL.md
+var embeddedMCPCLISkill []byte
 
 // main wires repository, session manager, and TUI program startup.
 func main() {
+	config.SetBuiltinMCPCLISkillContent(embeddedMCPCLISkill)
 	// Create and configure driver registry
 	registry := driver.NewBuiltinRegistry()
 

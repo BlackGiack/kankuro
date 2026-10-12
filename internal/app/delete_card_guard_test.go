@@ -3,9 +3,9 @@ package app_test
 import (
 	"testing"
 
-	"kankuro/internal/app"
-	"kankuro/internal/config"
-	"kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/app"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
 // TestOnDeleteCardRefusesWhenSessionReferencesCard guards against the

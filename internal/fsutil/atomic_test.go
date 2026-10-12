@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"kankuro/internal/fsutil"
+	"github.com/BlackGiack/kankuro/internal/fsutil"
 )
 
 func TestWriteFileAtomicLeavesNoResidue(t *testing.T) {

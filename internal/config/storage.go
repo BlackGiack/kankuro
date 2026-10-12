@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
-	"kankuro/internal/fsutil"
+	"github.com/BlackGiack/kankuro/internal/fsutil"
 )
 
 // configFileMode is the permission mode for every config file this package writes.

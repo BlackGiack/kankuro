@@ -1,11 +1,12 @@
 package config_test
 
 import (
-	"kankuro/internal/config"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 //nolint:gocognit

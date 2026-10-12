@@ -2,11 +2,13 @@ package config_test
 
 import (
 	"bytes"
-	"kankuro/internal/config"
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"testing"
+
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 func TestListSkillsIncludesBuiltin(t *testing.T) {
@@ -172,6 +174,8 @@ func TestGetBuiltinSkillReturnsCorrectEntry(t *testing.T) {
 }
 
 func TestGetBuiltinSkillContentReturnsEmbeddedContent(t *testing.T) {
+	fixture := []byte("---\nname: mcp-cli\n---\n# MCP-CLI\nfixture\n")
+	setBuiltinSkillFixture(t, fixture)
 	content, ok := config.GetBuiltinSkillContent("mcp-cli")
 	if !ok {
 		t.Fatal("expected to find builtin skill content")
@@ -185,6 +189,68 @@ func TestGetBuiltinSkillContentReturnsEmbeddedContent(t *testing.T) {
 	if !bytes.Contains(content, []byte("# MCP-CLI")) {
 		t.Fatal("content should contain # MCP-CLI header")
 	}
+}
+
+func TestBuiltinSkillContentOwnershipAndMissingValues(t *testing.T) {
+	previous, hadPrevious := config.GetBuiltinSkillContent("mcp-cli")
+	t.Cleanup(func() {
+		if hadPrevious {
+			config.SetBuiltinMCPCLISkillContent(previous)
+		} else {
+			config.SetBuiltinMCPCLISkillContent(nil)
+		}
+	})
+	config.SetBuiltinMCPCLISkillContent(nil)
+	if content, ok := config.GetBuiltinSkillContent("mcp-cli"); ok || content != nil {
+		t.Fatalf("cleared content = %q, %v; want nil, false", content, ok)
+	}
+	if content, ok := config.GetBuiltinSkillContent("unknown"); ok || content != nil {
+		t.Fatalf("unknown content = %q, %v; want nil, false", content, ok)
+	}
+	input := []byte("fixture")
+	config.SetBuiltinMCPCLISkillContent(input)
+	input[0] = 'X'
+	first, ok := config.GetBuiltinSkillContent("mcp-cli")
+	if !ok || string(first) != "fixture" {
+		t.Fatalf("input mutation changed stored content: %q, %v", first, ok)
+	}
+	first[0] = 'Y'
+	second, ok := config.GetBuiltinSkillContent("mcp-cli")
+	if !ok || string(second) != "fixture" {
+		t.Fatalf("returned slice mutation changed stored content: %q, %v", second, ok)
+	}
+	config.SetBuiltinMCPCLISkillContent([]byte{})
+	if content, emptyOK := config.GetBuiltinSkillContent("mcp-cli"); emptyOK || content != nil {
+		t.Fatalf("empty injection = %q, %v; want nil, false", content, emptyOK)
+	}
+}
+
+func TestBuiltinSkillContentConcurrentReads(t *testing.T) {
+	fixture := []byte("---\nname: mcp-cli\n---\n# stable fixture\n")
+	setBuiltinSkillFixture(t, fixture)
+	var readers sync.WaitGroup
+	for range 16 {
+		readers.Go(func() {
+			content, ok := config.GetBuiltinSkillContent("mcp-cli")
+			if !ok || !bytes.Equal(content, fixture) {
+				t.Errorf("concurrent lookup = %q, %v", content, ok)
+			}
+		})
+	}
+	readers.Wait()
+}
+
+func setBuiltinSkillFixture(t *testing.T, content []byte) {
+	t.Helper()
+	previous, hadPrevious := config.GetBuiltinSkillContent("mcp-cli")
+	config.SetBuiltinMCPCLISkillContent(content)
+	t.Cleanup(func() {
+		if hadPrevious {
+			config.SetBuiltinMCPCLISkillContent(previous)
+		} else {
+			config.SetBuiltinMCPCLISkillContent(nil)
+		}
+	})
 }
 
 func TestMergeBuiltinSkillsDoesNotDuplicate(t *testing.T) {

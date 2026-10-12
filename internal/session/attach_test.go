@@ -1,10 +1,11 @@
 package session_test
 
 import (
-	"kankuro/internal/config"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 func TestSessionAttachReplay(t *testing.T) {

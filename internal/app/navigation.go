@@ -3,9 +3,9 @@ package app
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"kankuro/internal/ui/component"
-	"kankuro/internal/ui/messages"
-	"kankuro/internal/ui/views"
+	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 // This file is the coordinator's view plumbing: building the views,

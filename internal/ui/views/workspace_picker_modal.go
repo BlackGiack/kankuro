@@ -7,9 +7,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"kankuro/internal/config"
-	"kankuro/internal/ui/component"
-	"kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
 )
 
 // WorkspacePickerModal allows selecting a workspace.

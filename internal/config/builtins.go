@@ -1,14 +1,33 @@
 package config
 
 import (
-	"kankuro"
 	"slices"
+	"sync"
 )
 
 const (
 	// BuiltinSkillMCPCLI is the stable ID for the built-in mcp-cli skill.
 	BuiltinSkillMCPCLI = "builtin:mcp-cli"
 )
+
+//nolint:gochecknoglobals // startup-injected skill content is shared process configuration.
+var builtinMCPCLISkill struct {
+	sync.RWMutex
+
+	content []byte
+}
+
+// SetBuiltinMCPCLISkillContent sets process-wide content supplied by main at startup.
+// It clones the input so the embedding owner cannot mutate config's shared bytes.
+func SetBuiltinMCPCLISkillContent(content []byte) {
+	builtinMCPCLISkill.Lock()
+	defer builtinMCPCLISkill.Unlock()
+	if len(content) == 0 {
+		builtinMCPCLISkill.content = nil
+		return
+	}
+	builtinMCPCLISkill.content = slices.Clone(content)
+}
 
 // BuiltinSkills returns all built-in skill entries.
 func BuiltinSkills() []Skill {
@@ -39,14 +58,17 @@ func GetBuiltinSkill(id string) (Skill, bool) {
 	return Skill{}, false
 }
 
-// GetBuiltinSkillContent returns the embedded content for a built-in skill by name.
+// GetBuiltinSkillContent returns the injected content for a built-in skill by name.
 func GetBuiltinSkillContent(name string) ([]byte, bool) {
-	switch name {
-	case "mcp-cli":
-		return kankuro.EmbeddedMCPCLISkill, true
-	default:
+	if name != "mcp-cli" {
 		return nil, false
 	}
+	builtinMCPCLISkill.RLock()
+	defer builtinMCPCLISkill.RUnlock()
+	if len(builtinMCPCLISkill.content) == 0 {
+		return nil, false
+	}
+	return slices.Clone(builtinMCPCLISkill.content), true
 }
 
 // MergeBuiltinSkills merges built-in skills into the provided skill list.

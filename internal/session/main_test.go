@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"kankuro/internal/session"
-	"kankuro/internal/testenv"
+	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/testenv"
 )
 
 // TestMain runs the package inside testenv's private temp root: TMPDIR and

@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"kankuro/internal/app"
-	"kankuro/internal/config"
-	"kankuro/internal/ui/messages"
-	"kankuro/internal/ui/views"
+	"github.com/BlackGiack/kankuro/internal/app"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 // TestSaveSimpleSourceSurfacesSyncFailure is the R2 regression test: adding a

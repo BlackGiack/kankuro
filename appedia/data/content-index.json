@@ -1,0 +1,2507 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "kind": "concept",
+      "id": "Coordinator",
+      "refs": [
+        "app.Coordinator"
+      ],
+      "directRefs": [
+        "app.Coordinator"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go"
+      ],
+      "digest": "c60a1ac47e048e204962affe864cfca68f46b0b6e7ebc65a496b793016515921"
+    },
+    {
+      "kind": "concept",
+      "id": "Driver",
+      "refs": [
+        "driver.AgentDriver"
+      ],
+      "directRefs": [
+        "driver.AgentDriver"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/driver/driver.go"
+      ],
+      "digest": "c239fffaa8674db155867b1f98aa716494577be1cadf9bde7311454b7db88ef0"
+    },
+    {
+      "kind": "concept",
+      "id": "ID card",
+      "refs": [
+        "config.IDCard"
+      ],
+      "directRefs": [
+        "config.IDCard"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/config/types.go"
+      ],
+      "digest": "50ffec7f713dfd8feb6fd22fb3c908b4327d20be429976faa24613d296db3c75"
+    },
+    {
+      "kind": "concept",
+      "id": "Registries",
+      "refs": [
+        "config.Repository"
+      ],
+      "directRefs": [
+        "config.Repository"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/config/repository.go"
+      ],
+      "digest": "450fe5c150df5d1ab57a71cca27dba4454f1680f351be8eaa273ec1a1424a15a"
+    },
+    {
+      "kind": "concept",
+      "id": "Session",
+      "refs": [
+        "session.Session"
+      ],
+      "directRefs": [
+        "session.Session"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/manager.go"
+      ],
+      "digest": "41644812daa52f5224f36f2e29ac98c9e240943b18e0eeafa4106fd91572c98b"
+    },
+    {
+      "kind": "concept",
+      "id": "Status",
+      "refs": [
+        "session.Status"
+      ],
+      "directRefs": [
+        "session.Status"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/manager.go"
+      ],
+      "digest": "8cd9d6f256a137c049a6fabcd5e7bff174087a3c4bea8506ff309b0bc7e25d41"
+    },
+    {
+      "kind": "concept",
+      "id": "Sub workspace",
+      "refs": [
+        "session.subWorkspaceManifest"
+      ],
+      "directRefs": [
+        "session.subWorkspaceManifest"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/sub_workspaces.go"
+      ],
+      "digest": "2b12722ed35ab3d81b8ec055902baae31d4f0f201b17c7992ebce6d8c4e2db05"
+    },
+    {
+      "kind": "flow",
+      "id": "attach",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.attachSession",
+        "app.Coordinator.handleSessionMessages",
+        "app.attachExec",
+        "app.attachExec.Run",
+        "app.attachExec.forwardInput",
+        "app.attachExec.pumpInput",
+        "app.attachExec.pumpOutput",
+        "app.detectKittyDetach",
+        "session.Manager",
+        "session.Manager.Attach",
+        "views.Dashboard",
+        "views.Dashboard.handleAttach"
+      ],
+      "directRefs": [
+        "app.Coordinator.attachSession",
+        "app.Coordinator.handleSessionMessages",
+        "app.attachExec.Run",
+        "app.attachExec.forwardInput",
+        "app.attachExec.pumpInput",
+        "app.attachExec.pumpOutput",
+        "app.detectKittyDetach",
+        "session.Manager.Attach",
+        "views.Dashboard.handleAttach"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.attachExec",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/attach.go",
+        "internal/app/coordinator.go",
+        "internal/session/attach.go",
+        "internal/session/manager.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "235c3a6839a670bebedc570d9376347d8987615f0106a89f0923a7032e3e2248"
+    },
+    {
+      "kind": "flow",
+      "id": "builtin-skill",
+      "refs": [
+        "config.GetBuiltinSkillContent",
+        "config.SetBuiltinMCPCLISkillContent",
+        "driver.GenericCLIDriver",
+        "driver.GenericCLIDriver.SetSkills",
+        "driver.deploySkill",
+        "driver.writeBuiltinSkill",
+        "root.main",
+        "session.Manager"
+      ],
+      "directRefs": [
+        "config.GetBuiltinSkillContent",
+        "driver.GenericCLIDriver.SetSkills",
+        "driver.deploySkill",
+        "driver.writeBuiltinSkill"
+      ],
+      "participants": [
+        "config.GetBuiltinSkillContent",
+        "driver.GenericCLIDriver",
+        "session.Manager"
+      ],
+      "supportingRefs": [
+        "config.SetBuiltinMCPCLISkillContent",
+        "root.main"
+      ],
+      "files": [
+        "internal/config/builtins.go",
+        "internal/driver/driver.go",
+        "internal/session/manager.go",
+        "kankuro_skills/mcp-cli/SKILL.md",
+        "main.go",
+        "main_test.go"
+      ],
+      "digest": "70f92ca7a3d3757e7305ee88d4fe33b61d3eac95257ca36f5b2248f69421cef8"
+    },
+    {
+      "kind": "flow",
+      "id": "copy-rollback",
+      "refs": [
+        "session.Manager",
+        "session.Manager.cleanupNewTemporaryWorkspace",
+        "session.copyAndPublishSubWorkspace",
+        "session.persistSubWorkspaceManifest",
+        "session.subWorkspaceTransaction",
+        "session.subWorkspaceTransaction.rollback"
+      ],
+      "directRefs": [
+        "session.Manager.cleanupNewTemporaryWorkspace",
+        "session.copyAndPublishSubWorkspace",
+        "session.persistSubWorkspaceManifest",
+        "session.subWorkspaceTransaction.rollback"
+      ],
+      "participants": [
+        "session.Manager",
+        "session.subWorkspaceTransaction"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/sub_workspaces.go"
+      ],
+      "digest": "0f300ad7f38b960aa5b625c7dd94d3225d67d3f9ba450d2556c5a0085c82dee5"
+    },
+    {
+      "kind": "flow",
+      "id": "deletecard",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.handleSpecialMessages",
+        "app.sessionActions",
+        "app.sessionActions.deleteCard",
+        "config.FileRepository",
+        "config.FileRepository.DeleteIDCard",
+        "session.Manager",
+        "session.Manager.List",
+        "views.Dashboard",
+        "views.Dashboard.handleDeleteCard"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "app.sessionActions.deleteCard",
+        "config.FileRepository.DeleteIDCard",
+        "session.Manager.List",
+        "views.Dashboard.handleDeleteCard"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.sessionActions",
+        "config.FileRepository",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/config/id_cards.go",
+        "internal/config/repository.go",
+        "internal/session/manager.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "463dffb8ae771c6f696ef6ca5038849b9203ec44a546a2a485911bb2287452e5"
+    },
+    {
+      "kind": "flow",
+      "id": "editcard",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.navigateTo",
+        "views.CardEditor",
+        "views.CardEditor.Init",
+        "views.CardEditor.Reset",
+        "views.CardEditor.SetCard",
+        "views.CardEditor.fieldBlocks",
+        "views.Dashboard",
+        "views.Dashboard.handleEdit",
+        "views.editorKeyIdentity"
+      ],
+      "directRefs": [
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.navigateTo",
+        "views.CardEditor.Init",
+        "views.CardEditor.SetCard",
+        "views.Dashboard.handleEdit"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "views.CardEditor",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [
+        "views.CardEditor.Reset",
+        "views.CardEditor.SetCard",
+        "views.CardEditor.fieldBlocks",
+        "views.editorKeyIdentity"
+      ],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "0c54435722eeb9370cfd453d99d487744c63918a3042b6f540d7eac4985a5e8e"
+    },
+    {
+      "kind": "flow",
+      "id": "failed-activation",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.handleSessionMessages",
+        "app.sessionActions",
+        "driver.GenericCLIDriver",
+        "session.Manager",
+        "session.Manager.cleanupNewTemporaryWorkspace",
+        "session.Manager.startSession",
+        "session.Manager.syncDriverFiles"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleSessionMessages",
+        "session.Manager.cleanupNewTemporaryWorkspace",
+        "session.Manager.startSession",
+        "session.Manager.syncDriverFiles"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.sessionActions",
+        "driver.GenericCLIDriver",
+        "session.Manager"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/driver/driver.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "195a7f1e66ade356ea598c280f0dcc65ec0d42624078531f1979589c2459f79f"
+    },
+    {
+      "kind": "flow",
+      "id": "ide",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.launchIDE",
+        "app.sessionActions",
+        "app.sessionActions.launchIDE",
+        "session.IDELauncher",
+        "session.IDELauncher.Launch",
+        "views.Dashboard",
+        "views.Dashboard.handleLaunchIDE"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.launchIDE",
+        "app.sessionActions.launchIDE",
+        "session.IDELauncher.Launch",
+        "views.Dashboard.handleLaunchIDE"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.sessionActions",
+        "session.IDELauncher",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/session/ide_launcher.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "9e73065c6fb71235cc4d530bbc25e50ec5d1847e9dd6d0ead2fb5e255bf057f7"
+    },
+    {
+      "kind": "flow",
+      "id": "kill",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.handleSpecialMessages",
+        "driver.GenericCLIDriver",
+        "driver.GenericCLIDriver.Kill",
+        "driver.signalGroup",
+        "session.Manager",
+        "session.Manager.Kill",
+        "views.Dashboard",
+        "views.Dashboard.handleKill"
+      ],
+      "directRefs": [
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.handleSpecialMessages",
+        "driver.GenericCLIDriver.Kill",
+        "driver.signalGroup",
+        "session.Manager.Kill",
+        "views.Dashboard.handleKill"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "driver.GenericCLIDriver",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "92400f0a751040cda59be35284ac09015a7e2ce4c7d3d27d2ac4266cd5d4f415"
+    },
+    {
+      "kind": "flow",
+      "id": "launch",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.launchCard",
+        "app.Coordinator.navigateTo",
+        "app.sessionActions",
+        "app.sessionActions.launch",
+        "app.sessionActions.resolveCapabilities",
+        "driver.GenericCLIDriver",
+        "driver.GenericCLIDriver.Spawn",
+        "session.Manager",
+        "session.Manager.Launch",
+        "session.Manager.activateSessionLocked",
+        "session.Manager.cleanupNewTemporaryWorkspace",
+        "session.Manager.prepareSubWorkspaces",
+        "session.Manager.prepareWorkspace",
+        "session.Manager.startSession",
+        "session.Manager.syncDriverFiles",
+        "session.saveSession",
+        "views.Dashboard",
+        "views.Dashboard.handleEnter"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.launchCard",
+        "app.Coordinator.navigateTo",
+        "app.sessionActions.launch",
+        "app.sessionActions.resolveCapabilities",
+        "driver.GenericCLIDriver.Spawn",
+        "session.Manager.Launch",
+        "session.Manager.activateSessionLocked",
+        "session.Manager.prepareSubWorkspaces",
+        "session.Manager.prepareWorkspace",
+        "session.Manager.syncDriverFiles",
+        "session.saveSession",
+        "views.Dashboard.handleEnter"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.sessionActions",
+        "driver.GenericCLIDriver",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [
+        "session.Manager.cleanupNewTemporaryWorkspace",
+        "session.Manager.startSession"
+      ],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/app/session_actions.go",
+        "internal/driver/driver.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/storage.go",
+        "internal/session/sub_workspaces.go",
+        "internal/session/workspace.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "59dce4a7df12bd39e1ac686112ea861e4e04bfe7d9a22977102fe417ffa039c1"
+    },
+    {
+      "kind": "flow",
+      "id": "mcp",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.mcpCallbacks",
+        "config.FileRepository",
+        "config.FileRepository.UpsertMCP",
+        "views.MCPForm",
+        "views.MCPForm.handleSubmit"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.mcpCallbacks",
+        "config.FileRepository.UpsertMCP",
+        "views.MCPForm.handleSubmit"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "config.FileRepository",
+        "views.MCPForm"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/views/mcp_form.go"
+      ],
+      "digest": "2a2fb65d8b9587934ebf2458440cfb488bfd42679b7e591edd3e5bf5e24dce6b"
+    },
+    {
+      "kind": "flow",
+      "id": "mutation",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.Update",
+        "app.Coordinator.handleConfigFingerprint",
+        "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handleSpecialMessages",
+        "app.refreshRequestedCmd",
+        "app.refresher",
+        "app.refresher.fullSeeded",
+        "views.Dashboard"
+      ],
+      "directRefs": [
+        "app.Coordinator.Update",
+        "app.Coordinator.handleConfigFingerprint",
+        "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handleSpecialMessages",
+        "app.refreshRequestedCmd",
+        "app.refresher.fullSeeded"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.refresher",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/refresh.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "7b2b8fb2e0d858c80def2c3ebcb1f1dd2e33bd8bc78f878c554dfe88389d8cbb"
+    },
+    {
+      "kind": "flow",
+      "id": "picker-refresh",
+      "refs": [
+        "app.Coordinator",
+        "views.CardEditor",
+        "views.CardEditor.SetData",
+        "views.WorkspacePickerModal",
+        "views.WorkspacePickerModal.SetWorkspaces",
+        "views.WorkspacePickerModal.Update",
+        "views.WorkspacePickerModal.filterWorkspaces",
+        "views.WorkspacePickerModal.refreshItems",
+        "views.WorkspacePickerModal.rememberWorkspace",
+        "views.WorkspacePickerModal.toggleChecked",
+        "views.removeID"
+      ],
+      "directRefs": [
+        "views.CardEditor.SetData",
+        "views.WorkspacePickerModal.SetWorkspaces",
+        "views.WorkspacePickerModal.Update",
+        "views.WorkspacePickerModal.filterWorkspaces",
+        "views.WorkspacePickerModal.refreshItems",
+        "views.WorkspacePickerModal.rememberWorkspace",
+        "views.WorkspacePickerModal.toggleChecked",
+        "views.removeID"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "views.CardEditor",
+        "views.WorkspacePickerModal"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/workspace_picker_modal.go"
+      ],
+      "digest": "ff7bf0917a9ea1579e8076fc703b2f6f9350f72433e58d9b954764c0f5d84542"
+    },
+    {
+      "kind": "flow",
+      "id": "preview",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.broadcastPreview",
+        "app.Coordinator.handlePreviewRequest",
+        "app.Coordinator.handleSessionOutput",
+        "app.previewSub",
+        "app.previewSub.accepts",
+        "app.previewSub.next",
+        "app.previewSub.subscribe",
+        "app.previewSub.unsubscribe",
+        "components.SessionPreview",
+        "session.Manager",
+        "session.Manager.SubscribeOutput",
+        "views.Dashboard",
+        "views.Dashboard.syncPreviewSelection"
+      ],
+      "directRefs": [
+        "app.Coordinator.broadcastPreview",
+        "app.Coordinator.handlePreviewRequest",
+        "app.Coordinator.handleSessionOutput",
+        "app.previewSub.accepts",
+        "app.previewSub.next",
+        "app.previewSub.subscribe",
+        "app.previewSub.unsubscribe",
+        "session.Manager.SubscribeOutput",
+        "views.Dashboard.syncPreviewSelection"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.previewSub",
+        "components.SessionPreview",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/navigation.go",
+        "internal/app/preview.go",
+        "internal/session/manager.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "6f3fb2b1ae84da7ba424e812c82fc98daedf6b2eb627b0f687e9f85ac6b41f85"
+    },
+    {
+      "kind": "flow",
+      "id": "quit",
+      "refs": [
+        "driver.GenericCLIDriver",
+        "driver.GenericCLIDriver.Kill",
+        "driver.groupAlive",
+        "root.run",
+        "root.stopSessions",
+        "session.Manager",
+        "session.Manager.Kill",
+        "session.Manager.Shutdown",
+        "session.Manager.persistSessionLockedErr",
+        "views.Dashboard",
+        "views.Dashboard.handleKey"
+      ],
+      "directRefs": [
+        "driver.GenericCLIDriver.Kill",
+        "driver.groupAlive",
+        "root.run",
+        "root.stopSessions",
+        "session.Manager.Kill",
+        "session.Manager.Shutdown",
+        "session.Manager.persistSessionLockedErr",
+        "views.Dashboard.handleKey"
+      ],
+      "participants": [
+        "driver.GenericCLIDriver",
+        "root.run",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/ui/views/dashboard.go",
+        "main.go"
+      ],
+      "digest": "0eab47e3c0ea7508b62e93800ec3301085e8100cf12bcc8a044f55a1498620fd"
+    },
+    {
+      "kind": "flow",
+      "id": "relaunch",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.attachSession",
+        "app.Coordinator.handleSessionMessages",
+        "app.sessionActions",
+        "app.sessionActions.relaunch",
+        "app.sessionActions.resolveCard",
+        "driver.GenericCLIDriver",
+        "session.Manager",
+        "session.Manager.Relaunch",
+        "session.Manager.prepareSubWorkspaces",
+        "session.Manager.reserveForActivation",
+        "session.Manager.startSession",
+        "views.Dashboard",
+        "views.Dashboard.handleSessionEnter"
+      ],
+      "directRefs": [
+        "app.Coordinator.attachSession",
+        "app.Coordinator.handleSessionMessages",
+        "app.sessionActions.relaunch",
+        "app.sessionActions.resolveCard",
+        "session.Manager.Relaunch",
+        "session.Manager.prepareSubWorkspaces",
+        "session.Manager.reserveForActivation",
+        "session.Manager.startSession",
+        "views.Dashboard.handleSessionEnter"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.sessionActions",
+        "driver.GenericCLIDriver",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/attach.go",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/driver/driver.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/sub_workspaces.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "42e4c31d7528c4d09e2c722b42b310d584e5961fb6a985cb591952cef698ca37"
+    },
+    {
+      "kind": "flow",
+      "id": "remove",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.handleSpecialMessages",
+        "components.Modal",
+        "components.ModalState.Open",
+        "session.Manager",
+        "session.Manager.Remove",
+        "views.Dashboard",
+        "views.Dashboard.confirmDelete",
+        "views.Dashboard.handleDeleteSession"
+      ],
+      "directRefs": [
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.handleSpecialMessages",
+        "components.ModalState.Open",
+        "session.Manager.Remove",
+        "views.Dashboard.confirmDelete",
+        "views.Dashboard.handleDeleteSession"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "components.Modal",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/ui/components/modal.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "8a87d49f04ba2835a08eb7e18b3aaf44f88c87976168337f28a6dd86a39649ab"
+    },
+    {
+      "kind": "flow",
+      "id": "resize",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.Update",
+        "app.Coordinator.View",
+        "app.Coordinator.guardKey",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.resizeAll",
+        "app.Coordinator.tooSmallView",
+        "views.Dashboard"
+      ],
+      "directRefs": [
+        "app.Coordinator.Update",
+        "app.Coordinator.View",
+        "app.Coordinator.guardKey",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.resizeAll",
+        "app.Coordinator.tooSmallView"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/app/size_guard.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "a756c4f87698176196d475630f42925f41ef52ed5512c520f2a746ce08576897"
+    },
+    {
+      "kind": "flow",
+      "id": "savecard",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.cardEditorCallbacks",
+        "app.Coordinator.handleSpecialMessages",
+        "config.FileRepository",
+        "config.FileRepository.UpdateIDCard",
+        "config.FileRepository.ValidateCard",
+        "config.FileRepository.WriteAtomic",
+        "config.IDCard",
+        "views.CardEditor",
+        "views.CardEditor.Card",
+        "views.CardEditor.handleSubmit"
+      ],
+      "directRefs": [
+        "app.Coordinator.cardEditorCallbacks",
+        "app.Coordinator.handleSpecialMessages",
+        "config.FileRepository.UpdateIDCard",
+        "config.FileRepository.ValidateCard",
+        "config.FileRepository.WriteAtomic",
+        "views.CardEditor.Card",
+        "views.CardEditor.handleSubmit"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "config.FileRepository",
+        "views.CardEditor"
+      ],
+      "supportingRefs": [
+        "config.FileRepository.ValidateCard",
+        "config.IDCard",
+        "views.CardEditor.Card"
+      ],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/config/id_cards.go",
+        "internal/config/repository.go",
+        "internal/config/storage.go",
+        "internal/config/types.go",
+        "internal/config/validation.go",
+        "internal/ui/views/card_editor.go"
+      ],
+      "digest": "a2a3a688665fea508ee2a80d77449e67c92310079e2815bf134b36ffc344154d"
+    },
+    {
+      "kind": "flow",
+      "id": "settings",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.navigateTo",
+        "app.Coordinator.settingsCallbacks",
+        "config.FileRepository",
+        "config.FileRepository.SaveAppSettings",
+        "views.CardEditor",
+        "views.CardEditor.SetSettings",
+        "views.SettingsView",
+        "views.SettingsView.Update"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.navigateTo",
+        "app.Coordinator.settingsCallbacks",
+        "config.FileRepository.SaveAppSettings",
+        "views.CardEditor.SetSettings",
+        "views.SettingsView.Update"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "config.FileRepository",
+        "views.CardEditor",
+        "views.SettingsView"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/config/repository.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/settings.go"
+      ],
+      "digest": "0df0685f7bd4a402bc26b9fad7b11c8591e20469ada00bdb7b3e48fbfee101a8"
+    },
+    {
+      "kind": "flow",
+      "id": "skill-filter",
+      "refs": [
+        "app.Coordinator",
+        "components.CapabilityList",
+        "components.CapabilityList.Deselect",
+        "components.CapabilityList.FilteredItems",
+        "components.CapabilityList.Select",
+        "components.CapabilityList.SelectedIDs",
+        "components.CapabilityList.SelectedOnly",
+        "components.CapabilityList.SetCursor",
+        "components.CapabilityList.SetItems",
+        "components.CapabilityList.SetSelected",
+        "components.CapabilityList.SetSelectedOnly",
+        "components.CapabilityList.Toggle",
+        "components.CapabilityList.ToggleSelected",
+        "components.CapabilityList.normalizeCursor",
+        "components.CapabilityList.renderHeader",
+        "views.CardEditor",
+        "views.CardEditor.SetData",
+        "views.CardEditor.handleKey",
+        "views.CardEditor.handleSpace"
+      ],
+      "directRefs": [
+        "components.CapabilityList.FilteredItems",
+        "components.CapabilityList.SelectedIDs",
+        "components.CapabilityList.SetItems",
+        "components.CapabilityList.SetSelectedOnly",
+        "components.CapabilityList.ToggleSelected",
+        "components.CapabilityList.renderHeader",
+        "views.CardEditor.SetData",
+        "views.CardEditor.handleKey",
+        "views.CardEditor.handleSpace"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "components.CapabilityList",
+        "views.CardEditor"
+      ],
+      "supportingRefs": [
+        "components.CapabilityList.Deselect",
+        "components.CapabilityList.Select",
+        "components.CapabilityList.SelectedOnly",
+        "components.CapabilityList.SetCursor",
+        "components.CapabilityList.SetSelected",
+        "components.CapabilityList.Toggle",
+        "components.CapabilityList.normalizeCursor"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/ui/components/capability_list.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_test.go"
+      ],
+      "digest": "17d519c4b6cb029a73c61e6f9d16b4b95e8a2aa23b19e4a1889ceee62a75a9b7"
+    },
+    {
+      "kind": "flow",
+      "id": "source",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.saveSimpleSource",
+        "app.Coordinator.sourceUpdateMsg",
+        "config.FileRepository",
+        "config.FileRepository.UpdateSkillSources",
+        "config.FileRepository.syncSkillsFromSourcesLocked",
+        "views.SourceManager",
+        "views.SourceManager.SetData",
+        "views.SourceManager.Update"
+      ],
+      "directRefs": [
+        "app.Coordinator.saveSimpleSource",
+        "app.Coordinator.sourceUpdateMsg",
+        "config.FileRepository.UpdateSkillSources",
+        "config.FileRepository.syncSkillsFromSourcesLocked",
+        "views.SourceManager.SetData",
+        "views.SourceManager.Update"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "config.FileRepository",
+        "views.SourceManager"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/config/repository.go",
+        "internal/config/skill_sources.go",
+        "internal/ui/views/source_manager.go"
+      ],
+      "digest": "caa6e54be28236abd8629967c10b51c4b96d5026beddb63b915962788f6ba6e2"
+    },
+    {
+      "kind": "flow",
+      "id": "startup",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.Init",
+        "app.Coordinator.handleConfigFingerprint",
+        "app.NewCoordinator",
+        "app.refresher",
+        "app.refresher.fullSeeded",
+        "app.tick",
+        "config.FileRepository",
+        "config.FileRepository.SyncSkillsFromSources",
+        "config.GetBuiltinSkillContent",
+        "config.NewFileRepository",
+        "config.SetBuiltinMCPCLISkillContent",
+        "driver.NewBuiltinRegistry",
+        "root.logDir",
+        "root.main",
+        "root.run",
+        "session.Manager",
+        "session.NewManager",
+        "session.loadSessions"
+      ],
+      "directRefs": [
+        "app.Coordinator.Init",
+        "app.Coordinator.handleConfigFingerprint",
+        "app.NewCoordinator",
+        "app.refresher.fullSeeded",
+        "app.tick",
+        "config.FileRepository.SyncSkillsFromSources",
+        "config.NewFileRepository",
+        "config.SetBuiltinMCPCLISkillContent",
+        "driver.NewBuiltinRegistry",
+        "root.run",
+        "session.NewManager",
+        "session.loadSessions"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.refresher",
+        "config.FileRepository",
+        "config.SetBuiltinMCPCLISkillContent",
+        "root.main",
+        "session.Manager"
+      ],
+      "supportingRefs": [
+        "config.GetBuiltinSkillContent",
+        "root.logDir",
+        "root.main"
+      ],
+      "files": [
+        "README.md",
+        "go.mod",
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/refresh.go",
+        "internal/config/builtins.go",
+        "internal/config/repository.go",
+        "internal/config/skill_sources.go",
+        "internal/driver/registry.go",
+        "internal/session/manager.go",
+        "internal/session/storage.go",
+        "kankuro_skills/mcp-cli/SKILL.md",
+        "main.go",
+        "main_test.go"
+      ],
+      "digest": "4828126f1cb44d9c3013351a897df82caa8efd6ae6161a0ebb11eae483a05647"
+    },
+    {
+      "kind": "flow",
+      "id": "sub-clear",
+      "refs": [
+        "views.CardEditor",
+        "views.CardEditor.Card",
+        "views.CardEditor.SetCard",
+        "views.CardEditor.Update",
+        "views.CardEditor.handleKey",
+        "views.CardEditor.handleSpace",
+        "views.CardEditor.handleSubmit",
+        "views.CardEditor.renderSubWorkspacesLine",
+        "views.WorkspacePickerModal.SetSelectedIDs",
+        "views.editorKeyIdentity"
+      ],
+      "directRefs": [
+        "views.CardEditor.Card",
+        "views.CardEditor.Update",
+        "views.CardEditor.handleKey",
+        "views.CardEditor.handleSubmit",
+        "views.CardEditor.renderSubWorkspacesLine"
+      ],
+      "participants": [
+        "views.CardEditor"
+      ],
+      "supportingRefs": [
+        "views.CardEditor.SetCard",
+        "views.CardEditor.handleSpace",
+        "views.WorkspacePickerModal.SetSelectedIDs",
+        "views.editorKeyIdentity"
+      ],
+      "files": [
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/constants.go",
+        "internal/ui/views/workspace_picker_modal.go",
+        "kankuro_specs.md",
+        "project.md"
+      ],
+      "digest": "9f4602ea24d220cce6477cfe12a6da6afa1c92bd9cc98e46146e4a084c56efa1"
+    },
+    {
+      "kind": "flow",
+      "id": "sub-copy",
+      "refs": [
+        "config.FileRepository",
+        "config.FileRepository.ListWorkspaces",
+        "fsutil.WriteFileAtomic",
+        "session.Manager",
+        "session.Manager.prepareSubWorkspaces",
+        "session.canonicalDirectory",
+        "session.copyAndPublishSubWorkspace",
+        "session.copySubWorkspaceManifest",
+        "session.ensureDestinationOutsideSource",
+        "session.loadSubWorkspaceManifest",
+        "session.persistSubWorkspaceManifest",
+        "session.prepareSubWorkspaceDirectory",
+        "session.rejectSymlink",
+        "session.resolveSubWorkspaceSources",
+        "session.safeSubWorkspaceName",
+        "session.shouldCopySubWorkspace"
+      ],
+      "directRefs": [
+        "config.FileRepository.ListWorkspaces",
+        "session.Manager.prepareSubWorkspaces",
+        "session.canonicalDirectory",
+        "session.copyAndPublishSubWorkspace",
+        "session.copySubWorkspaceManifest",
+        "session.ensureDestinationOutsideSource",
+        "session.loadSubWorkspaceManifest",
+        "session.persistSubWorkspaceManifest",
+        "session.prepareSubWorkspaceDirectory",
+        "session.shouldCopySubWorkspace"
+      ],
+      "participants": [
+        "config.FileRepository",
+        "fsutil.WriteFileAtomic",
+        "session.Manager"
+      ],
+      "supportingRefs": [
+        "session.rejectSymlink",
+        "session.resolveSubWorkspaceSources",
+        "session.safeSubWorkspaceName"
+      ],
+      "files": [
+        "internal/config/repository.go",
+        "internal/config/workspaces.go",
+        "internal/fsutil/atomic.go",
+        "internal/session/manager.go",
+        "internal/session/sub_workspaces.go"
+      ],
+      "digest": "5fe628092929f530696863836c619c4b623dd343754564366ed13ab8b0140290"
+    },
+    {
+      "kind": "flow",
+      "id": "sub-picker",
+      "refs": [
+        "views.CardEditor",
+        "views.CardEditor.handleSpace",
+        "views.CardEditor.renderSubWorkspacesLine",
+        "views.CardEditor.updateWorkspacePicker",
+        "views.WorkspacePickerModal",
+        "views.WorkspacePickerModal.SelectedIDs",
+        "views.WorkspacePickerModal.SetExcludedID",
+        "views.WorkspacePickerModal.SetMultiple",
+        "views.WorkspacePickerModal.SetSelectedID",
+        "views.WorkspacePickerModal.SetSelectedIDs",
+        "views.WorkspacePickerModal.Update",
+        "views.WorkspacePickerModal.View",
+        "views.WorkspacePickerModal.rebuildList",
+        "views.WorkspacePickerModal.restoreSingleSelection",
+        "views.WorkspacePickerModal.title",
+        "views.WorkspacePickerModal.toggleChecked",
+        "views.workspaceItem.Title"
+      ],
+      "directRefs": [
+        "views.CardEditor.handleSpace",
+        "views.CardEditor.renderSubWorkspacesLine",
+        "views.CardEditor.updateWorkspacePicker",
+        "views.WorkspacePickerModal.SelectedIDs",
+        "views.WorkspacePickerModal.SetMultiple",
+        "views.WorkspacePickerModal.SetSelectedIDs",
+        "views.WorkspacePickerModal.Update",
+        "views.WorkspacePickerModal.rebuildList",
+        "views.WorkspacePickerModal.toggleChecked"
+      ],
+      "participants": [
+        "views.CardEditor",
+        "views.WorkspacePickerModal"
+      ],
+      "supportingRefs": [
+        "views.WorkspacePickerModal.SetExcludedID",
+        "views.WorkspacePickerModal.SetSelectedID",
+        "views.WorkspacePickerModal.View",
+        "views.WorkspacePickerModal.restoreSingleSelection",
+        "views.WorkspacePickerModal.title",
+        "views.workspaceItem.Title"
+      ],
+      "files": [
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/workspace_picker_modal.go",
+        "internal/ui/views/workspace_picker_test.go"
+      ],
+      "digest": "66dc01360c20eb5c411935ca7a5a0185ac5ea4dcda46560a8c197cc9c4e93d77"
+    },
+    {
+      "kind": "flow",
+      "id": "switch",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.handleAgentSwitched",
+        "app.Coordinator.handleSessionMessages",
+        "app.sessionActions",
+        "app.sessionActions.switchAgent",
+        "session.Manager",
+        "session.Manager.SwitchAgent",
+        "session.Manager.prepareSubWorkspaces",
+        "views.AgentSwitchView",
+        "views.AgentSwitchView.SetSession",
+        "views.AgentSwitchView.handleKey",
+        "views.Dashboard",
+        "views.Dashboard.handleSwitch"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleAgentSwitched",
+        "app.Coordinator.handleSessionMessages",
+        "app.sessionActions.switchAgent",
+        "session.Manager.SwitchAgent",
+        "session.Manager.prepareSubWorkspaces",
+        "views.AgentSwitchView.SetSession",
+        "views.AgentSwitchView.handleKey",
+        "views.Dashboard.handleSwitch"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.sessionActions",
+        "session.Manager",
+        "views.AgentSwitchView",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/sub_workspaces.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "b942baa008cffe5b41f7e0934c9a42bdcbbad68a0f20a111195588aa735e7180"
+    },
+    {
+      "kind": "flow",
+      "id": "temporary-toggle",
+      "refs": [
+        "views.CardEditor",
+        "views.CardEditor.Card",
+        "views.CardEditor.handleSpace",
+        "views.CardEditor.renderTmpWorkspaceLine"
+      ],
+      "directRefs": [
+        "views.CardEditor.Card",
+        "views.CardEditor.handleSpace",
+        "views.CardEditor.renderTmpWorkspaceLine"
+      ],
+      "participants": [
+        "views.CardEditor"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/views/card_editor.go"
+      ],
+      "digest": "32a6591b21c1b7cd37008dcb88853858d15a58ead35154d556a924d34e40805b"
+    },
+    {
+      "kind": "flow",
+      "id": "tick",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.broadcastData",
+        "app.Coordinator.handleConfigFingerprint",
+        "app.Coordinator.handleSessionsRefreshed",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.refreshSessions",
+        "app.refresher",
+        "app.refresher.configIfChanged",
+        "app.refresher.sessionsOnly",
+        "config.FileRepository",
+        "config.FileRepository.Fingerprint",
+        "session.Manager",
+        "session.Manager.List",
+        "views.Dashboard"
+      ],
+      "directRefs": [
+        "app.Coordinator.broadcastData",
+        "app.Coordinator.handleConfigFingerprint",
+        "app.Coordinator.handleSessionsRefreshed",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.refreshSessions",
+        "app.refresher.configIfChanged",
+        "app.refresher.sessionsOnly",
+        "config.FileRepository.Fingerprint",
+        "session.Manager.List"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.refresher",
+        "config.FileRepository",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/navigation.go",
+        "internal/app/refresh.go",
+        "internal/config/repository.go",
+        "internal/config/storage.go",
+        "internal/session/manager.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "3cc3e0950ba33c24c0f604186213a1f87b8cc53068dac051751a5fa25b65f46d"
+    },
+    {
+      "kind": "flow",
+      "id": "watch",
+      "refs": [
+        "app.previewSub",
+        "driver.GenericCLIDriver",
+        "driver.GenericCLIDriver.streamOutput",
+        "driver.IsPromptLike",
+        "session.Manager",
+        "session.Manager.trackOutput",
+        "session.Manager.watch",
+        "session.appendScrollback",
+        "session.broadcast"
+      ],
+      "directRefs": [
+        "driver.GenericCLIDriver.streamOutput",
+        "driver.IsPromptLike",
+        "session.Manager.trackOutput",
+        "session.Manager.watch",
+        "session.appendScrollback",
+        "session.broadcast"
+      ],
+      "participants": [
+        "app.previewSub",
+        "driver.GenericCLIDriver",
+        "session.Manager"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/preview.go",
+        "internal/driver/driver.go",
+        "internal/session/io.go",
+        "internal/session/manager.go",
+        "internal/session/watch.go"
+      ],
+      "digest": "907bd19646c77a8fd24b997db4a74718acda262680c6f3e5348b5e3d81e20e28"
+    },
+    {
+      "kind": "flow",
+      "id": "workspace-sources",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.cardEditorCallbacks",
+        "app.Coordinator.navigateTo",
+        "app.Coordinator.sourceUpdateMsg",
+        "config.FileRepository",
+        "config.FileRepository.UpdateWorkspaceSources",
+        "views.CardEditor",
+        "views.CardEditor.handleCtrlE",
+        "views.CardEditor.renderWorkspaceLine",
+        "views.SourceManager",
+        "views.SourceManager.Update"
+      ],
+      "directRefs": [
+        "app.Coordinator.cardEditorCallbacks",
+        "app.Coordinator.navigateTo",
+        "app.Coordinator.sourceUpdateMsg",
+        "config.FileRepository.UpdateWorkspaceSources",
+        "views.CardEditor.handleCtrlE",
+        "views.SourceManager.Update"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "config.FileRepository",
+        "views.CardEditor",
+        "views.SourceManager"
+      ],
+      "supportingRefs": [
+        "views.CardEditor.handleCtrlE",
+        "views.CardEditor.renderWorkspaceLine"
+      ],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/config/repository.go",
+        "internal/config/workspaces.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/source_manager.go"
+      ],
+      "digest": "36f499d6097176fd757c44906239c56a204395cd5b418e8865949983c86fff9a"
+    },
+    {
+      "kind": "package",
+      "id": "app",
+      "refs": [
+        "app",
+        "app.Coordinator",
+        "app.attachExec",
+        "app.previewSub",
+        "app.refresher",
+        "app.sessionActions"
+      ],
+      "directRefs": [
+        "app",
+        "app.Coordinator",
+        "app.attachExec",
+        "app.previewSub",
+        "app.refresher",
+        "app.sessionActions"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/app.go",
+        "internal/app/attach.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/navigation.go",
+        "internal/app/preview.go",
+        "internal/app/refresh.go",
+        "internal/app/session_actions.go",
+        "internal/app/size_guard.go"
+      ],
+      "digest": "243e38df221be498fa9f12f6d561c4a98a042e45a6e625bf027bd73502c3cd8c"
+    },
+    {
+      "kind": "package",
+      "id": "ascii",
+      "refs": [
+        "ascii",
+        "ascii.Canvas",
+        "ascii.Shape"
+      ],
+      "directRefs": [
+        "ascii",
+        "ascii.Canvas",
+        "ascii.Shape"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ascii/canvas.go",
+        "internal/ascii/options.go",
+        "internal/ascii/shape.go"
+      ],
+      "digest": "e6f49a6754ff5c2534375cb1d7d3fa315fd8f361892fe796c6de9117d66d8f70"
+    },
+    {
+      "kind": "package",
+      "id": "characters",
+      "refs": [
+        "characters",
+        "characters.Face",
+        "characters.TextPuppet"
+      ],
+      "directRefs": [
+        "characters",
+        "characters.Face",
+        "characters.TextPuppet"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ascii/characters/face.go",
+        "internal/ascii/characters/puppet.go",
+        "internal/ascii/characters/text_puppet.go"
+      ],
+      "digest": "030911abe9813b634ddf83fb2603abe8bbed9e02a5c1004386318875e2424730"
+    },
+    {
+      "kind": "package",
+      "id": "component",
+      "refs": [
+        "component",
+        "component.Base",
+        "component.Model"
+      ],
+      "directRefs": [
+        "component",
+        "component.Base",
+        "component.Model"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/component/component.go"
+      ],
+      "digest": "31a5cb160ceac3f39f36db999bac9fa5c7323aa91168f2f13f12641ceee42fe8"
+    },
+    {
+      "kind": "package",
+      "id": "components",
+      "refs": [
+        "components",
+        "components.CapabilityList",
+        "components.CardList",
+        "components.ModalState",
+        "components.SessionList",
+        "components.SessionPreview"
+      ],
+      "directRefs": [
+        "components",
+        "components.CapabilityList",
+        "components.CardList",
+        "components.ModalState",
+        "components.SessionList",
+        "components.SessionPreview"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/components/capability_list.go",
+        "internal/ui/components/card_list.go",
+        "internal/ui/components/constants.go",
+        "internal/ui/components/filter.go",
+        "internal/ui/components/modal.go",
+        "internal/ui/components/renderer.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/components/source_item.go",
+        "internal/ui/components/source_list.go",
+        "internal/ui/components/text.go"
+      ],
+      "digest": "0c89271e9a01b0df91e7d04861ab5fddcb7b9700397e33d2f7046e72e5af3a33"
+    },
+    {
+      "kind": "package",
+      "id": "config",
+      "refs": [
+        "config",
+        "config.AppSettings",
+        "config.FileRepository",
+        "config.FileRepository.ValidateCard",
+        "config.GetBuiltinSkillContent",
+        "config.IDCard",
+        "config.Repository",
+        "config.SetBuiltinMCPCLISkillContent"
+      ],
+      "directRefs": [
+        "config",
+        "config.AppSettings",
+        "config.FileRepository",
+        "config.IDCard",
+        "config.Repository"
+      ],
+      "participants": [],
+      "supportingRefs": [
+        "config.FileRepository.ValidateCard",
+        "config.GetBuiltinSkillContent",
+        "config.SetBuiltinMCPCLISkillContent"
+      ],
+      "files": [
+        "internal/config/builtins.go",
+        "internal/config/builtins_test.go",
+        "internal/config/errors.go",
+        "internal/config/id_cards.go",
+        "internal/config/mcps.go",
+        "internal/config/persona_sources.go",
+        "internal/config/personas.go",
+        "internal/config/puppet_sources.go",
+        "internal/config/repository.go",
+        "internal/config/skill_sources.go",
+        "internal/config/skills.go",
+        "internal/config/storage.go",
+        "internal/config/sync.go",
+        "internal/config/types.go",
+        "internal/config/validation.go",
+        "internal/config/validation_helpers.go",
+        "internal/config/workspaces.go"
+      ],
+      "digest": "46a9c3efb71ccaa0856a38cafd2b105ee2c6e3300073912c1b91390f9df223be"
+    },
+    {
+      "kind": "package",
+      "id": "disk",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [],
+      "digest": "5ef35c032942ebf759b154654853e9298695549ddef9dbb249e8dcfc0518e26a"
+    },
+    {
+      "kind": "package",
+      "id": "driver",
+      "refs": [
+        "driver",
+        "driver.AgentDriver",
+        "driver.ClaudeCodeDriver",
+        "driver.GenericCLIDriver",
+        "driver.MapRegistry",
+        "driver.deploySkill",
+        "driver.writeBuiltinSkill"
+      ],
+      "directRefs": [
+        "driver",
+        "driver.AgentDriver",
+        "driver.ClaudeCodeDriver",
+        "driver.GenericCLIDriver",
+        "driver.MapRegistry"
+      ],
+      "participants": [],
+      "supportingRefs": [
+        "driver.deploySkill",
+        "driver.writeBuiltinSkill"
+      ],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/driver/driver_test.go",
+        "internal/driver/factory.go",
+        "internal/driver/registry.go"
+      ],
+      "digest": "d1524ae9fdc00fff458509a2704034d324fc6f5e797bb0ba08846ce33d8a0a90"
+    },
+    {
+      "kind": "package",
+      "id": "fsutil",
+      "refs": [
+        "fsutil"
+      ],
+      "directRefs": [
+        "fsutil"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/fsutil/atomic.go"
+      ],
+      "digest": "a0d518dbafeb0ed7a0b7cc38d22966055e5e465e052aae3922b1ab14fcd6659d"
+    },
+    {
+      "kind": "package",
+      "id": "messages",
+      "refs": [
+        "messages",
+        "messages.DataLoadedMsg",
+        "messages.DataReceiver",
+        "messages.PreviewDataMsg",
+        "messages.SessionsRefreshedMsg"
+      ],
+      "directRefs": [
+        "messages",
+        "messages.DataLoadedMsg",
+        "messages.DataReceiver",
+        "messages.PreviewDataMsg",
+        "messages.SessionsRefreshedMsg"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/messages/messages.go"
+      ],
+      "digest": "e54f50c8ce8b17616e7349eece3009ce18d5a22f15270c794be6fbbcab29150b"
+    },
+    {
+      "kind": "package",
+      "id": "pty",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [],
+      "digest": "b667cb6f300ca3a233fa6736946031edec105d0df7bca7c3988854efe0c3e717"
+    },
+    {
+      "kind": "package",
+      "id": "root",
+      "refs": [
+        "root",
+        "root.logDir",
+        "root.main",
+        "root.run",
+        "root.stopSessions"
+      ],
+      "directRefs": [
+        "root"
+      ],
+      "participants": [],
+      "supportingRefs": [
+        "root.logDir",
+        "root.main",
+        "root.run",
+        "root.stopSessions"
+      ],
+      "files": [
+        "README.md",
+        "go.mod",
+        "kankuro_skills/mcp-cli/SKILL.md",
+        "main.go",
+        "main_test.go"
+      ],
+      "digest": "25957f0813b2b65d019041c31a3777413082b664a3f154b87f70e5d9d1bbf4df"
+    },
+    {
+      "kind": "package",
+      "id": "session",
+      "refs": [
+        "session",
+        "session.AttachHandle",
+        "session.Manager",
+        "session.Session",
+        "session.Snapshot",
+        "session.subWorkspaceCopy",
+        "session.subWorkspaceManifest",
+        "session.subWorkspaceSource",
+        "session.subWorkspaceTransaction"
+      ],
+      "directRefs": [
+        "session",
+        "session.AttachHandle",
+        "session.Manager",
+        "session.Session",
+        "session.Snapshot"
+      ],
+      "participants": [],
+      "supportingRefs": [
+        "session.subWorkspaceCopy",
+        "session.subWorkspaceManifest",
+        "session.subWorkspaceSource",
+        "session.subWorkspaceTransaction"
+      ],
+      "files": [
+        "internal/session/attach.go",
+        "internal/session/ide_launcher.go",
+        "internal/session/io.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/storage.go",
+        "internal/session/sub_workspaces.go",
+        "internal/session/watch.go",
+        "internal/session/workspace.go",
+        "internal/session/workspace_test.go"
+      ],
+      "digest": "cca61794f78a4e11efd3ec3ac269f379f50dabad9afbbe91d17ca34789045ef6"
+    },
+    {
+      "kind": "package",
+      "id": "styles",
+      "refs": [
+        "styles"
+      ],
+      "directRefs": [
+        "styles"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/styles/styles.go"
+      ],
+      "digest": "0a382e007bd3c9d843483e74cff955cd8f789e400082c3a57df45b116f78d3b6"
+    },
+    {
+      "kind": "package",
+      "id": "tea",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [],
+      "digest": "71eb565c730de2c643777a25dca1d0592317c28c1ba51902d0ab4cc182a4a64e"
+    },
+    {
+      "kind": "package",
+      "id": "testenv",
+      "refs": [
+        "testenv"
+      ],
+      "directRefs": [
+        "testenv"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/testenv/testenv.go"
+      ],
+      "digest": "ed4b4979110f2a74c519003ff0ab4eedac7e9664768ab795b818ba72b0a4c40d"
+    },
+    {
+      "kind": "package",
+      "id": "uitest",
+      "refs": [
+        "uitest"
+      ],
+      "directRefs": [
+        "uitest"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/uitest/shape.go"
+      ],
+      "digest": "4413c5fa3c291e421542dfbe6aa026e7cea58dd54e4d6b4ccb443707a850a94f"
+    },
+    {
+      "kind": "package",
+      "id": "views",
+      "refs": [
+        "views",
+        "views.AgentSwitchView",
+        "views.CardEditor",
+        "views.CardEditor.Reset",
+        "views.CardEditor.SetCard",
+        "views.CardEditor.fieldBlocks",
+        "views.Dashboard",
+        "views.MCPForm",
+        "views.NewCardEditor",
+        "views.SessionLauncher",
+        "views.SettingsView",
+        "views.SourceManager",
+        "views.editorKeyIdentity",
+        "views.focusTargetTable",
+        "views.workspaceItem",
+        "views.workspaceItem.Title"
+      ],
+      "directRefs": [
+        "views",
+        "views.AgentSwitchView",
+        "views.CardEditor",
+        "views.Dashboard",
+        "views.MCPForm",
+        "views.SessionLauncher",
+        "views.SettingsView",
+        "views.SourceManager"
+      ],
+      "participants": [],
+      "supportingRefs": [
+        "views.CardEditor.Reset",
+        "views.CardEditor.SetCard",
+        "views.CardEditor.fieldBlocks",
+        "views.NewCardEditor",
+        "views.editorKeyIdentity",
+        "views.focusTargetTable",
+        "views.workspaceItem",
+        "views.workspaceItem.Title"
+      ],
+      "files": [
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/agentsmd_editor_modal.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/constants.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/mcp_form.go",
+        "internal/ui/views/puppet_selector_modal.go",
+        "internal/ui/views/session_launcher.go",
+        "internal/ui/views/settings.go",
+        "internal/ui/views/source_manager.go",
+        "internal/ui/views/source_type.go",
+        "internal/ui/views/workspace_picker_modal.go"
+      ],
+      "digest": "567b52fff8ed94f8a76546088457ff1c876d5040feb762284d721b03a710259c"
+    },
+    {
+      "kind": "path",
+      "id": "1",
+      "refs": [
+        "app"
+      ],
+      "directRefs": [
+        "app"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/app.go",
+        "internal/app/attach.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/navigation.go",
+        "internal/app/preview.go",
+        "internal/app/refresh.go",
+        "internal/app/session_actions.go",
+        "internal/app/size_guard.go"
+      ],
+      "digest": "ba320d8c41b0aa70a0363d286fb5e4a3a2c2a36b78d851d2de96f88f630819df"
+    },
+    {
+      "kind": "path",
+      "id": "2",
+      "refs": [
+        "app.Coordinator"
+      ],
+      "directRefs": [
+        "app.Coordinator"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go"
+      ],
+      "digest": "c60a1ac47e048e204962affe864cfca68f46b0b6e7ebc65a496b793016515921"
+    },
+    {
+      "kind": "rule",
+      "id": "1",
+      "refs": [
+        "app.Coordinator"
+      ],
+      "directRefs": [
+        "app.Coordinator"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go"
+      ],
+      "digest": "3e4e55429904b14dc305bf47265ab3767606d883fc188366577b9a80986052f8"
+    },
+    {
+      "kind": "rule",
+      "id": "10",
+      "refs": [
+        "components.CapabilityList.viewSized"
+      ],
+      "directRefs": [
+        "components.CapabilityList.viewSized"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/components/capability_list.go"
+      ],
+      "digest": "30b87bc8151a1ce2ccf22fc3ad58d2d151fb53f7236f6b52182e5e06c90d4932"
+    },
+    {
+      "kind": "rule",
+      "id": "11",
+      "refs": [
+        "session.Manager.prepareSubWorkspaces",
+        "session.shouldCopySubWorkspace",
+        "session.subWorkspaceTransaction.rollback"
+      ],
+      "directRefs": [
+        "session.Manager.prepareSubWorkspaces"
+      ],
+      "participants": [],
+      "supportingRefs": [
+        "session.shouldCopySubWorkspace",
+        "session.subWorkspaceTransaction.rollback"
+      ],
+      "files": [
+        "internal/session/sub_workspaces.go"
+      ],
+      "digest": "b35519794a4956e5e306cac593ebae82226c3c8fc5b7864f92ebebbc09e6f3f7"
+    },
+    {
+      "kind": "rule",
+      "id": "12",
+      "refs": [
+        "config.GetBuiltinSkillContent",
+        "config.SetBuiltinMCPCLISkillContent",
+        "root.main"
+      ],
+      "directRefs": [
+        "config.SetBuiltinMCPCLISkillContent"
+      ],
+      "participants": [],
+      "supportingRefs": [
+        "config.GetBuiltinSkillContent",
+        "root.main"
+      ],
+      "files": [
+        "internal/config/builtins.go",
+        "internal/config/builtins_test.go",
+        "main.go",
+        "main_test.go"
+      ],
+      "digest": "e46b853e7c2572eb07fd11c755be3da3ce7df4c4d1705aec86149bc0d8de81bc"
+    },
+    {
+      "kind": "rule",
+      "id": "2",
+      "refs": [
+        "app.Coordinator.navigateTo"
+      ],
+      "directRefs": [
+        "app.Coordinator.navigateTo"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/navigation.go"
+      ],
+      "digest": "aa704d899704eb49fdd24b04bacf2af24bf5137fc4471d91894586f4d9c46060"
+    },
+    {
+      "kind": "rule",
+      "id": "3",
+      "refs": [
+        "messages.DataLoadedMsg"
+      ],
+      "directRefs": [
+        "messages.DataLoadedMsg"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/messages/messages.go"
+      ],
+      "digest": "a725efac38b6a5cfbccd367a97bff972fdccebf082194421df45e644b3eeeabc"
+    },
+    {
+      "kind": "rule",
+      "id": "4",
+      "refs": [
+        "app.Coordinator.Update"
+      ],
+      "directRefs": [
+        "app.Coordinator.Update"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go"
+      ],
+      "digest": "cc93a272cd7d8301087ab1e69b3c74a39116eddcc1332bc0c4ff40ef527f631e"
+    },
+    {
+      "kind": "rule",
+      "id": "5",
+      "refs": [
+        "views.CardEditor.Card"
+      ],
+      "directRefs": [
+        "views.CardEditor.Card"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/views/card_editor.go"
+      ],
+      "digest": "031689a8857ef854026d5af1658cd6ab963cad12b8258af9e2b34ee941c9b46c"
+    },
+    {
+      "kind": "rule",
+      "id": "6",
+      "refs": [
+        "config.FileRepository.UpdateSkillSources"
+      ],
+      "directRefs": [
+        "config.FileRepository.UpdateSkillSources"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/config/skill_sources.go"
+      ],
+      "digest": "fd87633736a266b7b69269a5b510cef4d63699d35894a1640abaaf807e6a48b1"
+    },
+    {
+      "kind": "rule",
+      "id": "7",
+      "refs": [
+        "config.FileRepository"
+      ],
+      "directRefs": [
+        "config.FileRepository"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/config/repository.go"
+      ],
+      "digest": "8c74b4292a31519095bf774699a01f80abfeb9967879e0ed66cbbc501183d025"
+    },
+    {
+      "kind": "rule",
+      "id": "8",
+      "refs": [
+        "session.Manager.Launch"
+      ],
+      "directRefs": [
+        "session.Manager.Launch"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/lifecycle.go"
+      ],
+      "digest": "8b7355107ffd2f67e8fba8e6e831fefc3c56e2c55f090b7c0582744b73a9d896"
+    },
+    {
+      "kind": "rule",
+      "id": "9",
+      "refs": [
+        "components.TruncateHead"
+      ],
+      "directRefs": [
+        "components.TruncateHead"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/components/text.go"
+      ],
+      "digest": "868e455548989a9c41f44f97b0d2a68a6dc97076e92002e93c2c1115dca0d17b"
+    },
+    {
+      "kind": "task",
+      "id": "Add a config registry or source type",
+      "refs": [
+        "config.Repository",
+        "config.registryFiles"
+      ],
+      "directRefs": [
+        "config.Repository",
+        "config.registryFiles"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/config/repository.go",
+        "internal/config/storage.go"
+      ],
+      "digest": "8713016edd2c468d6ed541a4e26c4d28990a9075611823c17efdc59fb34d569c"
+    },
+    {
+      "kind": "task",
+      "id": "Add a field to ID cards",
+      "refs": [
+        "config.IDCard",
+        "views.CardEditor.Card"
+      ],
+      "directRefs": [
+        "config.IDCard",
+        "views.CardEditor.Card"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/config/types.go",
+        "internal/ui/views/card_editor.go"
+      ],
+      "digest": "53fbbfc2eac79be67210455f05e4d1a2ab728471cf3802426a249eca2db0161d"
+    },
+    {
+      "kind": "task",
+      "id": "Add a message",
+      "refs": [
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.handleSpecialMessages"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.handleSpecialMessages"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go"
+      ],
+      "digest": "2e81c6a37988f3f571bef56d2046ed20053d2dc733a7d479eaff34b8d1d1d488"
+    },
+    {
+      "kind": "task",
+      "id": "Add a new agent CLI",
+      "refs": [
+        "driver.ClaudeCodeDriver",
+        "driver.GenericCLIDriver",
+        "driver.NewBuiltinRegistry"
+      ],
+      "directRefs": [
+        "driver.ClaudeCodeDriver",
+        "driver.GenericCLIDriver",
+        "driver.NewBuiltinRegistry"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/driver/registry.go"
+      ],
+      "digest": "84b86ab1211e50c5f548b2bcd8ea2d1b073e10b4ecce699a0d3a126c9d43d24c"
+    },
+    {
+      "kind": "task",
+      "id": "Add a screen",
+      "refs": [
+        "app.Coordinator.initViews",
+        "app.ViewType"
+      ],
+      "directRefs": [
+        "app.Coordinator.initViews",
+        "app.ViewType"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go"
+      ],
+      "digest": "c24df46e130dd0882ba4e09b43f06901c40ac9b3b3f642879d153fac25aaa594"
+    },
+    {
+      "kind": "task",
+      "id": "Add a session-level action (Phase 1 linking)",
+      "refs": [
+        "app.sessionActions"
+      ],
+      "directRefs": [
+        "app.sessionActions"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/session_actions.go"
+      ],
+      "digest": "aa2d7338627aa9d68194942a41f62367f75bc36c45403b4c8eb90eff35424342"
+    },
+    {
+      "kind": "task",
+      "id": "Add or change a puppet",
+      "refs": [
+        "characters.TextPuppet",
+        "config.FileRepository.SyncPuppetsFromSources"
+      ],
+      "directRefs": [
+        "characters.TextPuppet",
+        "config.FileRepository.SyncPuppetsFromSources"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ascii/characters/text_puppet.go",
+        "internal/config/puppet_sources.go"
+      ],
+      "digest": "b4aefdc98d77d47bc8cf410225e56d0950e0a1e3408aa4a8cf01ea6ffe758d80"
+    },
+    {
+      "kind": "task",
+      "id": "Change attach / detach / keys during attach",
+      "refs": [
+        "app.attachExec"
+      ],
+      "directRefs": [
+        "app.attachExec"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/attach.go"
+      ],
+      "digest": "8c9bd5486276809b823c7947eb2fe0ef3d6df99b08702e37a6192cb3aabdf6ce"
+    },
+    {
+      "kind": "task",
+      "id": "Change dashboard layout or keys",
+      "refs": [
+        "views.Dashboard.footerText",
+        "views.Dashboard.handleKey"
+      ],
+      "directRefs": [
+        "views.Dashboard.footerText",
+        "views.Dashboard.handleKey"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "9948f8a56cad7bf683ba42c0048bbc8dce2799ed1415e1edd499247f74707ea4"
+    },
+    {
+      "kind": "task",
+      "id": "Change how cards look",
+      "refs": [
+        "components.RenderCardItem"
+      ],
+      "directRefs": [
+        "components.RenderCardItem"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/components/card_list.go"
+      ],
+      "digest": "fba49fd37e2565ac47a327b4c63431e562b8d870ebd1fd5fa6b4c784b59f9775"
+    },
+    {
+      "kind": "task",
+      "id": "Change how the IDE is opened",
+      "refs": [
+        "session.IDELauncher"
+      ],
+      "directRefs": [
+        "session.IDELauncher"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/ide_launcher.go"
+      ],
+      "digest": "0352ffa9d5a7f7b5f0045ed2a5cb500670ea1f71016e4cc20ebca6da709715a7"
+    },
+    {
+      "kind": "task",
+      "id": "Change refresh behaviour",
+      "refs": [
+        "app.refresher",
+        "config.FileRepository.Fingerprint"
+      ],
+      "directRefs": [
+        "app.refresher",
+        "config.FileRepository.Fingerprint"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/refresh.go",
+        "internal/config/storage.go"
+      ],
+      "digest": "777e71cbaa69aef790a0f246d6b6a85878c01a7a78544570144aedeac2abae39"
+    },
+    {
+      "kind": "task",
+      "id": "Change session lifecycle or status detection",
+      "refs": [
+        "driver.IsPromptLike",
+        "session.Manager",
+        "session.Manager.watch"
+      ],
+      "directRefs": [
+        "driver.IsPromptLike",
+        "session.Manager",
+        "session.Manager.watch"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/session/manager.go",
+        "internal/session/watch.go"
+      ],
+      "digest": "a5fd6aa46228f044524f2fe7583f8608a26a8b21078ea77d95ed5fea19567c6c"
+    },
+    {
+      "kind": "task",
+      "id": "Change sub workspace copying or collision handling",
+      "refs": [
+        "session.Manager.prepareSubWorkspaces",
+        "session.shouldCopySubWorkspace",
+        "session.subWorkspaceTransaction.rollback"
+      ],
+      "directRefs": [
+        "session.Manager.prepareSubWorkspaces",
+        "session.shouldCopySubWorkspace",
+        "session.subWorkspaceTransaction.rollback"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/sub_workspaces.go"
+      ],
+      "digest": "ab815e82feedb90ae8a0220e15b652c58af8098ca06ead76c33422e906a59310"
+    },
+    {
+      "kind": "task",
+      "id": "Change the embedded skill or startup installation",
+      "refs": [
+        "config.GetBuiltinSkillContent",
+        "config.SetBuiltinMCPCLISkillContent",
+        "root.main"
+      ],
+      "directRefs": [
+        "config.GetBuiltinSkillContent",
+        "config.SetBuiltinMCPCLISkillContent",
+        "root.main"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/config/builtins.go",
+        "main.go"
+      ],
+      "digest": "aa590cafc3de308f091a49bc80a99f08ae4d25f09d7c44ff6697d308c01ae338"
+    },
+    {
+      "kind": "task",
+      "id": "Change the minimum terminal size",
+      "refs": [
+        "app.Coordinator.tooSmall"
+      ],
+      "directRefs": [
+        "app.Coordinator.tooSmall"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/size_guard.go"
+      ],
+      "digest": "f545dd844e8b69023df44c78da2bc6c09b0b209f752f1a84d7b63ed975c98ee6"
+    },
+    {
+      "kind": "task",
+      "id": "Change the preview subscription",
+      "refs": [
+        "app.Coordinator.handleSessionOutput",
+        "app.previewSub"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleSessionOutput",
+        "app.previewSub"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/handlers.go",
+        "internal/app/preview.go"
+      ],
+      "digest": "74656f1a504c196c2978815191d8ae136bd011dfcbf16fc3d4251c9c9cdb8d27"
+    },
+    {
+      "kind": "task",
+      "id": "Change what gets written into a session's workspace",
+      "refs": [
+        "driver.GenericCLIDriver.SetAgentsMD",
+        "session.Manager.prepareSubWorkspaces",
+        "session.Manager.syncDriverFiles"
+      ],
+      "directRefs": [
+        "driver.GenericCLIDriver.SetAgentsMD",
+        "session.Manager.prepareSubWorkspaces",
+        "session.Manager.syncDriverFiles"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/session/lifecycle.go",
+        "internal/session/sub_workspaces.go"
+      ],
+      "digest": "a4ccf26004ce2f5984d1e8ca29fc9356ed807920de283492e18d2e3de2b4678a"
+    },
+    {
+      "kind": "task",
+      "id": "Change workspace picking or the selected Skills view",
+      "refs": [
+        "components.CapabilityList",
+        "views.CardEditor.handleKey",
+        "views.CardEditor.renderSubWorkspacesLine",
+        "views.WorkspacePickerModal",
+        "views.WorkspacePickerModal.SetSelectedIDs"
+      ],
+      "directRefs": [
+        "components.CapabilityList",
+        "views.CardEditor.handleKey",
+        "views.WorkspacePickerModal"
+      ],
+      "participants": [],
+      "supportingRefs": [
+        "views.CardEditor.renderSubWorkspacesLine",
+        "views.WorkspacePickerModal.SetSelectedIDs"
+      ],
+      "files": [
+        "internal/ui/components/capability_list.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/workspace_picker_modal.go"
+      ],
+      "digest": "bbe89c0374a932c55a237f459f4085cf21fa804f61415f5f93a71a323da40ff9"
+    },
+    {
+      "kind": "task",
+      "id": "Put user text into a fixed-width slot",
+      "refs": [
+        "components.DisplayText",
+        "components.TruncateHead",
+        "components.TruncateTail"
+      ],
+      "directRefs": [
+        "components.DisplayText",
+        "components.TruncateHead",
+        "components.TruncateTail"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/components/text.go"
+      ],
+      "digest": "5dba625e983465423e8c2f3de67b9f68ed98aa3951277334ead2259450baf16e"
+    }
+  ],
+  "digest": "df07bebe6aa6ad037a6402764baa692556276078ac22dd4aad385c36efdc5412"
+}

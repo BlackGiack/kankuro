@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 // TestSaveSkillSourcesConcurrentWritesDoNotCorrupt documents the safety

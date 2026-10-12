@@ -9,10 +9,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"kankuro/internal/config"
-	"kankuro/internal/ui/components"
-	"kankuro/internal/ui/uitest"
-	"kankuro/internal/ui/views"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/uitest"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 // Contract (step 0 of impl_plan_2.md, reworked by impl_plan_5.md): CardEditor.View()
@@ -203,6 +204,37 @@ func TestCardEditorLongLinesAreClipped(t *testing.T) {
 	e.SetCard(card)
 	e.SetSize(80, 50)
 	uitest.AssertWithin(t, e.View(), 80, 50, "long lines")
+}
+
+func TestFocusedSubWorkspaceClearHintFitsLongSummaries(t *testing.T) {
+	for _, width := range []int{views.MinTerminalWidth, 120, 200} {
+		e := newLayoutEditor(true, true, 0, false)
+		workspaces := []config.Workspace{
+			{ID: "main", Name: "Main"},
+			{ID: "sub-a", Name: strings.Repeat("Alpha Workspace ", 8)},
+			{ID: "sub-b", Name: strings.Repeat("Beta Workspace ", 8)},
+		}
+		e.SetData(messages.DataLoadedMsg{Workspaces: workspaces})
+		e.SetCard(config.IDCard{ID: "long-sub-workspaces", WorkspaceID: "main", SubWorkspaceIDs: []string{"sub-a", "sub-b"}})
+		e.CycleFocus(views.FocusSubWorkspaces)
+		height := views.MinTerminalHeight - views.CoordinatorRows
+		e.SetSize(width, height)
+		out := e.View()
+		uitest.AssertWithin(t, out, width, height, fmt.Sprintf("width=%d", width))
+		var field string
+		for line := range strings.SplitSeq(ansi.Strip(out), "\n") {
+			if strings.HasPrefix(line, "> Sub Workspaces: ") {
+				field = line
+				break
+			}
+		}
+		if field == "" || !strings.Contains(field, "ctrl+x=clear") {
+			t.Fatalf("width %d focused sub workspace field omitted clear hint:\n%s", width, ansi.Strip(out))
+		}
+		if got := ansi.StringWidth(field); got > width {
+			t.Fatalf("width %d focused sub workspace row is %d columns", width, got)
+		}
+	}
 }
 
 // focusMarkerLine returns what the view must show for the focused target: the

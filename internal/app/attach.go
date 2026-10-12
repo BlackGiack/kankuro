@@ -18,8 +18,8 @@ import (
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
 
-	"kankuro/internal/session"
-	"kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
 const (

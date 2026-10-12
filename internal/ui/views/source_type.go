@@ -1,6 +1,6 @@
 package views
 
-import "kankuro/internal/ui/messages"
+import "github.com/BlackGiack/kankuro/internal/ui/messages"
 
 // SourceType identifies which kind of sources are being managed.
 type SourceType string

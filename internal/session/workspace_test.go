@@ -1,12 +1,13 @@
 package session_test
 
 import (
-	"kankuro/internal/config"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 func TestSessionAgentsMD(t *testing.T) {

@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"kankuro/internal/config"
-	"kankuro/internal/driver"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/driver"
 )
 
 type Status = driver.SessionStatus

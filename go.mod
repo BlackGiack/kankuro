@@ -1,4 +1,4 @@
-module kankuro
+module github.com/BlackGiack/kankuro
 
 go 1.26.1
 

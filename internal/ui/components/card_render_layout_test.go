@@ -7,9 +7,9 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"kankuro/internal/config"
-	"kankuro/internal/ui/components"
-	"kankuro/internal/ui/uitest"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/ui/uitest"
 )
 
 // renderedCardHeight is the line count of a correctly laid-out card: the face

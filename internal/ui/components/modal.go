@@ -4,7 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/component"
 )
 
 // ModalState is the open/confirmed/cancelled bookkeeping shared by every

@@ -1,7 +1,7 @@
 package characters
 
 import (
-	"kankuro/internal/ascii"
+	"github.com/BlackGiack/kankuro/internal/ascii"
 )
 
 // BuiltinPuppetDef represents a built-in puppet definition with its name and lines.

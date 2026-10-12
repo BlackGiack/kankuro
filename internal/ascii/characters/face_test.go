@@ -1,9 +1,10 @@
 package characters_test
 
 import (
-	"kankuro/internal/ascii"
-	"kankuro/internal/ascii/characters"
 	"testing"
+
+	"github.com/BlackGiack/kankuro/internal/ascii"
+	"github.com/BlackGiack/kankuro/internal/ascii/characters"
 )
 
 func TestFaceDefaultStyle(t *testing.T) {

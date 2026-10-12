@@ -2,9 +2,10 @@ package driver_test
 
 import (
 	"errors"
-	"kankuro/internal/config"
-	"kankuro/internal/driver"
 	"testing"
+
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/driver"
 )
 
 var errStubSpawn = errors.New("stub spawn")

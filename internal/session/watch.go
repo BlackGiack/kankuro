@@ -3,7 +3,7 @@ package session
 import (
 	"time"
 
-	"kankuro/internal/driver"
+	"github.com/BlackGiack/kankuro/internal/driver"
 )
 
 // startWatchLocked runs watch for one activation, tracked by m.watchers. It

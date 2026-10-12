@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 // TestUpdateSkillSourcesReportsSyncFailureButStillSaves is the R2 case: an

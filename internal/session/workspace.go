@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 // tmpRoot is the directory holding temporary workspace copies: KANKURO_TMP_DIR

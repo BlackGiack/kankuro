@@ -1,10 +1,11 @@
 package config_test
 
 import (
-	"kankuro/internal/config"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 func TestSyncSkillsFromSources(t *testing.T) {

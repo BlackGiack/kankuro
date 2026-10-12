@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/session"
 )
 
 func TestSplitCommand_Simple(t *testing.T) {
