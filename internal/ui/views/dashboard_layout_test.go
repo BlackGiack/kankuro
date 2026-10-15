@@ -400,10 +400,21 @@ func TestDashboardFooterShowsFocusedPaneKeys(t *testing.T) {
 			}
 			lines := strings.Split(ansi.Strip(d.View()), "\n")
 			footer := lines[len(lines)-1]
-			if !strings.Contains(footer, tc.want) || strings.Contains(footer, tc.other) || !strings.Contains(footer, "q=Quit") {
+			wantPane := tc.want
+			if tc.pane == views.PaneSessions {
+				wantPane = "[Session]"
+			}
+			missingPane := !strings.Contains(footer, wantPane)
+			if missingPane || strings.Contains(footer, tc.other) || !strings.Contains(footer, "q=Quit") {
 				t.Errorf("width %d focus %d: footer %q, want %q, not %q, and q=Quit", w, tc.pane, footer, tc.want, tc.other)
 			}
 		}
+	}
+	minimum := newDashboard(t, views.MinTerminalWidth, 30, dashboardData{sessions: 1, cards: 1})
+	minimum.TogglePane()
+	minimumFooter := strings.Split(ansi.Strip(minimum.View()), "\n")
+	if footer := minimumFooter[len(minimumFooter)-1]; !strings.Contains(footer, "t=Terminal") || !strings.Contains(footer, "q=Quit") {
+		t.Fatalf("minimum-width session footer lacks terminal/quit shortcuts: %q", footer)
 	}
 	// With room to spare, the whole legend of the focused pane is there.
 	d := newDashboard(t, 200, 30, dashboardData{sessions: 1, cards: 1})

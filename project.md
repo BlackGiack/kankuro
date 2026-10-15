@@ -87,7 +87,8 @@ internal/
     watch.go io.go           #   per-activation goroutines: status polling, output tracking and scrollback
     attach.go                #   AttachHandle (input routed through the driver's locked writer)
     storage.go workspace.go  #   session JSON load/save; temporary-workspace creation
-    ide_launcher.go          #   open a session's workspace in the configured IDE
+    workspace_launcher.go    #   shared IDE/terminal workspace command execution
+    ide_launcher.go          #   IDE compatibility wrapper
   ui/
     messages/messages.go     #   every tea.Msg the app exchanges — read this before adding one
     views/                   #   full screens: dashboard, card_editor, mcp_form, source_manager, settings,
@@ -170,7 +171,7 @@ Three panes: ID cards (left), the preview of the selected session (centre), sess
 | `x` | kill the selected session |
 | `s` | switch agent on a terminated session |
 | `Backspace` / `Delete` | remove a terminated session (asks for confirmation) |
-| `o` | open the session's workspace in the IDE (command set in settings) |
+| `o` / `t` | open the selected session workspace in the configured IDE / terminal (Sessions pane only) |
 | `m` / `w` / `c` | MCP form / workspace sources / settings |
 | `q` | quit |
 | `Ctrl+K` | detach from an attached session |
@@ -207,7 +208,7 @@ personas.yaml        persona_sources.yaml
 puppets.yaml         puppet_sources.yaml
 workspaces.yaml      workspace_sources.yaml
 mcps.yaml                                        # entered by hand, no sources
-app_settings.yaml                                # IDE command, which card-editor sections are shown
+app_settings.yaml                                # IDE/terminal commands, which card-editor sections are shown
 sessions/<session-id>.json                       # one record per session
 tmp/<session-id>/                                # temporary workspace copies (or $KANKURO_TMP_DIR)
 ```
@@ -410,7 +411,7 @@ to reproduce a user's bug is fine; writing to it is not.
 | `KANKURO_CONFIG_DIR` / `--config-dir` | env / flag | config root (default `~/.config/kankuro`) |
 | `KANKURO_TMP_DIR` | env | root for temporary workspaces (default `<config>/tmp`) |
 | `--debug` | flag | log to `<user cache dir>/kankuro/kankuro.log` |
-| IDE command, card-editor sections | Settings view (`c`) → `app_settings.yaml` | what `o` runs; whether personas / MCPs are shown in the card editor |
+| IDE/terminal commands, card-editor sections | Settings view (`c`) → `app_settings.yaml` | what `o` / `t` run; whether personas / MCPs are shown in the card editor. `terminal_command` defaults empty. |
 | per-card `env:` | `id_cards.yaml` | merged over the parent environment when the agent is spawned; a card key overrides an inherited one. There is no UI for it yet — edit the YAML. |
 
 ---

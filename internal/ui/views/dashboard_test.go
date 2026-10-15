@@ -127,6 +127,56 @@ func TestDashboard_Search_NonASCII(t *testing.T) {
 	}
 }
 
+func TestDashboard_LaunchTerminalRouting(t *testing.T) {
+	for _, status := range []session.Status{session.StatusRunning, session.StatusWaiting, session.StatusTerminated} {
+		t.Run(string(status), func(t *testing.T) {
+			var selected string
+			d := views.NewDashboard(views.DashboardCallbacks{OnLaunchTerminal: func(id string) tea.Cmd {
+				selected = id
+				return func() tea.Msg { return nil }
+			}})
+			d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "target", Status: status}}})
+			d.TogglePane()
+			d.SessionList().SetSelectedByID("target")
+			_, cmd := d.Update(tea.KeyPressMsg{Code: 0, Text: "t"})
+			if selected != "target" || cmd == nil {
+				t.Fatalf("terminal action selected %q, cmd %v", selected, cmd)
+			}
+		})
+	}
+	d := views.NewDashboard(views.DashboardCallbacks{
+		OnLaunchTerminal: func(string) tea.Cmd {
+			t.Fatal("launched with no selection")
+			return nil
+		},
+	})
+	d.TogglePane()
+	d.Update(tea.KeyPressMsg{Code: 0, Text: "t"})
+	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "target"}}})
+	_, _ = d.Update(tea.KeyPressMsg{Code: 0, Text: "/"})
+	_, _ = d.Update(tea.KeyPressMsg{Code: 0, Text: "t"})
+	if d.Search().CardsQuery != "t" {
+		t.Fatalf("search typing was consumed as action: %+v", d.Search())
+	}
+	noCallback := views.NewDashboard(views.DashboardCallbacks{})
+	noCallback.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "target"}}})
+	noCallback.TogglePane()
+	noCallback.SessionList().SetSelectedByID("target")
+	_, cmd := noCallback.Update(tea.KeyPressMsg{Code: 0, Text: "t"})
+	if cmd != nil {
+		t.Fatal("nil terminal callback returned a command")
+	}
+	var ideID string
+	ide := views.NewDashboard(views.DashboardCallbacks{OnLaunchIDE: func(id string) tea.Cmd { ideID = id; return nil }})
+	ide.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "ide-target"}}})
+	ide.TogglePane()
+	ide.SessionList().SetSelectedByID("ide-target")
+	ide.Update(tea.KeyPressMsg{Code: 0, Text: "o"})
+	if ideID != "ide-target" {
+		t.Fatalf("IDE shortcut regression: selected %q", ideID)
+	}
+}
+
 func TestDashboard_DeleteModal(t *testing.T) {
 	var deletedSessionID string
 

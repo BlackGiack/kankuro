@@ -116,6 +116,7 @@ type WorkspaceSourcesFile struct {
 // AppSettings holds global user settings.
 type AppSettings struct {
 	IDECommand               string `yaml:"ide_command"`
+	TerminalCommand          string `yaml:"terminal_command"`
 	ShowPersonasInCardEditor bool   `yaml:"show_personas_in_card_editor"`
 	ShowMCPsInCardEditor     bool   `yaml:"show_mcps_in_card_editor"`
 }

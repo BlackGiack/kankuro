@@ -1,10 +1,14 @@
 package session_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/BlackGiack/kankuro/internal/session"
 )
@@ -43,6 +47,126 @@ func TestSplitCommand_Simple(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestWorkspaceLauncherHelperProcess(t *testing.T) {
+	if os.Getenv("KANKURO_LAUNCHER_HELPER") != "1" {
+		return
+	}
+	data, err := json.Marshal(map[string]any{"args": os.Args, "dir": mustGetwd()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeErr := os.WriteFile(os.Getenv("KANKURO_LAUNCHER_RECORD"), data, 0o600)
+	if writeErr != nil {
+		t.Fatal(writeErr)
+	}
+}
+
+func mustGetwd() string { value, _ := os.Getwd(); return value }
+
+func TestLaunchWorkspaceCommandExecutesInWorkspace(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		placeholders int
+	}{{name: "quoted path and repeated placeholders", placeholders: 2}, {name: "working directory without placeholder", placeholders: 0}} {
+		t.Run(tc.name, func(t *testing.T) {
+			runWorkspaceLauncherCase(t, tc.placeholders)
+		})
+	}
+}
+
+func runWorkspaceLauncherCase(t *testing.T, placeholders int) {
+	t.Helper()
+	workspace := filepath.Join(t.TempDir(), "workspace with spaces")
+	if err := os.Mkdir(workspace, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	record := filepath.Join(t.TempDir(), "record.json")
+	t.Setenv("KANKURO_LAUNCHER_HELPER", "1")
+	t.Setenv("KANKURO_LAUNCHER_RECORD", record)
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var command strings.Builder
+	fmt.Fprintf(&command, "\"%s\" -test.run=TestWorkspaceLauncherHelperProcess --", binary)
+	for range placeholders {
+		command.WriteString(` "$PATH"`)
+	}
+	if placeholders == 0 {
+		command.WriteString(` ordinary-argument`)
+	}
+	launchErr := session.LaunchWorkspaceCommand(command.String(), workspace)
+	if launchErr != nil {
+		t.Fatalf("launch: %v", launchErr)
+	}
+	got := readWorkspaceLauncherRecord(t, record)
+	abs, err := filepath.Abs(workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Dir != abs {
+		t.Errorf("child dir %q, want %q", got.Dir, abs)
+	}
+	wantCount := placeholders
+	for _, arg := range got.Args {
+		if arg == abs {
+			wantCount--
+		}
+	}
+	if wantCount != 0 {
+		t.Errorf("child args %q do not contain workspace %d times", got.Args, placeholders)
+	}
+	if placeholders == 0 && !strings.Contains(strings.Join(got.Args, " "), "ordinary-argument") {
+		t.Errorf("no-placeholder command arguments %q lost their configured argument", got.Args)
+	}
+}
+
+func readWorkspaceLauncherRecord(t *testing.T, path string) struct {
+	Args []string `json:"args"`
+	Dir  string   `json:"dir"`
+} {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	var data []byte
+	var readErr error
+	for time.Now().Before(deadline) {
+		data, readErr = os.ReadFile(path)
+		if readErr == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if readErr != nil {
+		t.Fatalf("helper did not write record: %v", readErr)
+	}
+	var got struct {
+		Args []string `json:"args"`
+		Dir  string   `json:"dir"`
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	return got
+}
+
+func TestLaunchWorkspaceCommandErrors(t *testing.T) {
+	for _, tc := range []struct {
+		command, path string
+		want          error
+	}{
+		{"", t.TempDir(), session.ErrCommandNotConfigured}, {"   ", t.TempDir(), session.ErrInvalidCommand}, {"true", "", session.ErrWorkspacePathEmpty},
+		{"true", filepath.Join(t.TempDir(), "missing"), os.ErrNotExist}, {"kankuro-command-that-does-not-exist", t.TempDir(), nil},
+	} {
+		err := session.LaunchWorkspaceCommand(tc.command, tc.path)
+		if tc.want != nil && !errors.Is(err, tc.want) {
+			t.Errorf("LaunchWorkspaceCommand(%q,%q) error %v, want %v", tc.command, tc.path, err, tc.want)
+		}
+		if tc.want == nil && err == nil {
+			t.Errorf("invalid executable unexpectedly launched")
+		}
 	}
 }
 

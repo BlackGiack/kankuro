@@ -136,22 +136,35 @@ func (a sessionActions) deleteMCP(m messages.MCPDeleteRequestedMsg) tea.Cmd {
 // inside the closure would race with SettingsSavedMsg.
 func (a sessionActions) launchIDE(sessionID, ideCommand string) tea.Cmd {
 	return func() tea.Msg {
-		for _, s := range a.sessions.List() {
-			if s.ID != sessionID {
-				continue
-			}
-			workspacePath := s.WorkingDir
-			if workspacePath == "" {
-				return messages.IDELaunchedMsg{Err: errors.New("session has no workspace path")}
-			}
-			if ideCommand == "" {
-				return messages.IDELaunchedMsg{Err: session.ErrIDENotConfigured}
-			}
-			launcher := session.NewIDELauncher(ideCommand)
-			return messages.IDELaunchedMsg{Err: launcher.Launch(workspacePath)}
-		}
-		return messages.IDELaunchedMsg{Err: fmt.Errorf("session not found: %s", sessionID)}
+		return messages.IDELaunchedMsg{Err: a.launchWorkspaceCommand(sessionID, ideCommand, session.ErrIDENotConfigured)}
 	}
+}
+
+func (a sessionActions) launchTerminal(sessionID, command string) tea.Cmd {
+	return func() tea.Msg {
+		notConfigured := errors.New(strings.Join([]string{"Terminal", "command", "not configured"}, " "))
+		err := a.launchWorkspaceCommand(sessionID, command, notConfigured)
+		return messages.TerminalLaunchedMsg{Err: err}
+	}
+}
+
+func (a sessionActions) launchWorkspaceCommand(sessionID, command string, notConfigured error) error {
+	for _, sess := range a.sessions.List() {
+		if sess.ID != sessionID {
+			continue
+		}
+		if sess.WorkingDir == "" {
+			return errors.New("session has no workspace path")
+		}
+		if command == "" || (!errors.Is(notConfigured, session.ErrIDENotConfigured) && strings.TrimSpace(command) == "") {
+			return notConfigured
+		}
+		if errors.Is(notConfigured, session.ErrIDENotConfigured) {
+			return session.NewIDELauncher(command).Launch(sess.WorkingDir)
+		}
+		return session.LaunchWorkspaceCommand(command, sess.WorkingDir)
+	}
+	return fmt.Errorf("session not found: %s", sessionID)
 }
 
 // cardBundle groups an ID card with its resolved capabilities, so a

@@ -61,6 +61,7 @@ type DashboardCallbacks struct {
 	OnOpenSettings   func() tea.Cmd
 	OnOpenCardEditor func() tea.Cmd
 	OnLaunchIDE      func(sessionID string) tea.Cmd
+	OnLaunchTerminal func(sessionID string) tea.Cmd
 }
 
 // Dashboard is the main composite view showing cards, preview, and sessions.
@@ -391,7 +392,9 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case "c":
 			return d.handleOpenSettings()
 		case "o":
-			return d.handleLaunchIDE()
+			return d.handleLaunchSession(d.callbacks.OnLaunchIDE)
+		case "t":
+			return d.handleLaunchSession(d.callbacks.OnLaunchTerminal)
 		case "a":
 			return d.handleAttach()
 		case "x":
@@ -442,7 +445,7 @@ func (d *Dashboard) handleOpenSettings() (tea.Cmd, bool) {
 	}
 	return nil, true
 }
-func (d *Dashboard) handleLaunchIDE() (tea.Cmd, bool) {
+func (d *Dashboard) handleLaunchSession(launch func(sessionID string) tea.Cmd) (tea.Cmd, bool) {
 	if d.focusedPane != PaneSessions {
 		return nil, true
 	}
@@ -452,11 +455,11 @@ func (d *Dashboard) handleLaunchIDE() (tea.Cmd, bool) {
 		return nil, true
 	}
 
-	if d.callbacks.OnLaunchIDE == nil {
+	if launch == nil {
 		return nil, true
 	}
 
-	return d.callbacks.OnLaunchIDE(sess.ID), true
+	return launch(sess.ID), true
 }
 
 // handleSearch processes search input.
@@ -986,12 +989,13 @@ func (d *Dashboard) renderSessionsPane() string {
 // focused pane and the global group, so it carries only keys that do
 // something here.
 const (
-	footerNav           = "[Nav] Tab"
-	footerCards         = "[Card] Enter=Launch n=New e=Edit"
-	footerSessions      = "[Session] Enter=Attach/Relaunch s=Switch x=Kill Del=Remove"
-	footerGlobal        = "[Global] m=MCP w=Workspaces c=Settings q=Quit"
-	footerGlobalMinimal = "[Global] q=Quit"
-	footerGroupGap      = "  "
+	footerNav             = "[Nav] Tab"
+	footerCards           = "[Card] Enter=Launch n=New e=Edit"
+	footerSessions        = "[Session] Enter=Attach/Relaunch o=IDE t=Terminal s=Switch x=Kill Del=Remove"
+	footerSessionsCompact = "[Session] Enter=Attach/Relaunch o=IDE t=Terminal x=Kill"
+	footerGlobal          = "[Global] m=MCP w=Workspaces c=Settings q=Quit"
+	footerGlobalMinimal   = "[Global] q=Quit"
+	footerGroupGap        = "  "
 )
 
 // footerText picks the richest key legend that fits width. It gives up, in
@@ -1006,8 +1010,14 @@ func (d *Dashboard) footerText(width int) string {
 		{footerNav, pane, footerGlobal},
 		{pane, footerGlobal},
 		{pane, footerGlobalMinimal},
-		{footerGlobalMinimal},
 	}
+	if d.focusedPane == PaneSessions {
+		candidates = append(candidates,
+			[]string{footerSessionsCompact, footerGlobalMinimal},
+			[]string{footerSessionsCompact},
+		)
+	}
+	candidates = append(candidates, []string{footerGlobalMinimal})
 	if width <= 0 { // not sized yet: nothing to fit
 		return strings.Join(candidates[0], footerGroupGap)
 	}

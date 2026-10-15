@@ -11,6 +11,7 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
@@ -30,6 +31,7 @@ const (
 
 const (
 	settingsFocusIDECommand = iota
+	settingsFocusTerminalCommand
 	settingsFocusPersonas
 	settingsFocusMCPs
 	settingsFocusPuppetSources
@@ -44,29 +46,35 @@ type SettingsCallbacks struct {
 type SettingsView struct {
 	component.Base
 
-	mode      SettingsMode
-	focus     int
-	input     textinput.Model
-	settings  config.AppSettings
-	callbacks SettingsCallbacks
+	mode          SettingsMode
+	focus         int
+	input         textinput.Model
+	terminalInput textinput.Model
+	settings      config.AppSettings
+	callbacks     SettingsCallbacks
 }
 
 func NewSettingsView(callbacks SettingsCallbacks) *SettingsView {
 	input := textinput.New()
 	input.Placeholder = "e.g. code $PATH"
 	input.SetWidth(defaultInputWidth)
+	terminalInput := textinput.New()
+	terminalInput.Placeholder = "e.g. xterm -e sh -lc 'cd \"$PATH\" && exec $SHELL'"
+	terminalInput.SetWidth(defaultInputWidth)
 
 	return &SettingsView{
-		mode:      SettingsModeDisplay,
-		input:     input,
-		settings:  config.DefaultAppSettings(),
-		callbacks: callbacks,
+		mode:          SettingsModeDisplay,
+		input:         input,
+		terminalInput: terminalInput,
+		settings:      config.DefaultAppSettings(),
+		callbacks:     callbacks,
 	}
 }
 
 func (s *SettingsView) SetSettings(cfg config.AppSettings) {
 	s.settings = cfg
 	s.input.SetValue(cfg.IDECommand)
+	s.terminalInput.SetValue(cfg.TerminalCommand)
 }
 
 func (s *SettingsView) Settings() config.AppSettings {
@@ -80,6 +88,8 @@ func (s *SettingsView) Mode() SettingsMode {
 func (s *SettingsView) Input() *textinput.Model {
 	return &s.input
 }
+
+func (s *SettingsView) TerminalInput() *textinput.Model { return &s.terminalInput }
 
 func (s *SettingsView) FocusIndex() int {
 	return s.focus
@@ -133,8 +143,11 @@ func (s *SettingsView) updateDisplay(msg tea.Msg) (component.Model, tea.Cmd) {
 
 func (s *SettingsView) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 	var cmd tea.Cmd
-	if s.focus == settingsFocusIDECommand {
+	switch s.focus {
+	case settingsFocusIDECommand:
 		s.input, cmd = s.input.Update(msg)
+	case settingsFocusTerminalCommand:
+		s.terminalInput, cmd = s.terminalInput.Update(msg)
 	}
 
 	keyMsg, ok := msg.(tea.KeyPressMsg)
@@ -156,7 +169,9 @@ func (s *SettingsView) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 	case tea.KeyEsc:
 		s.mode = SettingsModeDisplay
 		s.input.Blur()
+		s.terminalInput.Blur()
 		s.input.SetValue(s.settings.IDECommand)
+		s.terminalInput.SetValue(s.settings.TerminalCommand)
 		return s, nil
 	case tea.KeyTab, tea.KeyDown:
 		s.focus = (s.focus + 1) % settingsFocusCount
@@ -200,7 +215,9 @@ func (s *SettingsView) handleEditEnter() (component.Model, tea.Cmd) {
 		return s, nil
 	}
 	s.settings.IDECommand = strings.TrimSpace(s.input.Value())
+	s.settings.TerminalCommand = strings.TrimSpace(s.terminalInput.Value())
 	s.input.Blur()
+	s.terminalInput.Blur()
 	s.mode = SettingsModeDisplay
 	if s.callbacks.OnSave != nil {
 		return s, s.callbacks.OnSave(s.settings)
@@ -212,15 +229,23 @@ func (s *SettingsView) startEdit() {
 	s.mode = SettingsModeEdit
 	s.focus = settingsFocusIDECommand
 	s.input.SetValue(s.settings.IDECommand)
+	s.terminalInput.SetValue(s.settings.TerminalCommand)
 	s.syncFocus()
 }
 
 func (s *SettingsView) syncFocus() {
 	if s.focus == settingsFocusIDECommand {
 		s.input.Focus()
+		s.terminalInput.Blur()
+		return
+	}
+	if s.focus == settingsFocusTerminalCommand {
+		s.input.Blur()
+		s.terminalInput.Focus()
 		return
 	}
 	s.input.Blur()
+	s.terminalInput.Blur()
 }
 
 func (s *SettingsView) View() string {
@@ -236,8 +261,16 @@ func (s *SettingsView) renderDisplay() string {
 	if currentCmd == "" {
 		currentCmd = "(not configured)"
 	}
+	terminalCmd := s.settings.TerminalCommand
+	if terminalCmd == "" {
+		terminalCmd = "(not configured)"
+	}
 
 	maxWidth := max(settingsBoxMinWidth, s.input.Width()+settingsBoxPadding*2)
+	commandWidth := max(0, maxWidth-4-lipgloss.Width("Terminal Command: "))
+	ideCommandWidth := max(0, maxWidth-4-lipgloss.Width("IDE Command: "))
+	currentCmd = components.TruncateHead(components.DisplayText(currentCmd), ideCommandWidth)
+	terminalCmd = components.TruncateHead(components.DisplayText(terminalCmd), commandWidth)
 	currentBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(styles.Gray).
@@ -245,6 +278,7 @@ func (s *SettingsView) renderDisplay() string {
 		Width(maxWidth).
 		Render(strings.Join([]string{
 			"IDE Command: " + currentCmd,
+			"Terminal Command: " + terminalCmd,
 			fmt.Sprintf("Show Personas In Card Editor: %s", enabledLabel(s.settings.ShowPersonasInCardEditor)),
 			fmt.Sprintf("Show MCPs In Card Editor: %s", enabledLabel(s.settings.ShowMCPsInCardEditor)),
 		}, "\n"))
@@ -259,7 +293,7 @@ func (s *SettingsView) renderDisplay() string {
 
 	pathHelp := lipgloss.NewStyle().
 		Foreground(styles.SecondaryColor).
-		Render("Use $PATH in your IDE command to reference the session workspace path")
+		Render("Use $PATH in either command for the session workspace path")
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, "", currentBox, "", puppetAction, "", pathHelp, "", helpText)
 }
@@ -271,13 +305,18 @@ func (s *SettingsView) renderEdit() string {
 	explanation := lipgloss.NewStyle().
 		Foreground(styles.SecondaryColor).
 		Width(explanationWidth).
-		Render("Configure the IDE command and the optional card editor sections.\nUse $PATH as the session workspace path placeholder.")
+		Render("Configure launch commands and optional card editor sections. Use $PATH as the session workspace path.")
 
 	inputBox := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(s.focusBorderColor(settingsFocusIDECommand)).
-		Padding(1, settingsBoxPadding).
+		Padding(0, settingsBoxPadding).
 		Render(s.input.View())
+	terminalBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(s.focusBorderColor(settingsFocusTerminalCommand)).
+		Padding(0, settingsBoxPadding).
+		Render(s.terminalInput.View())
 
 	personasLine := s.renderToggleLine(settingsFocusPersonas, "Show Personas In Card Editor", s.settings.ShowPersonasInCardEditor)
 	mcpsLine := s.renderToggleLine(settingsFocusMCPs, "Show MCPs In Card Editor", s.settings.ShowMCPsInCardEditor)
@@ -295,7 +334,8 @@ func (s *SettingsView) renderEdit() string {
 		"",
 		lipgloss.NewStyle().Bold(true).Render("IDE Command"),
 		inputBox,
-		"",
+		lipgloss.NewStyle().Bold(true).Render("Terminal Command (opens a separate window)"),
+		terminalBox,
 		personasLine,
 		mcpsLine,
 		"",
@@ -341,5 +381,7 @@ func enabledLabel(enabled bool) string {
 
 func (s *SettingsView) SetSize(width, height int) {
 	s.Base.SetSize(width, height)
-	s.input.SetWidth(min(width*9/10, 80)) //nolint:mnd // responsive width keeps the field usable without overflowing narrow terminals
+	inputWidth := max(1, min(width*9/10, 80)-2*settingsBoxPadding-2) //nolint:mnd // include border and horizontal padding
+	s.input.SetWidth(inputWidth)
+	s.terminalInput.SetWidth(inputWidth)
 }

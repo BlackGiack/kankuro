@@ -105,6 +105,11 @@ type IDELaunchedMsg struct {
 	Err error
 }
 
+// TerminalLaunchedMsg reports completion of a terminal launch request.
+type TerminalLaunchedMsg struct {
+	Err error
+}
+
 // AgentSwitchedMsg signals that an agent-switch request has completed (or
 // failed). Err may wrap session.ErrPersistFailed: the agent process did
 // restart, but its on-disk record failed to save - callers should still

@@ -89,7 +89,8 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 			}
 		},
 
-		OnLaunchIDE: c.launchIDE,
+		OnLaunchIDE:      c.launchIDE,
+		OnLaunchTerminal: c.launchTerminal,
 	}
 }
 
@@ -116,6 +117,10 @@ func (c *Coordinator) launchCard(card config.IDCard) tea.Cmd {
 // the closure sessionActions builds must receive it by value.
 func (c *Coordinator) launchIDE(sessionID string) tea.Cmd {
 	return c.actions.launchIDE(sessionID, c.settings.IDECommand)
+}
+
+func (c *Coordinator) launchTerminal(sessionID string) tea.Cmd {
+	return c.actions.launchTerminal(sessionID, c.settings.TerminalCommand)
 }
 
 func (c *Coordinator) cardEditorCallbacks() views.CardEditorCallbacks {

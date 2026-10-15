@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -83,7 +84,8 @@ func TestSettingsView_ToggleRows(t *testing.T) {
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-	if v.FocusIndex() != 1 {
+	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	if v.FocusIndex() != 2 {
 		t.Fatalf("expected focus on personas toggle, got %d", v.FocusIndex())
 	}
 
@@ -116,6 +118,7 @@ func TestSettingsView_EnterSavesFromToggleRow(t *testing.T) {
 
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 
 	model, _ := v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v = model.(*views.SettingsView)
@@ -128,6 +131,67 @@ func TestSettingsView_EnterSavesFromToggleRow(t *testing.T) {
 	}
 	if saved.IDECommand != "code $PATH" {
 		t.Errorf("expected IDE command to be preserved, got %q", saved.IDECommand)
+	}
+}
+
+func TestSettingsView_TerminalCommandFocusSaveAndCancel(t *testing.T) {
+	var saved config.AppSettings
+	v := views.NewSettingsView(views.SettingsCallbacks{OnSave: func(value config.AppSettings) tea.Cmd {
+		saved = value
+		return nil
+	}})
+	v.SetSettings(config.AppSettings{IDECommand: "ide", TerminalCommand: "terminal"})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	v.TerminalInput().SetValue(" xterm \"$PATH\" ")
+	v.Update(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+	if v.Input().Value() != "ide" || v.TerminalInput().Value() != " xterm \"$PATH\" " {
+		t.Fatalf("focus change lost command text: IDE %q terminal %q", v.Input().Value(), v.TerminalInput().Value())
+	}
+	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if saved.IDECommand != "ide" || saved.TerminalCommand != `xterm "$PATH"` {
+		t.Fatalf("save did not preserve both commands: %+v", saved)
+	}
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	v.Input().SetValue("changed IDE")
+	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	v.TerminalInput().SetValue("unsaved")
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	if v.TerminalInput().Value() != saved.TerminalCommand || v.Input().Value() != saved.IDECommand {
+		t.Fatalf("cancel did not restore both commands: IDE %q terminal %q", v.Input().Value(), v.TerminalInput().Value())
+	}
+}
+
+func TestSettingsView_LongCommandsStayWithinSize(t *testing.T) {
+	command := strings.Repeat("é界\tline\n\x1b[31m", 50)
+	for _, size := range []struct{ width, height int }{{80, 20}, {120, 36}} {
+		v := views.NewSettingsView(views.SettingsCallbacks{})
+		v.SetSettings(config.AppSettings{IDECommand: command, TerminalCommand: command})
+		v.SetSize(size.width, size.height)
+		assertSettingsFits(t, v, size.width, size.height, false)
+		v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		assertSettingsFits(t, v, size.width, size.height, true)
+	}
+}
+
+func assertSettingsFits(t *testing.T, v *views.SettingsView, width, height int, editing bool) {
+	t.Helper()
+	output := v.View()
+	if strings.Contains(output, "\x1b[31m") || strings.Contains(output, "\nline") {
+		t.Fatal("display leaked ANSI or a command newline")
+	}
+	lines := strings.Split(output, "\n")
+	if len(lines) > height {
+		t.Errorf("%dx%d output has %d rows", width, height, len(lines))
+	}
+	for _, line := range lines {
+		if lipgloss.Width(line) > width {
+			t.Errorf("line width %d exceeds %d", lipgloss.Width(line), width)
+		}
+	}
+	if !strings.Contains(output, "Manage Puppet Sources") || (editing && !strings.Contains(output, "Esc=cancel")) {
+		t.Errorf("controls/help missing from %dx%d output", width, height)
 	}
 }
 

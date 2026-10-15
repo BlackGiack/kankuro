@@ -29,6 +29,10 @@ window.APPEDIA_CONTENT = {
     "files": [
       "Workspace files",
       "source trees, copies and manifest"
+    ],
+    "process": [
+      "External application",
+      "Configured IDE or terminal"
     ]
   },
   "flowKinds": {
@@ -45,7 +49,7 @@ window.APPEDIA_CONTENT = {
       "comes back through Bubble Tea's Update"
     ]
   },
-  "snapshot": "Working tree on top of 2ef70a5, including focused Ctrl+X sub workspace clearing, 2026-10-13.",
+  "snapshot": "Working tree on top of 3bdb260, including independent terminal commands and shared workspace launching, 2026-10-15.",
   "pitch": "KANKURO is a terminal UI written in Go that orchestrates AI coding-agent CLIs: Claude Code today, any CLI through a generic driver. You describe an agent once as an ID card, launch as many sessions of it as you like, and switch between them from one dashboard.",
   "pitch2": "It is a Bubble Tea program. One goroutine runs Update and View; anything slow (disk, processes) runs in a command on another goroutine and comes back as a message. Each agent runs in its own pseudo-terminal and its record is saved as JSON, so the list survives a restart.",
   "concepts": [
@@ -83,6 +87,11 @@ window.APPEDIA_CONTENT = {
       "Sub workspace",
       "A selected registry entry copied into the session workspace’s tmp folder; managed edits persist across activations.",
       "session.subWorkspaceManifest"
+    ],
+    [
+      "Workspace command",
+      "An independently configured IDE or terminal command started in the selected session’s actual working directory.",
+      "session.LaunchWorkspaceCommand"
     ]
   ],
   "path": [
@@ -265,14 +274,14 @@ window.APPEDIA_CONTENT = {
     "app": {
       "label": "internal/app",
       "sub": "the coordinator",
-      "role": "The glue. Routes every message, owns navigation, the error banner, the preview subscription and the refresh cadence. Blocking work is delegated to helpers that hold no pointer back to it.",
+      "role": "Coordinates screens, navigation, settings and error banners. Captures IDE and terminal command settings before handing blocking launches to sessionActions, which has no coordinator pointer.",
       "files": {
         "coordinator.go": "the Coordinator struct, Update, message routing",
         "navigation.go": "navigateTo (rule 2), initViews, resizeAll, broadcasts",
         "handlers.go": "UI-goroutine halves of refresh and preview",
         "refresh.go": "refresher: read commands, fingerprint check, tick",
         "preview.go": "previewSub: live output of the selected session",
-        "session_actions.go": "sessionActions: launch, relaunch, switch, deletes, IDE",
+        "session_actions.go": "Session actions, shared workspace-command lookup, IDE and terminal launch commands",
         "callbacks.go": "every view's callbacks",
         "attach.go": "raw-PTY attach/detach, Ctrl+K",
         "size_guard.go": "below 80×24: notice, keys dropped",
@@ -295,18 +304,29 @@ window.APPEDIA_CONTENT = {
         "sessionActions",
         "previewSub",
         "attachExec"
-      ]
+      ],
+      "sources": {
+        "refs": [
+          "app.Coordinator.launchTerminal",
+          "app.Coordinator.handleWorkspaceCommandResult",
+          "app.sessionActions.launchWorkspaceCommand"
+        ],
+        "files": [
+          "internal/app/terminal_launch_test.go",
+          "internal/app/command_race_internal_test.go"
+        ]
+      }
     },
     "views": {
       "label": "ui/views",
       "sub": "full screens",
-      "role": "Full screens. Each is a component.Model; views never call each other: they return a Cmd and the coordinator reacts to the message it produces.",
+      "role": "Owns full-screen interaction and layout. The dashboard gates IDE/terminal actions on Sessions focus and selection; Settings edits independent command inputs and fits their saved text.",
       "files": {
         "dashboard.go": "three panes, keys, search, footer",
         "card_editor.go": "card fields, one key switch, focused sub workspace clearing, source shortcuts, skills filter",
         "mcp_form.go": "MCP form driven by mcpFieldTable",
         "source_manager.go": "source directories per registry",
-        "settings.go": "IDE command, editor sections",
+        "settings.go": "Independent IDE/terminal command inputs, focus, save/cancel and bounded rendering",
         "session_launcher.go": "progress while a session starts",
         "agent_switch.go": "pick a card for a terminated session",
         "workspace_picker_modal.go": "single/multiple selection, provisional checks, missing IDs",
@@ -345,18 +365,26 @@ window.APPEDIA_CONTENT = {
           "views.CardEditor.Reset",
           "views.CardEditor.fieldBlocks",
           "views.workspaceItem",
-          "views.workspaceItem.Title"
+          "views.workspaceItem.Title",
+          "views.NewSettingsView",
+          "views.DashboardCallbacks",
+          "views.Dashboard.handleLaunchSession",
+          "views.Dashboard.footerText",
+          "views.SettingsView.TerminalInput"
         ],
         "files": [
           "internal/ui/views/card_editor.go",
-          "internal/ui/views/workspace_picker_modal.go"
+          "internal/ui/views/workspace_picker_modal.go",
+          "internal/ui/views/settings_test.go",
+          "internal/ui/views/dashboard_test.go",
+          "internal/ui/views/dashboard_layout_test.go"
         ]
       }
     },
     "messages": {
       "label": "ui/messages",
       "sub": "every tea.Msg",
-      "role": "Every message the app exchanges, in one file. Read it before adding a message.",
+      "role": "Defines messages crossing the UI loop. TerminalLaunchedMsg carries external terminal launch completion or startup failure alongside the existing IDE completion message.",
       "files": {
         "messages.go": "all message types, DataReceiver, PreviewReceiver"
       },
@@ -371,12 +399,20 @@ window.APPEDIA_CONTENT = {
         "PreviewDataMsg",
         "SessionsRefreshedMsg",
         "DataReceiver"
-      ]
+      ],
+      "sources": {
+        "refs": [
+          "messages.TerminalLaunchedMsg"
+        ],
+        "files": [
+          "internal/ui/messages/messages.go"
+        ]
+      }
     },
     "session": {
       "label": "internal/session",
       "sub": "process lifecycle",
-      "role": "Owns every Session: spawns them through a driver, tracks their output and status, saves their records, and stops everything on Shutdown.",
+      "role": "Owns agent session lifecycle, snapshots and workspace paths. Also supplies shared external workspace-command execution, with the existing IDELauncher retained as a compatibility wrapper.",
       "files": {
         "manager.go": "Manager, Session, Snapshot",
         "lifecycle.go": "Launch, Relaunch, SwitchAgent, Kill, Remove, Shutdown",
@@ -385,8 +421,9 @@ window.APPEDIA_CONTENT = {
         "attach.go": "AttachHandle and the locked input writer",
         "storage.go": "session JSON, atomic",
         "workspace.go": "temporary workspace copies",
-        "ide_launcher.go": "open a workspace in the IDE",
-        "sub_workspaces.go": "source resolution, ownership manifest, copy staging/publication, rollback"
+        "ide_launcher.go": "Compatible IDE API and command parser",
+        "sub_workspaces.go": "source resolution, ownership manifest, copy staging/publication, rollback",
+        "workspace_launcher.go": "Shared path resolution, placeholder replacement, direct process spawn and asynchronous reaping"
       },
       "notes": [
         "Every activation bumps a generation counter so goroutines of an older run stop touching the session.",
@@ -401,18 +438,23 @@ window.APPEDIA_CONTENT = {
         "Manager",
         "Session",
         "Snapshot",
-        "AttachHandle"
+        "AttachHandle",
+        "IDELauncher"
       ],
       "sources": {
         "refs": [
           "session.subWorkspaceSource",
           "session.subWorkspaceCopy",
           "session.subWorkspaceManifest",
-          "session.subWorkspaceTransaction"
+          "session.subWorkspaceTransaction",
+          "session.IDELauncher",
+          "session.LaunchWorkspaceCommand"
         ],
         "files": [
           "internal/session/sub_workspaces.go",
-          "internal/session/workspace_test.go"
+          "internal/session/workspace_test.go",
+          "internal/session/workspace_launcher.go",
+          "internal/session/ide_launcher_test.go"
         ]
       }
     },
@@ -540,7 +582,7 @@ window.APPEDIA_CONTENT = {
     "config": {
       "label": "internal/config",
       "sub": "YAML repository",
-      "role": "The repository for everything the user configures: ID cards, registries and their source directories, MCP servers, app settings.",
+      "role": "Owns YAML-backed registries and settings with locked atomic writes. AppSettings gains an optional terminal_command string; absent fields retain defaults without a migration.",
       "files": {
         "repository.go": "FileRepository, interfaces, settings",
         "storage.go": "WriteAtomic, Fingerprint",
@@ -576,13 +618,10 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "config.SetBuiltinMCPCLISkillContent",
-          "config.GetBuiltinSkillContent",
-          "config.FileRepository.ValidateCard"
+          "config.AppSettings"
         ],
         "files": [
-          "internal/config/builtins.go",
-          "internal/config/builtins_test.go"
+          "internal/config/app_settings_test.go"
         ]
       }
     },
@@ -716,6 +755,8 @@ window.APPEDIA_CONTENT = {
         "remove",
         "watch",
         "ide",
+        "terminal",
+        "workspace-command-errors",
         "failed-activation"
       ]
     },
@@ -754,7 +795,8 @@ window.APPEDIA_CONTENT = {
       "flows": [
         "source",
         "mcp",
-        "settings"
+        "settings",
+        "settings-edit"
       ]
     }
   ],
@@ -1055,6 +1097,10 @@ window.APPEDIA_CONTENT = {
         [
           "dash",
           "views.Dashboard"
+        ],
+        [
+          "settings",
+          "views.SettingsView"
         ]
       ],
       "steps": [
@@ -1075,6 +1121,14 @@ window.APPEDIA_CONTENT = {
           "app.Coordinator.resizeAll"
         ],
         [
+          "coord",
+          "settings",
+          "call",
+          "Size both command inputs",
+          "Account for border and padding; no negative input widths.",
+          "views.SettingsView.SetSize"
+        ],
+        [
           "tea",
           "coord",
           "call",
@@ -1089,6 +1143,14 @@ window.APPEDIA_CONTENT = {
           "tooSmall() → tooSmallView()",
           "Below 80×24 every screen is replaced by a centred notice sized to the terminal.",
           "app.Coordinator.tooSmallView"
+        ],
+        [
+          "dash",
+          "dash",
+          "self",
+          "footerText: compact session hints",
+          "At width 80 keep t=Terminal and q=Quit alongside useful session actions.",
+          "views.Dashboard.footerText"
         ],
         [
           "tea",
@@ -1106,7 +1168,17 @@ window.APPEDIA_CONTENT = {
           "A blind keypress must not launch or delete anything. Non-key messages keep flowing, so the screen is current when the terminal grows.",
           "app.Coordinator.guardKey"
         ]
-      ]
+      ],
+      "sources": {
+        "refs": [
+          "views.SettingsView.renderEdit",
+          "views.SettingsView.renderDisplay"
+        ],
+        "files": [
+          "internal/ui/views/settings_test.go",
+          "internal/ui/views/dashboard_layout_test.go"
+        ]
+      }
     },
     "launch": {
       "title": "Launch a session",
@@ -1897,7 +1969,7 @@ window.APPEDIA_CONTENT = {
     },
     "ide": {
       "title": "Open in IDE",
-      "summary": "o on a session opens its workspace with the configured IDE command.",
+      "summary": "Press o in Sessions to start the configured IDE in the selected session’s actual workspace through shared command execution.",
       "participants": [
         [
           "user",
@@ -1922,6 +1994,15 @@ window.APPEDIA_CONTENT = {
         [
           "ide",
           "session.IDELauncher"
+        ],
+        [
+          "launch",
+          "session.LaunchWorkspaceCommand",
+          "Workspace launcher"
+        ],
+        [
+          "process",
+          "process"
         ]
       ],
       "steps": [
@@ -1929,16 +2010,24 @@ window.APPEDIA_CONTENT = {
           "user",
           "dash",
           "key",
-          "o on a session",
-          "",
-          "views.Dashboard.handleLaunchIDE"
+          "o in Sessions",
+          "Search consumes typing first; no action for card focus or an empty session selection.",
+          "views.Dashboard.handleKey"
+        ],
+        [
+          "dash",
+          "dash",
+          "self",
+          "handleLaunchSession(OnLaunchIDE)",
+          "Selection and nil-callback guards are shared with t.",
+          "views.Dashboard.handleLaunchSession"
         ],
         [
           "dash",
           "coord",
           "call",
-          "OnLaunchIDE(id) → launchIDE",
-          "Reads c.settings.IDECommand here, on the UI goroutine, and passes the value on.",
+          "launchIDE(selected ID)",
+          "Capture IDECommand on the UI goroutine before constructing a command.",
           "app.Coordinator.launchIDE"
         ],
         [
@@ -1946,26 +2035,67 @@ window.APPEDIA_CONTENT = {
           "act",
           "cmd",
           "launchIDE(id, command)",
-          "",
+          "Blocking work executes off the coordinator goroutine.",
           "app.sessionActions.launchIDE"
+        ],
+        [
+          "act",
+          "act",
+          "self",
+          "launchWorkspaceCommand",
+          "Look up the session at execution time; validate WorkingDir and configuration. Temporary sessions use their copies.",
+          "app.sessionActions.launchWorkspaceCommand"
         ],
         [
           "act",
           "ide",
           "call",
-          "NewIDELauncher(cmd).Launch(workspace)",
-          "",
+          "IDELauncher.Launch(WorkingDir)",
+          "Compatibility wrapper preserves ErrIDENotConfigured.",
           "session.IDELauncher.Launch"
+        ],
+        [
+          "ide",
+          "launch",
+          "call",
+          "LaunchWorkspaceCommand(command, path)",
+          "Resolve an absolute existing workspace, replace every $PATH and parse command quoting.",
+          "session.LaunchWorkspaceCommand"
+        ],
+        [
+          "launch",
+          "process",
+          "io",
+          "Start process, reap asynchronously",
+          "Set the workspace as Dir even without a placeholder. No implicit shell or TUI standard streams.",
+          "session.LaunchWorkspaceCommand"
         ],
         [
           "act",
           "coord",
           "msg",
-          "IDELaunchedMsg",
-          "An error shows in the banner.",
+          "IDELaunchedMsg{Err}",
+          "Completion reports startup; later external process exit is not monitored by this action.",
           "app.Coordinator.handleSpecialMessages"
+        ],
+        [
+          "coord",
+          "coord",
+          "self",
+          "Apply result without navigation",
+          "Errors become the existing banner.",
+          "app.Coordinator.handleWorkspaceCommandResult"
         ]
-      ]
+      ],
+      "sources": {
+        "refs": [
+          "session.SplitCommand"
+        ],
+        "files": [
+          "internal/session/workspace_launcher.go",
+          "internal/session/ide_launcher_test.go"
+        ]
+      }
     },
     "tick": {
       "title": "The 2-second tick",
@@ -2259,7 +2389,15 @@ window.APPEDIA_CONTENT = {
           "Clears the banner. Navigation alone never does, so an error batched with a navigation survives (rule 4).",
           "app.Coordinator.Update"
         ]
-      ]
+      ],
+      "sources": {
+        "refs": [
+          "app.Coordinator.handleWorkspaceCommandResult"
+        ],
+        "files": [
+          "internal/app/terminal_launch_test.go"
+        ]
+      }
     },
     "editcard": {
       "title": "Open the card editor",
@@ -2681,7 +2819,7 @@ window.APPEDIA_CONTENT = {
     },
     "settings": {
       "title": "Save settings",
-      "summary": "Write app_settings.yaml and push the new settings to the card editor.",
+      "summary": "Persist independent IDE and terminal commands plus card-editor visibility options, then refresh and return to the dashboard.",
       "participants": [
         [
           "user",
@@ -2706,6 +2844,10 @@ window.APPEDIA_CONTENT = {
         [
           "ed",
           "views.CardEditor"
+        ],
+        [
+          "disk",
+          "disk"
         ]
       ],
       "steps": [
@@ -2713,16 +2855,16 @@ window.APPEDIA_CONTENT = {
           "user",
           "set",
           "key",
-          "save",
-          "",
-          "views.SettingsView.Update"
+          "Enter saves both commands",
+          "Trim both buffers and preserve toggle values. Enter on Manage Puppet Sources opens that action instead.",
+          "views.SettingsView.handleEditEnter"
         ],
         [
           "set",
           "tea",
           "return",
           "OnSave(settings) command",
-          "",
+          "Return a command; do not navigate from inside view.Update.",
           "app.Coordinator.settingsCallbacks"
         ],
         [
@@ -2730,34 +2872,51 @@ window.APPEDIA_CONTENT = {
           "repo",
           "cmd",
           "SaveAppSettings(settings)",
-          "",
+          "The repository performs its existing locked atomic write.",
           "config.FileRepository.SaveAppSettings"
+        ],
+        [
+          "repo",
+          "disk",
+          "io",
+          "Write app_settings.yaml",
+          "IDECommand and TerminalCommand are independent; terminal_command defaults empty in older files.",
+          "config.AppSettings"
         ],
         [
           "repo",
           "coord",
           "msg",
           "SettingsSavedMsg",
-          "",
+          "A write failure becomes an error banner; success replaces c.settings on the UI goroutine.",
           "app.Coordinator.handleSpecialMessages"
         ],
         [
           "coord",
           "ed",
           "call",
-          "c.settings = …; SetSettings",
-          "Decides whether the persona and MCP sections are shown.",
+          "SetSettings(new visibility options)",
+          "Personas and MCP section preferences retain their existing behavior.",
           "views.CardEditor.SetSettings"
         ],
         [
           "coord",
           "coord",
           "self",
-          "refresh + navigate to dashboard",
-          "",
+          "Refresh and navigate to dashboard",
+          "Settings changes affect subsequent commands; commands already built retain their captured string.",
           "app.Coordinator.navigateTo"
         ]
-      ]
+      ],
+      "sources": {
+        "refs": [
+          "config.FileRepository.GetAppSettings"
+        ],
+        "files": [
+          "internal/config/app_settings_test.go",
+          "internal/ui/views/settings_test.go"
+        ]
+      }
     },
     "workspace-sources": {
       "title": "Add workspace sources from the editor",
@@ -3618,6 +3777,318 @@ window.APPEDIA_CONTENT = {
           "project.md"
         ]
       }
+    },
+    "terminal": {
+      "title": "Open the selected session in a terminal",
+      "summary": "Press t in the Sessions pane to launch an independently configured terminal in the actual session workspace.",
+      "participants": [
+        [
+          "user",
+          "user"
+        ],
+        [
+          "dash",
+          "views.Dashboard"
+        ],
+        [
+          "coord",
+          "app.Coordinator"
+        ],
+        [
+          "act",
+          "app.sessionActions"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "launch",
+          "session.LaunchWorkspaceCommand",
+          "Workspace launcher"
+        ],
+        [
+          "process",
+          "process"
+        ]
+      ],
+      "steps": [
+        [
+          "user",
+          "dash",
+          "key",
+          "t in Sessions",
+          "Search consumes text first; both live and terminated sessions qualify.",
+          "views.Dashboard.handleKey"
+        ],
+        [
+          "dash",
+          "dash",
+          "self",
+          "Check focus and selected session",
+          "No command for card focus, empty selection or an absent callback.",
+          "views.Dashboard.handleLaunchSession"
+        ],
+        [
+          "dash",
+          "coord",
+          "call",
+          "OnLaunchTerminal(selected ID)",
+          "The callback is wired with the IDE callback.",
+          "app.Coordinator.dashboardCallbacks"
+        ],
+        [
+          "coord",
+          "act",
+          "call",
+          "Snapshot TerminalCommand by value",
+          "Only the coordinator goroutine reads c.settings.",
+          "app.Coordinator.launchTerminal"
+        ],
+        [
+          "coord",
+          "act",
+          "cmd",
+          "Run terminal launch command",
+          "Bubble Tea executes this closure off the UI goroutine.",
+          "app.sessionActions.launchTerminal"
+        ],
+        [
+          "act",
+          "mgr",
+          "call",
+          "List current session snapshots",
+          "Find the selected ID when the command executes, not the card registry path.",
+          "session.Manager.List"
+        ],
+        [
+          "act",
+          "launch",
+          "call",
+          "Launch command in session.WorkingDir",
+          "Temporary sessions use their copy; OriginalDir must not be substituted.",
+          "app.sessionActions.launchWorkspaceCommand"
+        ],
+        [
+          "launch",
+          "process",
+          "io",
+          "Resolve path, replace $PATH, Start",
+          "Parse quotes and execute directly. Set Dir; disconnect standard streams; reap asynchronously.",
+          "session.LaunchWorkspaceCommand"
+        ],
+        [
+          "act",
+          "coord",
+          "msg",
+          "TerminalLaunchedMsg{Err}",
+          "Reports process startup, not the external application’s eventual exit.",
+          "app.Coordinator.handleSpecialMessages"
+        ],
+        [
+          "coord",
+          "coord",
+          "self",
+          "Apply completion result",
+          "An error becomes the existing banner; success stays on the dashboard.",
+          "app.Coordinator.handleWorkspaceCommandResult"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "messages.TerminalLaunchedMsg",
+          "views.DashboardCallbacks"
+        ],
+        "files": [
+          "internal/app/terminal_launch_test.go",
+          "internal/ui/views/dashboard_test.go",
+          "internal/session/workspace_launcher.go"
+        ]
+      }
+    },
+    "workspace-command-errors": {
+      "title": "Report a workspace-command launch error",
+      "summary": "A missing session, workspace, terminal setting or executable returns a completion error; the IDE action uses the same banner handler.",
+      "participants": [
+        [
+          "act",
+          "app.sessionActions"
+        ],
+        [
+          "launch",
+          "session.LaunchWorkspaceCommand",
+          "Workspace launcher"
+        ],
+        [
+          "coord",
+          "app.Coordinator"
+        ],
+        [
+          "user",
+          "user"
+        ]
+      ],
+      "steps": [
+        [
+          "act",
+          "act",
+          "self",
+          "Validate selected session and workspace",
+          "A session removed before command execution becomes session-not-found.",
+          "app.sessionActions.launchWorkspaceCommand"
+        ],
+        [
+          "act",
+          "act",
+          "self",
+          "Reject empty terminal setting",
+          "Return Terminal command not configured; do not infer an emulator.",
+          "app.sessionActions.launchTerminal"
+        ],
+        [
+          "act",
+          "launch",
+          "call",
+          "Resolve and start configured command",
+          "Missing directories and executable/start errors are returned.",
+          "session.LaunchWorkspaceCommand"
+        ],
+        [
+          "act",
+          "coord",
+          "msg",
+          "TerminalLaunchedMsg{Err}",
+          "The event carries the startup error back into Update.",
+          "messages.TerminalLaunchedMsg"
+        ],
+        [
+          "coord",
+          "coord",
+          "self",
+          "handleWorkspaceCommandResult(error)",
+          "Stores the error in coordinator-owned state without navigation.",
+          "app.Coordinator.handleWorkspaceCommandResult"
+        ],
+        [
+          "user",
+          "coord",
+          "key",
+          "Next key clears the banner",
+          "Existing banner lifecycle is unchanged.",
+          "app.Coordinator.Update"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "messages.TerminalLaunchedMsg"
+        ],
+        "files": [
+          "internal/app/terminal_launch_test.go",
+          "internal/app/command_race_internal_test.go"
+        ]
+      }
+    },
+    "settings-edit": {
+      "title": "Edit IDE and terminal commands",
+      "summary": "Two independent text inputs retain edits while focus moves. Command cancellation restores both saved values; rendering fits the supported terminal size.",
+      "participants": [
+        [
+          "user",
+          "user"
+        ],
+        [
+          "set",
+          "views.SettingsView"
+        ],
+        [
+          "coord",
+          "app.Coordinator"
+        ]
+      ],
+      "steps": [
+        [
+          "set",
+          "set",
+          "self",
+          "NewSettingsView()",
+          "Create separate IDE and terminal input models; the terminal placeholder illustrates a separate window.",
+          "views.NewSettingsView"
+        ],
+        [
+          "coord",
+          "set",
+          "call",
+          "SetSettings(snapshot)",
+          "Populate both buffers from AppSettings.",
+          "views.SettingsView.SetSettings"
+        ],
+        [
+          "user",
+          "set",
+          "key",
+          "Enter/e starts editing",
+          "Start on IDE Command with both saved command values.",
+          "views.SettingsView.startEdit"
+        ],
+        [
+          "user",
+          "set",
+          "key",
+          "Tab / Shift+Tab / arrows",
+          "Focus order: IDE, terminal, Personas, MCPs, Puppet Sources.",
+          "views.SettingsView.updateEdit"
+        ],
+        [
+          "set",
+          "set",
+          "self",
+          "syncFocus()",
+          "Focus only one command input; toggles and actions blur both. Focus changes retain text.",
+          "views.SettingsView.syncFocus"
+        ],
+        [
+          "user",
+          "set",
+          "key",
+          "Type or press Esc",
+          "Only the focused input receives editing events. Esc restores both command buffers without invoking OnSave; existing toggle cancellation behavior is unchanged.",
+          "views.SettingsView.updateEdit"
+        ],
+        [
+          "coord",
+          "set",
+          "call",
+          "SetSize(width, height minus 4)",
+          "Both input widths account for box padding and borders.",
+          "views.SettingsView.SetSize"
+        ],
+        [
+          "set",
+          "set",
+          "self",
+          "renderEdit()",
+          "Compact bordered inputs keep controls/help in the allocated area at 80×24.",
+          "views.SettingsView.renderEdit"
+        ],
+        [
+          "set",
+          "set",
+          "self",
+          "renderDisplay()",
+          "Sanitize and truncate saved command text with display-width helpers; stored commands remain intact.",
+          "views.SettingsView.renderDisplay"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "views.SettingsView.TerminalInput",
+          "components.DisplayText",
+          "components.TruncateHead"
+        ],
+        "files": [
+          "internal/ui/views/settings_test.go"
+        ]
+      }
     }
   },
   "rules": [
@@ -3626,11 +4097,23 @@ window.APPEDIA_CONTENT = {
       "title": "No tea.Cmd closure touches coordinator state",
       "ref": "app.Coordinator",
       "why": "A command's closure runs on its own goroutine. Reading or writing c.views, c.preview, c.currentView, c.err or c.settings there is a concurrent access that can crash the app. Snapshot what you need before returning the closure.",
-      "check": "grep -n \"c.refreshData()\" internal/app/callbacks.go must be empty; TestCommandClosuresDoNotRaceCoordinator under -race (a backstop, not a proof).",
+      "check": "grep -n \"c.refreshData()\" internal/app/callbacks.go must be empty; TestCommandClosuresDoNotRaceCoordinator under -race (a backstop, not a proof). Terminal and IDE launch wrappers snapshot their command strings before building tea.Cmd closures.",
       "flows": [
         "tick",
-        "launch"
-      ]
+        "launch",
+        "terminal",
+        "ide"
+      ],
+      "sources": {
+        "refs": [
+          "app.Coordinator.launchIDE",
+          "app.Coordinator.launchTerminal",
+          "app.sessionActions.launchWorkspaceCommand"
+        ],
+        "files": [
+          "internal/app/command_race_internal_test.go"
+        ]
+      }
     },
     {
       "n": "2",
@@ -3661,8 +4144,18 @@ window.APPEDIA_CONTENT = {
       "why": "Navigation leaves it alone, so an ErrorMsg batched beside a NavigateMsg survives in either order.",
       "check": "TestErrorSurvivesNavigationInEitherOrder, TestKeyPressClearsBanner.",
       "flows": [
-        "mutation"
-      ]
+        "mutation",
+        "workspace-command-errors"
+      ],
+      "sources": {
+        "refs": [
+          "app.Coordinator.handleWorkspaceCommandResult"
+        ],
+        "files": [
+          "internal/app/error_banner_test.go",
+          "internal/app/terminal_launch_test.go"
+        ]
+      }
     },
     {
       "n": "5",
@@ -3827,10 +4320,11 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Add a message",
-      "a": "Declare it in messages.go, handle it in handleSpecialMessages or handleSessionMessages. Partial data gets its own type (rule 3).",
+      "a": "Declare it in messages.go, handle it in handleSpecialMessages or handleSessionMessages. Partial data gets its own type (rule 3). TerminalLaunchedMsg is an example of a completion result carrying an error.",
       "refs": [
         "app.Coordinator.handleSpecialMessages",
-        "app.Coordinator.handleSessionMessages"
+        "app.Coordinator.handleSessionMessages",
+        "messages.TerminalLaunchedMsg"
       ]
     },
     {
@@ -3850,11 +4344,16 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Change dashboard layout or keys",
-      "a": "dashboard.go (footerText for the footer), then the key tables in project.md §4 and kankuro_specs.md.",
+      "a": "dashboard.go (footerText for the footer), then the key tables in project.md §4 and kankuro_specs.md. Preserve the compact Sessions legend at the 80-column minimum when adding shortcuts.",
       "refs": [
         "views.Dashboard.handleKey",
         "views.Dashboard.footerText"
-      ]
+      ],
+      "sources": {
+        "files": [
+          "internal/ui/views/dashboard_layout_test.go"
+        ]
+      }
     },
     {
       "q": "Put user text into a fixed-width slot",
@@ -3884,11 +4383,13 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Add a session-level action (Phase 1 linking)",
-      "a": "A method on sessionActions returning a tea.Cmd that takes coordinator state by value; a message and a handler in coordinator.go; the trigger in callbacks.go.",
+      "a": "A method on sessionActions returning a tea.Cmd that takes coordinator state by value; a message and a handler in coordinator.go; the trigger in callbacks.go. The terminal action demonstrates by-value settings and shared completion-error handling.",
       "refs": [
-        "app.sessionActions"
+        "app.sessionActions",
+        "app.Coordinator.launchTerminal",
+        "app.Coordinator.handleWorkspaceCommandResult"
       ],
-      "flow": "relaunch"
+      "flow": "terminal"
     },
     {
       "q": "Change the preview subscription",
@@ -3900,12 +4401,22 @@ window.APPEDIA_CONTENT = {
       "flow": "preview"
     },
     {
-      "q": "Change how the IDE is opened",
-      "a": "ide_launcher.go; the command comes from app settings and is passed by value into launchIDE.",
+      "q": "Change how IDE or terminal windows open",
+      "a": "Settings provides independent commands. Coordinator wrappers capture strings; sessionActions chooses the selected session’s WorkingDir, and LaunchWorkspaceCommand handles path replacement, parsing, Dir, spawn and reaping. Keep IDELauncher compatibility and temporary-workspace regression coverage.",
       "refs": [
+        "config.AppSettings",
+        "app.Coordinator.launchTerminal",
+        "app.sessionActions.launchWorkspaceCommand",
+        "session.LaunchWorkspaceCommand",
         "session.IDELauncher"
       ],
-      "flow": "ide"
+      "flow": "terminal",
+      "sources": {
+        "files": [
+          "internal/app/terminal_launch_test.go",
+          "internal/session/ide_launcher_test.go"
+        ]
+      }
     },
     {
       "q": "Change sub workspace copying or collision handling",
@@ -3993,7 +4504,7 @@ window.APPEDIA_CONTENT = {
       ],
       [
         "app_settings.yaml",
-        "IDE command, editor sections"
+        "Independent IDE/terminal commands and editor sections"
       ],
       [
         "sessions/<id>.json",
@@ -4012,7 +4523,10 @@ window.APPEDIA_CONTENT = {
       "When running the app by hand, point KANKURO_CONFIG_DIR and KANKURO_TMP_DIR at a throwaway directory. Reading the real config is fine; writing to it is not.",
       "Sub workspace copies live at <session working directory>/tmp/<registered source basename>, separate from the configuration directory’s tmp/<session-id>/ main-workspace copies.",
       "Ownership is recorded at <session working directory>/.kankuro/sub-workspaces.json. Matching managed copies retain edits on relaunch/switch/restart; deselection retains folders and metadata.",
-      "With temporary mode off, sub copies and metadata are written to the original workspace. Destination conflicts abort activation; separate running application instances are not serialized by one manager mutex."
+      "With temporary mode off, sub copies and metadata are written to the original workspace. Destination conflicts abort activation; separate running application instances are not serialized by one manager mutex.",
+      "o and t work only with Sessions focused and a selected session. Both use session.WorkingDir, including temporary copies; live and terminated sessions qualify.",
+      "TerminalCommand (terminal_command) defaults empty: users choose an emulator command that opens a separate window. Both commands substitute $PATH; quote \"$PATH\" for spaces. Commands execute directly with the workspace as Dir and no implicit shell expansion.",
+      "External application completion means process startup, not eventual exit. No command is inferred; launch failures use the normal error banner without navigation."
     ]
   },
   "gates": [
@@ -4037,7 +4551,9 @@ window.APPEDIA_CONTENT = {
     "Make sure each new test can fail: remove the fix, watch it fail, put it back.",
     "Session-launching tests use newTestManager; testenv.Run fails the package if anything is left in its private temp root (about 3 s per package).",
     "Shape tests check that a render fits its box; position tests check that elements stay put as the content changes.",
-    "Built-in content tests inject explicit fixtures and restore the previous value with t.Cleanup; do not run content-replacing tests in parallel. The root integration test deploys the real embedded bytes through config and the generic driver."
+    "Built-in content tests inject explicit fixtures and restore the previous value with t.Cleanup; do not run content-replacing tests in parallel. The root integration test deploys the real embedded bytes through config and the generic driver.",
+    "Terminal launch integration records a helper process’s real working directory and arguments. Substituting OriginalDir for WorkingDir must make TestTerminalLaunchThroughDashboard fail; shared-launcher tests cover repeated quoted placeholders and commands without one.",
+    "Terminal action routing covers running, waiting and terminated selections, search, empty selections and nil callbacks. Settings tests cover independent buffers, save/cancel, display sanitization and bounded layout; the coordinator race harness includes terminal launch."
   ],
   "glossary": [
     [
@@ -4103,6 +4619,10 @@ window.APPEDIA_CONTENT = {
     [
       "Content injection",
       "Root main supplies embedded MCP-CLI bytes to config before drivers can deploy the skill."
+    ],
+    [
+      "Workspace command",
+      "IDECommand or TerminalCommand executed directly in the session’s WorkingDir, with $PATH substituted before quote-aware parsing."
     ]
   ]
 };
