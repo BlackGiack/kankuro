@@ -260,13 +260,19 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, nil
 
 	case messages.IDELaunchedMsg:
-		if m.Err != nil {
-			c.err = m.Err
-		}
-		return true, nil
+		return c.handleWorkspaceCommandResult(m.Err)
+	case messages.TerminalLaunchedMsg:
+		return c.handleWorkspaceCommandResult(m.Err)
 	}
 
 	return c.handleSessionMessages(msg)
+}
+
+func (c *Coordinator) handleWorkspaceCommandResult(err error) (bool, tea.Cmd) {
+	if err != nil {
+		c.err = err
+	}
+	return true, nil
 }
 
 func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {

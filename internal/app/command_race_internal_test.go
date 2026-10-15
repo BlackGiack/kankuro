@@ -249,6 +249,16 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.IDELaunchedMsg); return ok }),
 		},
 		{
+			name: "open terminal for the selected session",
+			run: func(_ *testing.T, f raceFixture) tea.Cmd {
+				f.coord.Update(messages.SettingsSavedMsg{Settings: config.AppSettings{TerminalCommand: "/bin/true"}})
+				f.coord.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+				_, cmd := f.coord.Update(key("t"))
+				return cmd
+			},
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.TerminalLaunchedMsg); return ok }),
+		},
+		{
 			name:       "relaunch a terminated session (Enter on the sessions pane)",
 			killedSess: true,
 			run: func(_ *testing.T, f raceFixture) tea.Cmd {

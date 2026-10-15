@@ -1,13 +1,18 @@
 # KANKURO appedia
 
 An interactive map of this codebase: packages, class diagrams, the real code,
-30 sequence-diagram flows, the rules the code relies on, and where to start for
+33 sequence-diagram flows, the rules the code relies on, and where to start for
 common changes.
 
 This snapshot covers the root executable and public module path, startup injection
 of the embedded MCP-CLI skill, card editor controls (including Ctrl+X to clear
 the focused Sub Workspaces field), and preserved sub workspace copies with
 explicit ownership and rollback.
+
+It also covers independent IDE (`o`) and terminal (`t`) commands, launch selection
+guards, the shared workspace launcher, startup-error banners, and Settings editing
+and layout. Both commands use the selected session's actual working directory,
+including temporary copies; the terminal command defaults to empty.
 
 **Open `index.html` in a browser.** No server needed. Without network access
 the page still works; it falls back to system fonts.

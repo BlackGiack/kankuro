@@ -21,7 +21,7 @@ func TestAppSettingsPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetAppSettings failed: %v", err)
 	}
-	if cfg.IDECommand != "" {
+	if cfg.IDECommand != "" || cfg.TerminalCommand != "" {
 		t.Fatalf("expected empty command, got %q", cfg.IDECommand)
 	}
 	if !cfg.ShowPersonasInCardEditor || !cfg.ShowMCPsInCardEditor {
@@ -30,6 +30,7 @@ func TestAppSettingsPersistence(t *testing.T) {
 
 	expected := config.AppSettings{
 		IDECommand:               "code $PATH",
+		TerminalCommand:          "xterm \"$PATH\"",
 		ShowPersonasInCardEditor: false,
 		ShowMCPsInCardEditor:     true,
 	}

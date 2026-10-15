@@ -114,6 +114,22 @@
       "digest": "2b12722ed35ab3d81b8ec055902baae31d4f0f201b17c7992ebce6d8c4e2db05"
     },
     {
+      "kind": "concept",
+      "id": "Workspace command",
+      "refs": [
+        "session.LaunchWorkspaceCommand"
+      ],
+      "directRefs": [
+        "session.LaunchWorkspaceCommand"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/workspace_launcher.go"
+      ],
+      "digest": "1aafa8c5cac2998b648dc216365329cfbd3a985b93c274bb9f80f37d5073dc96"
+    },
+    {
       "kind": "flow",
       "id": "attach",
       "refs": [
@@ -349,36 +365,50 @@
       "refs": [
         "app.Coordinator",
         "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.handleWorkspaceCommandResult",
         "app.Coordinator.launchIDE",
         "app.sessionActions",
         "app.sessionActions.launchIDE",
+        "app.sessionActions.launchWorkspaceCommand",
         "session.IDELauncher",
         "session.IDELauncher.Launch",
+        "session.LaunchWorkspaceCommand",
+        "session.SplitCommand",
         "views.Dashboard",
-        "views.Dashboard.handleLaunchIDE"
+        "views.Dashboard.handleKey",
+        "views.Dashboard.handleLaunchSession"
       ],
       "directRefs": [
         "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.handleWorkspaceCommandResult",
         "app.Coordinator.launchIDE",
         "app.sessionActions.launchIDE",
+        "app.sessionActions.launchWorkspaceCommand",
         "session.IDELauncher.Launch",
-        "views.Dashboard.handleLaunchIDE"
+        "session.LaunchWorkspaceCommand",
+        "views.Dashboard.handleKey",
+        "views.Dashboard.handleLaunchSession"
       ],
       "participants": [
         "app.Coordinator",
         "app.sessionActions",
         "session.IDELauncher",
+        "session.LaunchWorkspaceCommand",
         "views.Dashboard"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "session.SplitCommand"
+      ],
       "files": [
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
         "internal/app/session_actions.go",
         "internal/session/ide_launcher.go",
+        "internal/session/ide_launcher_test.go",
+        "internal/session/workspace_launcher.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "9e73065c6fb71235cc4d530bbc25e50ec5d1847e9dd6d0ead2fb5e255bf057f7"
+      "digest": "17d7382295842bc235d0939f1f6cf34808e40c5e44c0aba03fe87f1139176a05"
     },
     {
       "kind": "flow",
@@ -528,6 +558,7 @@
         "app.Coordinator.handleConfigFingerprint",
         "app.Coordinator.handleDataLoaded",
         "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.handleWorkspaceCommandResult",
         "app.refreshRequestedCmd",
         "app.refresher",
         "app.refresher.fullSeeded",
@@ -546,15 +577,18 @@
         "app.refresher",
         "views.Dashboard"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "app.Coordinator.handleWorkspaceCommandResult"
+      ],
       "files": [
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
         "internal/app/handlers.go",
         "internal/app/refresh.go",
+        "internal/app/terminal_launch_test.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "7b2b8fb2e0d858c80def2c3ebcb1f1dd2e33bd8bc78f878c554dfe88389d8cbb"
+      "digest": "8c91bd0963ca1af13fde055dc536e331ba97e1e90c87c99306c58c4bf19d1815"
     },
     {
       "kind": "flow",
@@ -787,7 +821,12 @@
         "app.Coordinator.handleSpecialMessages",
         "app.Coordinator.resizeAll",
         "app.Coordinator.tooSmallView",
-        "views.Dashboard"
+        "views.Dashboard",
+        "views.Dashboard.footerText",
+        "views.SettingsView",
+        "views.SettingsView.SetSize",
+        "views.SettingsView.renderDisplay",
+        "views.SettingsView.renderEdit"
       ],
       "directRefs": [
         "app.Coordinator.Update",
@@ -795,20 +834,29 @@
         "app.Coordinator.guardKey",
         "app.Coordinator.handleSpecialMessages",
         "app.Coordinator.resizeAll",
-        "app.Coordinator.tooSmallView"
+        "app.Coordinator.tooSmallView",
+        "views.Dashboard.footerText",
+        "views.SettingsView.SetSize"
       ],
       "participants": [
         "app.Coordinator",
-        "views.Dashboard"
+        "views.Dashboard",
+        "views.SettingsView"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "views.SettingsView.renderDisplay",
+        "views.SettingsView.renderEdit"
+      ],
       "files": [
         "internal/app/coordinator.go",
         "internal/app/navigation.go",
         "internal/app/size_guard.go",
-        "internal/ui/views/dashboard.go"
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_layout_test.go",
+        "internal/ui/views/settings.go",
+        "internal/ui/views/settings_test.go"
       ],
-      "digest": "a756c4f87698176196d475630f42925f41ef52ed5512c520f2a746ce08576897"
+      "digest": "f0abfe3be2ddf1bd6a4ebf5d1c7753e655447db0a3461842d9d4fd48ae49b72e"
     },
     {
       "kind": "flow",
@@ -865,20 +913,23 @@
         "app.Coordinator.handleSpecialMessages",
         "app.Coordinator.navigateTo",
         "app.Coordinator.settingsCallbacks",
+        "config.AppSettings",
         "config.FileRepository",
+        "config.FileRepository.GetAppSettings",
         "config.FileRepository.SaveAppSettings",
         "views.CardEditor",
         "views.CardEditor.SetSettings",
         "views.SettingsView",
-        "views.SettingsView.Update"
+        "views.SettingsView.handleEditEnter"
       ],
       "directRefs": [
         "app.Coordinator.handleSpecialMessages",
         "app.Coordinator.navigateTo",
         "app.Coordinator.settingsCallbacks",
+        "config.AppSettings",
         "config.FileRepository.SaveAppSettings",
         "views.CardEditor.SetSettings",
-        "views.SettingsView.Update"
+        "views.SettingsView.handleEditEnter"
       ],
       "participants": [
         "app.Coordinator",
@@ -886,16 +937,66 @@
         "views.CardEditor",
         "views.SettingsView"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "config.FileRepository.GetAppSettings"
+      ],
       "files": [
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
         "internal/app/navigation.go",
+        "internal/config/app_settings_test.go",
         "internal/config/repository.go",
+        "internal/config/types.go",
         "internal/ui/views/card_editor.go",
-        "internal/ui/views/settings.go"
+        "internal/ui/views/settings.go",
+        "internal/ui/views/settings_test.go"
       ],
-      "digest": "0df0685f7bd4a402bc26b9fad7b11c8591e20469ada00bdb7b3e48fbfee101a8"
+      "digest": "32f9e26034992f1703e568502b637e61e28f34b14919b66a6d817eb90673ae4e"
+    },
+    {
+      "kind": "flow",
+      "id": "settings-edit",
+      "refs": [
+        "app.Coordinator",
+        "components.DisplayText",
+        "components.TruncateHead",
+        "views.NewSettingsView",
+        "views.SettingsView",
+        "views.SettingsView.SetSettings",
+        "views.SettingsView.SetSize",
+        "views.SettingsView.TerminalInput",
+        "views.SettingsView.renderDisplay",
+        "views.SettingsView.renderEdit",
+        "views.SettingsView.startEdit",
+        "views.SettingsView.syncFocus",
+        "views.SettingsView.updateEdit"
+      ],
+      "directRefs": [
+        "views.NewSettingsView",
+        "views.SettingsView.SetSettings",
+        "views.SettingsView.SetSize",
+        "views.SettingsView.renderDisplay",
+        "views.SettingsView.renderEdit",
+        "views.SettingsView.startEdit",
+        "views.SettingsView.syncFocus",
+        "views.SettingsView.updateEdit"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "views.SettingsView"
+      ],
+      "supportingRefs": [
+        "components.DisplayText",
+        "components.TruncateHead",
+        "views.SettingsView.TerminalInput"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/ui/components/text.go",
+        "internal/ui/views/settings.go",
+        "internal/ui/views/settings_test.go"
+      ],
+      "digest": "77562062def5adb94409231a0db2881aa90aa1485a546cfd493d2a0b63aaa542"
     },
     {
       "kind": "flow",
@@ -1280,6 +1381,63 @@
     },
     {
       "kind": "flow",
+      "id": "terminal",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.handleWorkspaceCommandResult",
+        "app.Coordinator.launchTerminal",
+        "app.sessionActions",
+        "app.sessionActions.launchTerminal",
+        "app.sessionActions.launchWorkspaceCommand",
+        "messages.TerminalLaunchedMsg",
+        "session.LaunchWorkspaceCommand",
+        "session.Manager",
+        "session.Manager.List",
+        "views.Dashboard",
+        "views.Dashboard.handleKey",
+        "views.Dashboard.handleLaunchSession",
+        "views.DashboardCallbacks"
+      ],
+      "directRefs": [
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.handleWorkspaceCommandResult",
+        "app.Coordinator.launchTerminal",
+        "app.sessionActions.launchTerminal",
+        "app.sessionActions.launchWorkspaceCommand",
+        "session.LaunchWorkspaceCommand",
+        "session.Manager.List",
+        "views.Dashboard.handleKey",
+        "views.Dashboard.handleLaunchSession"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.sessionActions",
+        "session.LaunchWorkspaceCommand",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [
+        "messages.TerminalLaunchedMsg",
+        "views.DashboardCallbacks"
+      ],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/session/manager.go",
+        "internal/session/workspace_launcher.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go"
+      ],
+      "digest": "959475d00474a8ce5eb7fea569341ce72deaa2cf50acd18d2427b08ec8e23280"
+    },
+    {
+      "kind": "flow",
       "id": "tick",
       "refs": [
         "app.Coordinator",
@@ -1367,6 +1525,45 @@
     },
     {
       "kind": "flow",
+      "id": "workspace-command-errors",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.Update",
+        "app.Coordinator.handleWorkspaceCommandResult",
+        "app.sessionActions",
+        "app.sessionActions.launchTerminal",
+        "app.sessionActions.launchWorkspaceCommand",
+        "messages.TerminalLaunchedMsg",
+        "session.LaunchWorkspaceCommand"
+      ],
+      "directRefs": [
+        "app.Coordinator.Update",
+        "app.Coordinator.handleWorkspaceCommandResult",
+        "app.sessionActions.launchTerminal",
+        "app.sessionActions.launchWorkspaceCommand",
+        "messages.TerminalLaunchedMsg",
+        "session.LaunchWorkspaceCommand"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.sessionActions",
+        "session.LaunchWorkspaceCommand"
+      ],
+      "supportingRefs": [
+        "messages.TerminalLaunchedMsg"
+      ],
+      "files": [
+        "internal/app/command_race_internal_test.go",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/session/workspace_launcher.go",
+        "internal/ui/messages/messages.go"
+      ],
+      "digest": "d5c3164d5f636e1ce1ec4b605de87be57a4738652e6accc5eeb07f173abda8cc"
+    },
+    {
+      "kind": "flow",
       "id": "workspace-sources",
       "refs": [
         "app.Coordinator",
@@ -1416,10 +1613,13 @@
       "refs": [
         "app",
         "app.Coordinator",
+        "app.Coordinator.handleWorkspaceCommandResult",
+        "app.Coordinator.launchTerminal",
         "app.attachExec",
         "app.previewSub",
         "app.refresher",
-        "app.sessionActions"
+        "app.sessionActions",
+        "app.sessionActions.launchWorkspaceCommand"
       ],
       "directRefs": [
         "app",
@@ -1430,20 +1630,26 @@
         "app.sessionActions"
       ],
       "participants": [],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "app.Coordinator.handleWorkspaceCommandResult",
+        "app.Coordinator.launchTerminal",
+        "app.sessionActions.launchWorkspaceCommand"
+      ],
       "files": [
         "internal/app/app.go",
         "internal/app/attach.go",
         "internal/app/callbacks.go",
+        "internal/app/command_race_internal_test.go",
         "internal/app/coordinator.go",
         "internal/app/handlers.go",
         "internal/app/navigation.go",
         "internal/app/preview.go",
         "internal/app/refresh.go",
         "internal/app/session_actions.go",
-        "internal/app/size_guard.go"
+        "internal/app/size_guard.go",
+        "internal/app/terminal_launch_test.go"
       ],
-      "digest": "243e38df221be498fa9f12f6d561c4a98a042e45a6e625bf027bd73502c3cd8c"
+      "digest": "a8f3736aa9bf5ae535c2681ac9a2500f854d53ebdb0c7c2d0dfedc9d323e7449"
     },
     {
       "kind": "package",
@@ -1552,11 +1758,8 @@
         "config",
         "config.AppSettings",
         "config.FileRepository",
-        "config.FileRepository.ValidateCard",
-        "config.GetBuiltinSkillContent",
         "config.IDCard",
-        "config.Repository",
-        "config.SetBuiltinMCPCLISkillContent"
+        "config.Repository"
       ],
       "directRefs": [
         "config",
@@ -1567,13 +1770,11 @@
       ],
       "participants": [],
       "supportingRefs": [
-        "config.FileRepository.ValidateCard",
-        "config.GetBuiltinSkillContent",
-        "config.SetBuiltinMCPCLISkillContent"
+        "config.AppSettings"
       ],
       "files": [
+        "internal/config/app_settings_test.go",
         "internal/config/builtins.go",
-        "internal/config/builtins_test.go",
         "internal/config/errors.go",
         "internal/config/id_cards.go",
         "internal/config/mcps.go",
@@ -1590,7 +1791,7 @@
         "internal/config/validation_helpers.go",
         "internal/config/workspaces.go"
       ],
-      "digest": "46a9c3efb71ccaa0856a38cafd2b105ee2c6e3300073912c1b91390f9df223be"
+      "digest": "517eb964b3ad3d79bb9fe0d684f1bea0863900812e80c082eef19421c771278a"
     },
     {
       "kind": "package",
@@ -1658,7 +1859,8 @@
         "messages.DataLoadedMsg",
         "messages.DataReceiver",
         "messages.PreviewDataMsg",
-        "messages.SessionsRefreshedMsg"
+        "messages.SessionsRefreshedMsg",
+        "messages.TerminalLaunchedMsg"
       ],
       "directRefs": [
         "messages",
@@ -1668,11 +1870,13 @@
         "messages.SessionsRefreshedMsg"
       ],
       "participants": [],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "messages.TerminalLaunchedMsg"
+      ],
       "files": [
         "internal/ui/messages/messages.go"
       ],
-      "digest": "e54f50c8ce8b17616e7349eece3009ce18d5a22f15270c794be6fbbcab29150b"
+      "digest": "1bf25e102939d403e3327da3b6dbbd862171135ab2e2d59a0257b49fdbb2e00a"
     },
     {
       "kind": "package",
@@ -1719,6 +1923,8 @@
       "refs": [
         "session",
         "session.AttachHandle",
+        "session.IDELauncher",
+        "session.LaunchWorkspaceCommand",
         "session.Manager",
         "session.Session",
         "session.Snapshot",
@@ -1730,12 +1936,15 @@
       "directRefs": [
         "session",
         "session.AttachHandle",
+        "session.IDELauncher",
         "session.Manager",
         "session.Session",
         "session.Snapshot"
       ],
       "participants": [],
       "supportingRefs": [
+        "session.IDELauncher",
+        "session.LaunchWorkspaceCommand",
         "session.subWorkspaceCopy",
         "session.subWorkspaceManifest",
         "session.subWorkspaceSource",
@@ -1744,6 +1953,7 @@
       "files": [
         "internal/session/attach.go",
         "internal/session/ide_launcher.go",
+        "internal/session/ide_launcher_test.go",
         "internal/session/io.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
@@ -1751,9 +1961,10 @@
         "internal/session/sub_workspaces.go",
         "internal/session/watch.go",
         "internal/session/workspace.go",
+        "internal/session/workspace_launcher.go",
         "internal/session/workspace_test.go"
       ],
-      "digest": "cca61794f78a4e11efd3ec3ac269f379f50dabad9afbbe91d17ca34789045ef6"
+      "digest": "2b8da2f1c40e7ed0db635fdbccd3969e970c1100e6dd9a1bf5984b78e09991a0"
     },
     {
       "kind": "package",
@@ -1824,10 +2035,15 @@
         "views.CardEditor.SetCard",
         "views.CardEditor.fieldBlocks",
         "views.Dashboard",
+        "views.Dashboard.footerText",
+        "views.Dashboard.handleLaunchSession",
+        "views.DashboardCallbacks",
         "views.MCPForm",
         "views.NewCardEditor",
+        "views.NewSettingsView",
         "views.SessionLauncher",
         "views.SettingsView",
+        "views.SettingsView.TerminalInput",
         "views.SourceManager",
         "views.editorKeyIdentity",
         "views.focusTargetTable",
@@ -1849,7 +2065,12 @@
         "views.CardEditor.Reset",
         "views.CardEditor.SetCard",
         "views.CardEditor.fieldBlocks",
+        "views.Dashboard.footerText",
+        "views.Dashboard.handleLaunchSession",
+        "views.DashboardCallbacks",
         "views.NewCardEditor",
+        "views.NewSettingsView",
+        "views.SettingsView.TerminalInput",
         "views.editorKeyIdentity",
         "views.focusTargetTable",
         "views.workspaceItem",
@@ -1861,15 +2082,18 @@
         "internal/ui/views/card_editor.go",
         "internal/ui/views/constants.go",
         "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_layout_test.go",
+        "internal/ui/views/dashboard_test.go",
         "internal/ui/views/mcp_form.go",
         "internal/ui/views/puppet_selector_modal.go",
         "internal/ui/views/session_launcher.go",
         "internal/ui/views/settings.go",
+        "internal/ui/views/settings_test.go",
         "internal/ui/views/source_manager.go",
         "internal/ui/views/source_type.go",
         "internal/ui/views/workspace_picker_modal.go"
       ],
-      "digest": "567b52fff8ed94f8a76546088457ff1c876d5040feb762284d721b03a710259c"
+      "digest": "bdc979c5fd228eaebeddba4b2b21d63778d1c8aac56700aa22c46f930d2cc1e9"
     },
     {
       "kind": "path",
@@ -1916,17 +2140,27 @@
       "kind": "rule",
       "id": "1",
       "refs": [
-        "app.Coordinator"
+        "app.Coordinator",
+        "app.Coordinator.launchIDE",
+        "app.Coordinator.launchTerminal",
+        "app.sessionActions.launchWorkspaceCommand"
       ],
       "directRefs": [
         "app.Coordinator"
       ],
       "participants": [],
-      "supportingRefs": [],
-      "files": [
-        "internal/app/coordinator.go"
+      "supportingRefs": [
+        "app.Coordinator.launchIDE",
+        "app.Coordinator.launchTerminal",
+        "app.sessionActions.launchWorkspaceCommand"
       ],
-      "digest": "3e4e55429904b14dc305bf47265ab3767606d883fc188366577b9a80986052f8"
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/command_race_internal_test.go",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go"
+      ],
+      "digest": "01fa9ebbb048dbe92d1b238b0a51e1d16a1b265230fbebfda83a71520b1e8d95"
     },
     {
       "kind": "rule",
@@ -2025,17 +2259,22 @@
       "kind": "rule",
       "id": "4",
       "refs": [
-        "app.Coordinator.Update"
+        "app.Coordinator.Update",
+        "app.Coordinator.handleWorkspaceCommandResult"
       ],
       "directRefs": [
         "app.Coordinator.Update"
       ],
       "participants": [],
-      "supportingRefs": [],
-      "files": [
-        "internal/app/coordinator.go"
+      "supportingRefs": [
+        "app.Coordinator.handleWorkspaceCommandResult"
       ],
-      "digest": "cc93a272cd7d8301087ab1e69b3c74a39116eddcc1332bc0c4ff40ef527f631e"
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/error_banner_test.go",
+        "internal/app/terminal_launch_test.go"
+      ],
+      "digest": "b9f1cdc0ec0e7fd8749c7a67a7832157f3decaefdfdd6b4f59a4b818ecd2e3c5"
     },
     {
       "kind": "rule",
@@ -2160,18 +2399,21 @@
       "id": "Add a message",
       "refs": [
         "app.Coordinator.handleSessionMessages",
-        "app.Coordinator.handleSpecialMessages"
+        "app.Coordinator.handleSpecialMessages",
+        "messages.TerminalLaunchedMsg"
       ],
       "directRefs": [
         "app.Coordinator.handleSessionMessages",
-        "app.Coordinator.handleSpecialMessages"
+        "app.Coordinator.handleSpecialMessages",
+        "messages.TerminalLaunchedMsg"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/app/coordinator.go"
+        "internal/app/coordinator.go",
+        "internal/ui/messages/messages.go"
       ],
-      "digest": "2e81c6a37988f3f571bef56d2046ed20053d2dc733a7d479eaff34b8d1d1d488"
+      "digest": "4698b6cd1c551a0285b0c8c837a87163033381ddc92ea0705c0128ff35fdbedc"
     },
     {
       "kind": "task",
@@ -2217,17 +2459,23 @@
       "kind": "task",
       "id": "Add a session-level action (Phase 1 linking)",
       "refs": [
+        "app.Coordinator.handleWorkspaceCommandResult",
+        "app.Coordinator.launchTerminal",
         "app.sessionActions"
       ],
       "directRefs": [
+        "app.Coordinator.handleWorkspaceCommandResult",
+        "app.Coordinator.launchTerminal",
         "app.sessionActions"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
         "internal/app/session_actions.go"
       ],
-      "digest": "aa2d7338627aa9d68194942a41f62367f75bc36c45403b4c8eb90eff35424342"
+      "digest": "57a4936fe1d8415327d2bb147bfe244661ad5d9c32740749eb6dd88551e59219"
     },
     {
       "kind": "task",
@@ -2278,9 +2526,10 @@
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/ui/views/dashboard.go"
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_layout_test.go"
       ],
-      "digest": "9948f8a56cad7bf683ba42c0048bbc8dce2799ed1415e1edd499247f74707ea4"
+      "digest": "6efa5bfe896704639c45c0d63a865d8df8fccf5d3218d069b1e86bc91aab7a08"
     },
     {
       "kind": "task",
@@ -2300,19 +2549,33 @@
     },
     {
       "kind": "task",
-      "id": "Change how the IDE is opened",
+      "id": "Change how IDE or terminal windows open",
       "refs": [
-        "session.IDELauncher"
+        "app.Coordinator.launchTerminal",
+        "app.sessionActions.launchWorkspaceCommand",
+        "config.AppSettings",
+        "session.IDELauncher",
+        "session.LaunchWorkspaceCommand"
       ],
       "directRefs": [
-        "session.IDELauncher"
+        "app.Coordinator.launchTerminal",
+        "app.sessionActions.launchWorkspaceCommand",
+        "config.AppSettings",
+        "session.IDELauncher",
+        "session.LaunchWorkspaceCommand"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/session/ide_launcher.go"
+        "internal/app/callbacks.go",
+        "internal/app/session_actions.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/config/types.go",
+        "internal/session/ide_launcher.go",
+        "internal/session/ide_launcher_test.go",
+        "internal/session/workspace_launcher.go"
       ],
-      "digest": "0352ffa9d5a7f7b5f0045ed2a5cb500670ea1f71016e4cc20ebca6da709715a7"
+      "digest": "485f50a5eb2adb590affb07cd04715b3cd2589fbcf885f31f0f1d7a06144a2ba"
     },
     {
       "kind": "task",
@@ -2503,5 +2766,5 @@
       "digest": "5dba625e983465423e8c2f3de67b9f68ed98aa3951277334ead2259450baf16e"
     }
   ],
-  "digest": "df07bebe6aa6ad037a6402764baa692556276078ac22dd4aad385c36efdc5412"
+  "digest": "e96f1725c41832766edd9851a8cb3d50f801c1d027464d55667fd00a97e0f204"
 }

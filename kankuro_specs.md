@@ -125,7 +125,8 @@ type AgentDriver interface {
     * `Tab`: Switch dashboard focus between ID cards and sessions.
     * `e`: Edit the selected ID Card.
     * `n`: Create a new ID Card.
-    * `x`: Kill the selected running session.
+     * `x`: Kill the selected running session.
+     * `o`: Open the selected session workspace in the configured IDE; `t`: launch the configured terminal command (Sessions pane only; works for running and terminated sessions).
     * `s`: Switch agent on the selected terminated session.
     * `m`: Open the MCP registry form to add a new server.
     * `w`: Open the workspace source manager.
@@ -141,7 +142,8 @@ type AgentDriver interface {
   (`q=Quit` is the last to go) rather than being cut off.
 
 * **Settings View:**
-    * Lets the user configure the IDE launch command.
+     * Lets the user configure independent IDE and terminal launch commands. The terminal command must open a separate terminal window; Kankuro does not infer an emulator or embed a shell. The `terminal_command` setting defaults empty.
+     * Both commands substitute `$PATH` with the selected session's actual working directory and use it as the process working directory even without a placeholder. Quote `"$PATH"` when paths may contain spaces. Commands execute directly (no implicit shell expansion).
     * Lets the user choose whether the Personas and MCPs capability lists are shown in the ID card editor.
     * `Enter`: Save settings.
     * `Space` (on Toggles): Toggle the highlighted option.

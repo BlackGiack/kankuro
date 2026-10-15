@@ -1,12 +1,8 @@
 package session
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
@@ -35,48 +31,7 @@ func (l *IDELauncher) Launch(workspacePath string) error {
 	if l.command == "" {
 		return ErrIDENotConfigured
 	}
-
-	if workspacePath == "" {
-		return ErrWorkspacePathEmpty
-	}
-
-	absPath, err := resolvePath(workspacePath)
-	if err != nil {
-		return err
-	}
-
-	cmd := strings.ReplaceAll(l.command, PathPlaceholder, absPath)
-
-	parts := SplitCommand(cmd)
-	if len(parts) == 0 {
-		return ErrInvalidCommand
-	}
-
-	execCmd := exec.CommandContext(context.Background(), parts[0], parts[1:]...) //nolint:gosec // user-configured command
-	execCmd.Dir = absPath
-	execCmd.Stdin = nil
-	execCmd.Stdout = nil
-	execCmd.Stderr = nil
-
-	if startErr := execCmd.Start(); startErr != nil {
-		return startErr
-	}
-
-	go func() { _ = execCmd.Wait() }()
-
-	return nil
-}
-
-// resolvePath converts a path to absolute and verifies it exists.
-func resolvePath(path string) (string, error) {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return "", err
-	}
-	if _, statErr := os.Stat(abs); statErr != nil {
-		return "", statErr
-	}
-	return abs, nil
+	return LaunchWorkspaceCommand(l.command, workspacePath)
 }
 
 // SplitCommand parses a command string with quote support.
