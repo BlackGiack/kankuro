@@ -1,8 +1,7 @@
 package app
 
-// Whitebox tests for debt_impl_plan_5.md: the idle tick's config half
-// (maybeRefreshConfig/Fingerprint, step 1) and the single-pass capability
-// resolver (resolveCard/resolveCapabilities, steps 2-3). These live in
+// Whitebox tests for the idle tick's config half
+// (maybeRefreshConfig/Fingerprint). These live in
 // package app (not app_test) because they need direct access to
 // configFingerprintMsg and c.configFingerprint, which are intentionally
 // unexported.
@@ -10,7 +9,6 @@ package app
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -170,75 +168,6 @@ func TestMutationRefreshDoesNotWaitForTick(t *testing.T) {
 	}
 }
 
-// TestResolveCapabilitiesPreservesRegistryOrder pins step 2: resolveCard's
-// single-pass resolver must still return skills in registry (name-sorted)
-// order, not the order they appear in card.SkillIDs - a map-based rewrite
-// that iterated card.SkillIDs instead would silently change the order
-// skills are written to disk / AGENTS.md.
-func TestResolveCapabilitiesPreservesRegistryOrder(t *testing.T) {
-	base, err := config.NewFileRepository(t.TempDir())
-	if err != nil {
-		t.Fatalf("new repo: %v", err)
-	}
-	sm := newTestManager(t, base.Dir(), base)
-	c := NewCoordinator(base, sm)
-
-	// Upsert out of name order; ListSkills always returns them sorted by
-	// Name, so the registry order is: alpha, mid, zeta.
-	zeta, err := base.UpsertSkill(config.Skill{Name: "zeta"})
-	if err != nil {
-		t.Fatalf("upsert zeta: %v", err)
-	}
-	alpha, err := base.UpsertSkill(config.Skill{Name: "alpha"})
-	if err != nil {
-		t.Fatalf("upsert alpha: %v", err)
-	}
-	mid, err := base.UpsertSkill(config.Skill{Name: "mid"})
-	if err != nil {
-		t.Fatalf("upsert mid: %v", err)
-	}
-
-	// Reference them in a different order on the card.
-	card := config.IDCard{SkillIDs: []string{zeta.ID, alpha.ID, mid.ID}}
-
-	skills, _, _, err := c.actions.resolveCapabilities(card)
-	if err != nil {
-		t.Fatalf("resolveCapabilities: %v", err)
-	}
-	if len(skills) != 3 {
-		t.Fatalf("expected 3 skills, got %d: %v", len(skills), skills)
-	}
-	gotNames := []string{skills[0].Name, skills[1].Name, skills[2].Name}
-	wantNames := []string{"alpha", "mid", "zeta"}
-	for i := range wantNames {
-		if gotNames[i] != wantNames[i] {
-			t.Fatalf("expected registry (name-sorted) order %v, got %v", wantNames, gotNames)
-		}
-	}
-}
-
-// TestResolveCapabilitiesAbortsOnRegistryReadError pins step 2's other
-// requirement: a failed registry read must abort (return an error) instead
-// of proceeding capability-less.
-func TestResolveCapabilitiesAbortsOnRegistryReadError(t *testing.T) {
-	base, err := config.NewFileRepository(t.TempDir())
-	if err != nil {
-		t.Fatalf("new repo: %v", err)
-	}
-	sm := newTestManager(t, base.Dir(), base)
-	c := NewCoordinator(base, sm)
-
-	skillsPath := filepath.Join(base.Dir(), config.SkillsFilename)
-	if writeErr := os.WriteFile(skillsPath, []byte("not: valid: yaml: :::"), 0o600); writeErr != nil {
-		t.Fatalf("corrupt skills.yaml: %v", writeErr)
-	}
-
-	_, _, _, err = c.actions.resolveCapabilities(config.IDCard{SkillIDs: []string{"whatever"}})
-	if err == nil {
-		t.Fatal("expected resolveCapabilities to surface the corrupt skills.yaml read error")
-	}
-}
-
 // TestIdleTickDoesNotTriggerSourceReload pins review finding 1: the idle
 // tick's sessions-only refresh must never reach a config-registry view like
 // SourceManager, whose SetData reloads its source files from disk regardless
@@ -380,34 +309,6 @@ func TestLaunchCardAbortsOnRegistryReadError(t *testing.T) {
 	}
 	if got := sm.List(); len(got) != 0 {
 		t.Fatalf("expected no session to have been created, got %d", len(got))
-	}
-}
-
-// TestResolveCardSurfacesListCardsErrorNotNotFound pins review finding 4 /
-// step 3: a failed ListIDCards must report "list cards: ...", not be
-// misreported as "card not found".
-func TestResolveCardSurfacesListCardsErrorNotNotFound(t *testing.T) {
-	base, err := config.NewFileRepository(t.TempDir())
-	if err != nil {
-		t.Fatalf("new repo: %v", err)
-	}
-	sm := newTestManager(t, base.Dir(), base)
-	c := NewCoordinator(base, sm)
-
-	idCardsPath := filepath.Join(base.Dir(), config.IDCardsFilename)
-	if writeErr := os.WriteFile(idCardsPath, []byte("not: valid: yaml: :::"), 0o600); writeErr != nil {
-		t.Fatalf("corrupt id_cards.yaml: %v", writeErr)
-	}
-
-	_, err = c.actions.resolveCard("some-card-id")
-	if err == nil {
-		t.Fatal("expected resolveCard to surface the corrupt id_cards.yaml read error")
-	}
-	if !strings.Contains(err.Error(), "list cards:") {
-		t.Fatalf("expected error to report the read failure (\"list cards: ...\"), got: %v", err)
-	}
-	if strings.Contains(err.Error(), "card not found") {
-		t.Fatalf("expected the read failure not to be misreported as \"card not found\", got: %v", err)
 	}
 }
 

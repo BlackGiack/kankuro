@@ -27,9 +27,9 @@ func TestUpsertDomainTypes(t *testing.T) {
 		t.Fatalf("update skill: %v", err)
 	}
 	skills, _ := repo.ListSkills()
-	// Should have 2 skills: skill1 (custom) + mcp-cli (builtin)
-	if len(skills) != 2 {
-		t.Fatalf("expected 2 skills (skill1 + mcp-cli), got %d", len(skills))
+	// Should have the custom skill and both built-ins.
+	if len(skills) != 3 {
+		t.Fatalf("expected 3 skills (skill1 + builtins), got %d", len(skills))
 	}
 	// Verify our custom skill is present
 	found := false
@@ -71,8 +71,8 @@ func TestUpsertDomainTypes(t *testing.T) {
 		t.Fatalf("update mcp: %v", err)
 	}
 	mcps, _ := repo.ListMCPs()
-	if len(mcps) != 1 {
-		t.Fatalf("expected 1 mcp, got %d", len(mcps))
+	if len(mcps) != 2 {
+		t.Fatalf("expected user mcp and built-in kankuro mcp, got %d", len(mcps))
 	}
 }
 

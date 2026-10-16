@@ -1,9 +1,12 @@
 package session
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -28,20 +31,37 @@ const (
 )
 
 type Session struct {
-	ID              string
-	CardID          string
-	Name            string
-	PID             int
-	WorkingDir      string
-	OriginalDir     string
-	UseTmpWorkspace bool
-	StartedAt       time.Time
-	LastWordAt      time.Time
-	LastOutput      string
-	Status          Status
-	Pinged          bool
-	ExitCode        int
-	Driver          driver.AgentDriver
+	ID                            string
+	CardID                        string
+	Name                          string
+	PID                           int
+	WorkingDir                    string
+	OriginalDir                   string
+	UseTmpWorkspace               bool
+	SubWorkspaces                 []SubWorkspaceDescriptor
+	SubWorkspaceMetadataAvailable bool
+	KankuroMCPEnabled             bool
+	DashboardControl              bool
+	// InstructionOwnership tracks managed content independently per instruction file.
+	InstructionOwnership    map[string]bool
+	InstructionsManaged     bool
+	StartedAt               time.Time
+	LastWordAt              time.Time
+	LastOutput              string
+	Status                  Status
+	LifecycleActivity       string
+	Pinged                  bool
+	ExitCode                int
+	Conversations           map[string][]ConversationBinding
+	Registration            RegistrationState
+	RegistrationPersistence RegistrationPersistence
+	RegistrationAt          time.Time
+	RegistrationErr         string
+	ActiveConversationID    string
+	ActivationID            string
+	ActivationToken         string
+	ExpectedConversationID  string
+	Driver                  driver.AgentDriver
 	// PTY is the raw pseudo-terminal file, used only for ioctl-based resize
 	// (Attach hands it out as AttachHandle.PTY). Keystrokes must NOT be
 	// written directly to this fd - it races Kill, which closes and nils the
@@ -66,7 +86,14 @@ type Session struct {
 	// It is what makes that guard exclusive: the unlocked middle of an
 	// activation (workspace sync, Spawn) is long, and Status stays
 	// Terminated throughout it.
-	activating bool
+	starting          bool
+	startupCancel     chan struct{}
+	startupDeadline   time.Time
+	activating        bool
+	stopping          bool
+	deleting          bool
+	activeSubmissions int
+	submissionsDone   chan struct{}
 }
 
 type AttachHandle struct {
@@ -88,20 +115,69 @@ var (
 )
 
 type Snapshot struct {
-	ID              string
-	CardID          string
-	Name            string
-	PID             int
-	WorkingDir      string
-	OriginalDir     string
-	UseTmpWorkspace bool
-	StartedAt       time.Time
-	LastWordAt      time.Time
-	LastOutput      string
-	Status          Status
-	Pinged          bool
-	ExitCode        int
+	ID                            string
+	CardID                        string
+	Name                          string
+	PID                           int
+	WorkingDir                    string
+	OriginalDir                   string
+	UseTmpWorkspace               bool
+	SubWorkspaces                 []SubWorkspaceDescriptor
+	SubWorkspaceMetadataAvailable bool
+	KankuroMCPEnabled             bool
+	DashboardControl              bool
+	InstructionOwnership          map[string]bool
+	InstructionsManaged           bool
+	StartedAt                     time.Time
+	LastWordAt                    time.Time
+	LastOutput                    string
+	Status                        Status
+	LifecycleActivity             string
+	Phase                         string
+	ProcessStarted                bool
+	MessageDeliveryAvailable      bool
+	Pinged                        bool
+	ExitCode                      int
+	Conversations                 map[string][]ConversationBinding
+	Registration                  RegistrationState
+	RegistrationPersistence       RegistrationPersistence
+	RegistrationErr               string
+	ActiveConversationID          string
+	ActivationID                  string
 }
+
+// ConversationBinding identifies one native CLI conversation within a card
+// and Kankuro session. Names are display metadata, never identity.
+type ConversationBinding struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Driver string `json:"driver"`
+}
+
+type RegistrationState string
+
+const (
+	RegistrationUnavailable RegistrationState = "unavailable"
+	RegistrationPending     RegistrationState = "pending"
+	RegistrationUnconfirmed RegistrationState = "unconfirmed"
+	RegistrationRegistered  RegistrationState = "registered"
+	RegistrationFailed      RegistrationState = "failed"
+)
+
+type RegistrationPersistence string
+
+// ConversationChoice is the explicit activation decision shown by the UI.
+// New starts without a native ID; ID resumes one binding for the destination card.
+type ConversationChoice struct {
+	New bool
+	ID  string
+}
+
+const (
+	RegistrationNotAttempted RegistrationPersistence = "not_attempted"
+	RegistrationSaved        RegistrationPersistence = "saved"
+	RegistrationUnsaved      RegistrationPersistence = "unsaved"
+)
 
 // WorkspaceReader provides the minimal interface the session manager needs
 // to resolve workspace paths when launching sessions.
@@ -110,14 +186,18 @@ type WorkspaceReader interface {
 }
 
 type Manager struct {
-	mu             sync.RWMutex
-	subWorkspaceMu sync.Mutex
-	sessions       map[string]*Session
-	configDir      string
-	repo           WorkspaceReader
-	drivers        driver.Registry
-	loadErr        error
-	logger         *slog.Logger
+	mu               sync.RWMutex
+	pendingCardRefs  map[string]int
+	subWorkspaceGate chan struct{}
+	sessions         map[string]*Session
+	launching        map[string]struct{}
+	configDir        string
+	repo             WorkspaceReader
+	workspaceCopier  WorkspaceCopier
+	drivers          driver.Registry
+	loadErr          error
+	logger           *slog.Logger
+	messages         *MessageStore
 
 	// stop is closed by Shutdown to make every watch goroutine return without
 	// a final tick; watchers counts them so Shutdown can wait. closed (under
@@ -135,15 +215,60 @@ type Manager struct {
 	// activation is mostly unlocked work (workspace copy, Spawn), and one that
 	// notices closed only afterwards must still get to kill its own process
 	// and remove its tmp copy before the app exits.
-	stop        chan struct{}
-	stopOnce    sync.Once
-	watchers    sync.WaitGroup
-	activations sync.WaitGroup
-	closed      bool
+	stop              chan struct{}
+	shutdownStart     chan struct{}
+	startupDelay      time.Duration
+	startupClock      StartupClock
+	startupTimers     sync.WaitGroup
+	stopOnce          sync.Once
+	watchers          sync.WaitGroup
+	activations       sync.WaitGroup
+	stops             sync.WaitGroup
+	shutdownDone      chan struct{}
+	shutdownCount     int
+	closed            bool
+	authorities       map[string]*activationAuthority
+	messageAdmissions map[*MessageAdmission]struct{}
+	mcpEndpoint       string
 }
 
 // Option configures the Manager.
 type Option func(*Manager)
+
+// WorkspaceCopier prepares a temporary main-workspace copy. It receives the
+// activation context so cancellation can interrupt preparation.
+type WorkspaceCopier func(ctx context.Context, source, destination string) error
+
+// WithWorkspaceCopier injects the temporary-workspace copy operation.
+func WithWorkspaceCopier(copier WorkspaceCopier) Option {
+	return func(manager *Manager) { manager.workspaceCopier = copier }
+}
+
+// StartupTimer and StartupClock permit deterministic startup transition tests.
+type StartupTimer interface {
+	C() <-chan time.Time
+	Stop() bool
+}
+type StartupClock interface {
+	Now() time.Time
+	NewTimer(time.Duration) StartupTimer
+}
+type realStartupClock struct{}
+type realStartupTimer struct{ *time.Timer }
+
+func (realStartupClock) Now() time.Time { return time.Now() }
+func (realStartupClock) NewTimer(d time.Duration) StartupTimer {
+	return realStartupTimer{time.NewTimer(d)}
+}
+func (t realStartupTimer) C() <-chan time.Time { return t.Timer.C }
+
+// WithStartupClock overrides the runtime clock for startup admission.
+func WithStartupClock(clock StartupClock) Option { return func(m *Manager) { m.startupClock = clock } }
+
+// WithStartupDelay sets the admission delay; zero is useful for tests.
+func WithStartupDelay(delay time.Duration) Option {
+	return func(m *Manager) { m.startupDelay = delay }
+}
 
 // WithDriverRegistry sets a custom driver registry.
 func WithDriverRegistry(reg driver.Registry) Option {
@@ -167,12 +292,20 @@ func WithLogger(logger *slog.Logger) Option {
 // NewManager creates a session registry and loads persisted sessions.
 func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager {
 	m := &Manager{
-		sessions:  make(map[string]*Session),
-		configDir: configDir,
-		repo:      repo,
-		drivers:   driver.NewBuiltinRegistry(), // default builtin registry
-		logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-		stop:      make(chan struct{}),
+		sessions:          make(map[string]*Session),
+		pendingCardRefs:   make(map[string]int),
+		subWorkspaceGate:  make(chan struct{}, 1),
+		launching:         make(map[string]struct{}),
+		configDir:         configDir,
+		repo:              repo,
+		drivers:           driver.NewBuiltinRegistry(), // default builtin registry
+		logger:            slog.New(slog.DiscardHandler),
+		stop:              make(chan struct{}),
+		shutdownStart:     make(chan struct{}),
+		startupDelay:      startupDelay,
+		startupClock:      realStartupClock{},
+		authorities:       make(map[string]*activationAuthority),
+		messageAdmissions: make(map[*MessageAdmission]struct{}),
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -185,8 +318,27 @@ func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager
 	for _, d := range loaded {
 		m.sessions[d.ID] = d.restore()
 	}
+	messageStore, messageErr := NewMessageStore(configDir)
+	if messageErr != nil {
+		m.loadErr = errors.Join(m.loadErr, messageErr)
+	} else {
+		m.messages = messageStore
+		if recoverErr := messageStore.Recover(m.sessions); recoverErr != nil {
+			m.loadErr = errors.Join(m.loadErr, recoverErr)
+		}
+	}
 
 	return m
+}
+
+// Messages returns the manager-owned durable messaging store shared by all frontends.
+func (m *Manager) Messages() *MessageStore { return m.messages }
+
+// SetMCPEndpoint sets the loopback endpoint before any activation is started.
+func (m *Manager) SetMCPEndpoint(endpoint string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.mcpEndpoint = endpoint
 }
 
 // LoadErrors returns any error encountered while hydrating persisted
@@ -210,7 +362,7 @@ func (m *Manager) GetSession(id string) (Snapshot, bool) {
 	if !ok {
 		return Snapshot{}, false
 	}
-	return s.snapshot(), true
+	return m.snapshotLocked(s), true
 }
 
 // PendingLineLen reports the buffered partial-line size. Used by tests to
@@ -253,28 +405,141 @@ func (m *Manager) List() []Snapshot {
 	defer m.mu.RUnlock()
 	out := make([]Snapshot, 0, len(m.sessions))
 	for _, s := range m.sessions {
-		out = append(out, s.snapshot())
+		out = append(out, m.snapshotLocked(s))
 	}
 	return out
+}
+
+func (m *Manager) snapshotLocked(s *Session) Snapshot {
+	snap := s.snapshot()
+	live := s.Driver != nil && s.Done != nil && s.Status != StatusTerminated
+	if live {
+		select {
+		case <-s.Done:
+			live = false
+		default:
+		}
+	}
+	snap.ProcessStarted = live
+	snap.Phase = "terminated"
+	if live {
+		snap.Phase = "active"
+		if s.starting {
+			snap.Phase = "starting"
+		}
+	}
+	snap.MessageDeliveryAvailable = m.deliveryAvailableLocked(s)
+	return snap
+}
+
+func (m *Manager) deliveryAvailableLocked(s *Session) bool {
+	if m.closed || s == nil || s.starting || s.activating || s.stopping || s.deleting || s.Status == StatusTerminated || s.Driver == nil ||
+		s.Done == nil ||
+		s.ActivationID == "" ||
+		!s.KankuroMCPEnabled {
+		return false
+	}
+	authority := m.authorities[s.ActivationToken]
+	if authority == nil || authority.revoked || !authority.published || authority.sessionID != s.ID ||
+		authority.activationID != s.ActivationID {
+		return false
+	}
+	select {
+	case <-s.Done:
+		return false
+	default:
+		return true
+	}
+}
+
+func (m *Manager) cancelStartupLocked(s *Session) {
+	if s.startupCancel != nil {
+		close(s.startupCancel)
+		s.startupCancel = nil
+	}
+	s.starting = false
+}
+
+func (m *Manager) startStartupLocked(s *Session, deadline time.Time) {
+	m.cancelStartupLocked(s)
+	if m.startupDelay <= 0 {
+		return
+	}
+	s.starting = true
+	s.startupDeadline = deadline
+	cancel := make(chan struct{})
+	s.startupCancel = cancel
+	generation, activation, done := s.generation, s.ActivationID, s.Done
+	m.startupTimers.Go(func() {
+		delay := max(deadline.Sub(m.startupClock.Now()), 0)
+		timer := m.startupClock.NewTimer(delay)
+		defer timer.Stop()
+		select {
+		case <-cancel:
+			return
+		case <-m.shutdownStart:
+			return
+		case <-done:
+			return
+		case <-timer.C():
+		}
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		if !m.closed && m.sessions[s.ID] == s && s.generation == generation && s.ActivationID == activation && s.startupCancel == cancel &&
+			!s.stopping &&
+			!s.deleting &&
+			!s.activating &&
+			s.Driver != nil {
+			select {
+			case <-done:
+				return
+			default:
+			}
+			s.starting = false
+			s.startupCancel = nil
+		}
+	})
 }
 
 // snapshot builds a value Snapshot from a Session. Callers must hold m.mu
 // (read or write) while calling this.
 func (s *Session) snapshot() Snapshot {
+	activity := "idle"
+	switch {
+	case s.activating:
+		activity = "activating"
+	case s.stopping:
+		activity = "stopping"
+	case s.deleting:
+		activity = "deleting"
+	}
 	return Snapshot{
-		ID:              s.ID,
-		CardID:          s.CardID,
-		Name:            s.Name,
-		PID:             s.PID,
-		WorkingDir:      s.WorkingDir,
-		OriginalDir:     s.OriginalDir,
-		UseTmpWorkspace: s.UseTmpWorkspace,
-		StartedAt:       s.StartedAt,
-		LastWordAt:      s.LastWordAt,
-		LastOutput:      s.LastOutput,
-		Status:          s.Status,
-		Pinged:          s.Pinged,
-		ExitCode:        s.ExitCode,
+		ID:                            s.ID,
+		CardID:                        s.CardID,
+		Name:                          s.Name,
+		PID:                           s.PID,
+		WorkingDir:                    s.WorkingDir,
+		OriginalDir:                   s.OriginalDir,
+		UseTmpWorkspace:               s.UseTmpWorkspace,
+		SubWorkspaces:                 append([]SubWorkspaceDescriptor(nil), s.SubWorkspaces...),
+		SubWorkspaceMetadataAvailable: s.SubWorkspaceMetadataAvailable,
+		KankuroMCPEnabled:             s.KankuroMCPEnabled,
+		DashboardControl:              s.DashboardControl,
+		InstructionsManaged:           s.InstructionsManaged,
+		InstructionOwnership:          sessionInstructionOwnership(s),
+		StartedAt:                     s.StartedAt,
+		LastWordAt:                    s.LastWordAt,
+		LastOutput:                    s.LastOutput,
+		Status:                        s.Status,
+		LifecycleActivity:             activity,
+		Pinged:                        s.Pinged,
+		ExitCode:                      s.ExitCode,
+		Conversations:                 cloneConversations(s.Conversations),
+		Registration:                  s.Registration,
+		RegistrationPersistence:       s.RegistrationPersistence,
+		RegistrationErr:               s.RegistrationErr,
+		ActiveConversationID:          s.ExpectedConversationID,
+		ActivationID:                  s.ActivationID,
 	}
 }
 
@@ -282,19 +547,71 @@ func (s *Session) snapshot() Snapshot {
 // m.mu (read or write) while calling this.
 func (s *Session) data() *Data {
 	return &Data{
-		ID:              s.ID,
-		CardID:          s.CardID,
-		Name:            s.Name,
-		PID:             s.PID,
-		WorkingDir:      s.WorkingDir,
-		OriginalDir:     s.OriginalDir,
-		UseTmpWorkspace: s.UseTmpWorkspace,
-		StartedAt:       s.StartedAt,
-		LastWordAt:      s.LastWordAt,
-		LastOutput:      s.LastOutput,
-		Status:          s.Status,
-		ExitCode:        s.ExitCode,
+		ID:                            s.ID,
+		CardID:                        s.CardID,
+		Name:                          s.Name,
+		PID:                           s.PID,
+		WorkingDir:                    s.WorkingDir,
+		OriginalDir:                   s.OriginalDir,
+		UseTmpWorkspace:               s.UseTmpWorkspace,
+		SubWorkspaces:                 append([]SubWorkspaceDescriptor(nil), s.SubWorkspaces...),
+		SubWorkspaceMetadataAvailable: s.SubWorkspaceMetadataAvailable,
+		KankuroMCPEnabled:             s.KankuroMCPEnabled,
+		DashboardControl:              s.DashboardControl,
+		InstructionsManaged:           s.InstructionsManaged,
+		InstructionOwnership:          sessionInstructionOwnership(s),
+		StartedAt:                     s.StartedAt,
+		LastWordAt:                    s.LastWordAt,
+		LastOutput:                    s.LastOutput,
+		Status:                        s.Status,
+		ExitCode:                      s.ExitCode,
+		Conversations:                 cloneConversations(s.Conversations),
 	}
+}
+
+func cloneConversations(in map[string][]ConversationBinding) map[string][]ConversationBinding {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string][]ConversationBinding, len(in))
+	for cardID, bindings := range in {
+		out[cardID] = append([]ConversationBinding(nil), bindings...)
+	}
+	return out
+}
+
+func cloneInstructionOwnership(in map[string]bool) map[string]bool {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]bool, len(in))
+	maps.Copy(out, in)
+	return out
+}
+
+func sessionInstructionOwnership(s *Session) map[string]bool {
+	ownership := cloneInstructionOwnership(s.InstructionOwnership)
+	if ownership == nil {
+		ownership = make(map[string]bool)
+	}
+	// Older session records only stored the generic driver's ownership flag.
+	if s.InstructionsManaged && len(s.InstructionOwnership) == 0 {
+		ownership["AGENTS.md"] = true
+	}
+	return ownership
+}
+
+func updateInstructionOwnership(previous map[string]bool, filename string, managed bool) map[string]bool {
+	updated := cloneInstructionOwnership(previous)
+	if updated == nil {
+		updated = make(map[string]bool)
+	}
+	if managed {
+		updated[filename] = true
+	} else {
+		delete(updated, filename)
+	}
+	return updated
 }
 
 // SetName updates the name of an existing session and persists it.
@@ -304,6 +621,9 @@ func (m *Manager) SetName(id, name string) error {
 	s, ok := m.sessions[id]
 	if !ok {
 		return fmt.Errorf("session not found: %s", id)
+	}
+	if s.deleting || s.stopping || s.activating {
+		return fmt.Errorf("%w: rename is not allowed during a lifecycle operation", ErrLifecycleConflict)
 	}
 	s.Name = name
 	return m.persistSessionLockedErr(s)

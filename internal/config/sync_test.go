@@ -28,8 +28,7 @@ func TestUpdateSkillSourcesReportsSyncFailureButStillSaves(t *testing.T) {
 	if updateErr == nil {
 		t.Fatal("expected an error for an unreadable source")
 	}
-	var syncErr *config.SyncFailedError
-	if !errors.As(updateErr, &syncErr) {
+	if _, ok := errors.AsType[*config.SyncFailedError](updateErr); !ok {
 		t.Fatalf("expected *config.SyncFailedError, got %T: %v", updateErr, updateErr)
 	}
 

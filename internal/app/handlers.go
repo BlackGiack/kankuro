@@ -66,6 +66,9 @@ func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
 		c.err = m.Err
 	}
 	c.broadcastData(m)
+	if c.currentView == ViewConversationChoice {
+		c.refreshConversationChoiceContext()
+	}
 	if m.PreviewSessionID != "" {
 		c.broadcastPreview(messages.PreviewDataMsg{
 			SessionID:  m.PreviewSessionID,
@@ -82,6 +85,9 @@ func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
 func (c *Coordinator) handleSessionsRefreshed(m messages.SessionsRefreshedMsg) tea.Cmd {
 	if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
 		dashboard.SetSessions(m.Sessions)
+	}
+	if c.currentView == ViewConversationChoice {
+		c.refreshConversationChoiceContext()
 	}
 	if m.PreviewSessionID != "" {
 		c.broadcastPreview(messages.PreviewDataMsg{

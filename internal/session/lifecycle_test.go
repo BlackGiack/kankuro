@@ -1,6 +1,7 @@
 package session_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -33,6 +34,8 @@ func newStubKillDriver() *stubKillDriver {
 	return &stubKillDriver{}
 }
 
+func (d *stubKillDriver) PrepareWorkspace(_ context.Context, _ string) error { return nil }
+
 func (d *stubKillDriver) Spawn(_ driver.AgentConfig) (*driver.SessionHandle, error) {
 	d.output = make(chan []byte)
 	d.done = make(chan struct{})
@@ -47,16 +50,29 @@ func (d *stubKillDriver) Kill() error {
 	return errStubKill
 }
 
-func (d *stubKillDriver) SetAgentsMD(_ config.IDCard, _ []config.Persona, _ []config.MCPServer, _ string, _ bool) error {
-	return nil
+func (d *stubKillDriver) SetAgentsMD(
+	_ config.IDCard,
+	_ []config.Persona,
+	_ []config.MCPServer,
+	_ string,
+	_ driver.InstructionSyncMode,
+) (bool, error) {
+	return false, nil
 }
 func (d *stubKillDriver) SetSkills(_ []config.Skill, _ ...string) error      { return nil }
 func (d *stubKillDriver) SetPersonas(_ []config.Persona, _ ...string) error  { return nil }
 func (d *stubKillDriver) SelectMCPs(_ []config.MCPServer, _ ...string) error { return nil }
 func (d *stubKillDriver) SetModel(_ string) []string                         { return nil }
-func (d *stubKillDriver) SendInput(_ string) error                           { return nil }
-func (d *stubKillDriver) SendInputBytes(_ []byte) (int, error)               { return 0, nil }
-func (d *stubKillDriver) GetAgentFolder() string                             { return ".agents" }
+func (d *stubKillDriver) SetSession(id string) []string {
+	return (&driver.GenericCLIDriver{}).SetSession(id)
+}
+func (d *stubKillDriver) SendInput(_ string) error             { return nil }
+func (d *stubKillDriver) SendInputBytes(_ []byte) (int, error) { return 0, nil }
+func (d *stubKillDriver) SubmitPrompt(_ context.Context, _, _, _ string) (driver.SubmissionEvidence, error) {
+	return driver.SubmissionEvidence{State: driver.SubmissionNoBytes}, nil
+}
+func (d *stubKillDriver) GetAgentFolder() string         { return ".agents" }
+func (d *stubKillDriver) GetInstructionFileName() string { return "AGENTS.md" }
 
 func (d *stubKillDriver) GetStatus() driver.SessionStatus {
 	if d.terminated.Load() {
@@ -239,7 +255,8 @@ func TestLaunchWrapsErrPersistFailedButSessionStaysUsable(t *testing.T) {
 	}
 	defer os.Chmod(sessionsDir, 0o700)
 
-	sm := newTestManager(t, repo.Dir(), repo)
+	clock := &testStartupClock{timer: &testStartupTimer{ready: make(chan time.Time, 1)}, entered: make(chan struct{})}
+	sm := newTestManager(t, repo.Dir(), repo, session.WithStartupClock(clock), session.WithStartupDelay(10*time.Second))
 	card := config.IDCard{
 		ID:          "card-persist-fail",
 		Name:        "persist-fail",
@@ -255,11 +272,14 @@ func TestLaunchWrapsErrPersistFailedButSessionStaysUsable(t *testing.T) {
 		_ = os.Chmod(sessionsDir, 0o700)
 		_ = sm.Kill(sid)
 	}()
-	time.Sleep(100 * time.Millisecond)
+	<-clock.entered
 
 	s, ok := sm.GetSession(sid)
 	if !ok {
 		t.Fatalf("expected session to exist despite the persist failure")
+	}
+	if s.Phase != "starting" || !s.ProcessStarted {
+		t.Fatalf("persist warning lost startup process: %+v", s)
 	}
 	if s.Status == session.StatusTerminated {
 		t.Fatalf("expected the process to still be running, got %s", s.Status)
@@ -270,6 +290,7 @@ func TestLaunchWrapsErrPersistFailedButSessionStaysUsable(t *testing.T) {
 		t.Fatalf("expected attach to succeed despite the persist failure: %v", errAttach)
 	}
 	handle.Close()
+	clock.timer.ready <- time.Unix(110, 0)
 }
 
 func TestSessionSwitchAgent(t *testing.T) {
@@ -536,6 +557,8 @@ type gateDriver struct {
 	terminated atomic.Bool
 }
 
+func (d *gateDriver) PrepareWorkspace(_ context.Context, _ string) error { return nil }
+
 func (d *gateDriver) Spawn(_ driver.AgentConfig) (*driver.SessionHandle, error) {
 	d.spawns.Add(1)
 	if d.spawnEntered != nil {
@@ -571,16 +594,29 @@ func (d *gateDriver) Kill() error {
 	return nil
 }
 
-func (d *gateDriver) SetAgentsMD(_ config.IDCard, _ []config.Persona, _ []config.MCPServer, _ string, _ bool) error {
-	return nil
+func (d *gateDriver) SetAgentsMD(
+	_ config.IDCard,
+	_ []config.Persona,
+	_ []config.MCPServer,
+	_ string,
+	_ driver.InstructionSyncMode,
+) (bool, error) {
+	return false, nil
 }
 func (d *gateDriver) SetSkills(_ []config.Skill, _ ...string) error      { return nil }
 func (d *gateDriver) SetPersonas(_ []config.Persona, _ ...string) error  { return nil }
 func (d *gateDriver) SelectMCPs(_ []config.MCPServer, _ ...string) error { return nil }
 func (d *gateDriver) SetModel(_ string) []string                         { return nil }
-func (d *gateDriver) SendInput(_ string) error                           { return nil }
-func (d *gateDriver) SendInputBytes(_ []byte) (int, error)               { return 0, nil }
-func (d *gateDriver) GetAgentFolder() string                             { return ".agents" }
+func (d *gateDriver) SetSession(id string) []string {
+	return (&driver.GenericCLIDriver{}).SetSession(id)
+}
+func (d *gateDriver) SendInput(_ string) error             { return nil }
+func (d *gateDriver) SendInputBytes(_ []byte) (int, error) { return 0, nil }
+func (d *gateDriver) SubmitPrompt(_ context.Context, _, _, _ string) (driver.SubmissionEvidence, error) {
+	return driver.SubmissionEvidence{State: driver.SubmissionNoBytes}, nil
+}
+func (d *gateDriver) GetAgentFolder() string         { return ".agents" }
+func (d *gateDriver) GetInstructionFileName() string { return "AGENTS.md" }
 
 func (d *gateDriver) GetStatus() driver.SessionStatus {
 	if d.terminated.Load() {
@@ -828,13 +864,16 @@ func TestKillAfterRemoveDoesNotResurrectRecord(t *testing.T) {
 
 	// Simulate the process exiting on its own while Kill is still blocked.
 	h.sm.SetStatusForTest(sid, session.StatusTerminated)
-	if errRemove := h.sm.Remove(sid); errRemove != nil {
-		t.Fatalf("remove: %v", errRemove)
+	if errRemove := h.sm.Remove(sid); errRemove == nil {
+		t.Fatal("remove during reserved stop unexpectedly succeeded")
 	}
 
 	close(gate)
 	if errKill := waitErr(t, killed, "Kill"); errKill != nil {
 		t.Fatalf("kill: %v", errKill)
+	}
+	if errRemove := h.sm.Remove(sid); errRemove != nil {
+		t.Fatalf("remove after stop: %v", errRemove)
 	}
 
 	record := filepath.Join(h.repoDir, "sessions", sid+".json")
@@ -863,13 +902,16 @@ func TestKillDuringRelaunchDoesNotTerminateNewActivation(t *testing.T) {
 
 	// The old process exits, then the user relaunches before Kill returns.
 	h.sm.SetStatusForTest(sid, session.StatusTerminated)
-	if errRelaunch := h.sm.Relaunch(sid, h.card); errRelaunch != nil {
-		t.Fatalf("relaunch: %v", errRelaunch)
+	if errRelaunch := h.sm.Relaunch(sid, h.card); errRelaunch == nil {
+		t.Fatal("relaunch during reserved stop unexpectedly succeeded")
 	}
 
 	close(gate)
 	if errKill := waitErr(t, killed, "Kill"); errKill != nil {
 		t.Fatalf("kill: %v", errKill)
+	}
+	if errRelaunch := h.sm.Relaunch(sid, h.card); errRelaunch != nil {
+		t.Fatalf("relaunch after stop: %v", errRelaunch)
 	}
 
 	s, _ := h.sm.GetSession(sid)

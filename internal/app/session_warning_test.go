@@ -170,7 +170,7 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 		coord := app.NewCoordinator(repo, sm)
 		coord.Init()
 
-		cmd := coord.AgentSwitchCallbacks().OnSwitch(sessionID, card2.ID)
+		cmd := coord.AgentSwitchCallbacks().OnSwitch(sessionID, card2.ID, card2.Driver)
 		msgs := collectMsgs(t, cmd)
 		defer func() {
 			restore()

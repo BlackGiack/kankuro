@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	"github.com/BlackGiack/kankuro/internal/config"
 
@@ -41,6 +43,23 @@ const (
 	// killPollInterval is how often Kill re-checks that the group is empty
 	// once the leader has exited.
 	killPollInterval = 20 * time.Millisecond
+	promptEnterPause = 500 * time.Millisecond
+)
+
+const (
+	EnvKankuroMCPConfigPath = "KANKURO_MCP_CONFIG_PATH"
+	//nolint:gosec // This names a reserved environment variable; it is not a credential value.
+	EnvKankuroMCPToken = "KANKURO_MCP_TOKEN"
+)
+
+// InstructionSyncMode controls how the destination card's instruction content
+// interacts with an existing workspace instruction file.
+type InstructionSyncMode uint8
+
+const (
+	InstructionReplace InstructionSyncMode = iota
+	InstructionAppend
+	InstructionPreserveWhenEmpty
 )
 
 type AgentConfig struct {
@@ -60,14 +79,25 @@ type SessionHandle struct {
 }
 
 type AgentDriver interface {
+	PrepareWorkspace(ctx context.Context, workingDir string) error
 	Spawn(config AgentConfig) (*SessionHandle, error)
 	Kill() error
 
-	SetAgentsMD(card config.IDCard, personas []config.Persona, mcps []config.MCPServer, workspaceRoot string, appendIfExist bool) error
+	// SetAgentsMD reports whether card/capability content is managed in the
+	// instruction file; preserved workspace-authored content is not managed.
+	SetAgentsMD(
+		card config.IDCard,
+		personas []config.Persona,
+		mcps []config.MCPServer,
+		workspaceRoot string,
+		mode InstructionSyncMode,
+	) (bool, error)
 	SetSkills(skills []config.Skill, workspaceRoot ...string) error
 	SetPersonas(personas []config.Persona, workspaceRoot ...string) error
 	SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error
 	SetModel(model string) []string
+	SetSession(conversationID string) []string
+	SubmitPrompt(ctx context.Context, messageID, senderSessionID, text string) (SubmissionEvidence, error)
 
 	// SendInput and SendInputBytes both write into the active PTY session,
 	// synchronized against Kill via the driver's own lock. This is the only
@@ -79,11 +109,14 @@ type AgentDriver interface {
 
 	GetStatus() SessionStatus
 	GetAgentFolder() string
+	GetInstructionFileName() string
 }
 
 type GenericCLIDriver struct {
-	mu     sync.RWMutex
-	status SessionStatus
+	mu        sync.RWMutex
+	inputGate chan struct{}
+	gateOnce  sync.Once
+	status    SessionStatus
 
 	cmd      *exec.Cmd
 	pty      *os.File
@@ -98,23 +131,42 @@ type GenericCLIDriver struct {
 
 // NewGenericCLIDriver returns the default PTY-backed CLI driver implementation.
 func NewGenericCLIDriver() *GenericCLIDriver {
-	return &GenericCLIDriver{status: StatusTerminated, killGrace: defaultKillGrace}
+	return &GenericCLIDriver{status: StatusTerminated, killGrace: defaultKillGrace, inputGate: make(chan struct{}, 1)}
 }
 
-func (d *GenericCLIDriver) GetAgentFolder() string { return ".agents" }
+// SubmissionState describes how much of a coordinated prompt reached the PTY.
+type SubmissionState string
 
-// SetAgentsMD ensures the agent instruction file (AGENTS.md) is present in the session workspace.
+const (
+	SubmissionNoBytes   SubmissionState = "not_submitted"
+	SubmissionComplete  SubmissionState = "submitted"
+	SubmissionUncertain SubmissionState = "uncertain"
+	inputWriteTimeout                   = 5 * time.Second
+	maxPromptBytes                      = 2 * 1024
+)
+
+// SubmissionEvidence records bytes written without asserting that the CLI processed them.
+type SubmissionEvidence struct {
+	State        SubmissionState `json:"state"`
+	BytesWritten int             `json:"bytes_written"`
+}
+
+func (d *GenericCLIDriver) GetAgentFolder() string         { return ".agents" }
+func (d *GenericCLIDriver) GetInstructionFileName() string { return "AGENTS.md" }
+
+// SetAgentsMD syncs the agent instruction file and reports whether this card
+// installed managed content that may need clearing on a later replacement.
 func (d *GenericCLIDriver) SetAgentsMD(
 	card config.IDCard,
 	personas []config.Persona,
 	mcps []config.MCPServer,
 	workspaceRoot string,
-	appendIfExist bool,
-) error {
-	return syncInstructionFile(workspaceRoot, "AGENTS.md", d.GetAgentFolder(), card, personas, mcps, appendIfExist)
+	mode InstructionSyncMode,
+) (bool, error) {
+	return syncInstructionFile(workspaceRoot, d.GetInstructionFileName(), d.GetAgentFolder(), card, personas, mcps, mode)
 }
 
-// ClaudeCodeDriver specializes the GenericCLIDriver to write CLAUDE.md instead of AGENTS.md.
+// ClaudeCodeDriver specializes native session arguments and writes CLAUDE.md instead of AGENTS.md.
 type ClaudeCodeDriver struct {
 	*GenericCLIDriver
 }
@@ -124,17 +176,34 @@ func NewClaudeCodeDriver() *ClaudeCodeDriver {
 	return &ClaudeCodeDriver{GenericCLIDriver: NewGenericCLIDriver()}
 }
 
-func (d *ClaudeCodeDriver) GetAgentFolder() string { return ".claude" }
+func (d *ClaudeCodeDriver) GetAgentFolder() string         { return ".claude" }
+func (d *ClaudeCodeDriver) GetInstructionFileName() string { return "CLAUDE.md" }
 
-// SetAgentsMD ensures the agent instruction file (CLAUDE.md) is present in the session workspace.
+// SetSession passes a saved conversation ID to Claude Code's session-id option.
+func (d *ClaudeCodeDriver) SetSession(conversationID string) []string {
+	if conversationID == "" {
+		return nil
+	}
+	return []string{"--resume", conversationID}
+}
+
+// SubmitPrompt lets Claude consume the prompt text before receiving Enter.
+func (d *ClaudeCodeDriver) SubmitPrompt(
+	ctx context.Context,
+	messageID, senderSessionID, text string,
+) (SubmissionEvidence, error) {
+	return d.GenericCLIDriver.submitPrompt(ctx, messageID, senderSessionID, text, promptEnterPause)
+}
+
+// SetAgentsMD syncs the Claude instruction file and reports its managed ownership.
 func (d *ClaudeCodeDriver) SetAgentsMD(
 	card config.IDCard,
 	personas []config.Persona,
 	mcps []config.MCPServer,
 	workspaceRoot string,
-	appendIfExist bool,
-) error {
-	return syncInstructionFile(workspaceRoot, "CLAUDE.md", d.GetAgentFolder(), card, personas, mcps, appendIfExist)
+	mode InstructionSyncMode,
+) (bool, error) {
+	return syncInstructionFile(workspaceRoot, d.GetInstructionFileName(), d.GetAgentFolder(), card, personas, mcps, mode)
 }
 
 func (d *ClaudeCodeDriver) SetSkills(skills []config.Skill, workspaceRoot ...string) error {
@@ -145,16 +214,44 @@ func (d *ClaudeCodeDriver) SetPersonas(personas []config.Persona, workspaceRoot 
 	return setPersonas(personas, d.GetAgentFolder(), workspaceRoot...)
 }
 
+// CodexCLIDriver specializes native conversation resume arguments for Codex CLI.
+type CodexCLIDriver struct {
+	*GenericCLIDriver
+}
+
+// NewCodexCLIDriver returns the Codex CLI driver with generic workspace behavior.
+func NewCodexCLIDriver() *CodexCLIDriver {
+	return &CodexCLIDriver{GenericCLIDriver: NewGenericCLIDriver()}
+}
+
+// SetSession returns Codex CLI's native resume subcommand and session ID.
+func (d *CodexCLIDriver) SetSession(conversationID string) []string {
+	if conversationID == "" {
+		return nil
+	}
+	return []string{"resume", conversationID}
+}
+
+// SubmitPrompt separates Codex's prompt text from Enter so its TUI can consume
+// the text before the submission key arrives. The generic driver keeps its
+// existing one-write behavior for CLIs that already handle it correctly.
+func (d *CodexCLIDriver) SubmitPrompt(
+	ctx context.Context,
+	messageID, senderSessionID, text string,
+) (SubmissionEvidence, error) {
+	return d.GenericCLIDriver.submitPrompt(ctx, messageID, senderSessionID, text, promptEnterPause)
+}
+
 func syncInstructionFile(
 	finalWD, filename, agentFolder string,
 	card config.IDCard,
 	personas []config.Persona,
 	mcps []config.MCPServer,
-	appendIfExist bool,
-) error {
+	mode InstructionSyncMode,
+) (bool, error) {
 	content, err := resolveAgentsMDContent(card)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if len(personas) == 1 {
@@ -166,10 +263,16 @@ func syncInstructionFile(
 	}
 
 	if content == "" {
-		return nil
+		if mode != InstructionReplace {
+			return false, nil
+		}
+		return false, writeInstructionFile(finalWD, filename, "", false)
 	}
 
-	return writeInstructionFile(finalWD, filename, content, appendIfExist)
+	if writeErr := writeInstructionFile(finalWD, filename, content, mode == InstructionAppend); writeErr != nil {
+		return false, writeErr
+	}
+	return true, nil
 }
 
 func resolveAgentsMDContent(card config.IDCard) (string, error) {
@@ -213,24 +316,21 @@ func writeInstructionFile(dir, filename, content string, appendIfExist bool) err
 		return os.WriteFile(path, []byte(content), 0o600)
 	}
 
+	// Append mode is used when a temporary copy started from a workspace with
+	// its own instruction file. Preserve its content when adding card instructions.
+	existing, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("read %s: %w", filename, err)
+	}
+	if len(existing) > 0 {
+		content = strings.TrimRight(string(existing), "\n") + "\n\n" + strings.TrimLeft(content, "\n")
+	}
 	// G703: Path traversal via taint analysis.
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return fmt.Errorf("open %s: %w", filename, err)
+	//nolint:gosec // Target is the workspace's managed instruction file, selected by the configured driver.
+	if writeErr := os.WriteFile(path, []byte(content), 0o600); writeErr != nil {
+		return fmt.Errorf("write %s: %w", filename, writeErr)
 	}
-	defer f.Close()
-
-	stat, err := f.Stat()
-	if err != nil {
-		return fmt.Errorf("stat %s: %w", filename, err)
-	}
-
-	if stat.Size() > 0 {
-		content = "\n\n" + content
-	}
-
-	_, err = f.WriteString(content)
-	return err
+	return nil
 }
 
 // Spawn starts an interactive CLI process in a PTY and wires streaming output.
@@ -529,59 +629,10 @@ func setPersonas(personas []config.Persona, agentsFolder string, workspaceRoot .
 
 // SelectMCPs ensures MCP configuration is present in the session workspace.
 func (d *GenericCLIDriver) SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error {
-	if len(mcps) == 0 {
-		return nil
-	}
-	root := ""
-	if len(workspaceRoot) > 0 {
-		root = strings.TrimSpace(workspaceRoot[0])
-	}
-	if root == "" {
+	if len(workspaceRoot) == 0 || strings.TrimSpace(workspaceRoot[0]) == "" {
 		return errors.New("workspace root is required for MCP sync")
 	}
-	kankuroDir := filepath.Join(root, ".kankuro")
-	if err := os.MkdirAll(kankuroDir, 0o700); err != nil {
-		return fmt.Errorf("create .kankuro dir: %w", err)
-	}
-
-	type mcpEntry struct {
-		Command string            `json:"command,omitempty"`
-		Args    []string          `json:"args,omitempty"`
-		Env     map[string]string `json:"env,omitempty"`
-		CWD     string            `json:"cwd,omitempty"`
-		URL     string            `json:"url,omitempty"`
-		Headers map[string]string `json:"headers,omitempty"`
-	}
-	type mcpConfig struct {
-		MCPServers map[string]mcpEntry `json:"mcpServers"`
-	}
-
-	cfg := mcpConfig{MCPServers: make(map[string]mcpEntry)}
-	for _, mcp := range mcps {
-		entry := mcpEntry{
-			Args:    mcp.Args,
-			Env:     mcp.Env,
-			CWD:     mcp.CWD,
-			Headers: mcp.Headers,
-		}
-		if mcp.Command != "" {
-			entry.Command = mcp.Command
-		}
-		if mcp.URL != "" {
-			entry.URL = mcp.URL
-		}
-		cfg.MCPServers[mcp.Name] = entry
-	}
-
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal mcp config: %w", err)
-	}
-
-	if err = os.WriteFile(filepath.Join(kankuroDir, "mcp-servers.json"), data, 0o600); err != nil {
-		return fmt.Errorf("write mcp-servers.json: %w", err)
-	}
-	return nil
+	return writeWorkspaceMCPConfig(mcps, strings.TrimSpace(workspaceRoot[0]))
 }
 
 // SetModel returns the command line arguments to configure the model.
@@ -592,23 +643,233 @@ func (d *GenericCLIDriver) SetModel(model string) []string {
 	return []string{"--model", model}
 }
 
+// SetSession returns the generic CLI's native conversation resume arguments.
+func (d *GenericCLIDriver) SetSession(conversationID string) []string {
+	if conversationID == "" {
+		return nil
+	}
+	return []string{"--session", conversationID}
+}
+
 // SendInput writes raw input bytes into the active PTY session.
 func (d *GenericCLIDriver) SendInput(data string) error {
-	_, err := d.SendInputBytes([]byte(data))
+	if err := d.acquireInput(context.Background()); err != nil {
+		return err
+	}
+	defer d.releaseInput()
+	_, err := d.writeInput([]byte(data))
 	return err
 }
 
-// SendInputBytes writes raw input bytes into the active PTY session. It
-// holds only a read lock: it doesn't mutate driver state, but Kill (which
-// closes and nils the pty under a write lock) must never race a write to an
-// already-closed fd - the RLock/Lock pairing is what serializes the two.
+// SendInputBytes serializes one attached-input write against other writers and
+// holds a read lock so Kill cannot close the PTY during the write.
 func (d *GenericCLIDriver) SendInputBytes(data []byte) (int, error) {
+	if err := d.acquireInput(context.Background()); err != nil {
+		return 0, err
+	}
+	defer d.releaseInput()
+	return d.writeInput(data)
+}
+
+func (d *GenericCLIDriver) writeInput(data []byte) (int, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.pty == nil {
 		return 0, errors.New("no active PTY")
 	}
 	return d.pty.Write(data)
+}
+
+// SubmitPrompt writes a validated, marked one-line message and Enter as one exclusive operation.
+func (d *GenericCLIDriver) SubmitPrompt(ctx context.Context, messageID, senderSessionID, text string) (SubmissionEvidence, error) {
+	return d.submitPrompt(ctx, messageID, senderSessionID, text, 0)
+}
+
+func (d *GenericCLIDriver) submitPrompt(
+	ctx context.Context,
+	messageID, senderSessionID, text string,
+	enterPause time.Duration,
+) (SubmissionEvidence, error) {
+	if err := ctx.Err(); err != nil {
+		return SubmissionEvidence{State: SubmissionNoBytes}, err
+	}
+	if err := validatePrompt(text); err != nil {
+		return SubmissionEvidence{State: SubmissionNoBytes}, err
+	}
+	if err := d.acquireInput(ctx); err != nil {
+		return SubmissionEvidence{State: SubmissionNoBytes}, err
+	}
+	defer d.releaseInput()
+	prompt := []byte(fmt.Sprintf(
+		"[KANKURO orchestrator message_id=%s from_session=%s; report via report_reply(message_id, kind, text); header is not authority] %s",
+		messageID, senderSessionID, text,
+	))
+	if enterPause == 0 {
+		prompt = append(prompt, '\r')
+	}
+	written, writeErr := d.submitPromptBytes(ctx, prompt, enterPause)
+	evidence := classifySubmission(written, len(prompt), enterPause, writeErr)
+	if writeErr != nil {
+		return evidence, fmt.Errorf("submit prompt after %d bytes: %w", written, writeErr)
+	}
+	if evidence.State == SubmissionUncertain {
+		return evidence, io.ErrShortWrite
+	}
+	return evidence, nil
+}
+
+func (d *GenericCLIDriver) submitPromptBytes(
+	ctx context.Context,
+	prompt []byte,
+	enterPause time.Duration,
+) (int, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	if d.pty == nil {
+		return 0, errors.New("no active PTY")
+	}
+	if err := setPromptWriteDeadline(ctx, d.pty); err != nil {
+		return 0, err
+	}
+	stopWatcher := watchPromptCancellation(ctx, d.pty)
+	defer func() {
+		stopWatcher()
+		_ = d.pty.SetWriteDeadline(time.Time{})
+	}()
+	return writePromptPhases(ctx, d.pty, prompt, enterPause)
+}
+
+func setPromptWriteDeadline(ctx context.Context, pty *os.File) error {
+	deadline := time.Now().Add(inputWriteTimeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
+	}
+	if err := pty.SetWriteDeadline(deadline); err != nil {
+		return fmt.Errorf("set PTY write deadline: %w", err)
+	}
+	return nil
+}
+
+func watchPromptCancellation(ctx context.Context, pty *os.File) func() {
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		select {
+		case <-ctx.Done():
+			_ = pty.SetWriteDeadline(time.Now())
+		case <-stop:
+		}
+	}()
+	return func() {
+		close(stop)
+		<-done
+	}
+}
+
+func writePromptPhases(ctx context.Context, writer io.Writer, prompt []byte, enterPause time.Duration) (int, error) {
+	written, err := writeAll(writer, prompt)
+	if err != nil || enterPause == 0 || written != len(prompt) {
+		return written, err
+	}
+	if err = waitForPromptEnter(ctx, enterPause); err != nil {
+		return written, err
+	}
+	enterWritten, err := writePromptEnter(ctx, writer)
+	return written + enterWritten, err
+}
+
+func waitForPromptEnter(ctx context.Context, pause time.Duration) error {
+	timer := time.NewTimer(pause)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func writePromptEnter(ctx context.Context, writer io.Writer) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	return writeAll(writer, []byte{'\r'})
+}
+
+func classifySubmission(written, promptLength int, enterPause time.Duration, writeErr error) SubmissionEvidence {
+	wantWritten := promptLength
+	if enterPause > 0 {
+		wantWritten++
+	}
+	evidence := SubmissionEvidence{State: SubmissionComplete, BytesWritten: written}
+	if written == 0 {
+		evidence.State = SubmissionNoBytes
+	} else if written != wantWritten || writeErr != nil {
+		evidence.State = SubmissionUncertain
+	}
+	return evidence
+}
+
+func validatePrompt(text string) error {
+	if !utf8.ValidString(text) || strings.TrimSpace(text) == "" {
+		return errors.New("message must be nonempty UTF-8 text")
+	}
+	if len([]byte(text)) > maxPromptBytes {
+		return errors.New("message exceeds 2 KiB; put complex instructions in a file and send its path")
+	}
+	for _, r := range text {
+		if r == '\n' || r == '\r' || r < 0x20 || r == 0x7f {
+			return errors.New(
+				"message must be one line without terminal control characters; put complex instructions in a file and send its path",
+			)
+		}
+	}
+	return nil
+}
+
+// ValidatePrompt checks generic CLI input constraints before an operation is accepted.
+func ValidatePrompt(text string) error { return validatePrompt(text) }
+
+func (d *GenericCLIDriver) acquireInput(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	d.gateOnce.Do(func() {
+		if d.inputGate == nil {
+			d.inputGate = make(chan struct{}, 1)
+		}
+	})
+	select {
+	case d.inputGate <- struct{}{}:
+		if err := ctx.Err(); err != nil {
+			<-d.inputGate
+			return err
+		}
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (d *GenericCLIDriver) releaseInput() { <-d.inputGate }
+
+func writeAll(writer io.Writer, data []byte) (int, error) {
+	written := 0
+	for written < len(data) {
+		n, err := writer.Write(data[written:])
+		written += n
+		if err != nil {
+			return written, err
+		}
+		if n == 0 {
+			return written, io.ErrShortWrite
+		}
+	}
+	return written, nil
 }
 
 // GetStatus reports the current process lifecycle state.
@@ -653,7 +914,14 @@ func (d *GenericCLIDriver) closeDone() {
 }
 
 func mergeEnvWithPwd(extra map[string]string, pwd string) []string {
-	base := os.Environ()
+	base := make([]string, 0, len(os.Environ())+len(extra)+1)
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		if key == EnvKankuroMCPConfigPath || key == EnvKankuroMCPToken {
+			continue
+		}
+		base = append(base, entry)
+	}
 	keys := make([]string, 0, len(extra))
 	for k := range extra {
 		keys = append(keys, k)

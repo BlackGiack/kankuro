@@ -11,76 +11,76 @@ Access MCP servers through the command line. MCP enables interaction with extern
 
 | Command | Output |
 |---------|--------|
-| `mcp-cli` | List all servers and tools |
-| `mcp-cli info <server>` | Show server tools and parameters |
-| `mcp-cli info <server> <tool>` | Get tool JSON schema |
-| `mcp-cli grep "<pattern>"` | Search tools by name |
-| `mcp-cli call <server> <tool>` | Call tool (reads JSON from stdin if no args) |
-| `mcp-cli call <server> <tool> '<json>'` | Call tool with arguments |
+| `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json` | List all servers and tools |
+| `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json info <server>` | Show server tools and parameters |
+| `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json info <server> <tool>` | Get tool JSON schema |
+| `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json grep "<pattern>"` | Search tools by name |
+| `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call <server> <tool>` | Call tool (reads JSON from stdin if no args) |
+| `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call <server> <tool> '<json>'` | Call tool with arguments |
 
 **Both formats work:** `<server> <tool>` or `<server>/<tool>`
 
 ## Workflow
 
-1. **Discover**: `mcp-cli` → see available servers
-2. **Explore**: `mcp-cli info <server>` → see tools with parameters
-3. **Inspect**: `mcp-cli info <server> <tool>` → get full JSON schema
-4. **Execute**: `mcp-cli call <server> <tool> '<json>'` → run with arguments
+1. **Discover**: `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json` → see available servers
+2. **Explore**: `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json info <server>` → see tools with parameters
+3. **Inspect**: `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json info <server> <tool>` → get full JSON schema
+4. **Execute**: `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call <server> <tool> '<json>'` → run with arguments
 
 ## Examples
 
 ```bash
-# List all servers
-mcp-cli
+# List all selected servers
+MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json
 
-# With descriptions  
-mcp-cli -d
+# With descriptions
+MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json -d
 
 # See server tools
-mcp-cli info filesystem
+MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json info filesystem
 
 # Get tool schema (both formats work)
-mcp-cli info filesystem read_file
-mcp-cli info filesystem/read_file
+MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json info filesystem read_file
+MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json info filesystem/read_file
 
 # Call tool
-mcp-cli call filesystem read_file '{"path": "./README.md"}'
+MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call filesystem read_file '{"path": "./README.md"}'
 
 # Pipe from stdin (no '-' needed!)
-cat args.json | mcp-cli call filesystem read_file
+cat args.json | MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call filesystem read_file
 
 # Search for tools
-mcp-cli grep "*file*"
+MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json grep "*file*"
 
 # Output is raw text (pipe-friendly)
-mcp-cli call filesystem read_file '{"path": "./file"}' | head -10
+MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call filesystem read_file '{"path": "./file"}' | head -10
 ```
 
 ## Advanced Chaining
 
 ```bash
 # Chain: search files → read first match
-mcp-cli call filesystem search_files '{"path": ".", "pattern": "*.md"}' \
+MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call filesystem search_files '{"path": ".", "pattern": "*.md"}' \
   | head -1 \
-  | xargs -I {} mcp-cli call filesystem read_file '{"path": "{}"}'
+  | while read -r f; do MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call filesystem read_file "{\"path\": \"$f\"}"; done
 
 # Loop: process multiple files
-mcp-cli call filesystem list_directory '{"path": "./src"}' \
-  | while read f; do mcp-cli call filesystem read_file "{\"path\": \"$f\"}"; done
+MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call filesystem list_directory '{"path": "./src"}' \
+  | while read f; do MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call filesystem read_file "{\"path\": \"$f\"}"; done
 
 # Conditional: check before reading
-mcp-cli call filesystem list_directory '{"path": "."}' \
+MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call filesystem list_directory '{"path": "."}' \
   | grep -q "README" \
-  && mcp-cli call filesystem read_file '{"path": "./README.md"}'
+  && MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call filesystem read_file '{"path": "./README.md"}'
 
 # Multi-server aggregation
 {
-  mcp-cli call github search_repositories '{"query": "mcp", "per_page": 3}'
-  mcp-cli call filesystem list_directory '{"path": "."}'
+  MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call github search_repositories '{"query": "mcp", "per_page": 3}'
+  MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call filesystem list_directory '{"path": "."}'
 }
 
 # Save to file
-mcp-cli call github get_file_contents '{"owner": "x", "repo": "y", "path": "z"}' > output.txt
+MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call github get_file_contents '{"owner": "x", "repo": "y", "path": "z"}' > output.txt
 ```
 
 **Note:** `call` outputs raw text content directly (no jq needed for text extraction)
@@ -110,4 +110,5 @@ mcp-cli call github get_file_contents '{"owner": "x", "repo": "y", "path": "z"}'
 - `3`: Network error
 
 # IMPORTANT
-- Always use "-c .kankuro/mcp-servers.json" option when calling mcp-cli to specify the config file with server definitions. This ensures you are connecting to the correct MCP servers and tools.
+- Always use the canonical command prefix `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json`. Run it from the session workspace root; the file contains exactly the servers selected for the current activation, including Kankuro when selected.
+- If you changed into a subdirectory, return to the session workspace root before invoking the prefix. Do not rely on inherited environment variables or daemon caches; `MCP_NO_DAEMON=1` makes each call reread the current workspace file.

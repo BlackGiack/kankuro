@@ -3,7 +3,9 @@
 Read this first. It covers what the project does, how it is built, where everything
 lives, the rules the code relies on, and which files to open for a given kind of task.
 `kankuro_specs.md` describes what the product should do; this file describes how the
-code actually does it. Last reviewed: 2026-10-06 (after Act 2 plan 5).
+code actually does it. Last updated: 2026-10-25 (Feature 5 independently accepted
+at `b95b853`; fixture cleanup and repeated/full checks verified; Feature 6 may
+proceed. See `feature_5.md`).
 
 ---
 
@@ -18,10 +20,14 @@ The core concepts:
 
 | Concept | What it is | Where |
 |---|---|---|
-| **ID card** | A saved agent template: driver (which CLI), model, workspace, optional sub workspaces, whether to use a temporary workspace, selected skills / personas / MCP servers, AGENTS.md content, env, face and puppet style. | `config.IDCard` |
+| **ID card** | A saved agent template: driver (which CLI), model, workspace, optional sub workspaces, whether to use a temporary workspace, selected skills / personas / MCP servers, Dashboard Control opt-in, AGENTS.md content, env, face and puppet style. | `config.IDCard` |
+| **Dashboard Control** | Per-card opt-in for discovery/control over other sessions in the linked dashboard. The grant is captured per activation, effective only when Kankuro MCP is selected, preserved on relaunch, and reapplied on explicit switch. | `config.IDCard.DashboardControl`, `session.Session.DashboardControl` |
 | **Workspace registry** | Directories you can run agents in. A *source* is either one workspace or a root whose direct children each become a workspace. Cards reference a workspace by ID, never by path. | `config/workspaces.go` |
 | **Capability registries** | Skills, personas and puppets are discovered from source directories; MCP servers are entered by hand. Cards reference them by ID. | `config/*_sources.go`, `config/mcps.go` |
-| **Session** | A running (or stopped, relaunchable) instance of a card: a child process in a PTY, its scrollback, and a JSON record on disk so it survives restarts. | `internal/session` |
+| **Session** | A running (or stopped, relaunchable) instance of a card: a child process in a PTY, its scrollback, deployed sub-workspace descriptors, and a JSON record on disk so it survives restarts. | `internal/session` |
+| **Message** | A single-line orchestrator prompt pinned to one recipient activation, with explicit replies stored separately from terminal output. | `internal/session/messaging.go`, `internal/api/messaging.go` |
+| **Conversation binding** | A native CLI conversation ID, display name, and driver identity saved per card inside one Kankuro session. Names are not identities; bindings never cross Kankuro sessions. | `session.ConversationBinding` |
+| **Registration state** | Per-activation `unavailable`, `pending`, `unconfirmed`, `registered`, or `failed`; metadata durability is tracked independently as `not_attempted`, `saved`, or `unsaved`. Runtime state does not survive restart. | `session.RegistrationState`, `session.RegistrationPersistence` |
 | **Temporary workspace** | Optionally, a session runs in a disposable copy of the workspace rather than the original, so the agent cannot damage the source. The copy persists across relaunches of that session. | `session/workspace.go` |
 | **Status** | `running`, `waiting` (the agent looks like it is waiting for input — the dashboard highlights it and shows a neutral face) or `terminated`. | `session.Status`, `driver.IsPromptLike` |
 
@@ -33,30 +39,41 @@ LLM controller, a notification stack).
 
 ## 2. Tech stack
 
-- Go **1.26.1**, single module `github.com/BlackGiack/kankuro`. No CGO. With the
+- Go **1.27.3**, single module `github.com/BlackGiack/kankuro`. No CGO. With the
   standard `GOTOOLCHAIN=auto` behavior, a compatible Go command can automatically
   download/select the required toolchain declared by `go.mod`.
 - TUI: **Bubble Tea v2**, **Lip Gloss v2**, **Bubbles v2** (`charm.land/*/v2`), plus
-  `charmbracelet/x/ansi` and `x/term`. The project was migrated from v1 to v2;
-  `impl_plan.md` and `review.md` record that migration.
+  `charmbracelet/x/ansi` and `x/term`. `impl_plan.md` and `review.md` contain Feature 4
+  planning and review history; they are not the Bubble Tea migration record.
 - PTY: `creack/pty`. Terminal width of wide runes: `mattn/go-runewidth`.
-- Storage: YAML (`gopkg.in/yaml.v3`) for config, JSON for session records.
+- Storage: YAML (`gopkg.in/yaml.v3`) for config, JSON for session records, operation
+  journals, and bounded messaging history (`<config>/messaging/history.json`).
+- MCP transport: official Go MCP SDK Streamable HTTP transport on a loopback-only listener.
 - IDs: `google/uuid` for cards and sources; SHA-256 hex for skills, personas,
   puppets and workspaces derived from their source path.
 - No test framework beyond the standard library.
-- One file embedded into the binary: the built-in `mcp-cli` skill
-  (`main.go` → `kankuro_skills/mcp-cli/SKILL.md`), injected into config at startup.
+- Built-in `mcp-cli` and `kankuro-puppet` skills are embedded and injected into
+  config at startup (`main.go` → `kankuro_skills/`).
 
 ---
 
 ## 3. Repository map
 
 ```
-main.go                      # root command, embed, flags, logging, repository, drivers, session manager, tea.Program
+main.go                      # root command, embedded skill, loopback MCP lifetime, repository, drivers, session manager, tea.Program
 main_test.go                 # embedded skill → config → driver deployment integration
-kankuro_skills/mcp-cli/      # the one built-in skill's source
+kankuro_skills/mcp-cli/      # MCP command-line usage skill
+kankuro_skills/kankuro-puppet/ # registration, message, and explicit reply protocol
 .golangci.yml                # lint config — the suite exits 0 and must stay that way
 internal/
+  api/                       # UI-independent shared operations; owns no process or config state
+    service.go               #   shared lifecycle, discovery, registration, and capability resolution
+    operations.go            #   durable mutation journal, bounded workers, deduplication, polling and cancellation
+    messaging.go             #   pinned send admission, explicit reports, retrieval and bounded waits
+    service_test.go          #   service resolution contracts without a coordinator or Bubble Tea
+  mcp/                       # authenticated Streamable HTTP transport adapter; depends on api.Service, not app/UI
+    server.go                #   conversation registration, discovery, and lifecycle tools; host/origin/auth checks
+    server_test.go           #   MCP handshake/tool-list/auth/origin regression checks
   app/                       # glue between the UI and everything else
     app.go                   #   tea.Model wrapper around the Coordinator
     coordinator.go           #   ★ the Coordinator struct (fields grouped by goroutine), Update, message routing
@@ -64,7 +81,7 @@ internal/
     navigation.go            #   navigateTo (invariant 2 lives in its doc comment), initViews, resize, broadcast to views
     refresh.go               #   `refresher`: config/session read commands, fingerprint check, tick. No Coordinator pointer
     preview.go               #   `previewSub`: the live-output subscription (coordinator-goroutine state)
-    session_actions.go       #   `sessionActions`: launch, relaunch, switch, delete card/MCP, IDE, capability resolution. No Coordinator pointer
+    session_actions.go       #   `sessionActions`: Bubble Tea command adapters; shared operations delegated to api.Service
     callbacks.go             #   wiring: every view's callbacks (the one place closures can still reach `c`)
     attach.go                #   raw-PTY attach/detach (releases Bubble Tea, forwards stdin, detects Ctrl+K)
     size_guard.go            #   below 80x24: the "too small" notice, and keys dropped except quit
@@ -74,25 +91,28 @@ internal/
     types.go                 #   IDCard, Workspace, Skill, Persona, MCPServer, Puppet, AppSettings
     id_cards.go mcps.go skills.go personas.go workspaces.go *_sources.go
     sync.go                  #   scanning source dirs; expandPath (errors on undefined $VARS)
-    builtins.go              #   built-in skills (mcp-cli); built-in puppets live in internal/ascii
+    builtins.go              #   built-in skills (mcp-cli, kankuro-puppet) and selectable Kankuro MCP
     validation*.go errors.go #   card validation; SyncFailedError
   driver/                    # one AgentDriver per CLI
     driver.go                #   GenericCLIDriver (.agents/, AGENTS.md) and ClaudeCodeDriver (.claude/, CLAUDE.md);
-                             #   Spawn, Kill, SendInputBytes, skill/persona/MCP file sync, IsPromptLike
-    registry.go factory.go   #   name → driver constructor ("claude" built in; unknown names get the generic driver)
+                              #   model/session arguments, managed instructions, PTY and workspace file sync
+    mcp_config.go             #   complete workspace MCP config serialization and credential-matched Kankuro cleanup
+    registry.go factory.go    #   name → driver constructor ("claude"/"codex" built in; unknown names get generic driver)
   fsutil/                    # WriteFileAtomic: temp file + fsync + rename, shared by config and session
   session/                   # process lifecycle and persistence
-    manager.go               #   Manager, Session/Snapshot types and their mapping functions
-    lifecycle.go             #   Launch, Relaunch, SwitchAgent, Kill, Remove, persistence calls
+    manager.go               #   Manager, Session/Snapshot, bindings, runtime registration states and mappings
+    messaging.go             #   manager-owned durable message store, delivery receipts, reports and cursors
+    conversation.go          #   per-activation credentials, pending report staging, binding persistence and revocation
+    lifecycle.go             #   Launch, explicit new/resume Relaunch/SwitchAgent, Kill, Remove, persistence calls
     watch.go io.go           #   per-activation goroutines: status polling, output tracking and scrollback
     attach.go                #   AttachHandle (input routed through the driver's locked writer)
-    storage.go workspace.go  #   session JSON load/save; temporary-workspace creation
+    storage.go workspace.go  #   session JSON load/save (optional per-card conversation bindings); temporary-workspace creation
     workspace_launcher.go    #   shared IDE/terminal workspace command execution
     ide_launcher.go          #   IDE compatibility wrapper
   ui/
     messages/messages.go     #   every tea.Msg the app exchanges — read this before adding one
-    views/                   #   full screens: dashboard, card_editor, mcp_form, source_manager, settings,
-                             #   session_launcher, agent_switch, and three modals (each embeds components.ModalState)
+    views/                    #   full screens: dashboard, card_editor, mcp_form, source_manager, settings,
+                              #   session_launcher, agent_switch, conversation_choice, and three modals
     components/              #   reusable pieces: card_list, session_list, session_preview, capability_list,
                              #   source_list, modal, filter (generic search), renderer (puppets),
                              #   text (DisplayText, TruncateHead, TruncateTail)
@@ -130,22 +150,151 @@ codebase — see invariant 1 in §6.
 - **Preview output** of the selected session streams from a subscription channel as
   `SessionOutputMsg`, forwarded as `PreviewDataMsg` to the views that render a preview.
 
+Shared launch, relaunch, card-switch, card-deletion, and session-removal rules live
+in `internal/api.Service`. It depends on a narrow config repository interface and
+the existing `*session.Manager`; the manager remains the only process/lifecycle
+owner. `internal/app.sessionActions` adapts these synchronous operations inside
+Bubble Tea commands, mapping their errors to the existing UI messages. In
+particular, `session.ErrPersistFailed` preserves a usable activation and is shown
+as an attach warning. Launch and switch read capability registries once per resolution; their
+errors (with list-operation context) abort activation. Relaunch reads only the
+current card and does not resolve or redeploy capabilities. Card deletion is
+serialized against activation admission through manager-owned pending card
+references shared by UI and MCP services. The same lock protects current-card
+validation, pending references, published session/conversation reference checks,
+and the repository delete; it is not held across workspace preparation or spawn.
+`Service.Conversations`, `RelaunchWithChoice`, `SwitchAgentWithChoice`, and
+`RegisterConversation` are the conversation-aware entry points. The no-choice
+relaunch/switch compatibility methods only start fresh when the destination has no
+bindings; the manager rejects omission when bindings exist. `session.ErrPersistFailed`
+is reserved for activation-record persistence, while registration persistence is
+reported separately as `saved` or `unsaved`.
+`Service.ListCards`, `ListSessions`, and `GetSession` accept the activation
+credential and resolve deployed permission inside the service; a constructible
+caller DTO is never authorization proof. `Service.ResolveCaller` delegates
+activation identity and permission checks to `Manager.ResolveDashboardCaller`;
+credentials are never returned.
+The session snapshot also carries deployed sub-workspace descriptors. New launch
+and explicit switch capture the manifest's source IDs/paths and actual copied
+destinations; relaunch preserves the saved descriptors. Legacy inspection reads
+the workspace manifest without preparing files and reports metadata unavailable
+when that manifest is missing or unreadable.
+
+The `internal/mcp` package is a transport adapter over `api.Service`; it does not
+depend on the coordinator or own session/process state. It exposes
+`register_conversation(conversation_id, name)`, read-only `list_cards`,
+`list_sessions`, `get_session`, messaging tools `send_message`, `get_message`,
+`report_reply`, `get_replies`, and the lifecycle tools `create_session`,
+`stop_session`, `relaunch_session`, `switch_session_card`, `delete_session`,
+`get_operation`, and `cancel_operation`. Discovery/control requires a published,
+live activation with a deployed Dashboard Control grant. Listings exclude the
+caller; DTOs omit secrets and terminal output. Scope currently resolves to the
+single default dashboard. Lifecycle mutations require UUID request IDs and use
+the durable journal/worker runner in `api/operations.go`: four workers, 32 queued
+operations, a five-minute deadline including queue time, and a ten-second tool
+wait before polling. Caller activation credentials are not persisted. Startup
+marks nonterminal journal entries `interrupted` and never replays them. Cancellation
+reaches primary and sub-workspace copies and is checked before activation
+publication; stop/delete complete once irreversible work begins. Accepted calls
+return an operation result; rejected calls return a structured MCP tool error with
+a stable code and safe message, without creating a journal entry. `main.go` binds it to
+`127.0.0.1` before the TUI can launch an agent and keeps it available until after
+`Manager.Shutdown`. The manager validates the activation bearer credential and
+derives session, card, driver, and generation from that credential, never from
+tool arguments. Reports that arrive before spawn publication are staged and are
+committed before the activation's first session-record write. If final journal
+publication fails after an effect, the in-memory observed outcome and target ID are
+returned with a durability warning; a restart treats the durable nonterminal intent
+as interrupted instead of repeating the effect.
+
+Messaging permissions and activation identity are resolved in `api.Service` and
+`session.Manager`. A sender needs a live Dashboard Control activation; the target
+must be a different live session with Kankuro MCP deployed, and sends pin the
+nonsecret activation ID exposed by `get_session`. Reports require the exact live
+recipient activation but do not require Dashboard Control. Message headers are a
+protocol cue, never authorization. Send requests use the lifecycle operation runner
+and caller UUIDs; the journal stores only the target, activation, and fingerprint,
+not the prompt body. Durable intent is written before any PTY bytes. Identical
+retries return the same operation/message, changed arguments conflict, and an
+accepted send is never replayed after restart.
+
+The manager-owned message store uses atomic mode-0600 JSON writes and a separate
+store mutex. It retains at most 64 MiB or 10,000 whole messages per dashboard,
+evicting oldest messages together with replies, with no age expiry. Send receipts
+retain only compact identity/fingerprint data after history deletion or eviction.
+Reports are limited to 16 KiB and 128 per message. `get_replies` defaults to 50
+reports, caps a page at 100 reports and 256 KiB, and uses dashboard/filter-bound
+cursors. Deletion or eviction advances a cursor generation; a gap resumes at the
+oldest retained matching report and may repeat reply IDs. Optional waits default to
+zero, cap at ten seconds, and allow 32 concurrent waiters per manager.
+
+The generic driver serializes `SubmitPrompt`, attached `SendInput`, and
+`SendInputBytes`; one marked single-line prompt and its final carriage return stay
+under one input gate with a five-second write deadline. Admission release, intent
+publication, lifecycle invalidation, and driver capture are coordinated under the
+manager-owned activation boundary; publication already underway retains its reservation
+until its durable transaction completes. Text is nonempty UTF-8, at
+most 2 KiB, and rejects line breaks and terminal controls. Delivery states are
+`accepted`, `submitting`, `submitted`, `not_submitted`, and `uncertain`; `submitted`
+means bytes including Enter were written, not that the CLI processed them. Sends
+are FIFO per recipient activation. Stop/replacement waits for an in-progress write
+without holding the manager mutex across PTY I/O. Serialization does not clear or
+reserve the human's prompt, so already-typed text can mix with an injected prompt.
+Partial writes are uncertain and may leave input-buffer residue. Codex and Claude
+both use the same cancellable 500 ms text/Enter separation; other drivers retain
+the generic single-write behavior. The user validated the Claude workaround in
+their other environment; local automated checks cover the shared submission path. The
+`kankuro-puppet` skill is deployed alongside `mcp-cli` whenever Kankuro MCP is
+selected; its first instruction is native conversation discovery and registration.
+
+MCP creation optionally accepts a session name. Omission uses the card name; a
+supplied name is trimmed and an empty result uses the session ID. Raw optional names
+are part of request identity, so changing them on retry conflicts. Names persist across
+relaunches and switches. Explicit `progress` replies are informational and may precede
+completion; they do not advance a workflow.
+
+### CLI startup
+
+New PTYs start at 80×24 until attachment supplies a different size. Before
+spawn, Codex and Claude prepare trust for the actual working directory. Successful
+spawn is published immediately, so a human can attach and see bounded startup output.
+A manager-owned ten-second timer gates MCP message delivery, not attachment or
+registration. The pause is an admission policy, not evidence of CLI readiness.
+Inspection reports `phase` (`starting`, `active`, or `terminated`), `process_started`,
+and `message_delivery_available`. The latter also requires a live current activation,
+Kankuro MCP, and no lifecycle operation. A send revalidates this state and its pinned
+activation; retry a starting rejection with the same request ID after inspection.
+Operation results retain their historical snapshot; `get_session` reads current state.
+Restored sessions are terminated, while relaunch starts a fresh timer. Shutdown
+cancels and joins timer tasks, and normal output tracking owns published output.
+
 ### A session's life
 
 1. **Launch** (`Manager.Launch` → `startSession`): resolve the workspace; create the
    temporary copy if the card asks for one; sync the driver's files into the workspace
    (AGENTS.md or CLAUDE.md, skills into `<agent folder>/skills/`, personas into
-   `<agent folder>/agents/`, and the card's MCP servers into
-   `.kankuro/mcp-servers.json`, which the built-in `mcp-cli` skill teaches the agent to
-   use — the card editor auto-selects that skill when an MCP is added); spawn the CLI in a PTY
-   with the card's env merged over the parent's; start the `watch` and `trackOutput`
-   goroutines; write the session record.
+   `<agent folder>/agents/`); resolve the complete selected MCP list and atomically
+   replace `<WorkingDir>/.kankuro/mcp-servers.json` before spawn. When selected, built-in
+   `kankuro` receives the loopback endpoint and a fresh activation bearer credential in
+   that file. The built-in `mcp-cli` and `kankuro-puppet` skills use that
+   workspace-relative path for registration guidance. Legacy path/token environment variables are stripped from
+   parent/card env and never injected. Spawn the CLI in a PTY, start the `watch` and
+   `trackOutput` goroutines, and write the session record.
+   Instruction sync has three explicit modes: a new temporary workspace appends to
+   its copied workspace instructions, a new non-temporary launch preserves an existing
+   file when the card has no instructions, and an explicit switch clears managed
+   content when the destination has no instructions. Relaunch preserves the deployed
+   instruction file, including manual edits.
 2. **Attach** (`app/attach.go`): Bubble Tea releases the terminal, the scrollback is
    replayed, stdin goes to the agent. **Ctrl+K** detaches, both as the legacy byte and
    as a Kitty keyboard-protocol sequence.
 3. **Kill / termination**: SIGTERM to the agent's process group, then SIGKILL after 2 s
    if anything in the group is still alive (`GenericCLIDriver.Kill`) — the leader or a
-   descendant that ignores SIGTERM. Status becomes `terminated`; the record stays on disk.
+    descendant that ignores SIGTERM. Status becomes `terminated`; the record stays on disk.
+    If this activation published Kankuro MCP, the manager revokes its token and removes
+    that server entry only if the current workspace config still contains that token.
+    Ordinary selected servers and other workspace metadata remain. This prevents an
+    older session stop from deleting a newer shared-workspace configuration.
    **Quit**: every running session is terminated this way before kankuro exits —
    `main.go` calls `Manager.Shutdown` after `p.Run()` returns, whatever it returned, and
    turns SIGHUP (closing the terminal window) into a normal quit. `Shutdown` kills the
@@ -153,11 +302,27 @@ codebase — see invariant 1 in §6.
    kills its own just-spawned process and removes a new session's tmp copy; this is the
    `Manager.activations` WaitGroup), stops the watchers, and refuses later activations
    (`ErrManagerClosed`).
-4. **Relaunch / switch agent**: relaunch restarts a terminated session in its existing
-   workspace without changing deployed files; it uses the current card's runtime settings.
-   Switch Agent (including selecting the same card) explicitly reapplies card configuration
-   and prepares newly selected sub workspaces. Each activation bumps a generation counter so
-   goroutines left over from the previous run stop touching the session.
+4. **Relaunch / switch agent**: a terminated session always reuses its saved
+   `WorkingDir`, `OriginalDir`, and temporary-workspace mode, regardless of later card
+   workspace edits. The saved working directory must exist and be a directory before
+   workspace preparation or driver/MCP sync. Missing or non-directory paths produce
+   an error with the saved path and restoration guidance; they are never recreated
+   or replaced with the card's workspace. Failed validation releases the activation
+   reservation so restoring the directory permits retry.
+   Relaunch preserves instructions, skills, personas, ordinary MCP entries, and sub
+   workspaces; use Switch Agent (including the same card) to reapply configuration.
+   If Kankuro MCP was deployed, relaunch refreshes only its endpoint and credential
+   in the existing JSON config, preserving other entries and metadata. An invalid
+   config blocks that refresh rather than being replaced. A persisted
+   `kankuro_mcp_enabled` flag retains that deployment choice across restarts without
+   capability-registry reads or reliance on edited card selections.
+   If the destination card has saved conversations, the TUI requires
+   an explicit choice of a compatible saved ID or “New conversation”; first use and
+   cards without bindings start new directly. Drivers pass conversation arguments
+   without shell interpolation (generic: `--session <id>`; Codex: `resume <id>`;
+   Claude: `--resume <id>`). Each
+   activation bumps a generation counter and rotates its credential so old goroutines
+   and reports cannot mutate the new activation.
 5. **Remove**: deletes the record and, for a temporary workspace, the copy.
 
 ### Dashboard keys
@@ -167,16 +332,21 @@ Three panes: ID cards (left), the preview of the selected session (centre), sess
 
 | Key | Action |
 |---|---|
-| `Enter` | on a card: launch a session; on a session: attach if running, relaunch if terminated |
+| `Enter` | on a card: launch a fresh session; on a session: attach if running, or relaunch if terminated (with a conversation picker when that card has bindings) |
 | `n` / `e` | new card / edit the selected card |
 | `a` | attach to the selected session |
 | `x` | kill the selected session |
-| `s` | switch agent on a terminated session |
+| `s` | switch agent on a terminated session (with a conversation picker when the destination card has bindings) |
 | `Backspace` / `Delete` | remove a terminated session (asks for confirmation) |
 | `o` / `t` | open the selected session workspace in the configured IDE / terminal (Sessions pane only) |
 | `m` / `w` / `c` | MCP form / workspace sources / settings |
 | `q` | quit |
 | `Ctrl+K` | detach from an attached session |
+
+The conversation picker filters by name/ID/driver, always keeps “New conversation”
+available, and disables bindings for a different driver. Its full selected ID/driver
+details are vertically scrollable with `PgUp`/`PgDn` when they do not fit beside the
+list; this keeps the footer and activation controls visible at the minimum terminal size.
 
 The footer is context-sensitive: `[Nav]`, the focused pane's group (`[Card]` or `[Session]`)
 and `[Global]`. When that is wider than the terminal it drops the navigation group, then
@@ -212,14 +382,78 @@ workspaces.yaml      workspace_sources.yaml
 mcps.yaml                                        # entered by hand, no sources
 app_settings.yaml                                # IDE/terminal commands, which card-editor sections are shown
 sessions/<session-id>.json                       # one record per session
+operations/<caller-id>-<request-id>.json         # safe, durable lifecycle request/outcome journal
 tmp/<session-id>/                                # temporary workspace copies (or $KANKURO_TMP_DIR)
 ```
+
+The live MCP config is always `<session WorkingDir>/.kankuro/mcp-servers.json`.
+Kankuro credentials are present there only while that activation's entry remains
+current; the session JSON and card YAML never store them.
+
+Each session JSON may contain `conversations`, a map from card ID to a list of
+`{id, name, driver}` bindings, and `instructions_managed`, which records whether
+the active card installed instruction content. Older records without these fields
+remain valid; absence of the ownership flag means workspace-authored instructions
+were not claimed by Kankuro.
+Activation tokens and process registration status are runtime-only and are never
+persisted in session records or card YAML. While selected,
+the current bearer credential does exist in the workspace MCP file with mode 0600;
+shared non-temporary workspaces intentionally share that file.
 
 - Every YAML write goes through `WriteAtomic` under the repository mutex.
 - Session JSON goes through the same `fsutil.WriteFileAtomic` as config, under the
   manager mutex. A crash leaves a `.<id>.json.<rand>.tmp` at worst, which the
   `*.json` glob in `loadSessions` ignores.
 - Loading a session always marks it `terminated`: a process cannot survive a restart.
+- Loading keeps saved conversation bindings but resets live registration state to
+  unavailable and revokes all old credentials. New/resumed activations get a fresh
+  random bearer token in the workspace MCP config; termination, replacement, failed
+  activation, and shutdown revoke it. Cleanup removes the Kankuro entry only if that
+  file still contains the revoked token.
+- The Kankuro MCP is a selectable built-in (`builtin:kankuro`), not auto-enabled on
+  existing cards. Its endpoint exposes conversation registration, discovery,
+  lifecycle, and messaging tools; each call enforces activation authorization.
+  The manager binds reports to the credential's session/card/activation and rejects
+  stale, mismatched, or conflicting IDs. A token authenticates the caller but cannot
+  prove ownership of an arbitrary external CLI conversation ID.
+- Generic drivers resume with `--session <id>`; `CodexCLIDriver` overrides that to
+  `resume <id>` because Codex CLI rejects `--session`. On 2026-10-24, Codex CLI
+  0.164.0 created two actual native thread IDs in the isolated Kankuro target's
+  temporary workspace. Both were registered with `mcp-cli` (`saved`), and Kankuro's
+  A→B→A switch selected the exact first ID and spawned `codex resume <A-ID>` while
+  retaining a file created on B. Feature 5 end-to-end acceptance subsequently
+  passed with Codex CLI 0.164.0 and OpenCode 2.1.4. Codex and Claude prompt submission writes
+  text, waits 500 ms cancellably under the input gate, then writes Enter separately
+  after checking cancellation. OpenCode uses generic prompt-plus-Enter submission.
+  Repeated attached and detached sends produced real assistant responses and
+  recipient-originated `completed`, `question`, and `blocked` MCP reports, retrieved
+  through MCP. Both CLIs discovered and registered their actual native IDs with
+  persistence `saved`; both received the deployed `kankuro-puppet` skill.
+  The user's root `sandbox_mode = "danger-full-access"` and
+  `approval_policy = "never"` defaults worked in managed Codex sessions without
+  CLI permission overrides. Earlier sandbox-denied and host-assisted runs are
+  historical diagnostics, superseded by these recipient-originated results.
+  Both CLIs passed typed-input interaction, interruption/detach, stop/resume,
+  card-switch/stale-activation rejection, and original-send deduplication checks.
+  UI/MCP deletion removed history and workspaces without replaying old sends.
+  Codex and OpenCode replies survived normal restart; a forced crash during
+  submission recovered uncertain delivery and an interrupted operation without
+  replay. Existing human drafts join injected prompts; serialization does not
+  isolate prompt composition. Missing reports remain unanswered.
+  See `review_6.md` and `/tmp/kankuro-feature5-e2e6/verification.md` for the accepted
+  matrix, inspected 80×24/120×40 PNGs, recordings, sanitized MCP results, and test-tool
+  limitations. Final shutdown exited 0 and left no isolated test processes.
+  Feature 4 command outcomes are in `/tmp/kankuro-feature4-native/artifacts/`.
+- Claude conversation arguments are `--resume <id>`, as requested for this
+  integration. The [Claude CLI reference](https://code.claude.com/docs/en/cli-reference)
+  describes `--resume` as assigning a conversation UUID and `--resume` as
+  loading a saved conversation. Kankuro's automated checks verify argv construction
+  without requiring Claude, but cannot establish whether this requested flag restores
+  transcript history. In a Claude-enabled environment, register a native ID, stop the
+  session, relaunch with that saved binding, inspect argv for the exact
+  `--resume <id>`, and confirm Claude recalls a distinctive fact from the earlier
+  conversation. Record any rejection or missing history; argv alone is not proof of
+  functional resume. Also check a fresh launch has no conversation arguments.
 - The debug log (`--debug`) goes to `os.UserCacheDir()/kankuro/kankuro.log`. Without
   `--debug`, the session package's logger discards output — **never write to stdout or
   stderr from app code**; it corrupts the TUI.
@@ -308,12 +542,46 @@ least once; none of them is enforced by the compiler.
    them with plain empty lines. The pattern for any list-like component is
    `TestWorkspacePickerKeepsColumnsAcrossPages` (column offsets across pages) and
    `TestCapabilityListItemsKeepTheirRows` / `TestCardEditorListsKeepTheirPlace` (rows
-   across scroll and search). A sized `CapabilityList` renders exactly its `Height` lines
-   (no trailing newline); an unsized one keeps the old content-driven layout.
+    across scroll and search). A sized `CapabilityList` renders exactly its `Height` lines
+    (no trailing newline); an unsized one keeps the old content-driven layout.
+10. **Conversation bindings are session-local, while runtime registration is activation-local.**
+    Persist bindings only in that session's JSON under the associated card ID; deep-copy
+    the map and slices at snapshot boundaries. The manager authenticates reports from a
+    rotating per-activation bearer token and derives session/card/driver/generation from
+    that credential. Never trust caller-supplied Kankuro IDs or persist the credential.
+    Stage reports that race spawn publication, commit them before the initial session
+    write, and reject stale or conflicting native IDs without replacing saved bindings.
+    A failed metadata write leaves the live binding in memory as `unsaved`; a later
+    successful write repairs that state. Temporary workspaces isolate MCP config and
+    credentials. Sessions deliberately sharing a non-temporary workspace accept a
+    shared config and identity: the last successful write determines selected servers
+    and the credential used by subsequent client calls. Older cleanup must not remove
+    a newer credential. This is not a security boundary against arbitrary processes
+    running as the same OS user. Conversation selection
+    happens before reservation; the manager revalidates the explicit new/resume choice
+    under reservation before spawn. All existing activations keep saved workspace
+    identity, not edited destination-card workspace flags.
+11. **Dashboard discovery is activation-authorized.** A card's
+    `dashboard_control` setting is deployed only when that activation selected
+    Kankuro MCP; relaunch preserves the deployed grant, while an explicit switch
+    applies the destination card's current setting. Discovery requires a published,
+    live activation. Caller-supplied IDs are never proof of identity.
+12. **MCP lifecycle retries do not repeat effects.** Intent is atomically persisted
+    before queueing; identical caller/request/fingerprint calls replay the same
+    operation, while changed arguments conflict. A crash can occur between process
+    or filesystem effects and the final journal write, so recovery reports
+    `interrupted` with unknown effects and never blindly retries. Credentials are
+    runtime-only and are never written into operation records.
 
 ---
 
 ## 7. Build, test, lint, run
+
+Feature 4 integration acceptance at `7695a4c`: independent delegated build, vet,
+normal/race suites, lint, and focused repeated regressions passed. The prior card
+deletion blocker is resolved; repeated MCP cleanup tests did not reproduce the
+shutdown timeout. Evidence: `.kankuro/review-feature4-current/verification.md`.
+The dated implementation/verification entries below preserve earlier history.
 
 ```bash
 go build ./...
@@ -323,7 +591,61 @@ go test -race ./...                   # must stay clean, including root integrat
 golangci-lint run                     # must exit 0
 ```
 
-All five are clean as of the review date. Run all five before calling a change done.
+The Feature 4 closeout checks passed on 2026-10-24: `go build ./...`, `go vet ./...`,
+`go test ./...`, `go test -race ./...`, and `golangci-lint run` (0 issues; existing
+configuration/deprecation warnings only). `git diff --check` passed too. Run all five
+before calling a later change done.
+
+The 2026-10-24 `review_5.md` visual corrections also passed those checks after the
+final source edits. The temporary review overlay regressions passed, and real
+`tui-test` PNGs were captured and inspected at 80×24, 120×40, and 160×45 in
+`/tmp/opencode/kankuro-review5-visual/artifacts/`. Preview art now uses a reserved
+text/art split and is omitted when it cannot fit intact; card rows use balanced
+gutters, and dashboard pane titles/content share stable cell baselines. An earlier
+race run intermittently failed `TestStreamableMCPRegistrationAndAuthentication`
+(`server_test.go:131`, shutdown MCP context deadline exceeded); five isolated
+repetitions and complete reruns passed, including the final complete race run.
+Cause remains undiagnosed; do not suppress cleanup errors.
+
+The targeted `review_6.md` follow-up removed the empty preview's obsolete border
+width deduction: the dashboard already sizes `SessionPreview` to its content slot.
+The placeholder now word-wraps without embedded indentation and is centered within
+that supplied size. Its 8×19 regression preserves complete `session` and `selected`
+words; empty-dashboard readability/centering is checked at 80×24, 120×40, and
+160×45. Final checks passed again: `go test ./...`, `go test -race ./...`,
+`go vet ./...`, `go build ./...`, `golangci-lint run` (0 issues), and
+`git diff --check`. Fresh populated and empty `tui-test` captures were opened and
+inspected under `/tmp/opencode/kankuro-review6-final/artifacts/` and
+`/tmp/opencode/kankuro-review6-empty/artifacts/`; both isolated TUI runs exited
+normally. The intermittent MCP shutdown timeout did not recur in this verification;
+its previously recorded undiagnosed status remains.
+
+The `review_7.md` integration correction adds manager-owned card-reference
+reservations shared by separate UI and MCP service instances. Deterministic gated
+tests cover MCP create and switch against UI deletion, deletion-first with a stale
+card snapshot, cancellation/release, relaunch after create, and continued reference
+protection after termination. The focused lifecycle tests pass normally and under
+`-race`.
+
+MCP shutdown investigation: before test cleanup changes, the focused registration
+test failed twice in 20 normal repetitions at its 5-second shutdown deadline; the
+full race suite also failed `TestRealServiceLifecycleResultsOverMCP` during
+shutdown. MCP integration tests now own dedicated HTTP transports, close client
+sessions before the server, and check close errors. Afterwards, the focused test
+passed 20/20 normally and 20/20 with `-race`, the MCP package passed five repeated
+race runs, and final full normal/race suites passed. This addresses observed client
+cleanup ownership; no production root cause is claimed. Logs are retained in
+`/tmp/opencode/kankuro-review7/`. The implementation is ready for another Feature 4
+integration review; Feature 5 remains blocked and acceptance is not claimed.
+
+The `review_8.md` verification correction makes the operation-queue test shut down
+and join its capacity-phase runner before starting the separately gated publication
+phase. The queue-full rejection and late-cancellation/publication assertions remain.
+`GOMAXPROCS=1 go test -race ./internal/api -run
+'^TestOperationQueueBoundAndDisconnectedWaitReturnPromptly$' -count=50` passed
+50/50; full `go test ./...` and `go test -race ./...` passed, along with vet, build,
+lint (0 issues), and `git diff --check`. Feature 4 is ready for another integration
+review, not accepted; Feature 5 remains blocked.
 
 **Running the app by hand** — always isolate it from your real config
 (`kankuro_specs.md` §5.1):
@@ -366,6 +688,25 @@ to reproduce a user's bug is fine; writing to it is not.
   `coord.Views()`. Go through `Update` rather than calling a callback directly —
   calling `coord.AgentSwitchCallbacks().OnSwitch(...)` skips the write-back where
   invariant 2 breaks.
+- Shared operations are tested in `internal/api` without constructing a coordinator;
+  lifecycle tests should continue to use `newTestManager` so shutdown and leak
+  guards are registered.
+- Relaunch preservation across restart is covered in `internal/session/workspace_test.go`;
+  `relaunch_mcp_test.go` additionally verifies fresh Kankuro credentials, preserved
+  ordinary MCP configuration and manual instructions, and retry after invalid JSON.
+- `internal/session/workspace_validation_test.go` covers missing and non-directory
+  saved paths on relaunch and card switch in original and temporary workspaces:
+  refusal before spawn, no path recreation or replacement, and successful retry
+  with saved work intact after restoration.
+- Conversation binding persistence, early registration staging, revocation, and retry are
+  exercised in `internal/session/conversation_test.go`; it also calls the installed
+  `mcp-cli` client from the agent's child shell against `.kankuro/mcp-servers.json`.
+  Workspace MCP serialization/conditional cleanup is tested in
+  `internal/driver/mcp_config_test.go`, with shared-workspace interleavings and natural
+  exit/write-failure cases in `internal/session/workspace_mcp_*_test.go`. Transport
+  handshake/auth/origin tests are in `internal/mcp/server_test.go`; picker and registration layout tests are in
+  `internal/ui/views/conversation_choice_test.go` and
+  `internal/ui/components/session_list_layout_test.go`.
 - `command_race_internal_test.go` is the runtime check for invariant 1: it executes the
   commands a message returns concurrently with `Update` writes, so it needs `-race`.
 - `collectMsgs` (two copies: `session_warning_test.go` and
@@ -415,6 +756,13 @@ to reproduce a user's bug is fine; writing to it is not.
 | `--debug` | flag | log to `<user cache dir>/kankuro/kankuro.log` |
 | IDE/terminal commands, card-editor sections | Settings view (`c`) → `app_settings.yaml` | what `o` / `t` run; whether personas / MCPs are shown in the card editor. `terminal_command` defaults empty. |
 | per-card `env:` | `id_cards.yaml` | merged over the parent environment when the agent is spawned; a card key overrides an inherited one. There is no UI for it yet — edit the YAML. |
+| `KANKURO_MCP_CONFIG_PATH` | legacy reserved variable | stripped from parent/card env; never set. Use `.kankuro/mcp-servers.json` from the workspace root. |
+| `KANKURO_MCP_TOKEN` | legacy reserved variable | stripped from parent/card env; never set. Authentication is read from the selected workspace MCP entry. |
+
+`config.ListMCPs` merges the built-in `kankuro` server into the selectable registry;
+it is not written to `mcps.yaml`, cannot be edited/deleted or shadowed by name/ID,
+and is not silently selected for existing cards. Selecting it auto-adds the `mcp-cli`
+skill and places its current endpoint/credential in the workspace MCP config.
 
 ---
 
@@ -456,6 +804,10 @@ to reproduce a user's bug is fine; writing to it is not.
 | Change the minimum terminal size or the "too small" screen | `views/constants.go` (`MinTerminalWidth/Height`), `app/size_guard.go` |
 | Change refresh behaviour | `refresh.go` (the commands) and `handlers.go` (applying results), `config.Fingerprint` |
 | Add a session-level action (Phase 1 linking) | a method on `sessionActions` in `session_actions.go` that returns a `tea.Cmd` and takes any coordinator state *by value*, plus a message and a handler in `coordinator.go`; wire the trigger in `callbacks.go` |
+| Add a shared launch/relaunch/switch/delete/remove rule | `internal/api/service.go`; keep UI message mapping in `app/session_actions.go` and callbacks in `app/callbacks.go` |
+| Change native conversation state or registration | `internal/session/conversation.go` (manager-owned bindings, credentials, staging, persistence) and `internal/api/service.go` (transport-facing registration methods) |
+| Change MCP protocol/security/lifetime | `internal/mcp/server.go`; `main.go` owns listener startup and shutdown order |
+| Change the conversation picker | `ui/views/conversation_choice.go`, `app/coordinator.go` message routing, `app/callbacks.go` command construction |
 | Change the preview subscription | `preview.go` (`previewSub`) and `handlers.go` (`handlePreviewRequest`, `handleSessionOutput`) |
 | Pick up known debt | `tech_debt_act_2.md` |
 
@@ -495,3 +847,33 @@ to reproduce a user's bug is fine; writing to it is not.
 | `kankuro_specs.md` | Product specification: concepts, roadmap, UI and keys. §5.1 is the manual-testing setup. |
 | `crow_puppet_theme.md` | The colour palette used in `ui/styles`. |
 | `.leftover/` | Hand-off notes from earlier sessions. Historical. |
+
+### Session startup trust and publication
+
+Before spawning a new, relaunched, or switched session, the selected driver prepares
+trust for the session's actual working directory, including a temporary copy. Codex
+updates `~/.codex/config.toml` under `projects.<absolute path>.trust_level` to
+`trusted`; Claude sets `projects[<actual absolute working directory>].hasTrustDialogAccepted`
+to `true` in `~/.claude.json`. Generic drivers make no trust change. These are
+persistent user-level trust grants for exactly that directory. Configuration is
+parsed and preserved structurally; TOML comments and formatting may change. Invalid
+configuration and write failures abort startup without truncating the original.
+Updates use a restrictive sibling temporary file and atomic rename, retaining an
+existing file's permissions. A process-local lock serializes Kankuro updates, but
+other processes are not covered by that lock.
+
+After successful spawn, publication and human attachment are immediate. The fixed
+ten-second admission delay for MCP delivery is not a readiness guarantee. Registration
+is independent of the timer. An exit after publication leaves a terminated session for
+inspection and relaunch. Registration guidance is supplied by the deployed
+`kankuro-puppet` skill when Kankuro MCP is selected. Instruction synchronization
+does not inject registration guidance or strip previously written registration blocks.
+
+Deleting a temporary session first removes its exact saved working-directory trust
+from both Codex and Claude, including grants from earlier card switches. Claude cleanup
+removes only the trust flag and preserves the project’s other metadata. If either
+configuration cannot be updated, deletion stops and the session remains available
+to retry after fixing the configuration; one CLI's cleanup may already have
+succeeded. Failed new temporary activations also attempt trust cleanup and report
+the exact path for manual removal if it fails. Non-temporary deletion does not
+remove trust.

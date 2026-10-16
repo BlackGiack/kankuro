@@ -31,6 +31,9 @@ func NewBuiltinRegistry() *MapRegistry {
 	r.Register("claude", func() AgentDriver {
 		return NewClaudeCodeDriver()
 	})
+	r.Register("codex", func() AgentDriver {
+		return NewCodexCLIDriver()
+	})
 	return r
 }
 

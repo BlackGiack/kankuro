@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	_ "embed"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -9,21 +11,31 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/driver"
+	"github.com/BlackGiack/kankuro/internal/mcp"
 	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
 //go:embed kankuro_skills/mcp-cli/SKILL.md
 var embeddedMCPCLISkill []byte
 
-// main wires repository, session manager, and TUI program startup.
+//go:embed kankuro_skills/kankuro-puppet/SKILL.md
+var embeddedKankuroPuppetSkill []byte
+
+const mcpShutdownTimeout = 5 * time.Second
+
+// main wires repository, session manager, MCP endpoint, and TUI program startup.
 func main() {
 	config.SetBuiltinMCPCLISkillContent(embeddedMCPCLISkill)
+	config.SetBuiltinKankuroPuppetSkillContent(embeddedKankuroPuppetSkill)
 	// Create and configure driver registry
 	registry := driver.NewBuiltinRegistry()
 
@@ -33,6 +45,7 @@ func main() {
 	}
 }
 
+//nolint:funlen // Startup and shutdown ordering is deliberately visible in the composition root.
 func run(registry driver.Registry) error {
 	var cfgDir string
 	var debug bool
@@ -72,12 +85,43 @@ func run(registry driver.Registry) error {
 		session.WithDriverRegistry(registry),
 		session.WithLogger(sessionLogger),
 	)
+	sharedAPI := api.New(repo, sm)
+	operationRunner := api.NewOperationRunner(repo.Dir(), sharedAPI)
+	sharedAPI.SetOperationRunner(operationRunner)
+	if journalErr := operationRunner.LoadError(); journalErr != nil {
+		fmt.Fprintf(os.Stderr, "kankuro: lifecycle MCP tools disabled because the operation journal could not be loaded: %v\n", journalErr)
+	}
+	mcpRuntime, err := mcp.Start(sharedAPI)
+	if err != nil {
+		operationRunner.Shutdown()
+		sm.Shutdown()
+		return fmt.Errorf("start MCP endpoint: %w", err)
+	}
+	sm.SetMCPEndpoint(mcpRuntime.Endpoint())
 	application, err := app.New(repo, sm)
 	if err != nil {
+		operationRunner.Shutdown()
+		sm.Shutdown()
+		shutdownErr := shutdownMCP(mcpRuntime)
+		if shutdownErr != nil {
+			return errors.Join(fmt.Errorf("ui init error: %w", err), shutdownErr)
+		}
 		return fmt.Errorf("ui init error: %w", err)
 	}
 
 	p := tea.NewProgram(application)
+	failureCtx, stopFailureWatch := context.WithCancel(context.Background())
+	serverFailures := make(chan error, 1)
+	failureWatcherDone := make(chan struct{})
+	go func() {
+		defer close(failureWatcherDone)
+		select {
+		case serverErr := <-mcpRuntime.Failures():
+			serverFailures <- serverErr
+			p.Send(messages.MCPServerFailedMsg{Err: fmt.Errorf("MCP server stopped: %w", serverErr)})
+		case <-failureCtx.Done():
+		}
+	}()
 
 	// Bubble Tea catches SIGINT (Run returns ErrInterrupted) and SIGTERM (it
 	// becomes a QuitMsg) but not SIGHUP, which is what closing the terminal
@@ -94,6 +138,15 @@ func run(registry driver.Registry) error {
 	}()
 
 	_, runErr := p.Run()
+	stopFailureWatch()
+	<-failureWatcherDone
+	select {
+	case serverErr := <-serverFailures:
+		if runErr == nil {
+			runErr = fmt.Errorf("MCP server stopped: %w", serverErr)
+		}
+	default:
+	}
 
 	// Every exit path - q, ctrl+c, SIGINT, SIGTERM, SIGHUP, a runtime error -
 	// ends up here, and running agents must not outlive kankuro. Plain
@@ -106,12 +159,20 @@ func run(registry driver.Registry) error {
 	// waits, Bubble Tea no longer handles signals, so a second ctrl+c or
 	// SIGTERM gets Go's default action and exits at once - an acceptable
 	// "force quit".
+	operationRunner.Shutdown()
 	stopSessions(sm)
+	mcpShutdownErr := shutdownMCP(mcpRuntime)
 
 	if runErr != nil {
-		return fmt.Errorf("runtime error: %w", runErr)
+		return errors.Join(fmt.Errorf("runtime error: %w", runErr), mcpShutdownErr)
 	}
-	return nil
+	return mcpShutdownErr
+}
+
+func shutdownMCP(runtime *mcp.Runtime) error {
+	ctx, cancel := context.WithTimeout(context.Background(), mcpShutdownTimeout)
+	defer cancel()
+	return runtime.Shutdown(ctx)
 }
 
 // stopSessions kills every running session, announcing it on stderr when
