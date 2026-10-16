@@ -268,7 +268,7 @@ func overlayYAMLFields(dst any, values map[string]yaml.Node) error {
 	v := reflect.ValueOf(dst).Elem()
 	t := v.Type()
 	for i := range t.NumField() {
-		tag := strings.Split(t.Field(i).Tag.Get("yaml"), ",")[0]
+		tag, _, _ := strings.Cut(t.Field(i).Tag.Get("yaml"), ",")
 		if tag == "" || tag == "-" {
 			continue
 		}

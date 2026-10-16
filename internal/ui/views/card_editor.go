@@ -27,6 +27,7 @@ const (
 	FocusFaceStyle
 	FocusPuppet
 	FocusUseTmp
+	FocusDashboardControl
 	FocusAgentsMD
 	FocusSkills
 	FocusPersonas
@@ -80,6 +81,7 @@ func focusTargetTable() []focusTarget {
 		{focus: FocusFaceStyle, inputIdx: faceStyleInputIdx, placeholder: "Face style..."},
 		{focus: FocusPuppet, inputIdx: notAnInput},
 		{focus: FocusUseTmp, inputIdx: notAnInput},
+		{focus: FocusDashboardControl, inputIdx: notAnInput},
 		{focus: FocusAgentsMD, inputIdx: notAnInput},
 		{focus: FocusSkills, inputIdx: notAnInput},
 		{
@@ -121,13 +123,14 @@ type CardEditor struct {
 	agentsMDEditor  *AgentsMDEditorModal
 
 	// State
-	loaded          config.IDCard // card as loaded by SetCard; Card() overlays edits onto this
-	focusIndex      int
-	puppet          string
-	workspaceID     string
-	subWorkspaceIDs []string
-	useTmpWorkspace bool
-	agentsMD        AgentsMDState
+	loaded           config.IDCard // card as loaded by SetCard; Card() overlays edits onto this
+	focusIndex       int
+	puppet           string
+	workspaceID      string
+	subWorkspaceIDs  []string
+	useTmpWorkspace  bool
+	dashboardControl bool
+	agentsMD         AgentsMDState
 
 	// scrollOffset is the first form line shown when the form is taller than
 	// the editor. It is derived state: layout() keeps the focused block inside
@@ -271,6 +274,7 @@ func (e *CardEditor) SetCard(card config.IDCard) {
 		e.puppet = defaultPuppetStyle
 	}
 	e.useTmpWorkspace = card.UseTmpWorkspace
+	e.dashboardControl = card.DashboardControl
 	e.subWorkspaceIDs = slices.Clone(card.SubWorkspaceIDs)
 	e.skillList.SetSelectedOnly(false)
 	e.agentsMD.Content = card.AgentsMD
@@ -295,6 +299,7 @@ func (e *CardEditor) Reset() {
 	e.workspaceID = ""
 	e.subWorkspaceIDs = nil
 	e.useTmpWorkspace = false
+	e.dashboardControl = false
 	e.skillList.SetSelectedOnly(false)
 	e.puppet = "kankuro"
 	e.agentsMD = AgentsMDState{}
@@ -367,6 +372,7 @@ func (e *CardEditor) Card() config.IDCard {
 	card.FaceStyle = strings.TrimSpace(e.inputs[faceStyleInputIdx].Value())
 	card.Puppet = e.puppet
 	card.UseTmpWorkspace = e.useTmpWorkspace
+	card.DashboardControl = e.dashboardControl
 	card.SubWorkspaceIDs = slices.Clone(e.subWorkspaceIDs)
 	card.AgentsMD = e.agentsMD.Content
 	card.AgentsMDPath = e.agentsMD.Path
@@ -546,6 +552,9 @@ func (e *CardEditor) handleSpace() bool {
 		return true
 	case FocusUseTmp:
 		e.useTmpWorkspace = !e.useTmpWorkspace
+		return true
+	case FocusDashboardControl:
+		e.dashboardControl = !e.dashboardControl
 		return true
 
 	case FocusPuppet:
@@ -942,6 +951,7 @@ func (e *CardEditor) fieldBlocks() []formBlock {
 		blockOf(FocusFaceStyle, "Face Style: "+e.inputs[faceStyleInputIdx].View()+"\n"),
 		blockOf(FocusPuppet, e.renderPuppetLine()+"\n"),
 		blockOf(FocusUseTmp, e.renderTmpWorkspaceLine()+"\n\n"),
+		blockOf(FocusDashboardControl, e.renderDashboardControlLine()+"\n"),
 		blockOf(FocusAgentsMD, "AGENTS.md:\n"+e.renderAgentsMDRow()+"\n\n"),
 	}
 }
@@ -1125,6 +1135,19 @@ func (e *CardEditor) renderTmpWorkspaceLine() string {
 	}
 	line := "Use Tmp Workspace: " + mark
 	if e.focusIndex == FocusUseTmp {
+		line = focusMarker + line
+		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(line)
+	}
+	return line
+}
+
+func (e *CardEditor) renderDashboardControlLine() string {
+	mark := "[ ]"
+	if e.dashboardControl {
+		mark = "[x]"
+	}
+	line := "Dashboard Control: " + mark + " (linked-dashboard session access; requires Kankuro MCP)"
+	if e.focusIndex == FocusDashboardControl {
 		line = focusMarker + line
 		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(line)
 	}

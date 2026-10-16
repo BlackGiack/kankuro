@@ -238,6 +238,19 @@ func TestSessionPreviewEmptyStates(t *testing.T) {
 	}
 }
 
+func TestSessionPreviewNarrowPlaceholderKeepsReadableWords(t *testing.T) {
+	preview := components.NewSessionPreview()
+	preview.SetSize(8, 19)
+	out := preview.View()
+	uitest.AssertWithin(t, out, 8, 19, "narrow empty preview")
+	plain := ansi.Strip(out)
+	for _, word := range []string{"session", "selected"} {
+		if !strings.Contains(plain, word) {
+			t.Errorf("eight-column placeholder should preserve %q as a whole word:\n%s", word, plain)
+		}
+	}
+}
+
 // TestSessionPreviewFitsWithoutParentClamp makes the lesson of §5 executable:
 // SessionPreview must fit by itself, not because the dashboard clamps its
 // result afterwards. It feeds the content most likely to overflow (an
@@ -250,6 +263,93 @@ func TestSessionPreviewFitsWithoutParentClamp(t *testing.T) {
 		for _, h := range previewHeights() {
 			p.SetSize(w, h)
 			uitest.AssertWithin(t, p.View(), w, h, fmt.Sprintf("oversized puppet %dx%d", w, h))
+		}
+	}
+}
+
+func TestSessionPreviewReservesStablePuppetColumn(t *testing.T) {
+	marker := config.Puppet{ID: "marker", Name: "marker", Lines: []string{"PUPPET", "art"}}
+	p := newPreview(t, previewSnapshot("review"), "marker", marker)
+	p.SetSize(42, 30)
+	out := ansi.Strip(p.View())
+	firstRow, _, _ := strings.Cut(out, "\n")
+	textBeforePuppet, _, foundPuppet := strings.Cut(firstRow, "PUPPET")
+	if !foundPuppet {
+		t.Fatalf("complete six-cell puppet missing:\n%s", out)
+	}
+	if got, want := ansi.StringWidth(textBeforePuppet), 36; got != want {
+		t.Fatalf("puppet starts at cell %d, want stable text slot+gap %d:\n%s", got, want, out)
+	}
+	if got := ansi.StringWidth(firstRow); got != 42 {
+		t.Fatalf("composed header row width = %d, want 42:\n%s", got, out)
+	}
+}
+
+func TestSessionPreviewFitsUnicodeMetadataAndOmitsUnfittingArt(t *testing.T) {
+	wideArt := uitest.UserPuppet(60, 20)
+	snapshot := previewSnapshot(strings.Repeat("名", 30))
+	snapshot.ID = strings.Repeat("0123456789abcdef", 4)
+	snapshot.WorkingDir = "/workspace/" + strings.Repeat("very-long-directory/", 5) + "プロジェクト/終端"
+	card := &config.IDCard{ID: "card", Name: strings.Repeat("審査", 20), Puppet: wideArt.Name}
+	preview := newPreview(t, snapshot, card.Puppet, wideArt)
+	preview.SetSession(snapshot, card)
+	preview.SetSize(42, 30)
+	out := ansi.Strip(preview.View())
+	rows := strings.Split(out, "\n")
+	if strings.Contains(out, "<===") {
+		t.Fatalf("oversized art was partially shown instead of omitted:\n%s", out)
+	}
+	for i, row := range rows[:min(6, len(rows))] {
+		if width := ansi.StringWidth(row); width > 42 {
+			t.Errorf("metadata row %d is %d cells wide, want <=42: %q", i, width, row)
+		}
+	}
+	if !strings.Contains(rows[0], "...") || !strings.Contains(rows[2], "...") ||
+		!strings.HasPrefix(rows[3], "WS: ...") || !strings.HasSuffix(rows[3], "プロジェクト/終端") ||
+		!strings.Contains(rows[5], "...") {
+		t.Fatalf("long Unicode name, ID, path, and card were not fitted with ellipses:\n%s", out)
+	}
+
+	marker := config.Puppet{ID: "marker", Name: "marker", Lines: []string{"PUPPET", "art"}}
+	withArt := newPreview(t, snapshot, marker.Name, marker)
+	withArt.SetSession(snapshot, &config.IDCard{ID: card.ID, Name: card.Name, Puppet: marker.Name})
+	withArt.SetSize(42, 30)
+	artRows := strings.Split(ansi.Strip(withArt.View()), "\n")
+	if !strings.Contains(artRows[0], "PUPPET") || !strings.Contains(artRows[1], "art") {
+		t.Fatalf("fitting art was not preserved intact:\n%s", strings.Join(artRows, "\n"))
+	}
+	for _, field := range []struct {
+		row   int
+		label string
+	}{{0, "名"}, {2, "ID: "}, {3, "WS: "}, {4, "Started: "}, {5, "Card: "}} {
+		row := artRows[field.row]
+		if !strings.Contains(row, field.label) || ansi.StringWidth(ansi.Truncate(row, 33, "")) != 33 {
+			t.Errorf("metadata row %d did not use the reserved 33-cell text slot: %q", field.row, row)
+		}
+	}
+	if !strings.Contains(artRows[0], "...") || !strings.Contains(artRows[2], "...") ||
+		!strings.HasPrefix(artRows[3], "WS: ...") || !strings.Contains(artRows[5], "...") {
+		t.Fatalf("art reservation did not ellipsis-fit long metadata in the same text slot:\n%s", strings.Join(artRows, "\n"))
+	}
+
+	preview.SetSize(32, 30)
+	narrow := ansi.Strip(preview.View())
+	if strings.Contains(narrow, "<===") || strings.Contains(narrow, "|################") {
+		t.Fatalf("narrow layout should omit the oversized puppet entirely:\n%s", narrow)
+	}
+	uitest.AssertWithin(t, narrow, 32, 30, "narrow metadata-only layout")
+}
+
+func TestSessionPreviewKeepsBuiltinPuppetIntactWhenItFits(t *testing.T) {
+	puppets := cachedBuiltinPuppets(t)
+	want := ansi.Strip(components.RenderAgentPuppet("kankuro", puppets))
+	preview := newPreview(t, previewSnapshot("ordinary session"), "kankuro")
+	preview.SetSize(42, 30)
+	out := ansi.Strip(preview.View())
+	rows, artRows := strings.Split(out, "\n"), strings.Split(want, "\n")
+	for i, art := range artRows {
+		if i >= len(rows) || !strings.Contains(rows[i], art) {
+			t.Fatalf("ordinary puppet row %d was clipped:\nwant %q\ngot:\n%s", i, art, out)
 		}
 	}
 }

@@ -40,10 +40,14 @@ func Run(m *testing.M, name string) int {
 
 	tempDir := filepath.Join(root, "t")
 	wsDir := filepath.Join(root, "ws")
-	for _, dir := range []string{tempDir, wsDir} {
+	homeDir := filepath.Join(root, "home")
+	for _, dir := range []string{tempDir, wsDir, homeDir} {
 		if err = os.Mkdir(dir, 0o700); err != nil {
 			panic(err)
 		}
+	}
+	if err = os.Setenv("HOME", homeDir); err != nil {
+		panic(err)
 	}
 	if err = os.Setenv("TMPDIR", tempDir); err != nil {
 		panic(err)

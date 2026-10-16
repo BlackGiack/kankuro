@@ -51,8 +51,8 @@ func TestListSkillsMergesBuiltinsWithExisting(t *testing.T) {
 		t.Fatalf("list skills: %v", err)
 	}
 
-	if len(skills) != 2 {
-		t.Fatalf("expected 2 skills (custom + builtin), got %d", len(skills))
+	if len(skills) != 3 {
+		t.Fatalf("expected 3 skills (custom + builtins), got %d", len(skills))
 	}
 
 	names := make(map[string]struct{})
@@ -98,9 +98,9 @@ func TestSyncSkillsFromSourcesPreservesBuiltins(t *testing.T) {
 		t.Fatalf("list skills: %v", errList)
 	}
 
-	// Should have 2 skills: alpha (from source) + mcp-cli (builtin)
-	if len(skills) != 2 {
-		t.Fatalf("expected 2 skills (alpha + mcp-cli), got %d", len(skills))
+	// Should have the source skill and both built-ins.
+	if len(skills) != 3 {
+		t.Fatalf("expected 3 skills (alpha + builtins), got %d", len(skills))
 	}
 
 	names := make(map[string]struct{})
@@ -141,16 +141,19 @@ func TestValidateCardAcceptsBuiltinSkillID(t *testing.T) {
 	}
 }
 
-func TestBuiltinSkillsReturnsMCPCLI(t *testing.T) {
+func TestBuiltinSkillsReturnsMCPCLIAndPuppet(t *testing.T) {
 	builtins := config.BuiltinSkills()
-	if len(builtins) != 1 {
-		t.Fatalf("expected 1 builtin skill, got %d", len(builtins))
+	if len(builtins) != 2 {
+		t.Fatalf("expected 2 builtin skills, got %d", len(builtins))
 	}
 	if builtins[0].Name != "mcp-cli" {
 		t.Fatalf("expected mcp-cli, got %s", builtins[0].Name)
 	}
 	if !builtins[0].Builtin {
 		t.Fatal("expected Builtin flag to be true")
+	}
+	if builtins[1].Name != "kankuro-puppet" || !builtins[1].Builtin {
+		t.Fatalf("unexpected puppet builtin: %#v", builtins[1])
 	}
 }
 

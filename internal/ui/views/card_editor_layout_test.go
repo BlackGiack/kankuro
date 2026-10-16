@@ -253,6 +253,8 @@ func focusMarkerLine(focus int) []string {
 		return []string{"Face Style: "}
 	case views.FocusUseTmp:
 		return []string{"Use Tmp Workspace: "}
+	case views.FocusDashboardControl:
+		return []string{"> Dashboard Control: "}
 	case views.FocusWorkspace:
 		return []string{"> Workspace: "}
 	case views.FocusSubWorkspaces:
@@ -291,7 +293,7 @@ func TestCardEditorFocusedFieldAlwaysVisible(t *testing.T) {
 						break
 					}
 				}
-				if want := 10 + btoi(personas) + btoi(mcps); visited != want {
+				if want := 11 + btoi(personas) + btoi(mcps); visited != want {
 					t.Fatalf("visited %d focus targets, want %d", visited, want)
 				}
 			}

@@ -2,6 +2,7 @@ package components_test
 
 import (
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -183,6 +184,28 @@ func TestSessionListItem_Description(t *testing.T) {
 
 	if desc == "" {
 		t.Error("Description should not be empty")
+	}
+}
+
+func TestSessionListItemShowsConversationRegistrationStateAndIdentity(t *testing.T) {
+	item := components.SessionListItem{Session: session.Snapshot{
+		ID:                      "session",
+		CardID:                  "card",
+		Name:                    "Agent",
+		Status:                  session.StatusRunning,
+		PID:                     123,
+		Registration:            session.RegistrationRegistered,
+		RegistrationPersistence: session.RegistrationUnsaved,
+		ActiveConversationID:    "native-conversation-id",
+		Conversations: map[string][]session.ConversationBinding{
+			"card": {{ID: "native-conversation-id", Name: "Feature work", Driver: "codex"}},
+		},
+	}}
+	description := item.Description()
+	for _, want := range []string{"reg=registered/not-saved", "Feature work", "sation-id"} {
+		if !strings.Contains(description, want) {
+			t.Errorf("description %q does not show %q", description, want)
+		}
 	}
 }
 

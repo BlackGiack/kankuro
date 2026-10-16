@@ -1,6 +1,7 @@
 package session_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -9,8 +10,43 @@ import (
 	"testing"
 	"time"
 
+	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 )
+
+func TestShutdownJoinsStopAlreadyInProgress(t *testing.T) {
+	entered := make(chan struct{}, 1)
+	gate := make(chan struct{})
+	h := newGateHarness(t, false, func(_ int, d *gateDriver) {
+		d.killEntered, d.killGate = entered, gate
+	})
+	sessionID, err := h.sm.Launch(h.card, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+	stopDone := make(chan error, 1)
+	go func() { stopDone <- h.sm.Kill(sessionID) }()
+	waitSignal(t, entered, "stop to enter driver teardown")
+	shutdownDone := make(chan int, 2)
+	go func() { shutdownDone <- h.sm.Shutdown() }()
+	go func() { shutdownDone <- h.sm.Shutdown() }()
+	select {
+	case <-shutdownDone:
+		t.Fatal("shutdown returned before the in-flight stop completed")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(gate)
+	if stopErr := waitErr(t, stopDone, "in-flight stop"); stopErr != nil {
+		t.Fatalf("stop: %v", stopErr)
+	}
+	for range 2 {
+		select {
+		case <-shutdownDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("shutdown caller did not join stop")
+		}
+	}
+}
 
 // persistedStatus reads a session's status straight from its JSON record.
 func persistedStatus(t *testing.T, configDir, sid string) string {
@@ -193,6 +229,48 @@ func TestShutdownDuringTmpLaunchRemovesTheCopy(t *testing.T) {
 	}
 	if entries, _ := os.ReadDir(tmpRoot); len(entries) != 0 {
 		t.Fatalf("workspace copy left behind after Shutdown: %d entries in %s", len(entries), tmpRoot)
+	}
+}
+
+func TestShutdownWaitsForTemporaryWorkspacePreparation(t *testing.T) {
+	configDir, tmpRoot, workspace := t.TempDir(), t.TempDir(), t.TempDir()
+	t.Setenv("KANKURO_TMP_DIR", tmpRoot)
+	repo, setupErr := config.NewFileRepository(configDir)
+	if setupErr != nil {
+		t.Fatal(setupErr)
+	}
+	if err := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: workspace}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, listErr := repo.ListWorkspaces()
+	if listErr != nil || len(workspaces) != 1 {
+		t.Fatalf("list workspace: %v", listErr)
+	}
+	copyEntered, releaseCopy := make(chan struct{}), make(chan struct{})
+	manager := newTestManager(t, configDir, repo, session.WithWorkspaceCopier(func(_ context.Context, _, destination string) error {
+		close(copyEntered)
+		<-releaseCopy
+		return os.MkdirAll(destination, 0o700)
+	}))
+	release := onceCloser(t, releaseCopy)
+	card := config.IDCard{ID: "copy-cancel", Name: "copy cancellation", Driver: "cat",
+		WorkspaceID: workspaces[0].ID, UseTmpWorkspace: true}
+	launchResult := make(chan error, 1)
+	go func() {
+		_, launchErr := manager.Launch(card, nil, nil, nil)
+		launchResult <- launchErr
+	}()
+	waitSignal(t, copyEntered, "temporary workspace copy")
+	shutdownReturned := shutdownAsync(manager)
+	assertStillBlocked(t, shutdownReturned, "a launch is still preparing its temporary copy")
+	release()
+	waitSignal(t, shutdownReturned, "shutdown after workspace preparation completes")
+	if launchErr := waitErr(t, launchResult, "launch cancelled by shutdown"); !errors.Is(launchErr, session.ErrManagerClosed) {
+		t.Fatalf("launch during shutdown = %v, want manager-closed", launchErr)
+	}
+	entries, readErr := os.ReadDir(tmpRoot)
+	if readErr != nil || len(entries) != 0 {
+		t.Fatalf("shutdown left a temporary workspace copy: %v (%v)", entries, readErr)
 	}
 }
 

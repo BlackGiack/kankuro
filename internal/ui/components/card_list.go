@@ -22,9 +22,10 @@ const (
 	CardListMinWidth   = 46
 	CardListMinHeight  = 10
 
-	InfoBoxHeight = 4
-	FaceBoxWidth  = 11
-	FaceBoxHeight = 5
+	InfoBoxHeight      = 4
+	FaceBoxWidth       = 11
+	FaceBoxHeight      = 5
+	cardListItemGutter = 2
 
 	MaxPillsShown = 4
 	PillTextLimit = 10
@@ -240,7 +241,7 @@ func (d cardDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	}
 	selected := index == m.Index()
 	content := RenderCardItem(cardItem.Card, d.skills, d.personas, d.puppets, selected, m.Width())
-	fmt.Fprint(w, content)
+	fmt.Fprint(w, lipgloss.NewStyle().PaddingLeft(cardListItemGutter).Render(content))
 }
 
 // RenderCardItem renders a single card's display.

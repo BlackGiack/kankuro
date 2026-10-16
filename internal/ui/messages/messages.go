@@ -19,6 +19,7 @@ const (
 	ViewSettings
 	ViewSessionLauncher
 	ViewAgentSwitch
+	ViewConversationChoice
 )
 
 // ModalType represents modal overlays.
@@ -80,6 +81,19 @@ type SessionLaunchCompletedMsg struct {
 type AgentSwitchRequestedMsg struct {
 	SessionID   string
 	SessionName string
+}
+
+type ConversationChoiceRequestedMsg struct {
+	SessionID  string
+	CardID     string
+	Driver     string
+	ReturnView ViewType
+}
+
+type ConversationChoiceSelectedMsg struct {
+	SessionID string
+	CardID    string
+	Choice    session.ConversationChoice
 }
 
 // MCPDeleteRequestedMsg signals user wants to delete an MCP from the card editor.
@@ -154,6 +168,9 @@ type ErrorMsg struct {
 
 // ClearErrorMsg signals to clear the current error.
 type ClearErrorMsg struct{}
+
+// MCPServerFailedMsg reports an unexpected failure of the local MCP endpoint.
+type MCPServerFailedMsg struct{ Err error }
 
 // DataLoadedMsg contains a full data snapshot from the repository. It always
 // represents a complete refresh: fields left nil mean "that registry could
