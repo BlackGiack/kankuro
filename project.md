@@ -57,6 +57,9 @@ main_test.go                 # embedded skill → config → driver deployment i
 kankuro_skills/mcp-cli/      # the one built-in skill's source
 .golangci.yml                # lint config — the suite exits 0 and must stay that way
 internal/
+  api/                       # UI-independent shared operations; owns no process or config state
+    service.go               #   Launch, Relaunch, SwitchAgent, DeleteCard, RemoveSession; capability resolution
+    service_test.go          #   service resolution contracts without a coordinator or Bubble Tea
   app/                       # glue between the UI and everything else
     app.go                   #   tea.Model wrapper around the Coordinator
     coordinator.go           #   ★ the Coordinator struct (fields grouped by goroutine), Update, message routing
@@ -64,7 +67,7 @@ internal/
     navigation.go            #   navigateTo (invariant 2 lives in its doc comment), initViews, resize, broadcast to views
     refresh.go               #   `refresher`: config/session read commands, fingerprint check, tick. No Coordinator pointer
     preview.go               #   `previewSub`: the live-output subscription (coordinator-goroutine state)
-    session_actions.go       #   `sessionActions`: launch, relaunch, switch, delete card/MCP, IDE, capability resolution. No Coordinator pointer
+    session_actions.go       #   `sessionActions`: Bubble Tea command adapters; shared operations delegated to api.Service
     callbacks.go             #   wiring: every view's callbacks (the one place closures can still reach `c`)
     attach.go                #   raw-PTY attach/detach (releases Bubble Tea, forwards stdin, detects Ctrl+K)
     size_guard.go            #   below 80x24: the "too small" notice, and keys dropped except quit
@@ -129,6 +132,16 @@ codebase — see invariant 1 in §6.
   as `SessionsRefreshedMsg`, straight into the dashboard.
 - **Preview output** of the selected session streams from a subscription channel as
   `SessionOutputMsg`, forwarded as `PreviewDataMsg` to the views that render a preview.
+
+Shared launch, relaunch, card-switch, card-deletion, and session-removal rules live
+in `internal/api.Service`. It depends on a narrow config repository interface and
+the existing `*session.Manager`; the manager remains the only process/lifecycle
+owner. `internal/app.sessionActions` adapts these synchronous operations inside
+Bubble Tea commands, mapping their errors to the existing UI messages. In
+particular, `session.ErrPersistFailed` preserves a usable activation and is shown
+as an attach warning. Capability registries are read once per resolution; their
+errors (with list-operation context) abort activation. Card deletion's reference
+check uses a session snapshot and is not atomic with a concurrent activation.
 
 ### A session's life
 
@@ -366,6 +379,9 @@ to reproduce a user's bug is fine; writing to it is not.
   `coord.Views()`. Go through `Update` rather than calling a callback directly —
   calling `coord.AgentSwitchCallbacks().OnSwitch(...)` skips the write-back where
   invariant 2 breaks.
+- Shared operations are tested in `internal/api` without constructing a coordinator;
+  lifecycle tests should continue to use `newTestManager` so shutdown and leak
+  guards are registered.
 - `command_race_internal_test.go` is the runtime check for invariant 1: it executes the
   commands a message returns concurrently with `Update` writes, so it needs `-race`.
 - `collectMsgs` (two copies: `session_warning_test.go` and
@@ -456,6 +472,7 @@ to reproduce a user's bug is fine; writing to it is not.
 | Change the minimum terminal size or the "too small" screen | `views/constants.go` (`MinTerminalWidth/Height`), `app/size_guard.go` |
 | Change refresh behaviour | `refresh.go` (the commands) and `handlers.go` (applying results), `config.Fingerprint` |
 | Add a session-level action (Phase 1 linking) | a method on `sessionActions` in `session_actions.go` that returns a `tea.Cmd` and takes any coordinator state *by value*, plus a message and a handler in `coordinator.go`; wire the trigger in `callbacks.go` |
+| Add a shared launch/relaunch/switch/delete/remove rule | `internal/api/service.go`; keep UI message mapping in `app/session_actions.go` and callbacks in `app/callbacks.go` |
 | Change the preview subscription | `preview.go` (`previewSub`) and `handlers.go` (`handlePreviewRequest`, `handleSessionOutput`) |
 | Pick up known debt | `tech_debt_act_2.md` |
 
