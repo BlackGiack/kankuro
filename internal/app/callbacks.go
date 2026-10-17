@@ -44,7 +44,7 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 
 		OnRemove: func(sessionID string) (tea.Cmd, error) {
 			return func() tea.Msg {
-				err := c.session.Remove(sessionID)
+				err := c.actions.service.RemoveSession(sessionID)
 				if err != nil {
 					return messages.ErrorMsg{Err: err}
 				}

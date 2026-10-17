@@ -1,6 +1,6 @@
 # Feature 1: Shared application operations
 
-Status: proposed; implementation and integration review pending.
+Status: implementation complete; integration review pending.
 
 Dependency: None. Start here.
 

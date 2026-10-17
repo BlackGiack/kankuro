@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
@@ -61,7 +62,7 @@ func NewCoordinator(repo config.Repository, sm *session.Manager) *Coordinator {
 		session:     sm,
 		preview:     previewSub{sessions: sm},
 		refresh:     refresher{repo: repo, sessions: sm},
-		actions:     sessionActions{repo: repo, sessions: sm},
+		actions:     sessionActions{repo: repo, sessions: sm, service: api.New(repo, sm)},
 		views:       make(map[ViewType]component.Model),
 		currentView: ViewDashboard,
 	}
