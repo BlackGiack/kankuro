@@ -56,9 +56,12 @@ a factory, come after the capabilities work well on the existing dashboard.
   files, plans, or other artifacts there. Kankuro need not automate that preparation.
 - Switching cards on an existing session **always preserves that session's
   working directory and work**, regardless of the new card's workspace setting.
-- A session retains native conversation bindings per card, including the
-  driver identity. Returning to a card resumes its saved conversation when one
-  exists; first use starts a new conversation.
+- A session retains multiple native conversation bindings per card, including
+  driver identity and a name supplied at registration. Show names alongside IDs
+  in the conversation selector. First launch starts directly. On relaunch or card switch, if
+  the destination card has saved conversations in this session, show a view to
+  select one or start new; otherwise launch directly. Starting new retains older
+  conversations. Even a single saved conversation requires the selection view.
 - Conversation continuity and workspace continuity are separate. Users and
   orchestrators decide how to brief agents about changes made while another card
   was active; Kankuro supplies the input and inspection capabilities.
@@ -75,6 +78,12 @@ a factory, come after the capabilities work well on the existing dashboard.
   authentication, and appropriate Origin validation.
 - Bind MCP callers to their Kankuro session and activation. Do not trust a
   caller-supplied session ID as proof of authority.
+- Offer Kankuro MCP as a selectable built-in by default, like the `mcp-cli` skill;
+  resolve the endpoint and credentials at activation without manual server setup.
+- Keep one MCP config at the session's actual workspace path. Temporary workspaces
+  isolate it; sessions deliberately sharing a non-temporary workspace accept
+  last-write-wins server selection and Kankuro identity. Cleanup removes only the
+  Kankuro entry whose credential still belongs to the terminating activation.
 - Preserve the current application lifetime initially: quitting Kankuro stops its
   running sessions. A separate persistent daemon is outside the initial scope.
 
@@ -111,19 +120,24 @@ Deliver a useful standalone feature before introducing orchestration.
 
 - Evolve the driver interface to supply native session launch/resume arguments.
   Follow the existing model-argument pattern: the generic implementation supplies
-  `--session <id>`, and specific drivers override it where necessary. Verify actual
-  resume semantics for supported CLIs; pass arguments without shell interpolation.
+  `--session <id>` for resume and no conversation arguments for a new conversation;
+  Codex uses its native `resume <id>` subcommand. All drivers use generic discovery
+  and registration instructions, including Claude. Pass arguments without shell
+  interpolation and record compatibility limitations.
 - Introduce the minimal local MCP endpoint with one operation:
-  `register_conversation(conversation_id)`.
+  `register_conversation(conversation_id, name)`.
 - Use agent-assisted registration as the generic discovery strategy: provide
   instructions for the agent to discover its native conversation ID and report it
-  through MCP. Confirm that discovery is feasible for each initially supported CLI.
+  together with a meaningful display name through MCP. Validate the generic path
+  with available real-agent evidence and record compatibility limitations.
 - Bind registration to the current activation so late reports cannot overwrite a
   newer activation's binding. Capture and persist the reference as soon as available.
 - Allow driver-specific discovery implementations later, feeding the same stored
   conversation binding.
 - Persist bindings per card within each Kankuro session and use them on relaunch
-  and card switch, including after restarting Kankuro.
+  and card switch, including after restarting Kankuro. Retain multiple conversations
+  and show the destination card's conversation picker whenever any exist, with a
+  new-conversation option that preserves earlier entries. Launch directly otherwise.
 - Distinguish pending registration, registered identity, and failure. A failed
   requested resume must not silently become a fresh conversation. Provide an
   explicit way to start fresh without replacing the workspace.

@@ -17,7 +17,7 @@ import (
 
 // AgentSwitchCallbacks defines callbacks for agent switch actions.
 type AgentSwitchCallbacks struct {
-	OnSwitch func(sessionID, cardID string) tea.Cmd
+	OnSwitch func(sessionID, cardID, driver string) tea.Cmd
 	OnCancel func() tea.Cmd
 }
 
@@ -140,7 +140,7 @@ func (v *AgentSwitchView) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case tea.KeyEnter:
 		if item := v.list.SelectedItem(); item != nil {
 			if si, ok := item.(switchCardItem); ok && v.callbacks.OnSwitch != nil {
-				return v.callbacks.OnSwitch(v.sessionID, si.card.ID), true
+				return v.callbacks.OnSwitch(v.sessionID, si.card.ID, si.card.Driver), true
 			}
 		}
 		return nil, true

@@ -4,6 +4,7 @@ package api
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/BlackGiack/kankuro/internal/config"
@@ -32,6 +33,9 @@ type cardBundle struct {
 	MCPs     []config.MCPServer
 }
 
+// RegistrationResult is the structured result shared by the MCP transport and manager.
+type RegistrationResult = session.RegistrationResult
+
 func New(repo Repository, sessions *session.Manager) *Service {
 	return &Service{repo: repo, sessions: sessions}
 }
@@ -45,25 +49,22 @@ func (s *Service) Launch(card config.IDCard) (string, error) {
 	return s.sessions.Launch(card, bundle.Skills, bundle.Personas, bundle.MCPs)
 }
 
-// Relaunch starts a session using its currently saved card configuration.
+// Relaunch restarts a session without redeploying its workspace configuration.
 func (s *Service) Relaunch(sessionID string) error {
-	var cardID string
-	found := false
-	for _, snapshot := range s.sessions.List() {
-		if snapshot.ID == sessionID {
-			cardID = snapshot.CardID
-			found = true
-			break
-		}
-	}
+	return s.RelaunchWithChoice(sessionID, session.ConversationChoice{})
+}
+
+// RelaunchWithChoice restarts a session with an explicit native conversation choice.
+func (s *Service) RelaunchWithChoice(sessionID string, choice session.ConversationChoice) error {
+	snapshot, found := s.sessions.GetSession(sessionID)
 	if !found {
 		return fmt.Errorf("session not found: %s", sessionID)
 	}
-	card, err := s.loadCard(cardID)
+	card, err := s.loadCard(snapshot.CardID)
 	if err != nil {
 		return err
 	}
-	return s.sessions.Relaunch(sessionID, card)
+	return s.sessions.RelaunchWithChoice(sessionID, card, choice)
 }
 
 // SwitchAgent changes the card while the manager retains the session workspace.
@@ -72,14 +73,41 @@ func (s *Service) SwitchAgent(sessionID, cardID string) error {
 	if err != nil {
 		return err
 	}
-	return s.sessions.SwitchAgent(sessionID, bundle.Card, bundle.Skills, bundle.Personas, bundle.MCPs)
+	return s.sessions.SwitchAgentWithChoice(
+		sessionID,
+		bundle.Card,
+		bundle.Skills,
+		bundle.Personas,
+		bundle.MCPs,
+		session.ConversationChoice{},
+	)
+}
+
+// SwitchAgentWithChoice changes cards and optionally resumes a conversation
+// saved for that destination card.
+func (s *Service) SwitchAgentWithChoice(sessionID, cardID string, choice session.ConversationChoice) error {
+	bundle, err := s.resolveCard(cardID)
+	if err != nil {
+		return err
+	}
+	return s.sessions.SwitchAgentWithChoice(sessionID, bundle.Card, bundle.Skills, bundle.Personas, bundle.MCPs, choice)
+}
+
+// Conversations returns the saved bindings for one session/card pair.
+func (s *Service) Conversations(sessionID, cardID string) ([]session.ConversationBinding, error) {
+	snapshot, found := s.sessions.GetSession(sessionID)
+	if !found {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+	return append([]session.ConversationBinding(nil), snapshot.Conversations[cardID]...), nil
 }
 
 // DeleteCard refuses deletion while any session, including a terminated one, references it.
 func (s *Service) DeleteCard(cardID string) error {
 	var referencedBy []string
 	for _, snapshot := range s.sessions.List() {
-		if snapshot.CardID == cardID {
+		_, hasBinding := snapshot.Conversations[cardID]
+		if snapshot.CardID == cardID || hasBinding {
 			referencedBy = append(referencedBy, snapshot.Name)
 		}
 	}
@@ -91,6 +119,17 @@ func (s *Service) DeleteCard(cardID string) error {
 
 // RemoveSession delegates lifecycle guards and workspace cleanup to the manager.
 func (s *Service) RemoveSession(sessionID string) error { return s.sessions.Remove(sessionID) }
+
+// RegisterConversation delegates an authenticated activation report to the
+// manager, which validates that the credential still owns a live activation.
+func (s *Service) RegisterConversation(token, conversationID, name string) (RegistrationResult, error) {
+	return s.sessions.RegisterConversation(token, conversationID, name)
+}
+
+// HasActivationCredential validates an MCP bearer token without exposing its principal.
+func (s *Service) HasActivationCredential(token string) bool {
+	return s.sessions.HasActivationCredential(token)
+}
 
 func (s *Service) resolveCard(cardID string) (cardBundle, error) {
 	card, err := s.loadCard(cardID)
@@ -148,7 +187,25 @@ func (s *Service) resolveCapabilities(card config.IDCard) (cardBundle, error) {
 			bundle.MCPs = append(bundle.MCPs, item)
 		}
 	}
+	appendKankuroAccessSkill(card, &bundle, skills)
 	return bundle, nil
+}
+
+func appendKankuroAccessSkill(card config.IDCard, bundle *cardBundle, skills []config.Skill) {
+	if slices.Contains(card.SkillIDs, config.BuiltinSkillMCPCLI) {
+		return
+	}
+	for _, mcp := range bundle.MCPs {
+		if mcp.ID != config.BuiltinMCPKankuro {
+			continue
+		}
+		for _, skill := range skills {
+			if skill.ID == config.BuiltinSkillMCPCLI {
+				bundle.Skills = append(bundle.Skills, skill)
+				return
+			}
+		}
+	}
 }
 
 func idSet(ids []string) map[string]struct{} {

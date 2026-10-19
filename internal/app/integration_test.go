@@ -30,8 +30,8 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 		t.Errorf("Expected ViewDashboard, got %v", coord.CurrentView())
 	}
 
-	if len(coord.Views()) != 10 {
-		t.Errorf("Expected 10 views, got %d", len(coord.Views()))
+	if len(coord.Views()) != 11 {
+		t.Errorf("Expected 11 views, got %d", len(coord.Views()))
 	}
 }
 
@@ -268,7 +268,7 @@ func TestSessionActionsFlow(t *testing.T) {
 	// SwitchAgent call runs inside the returned Cmd, not synchronously
 	// here), so drive it through Update the way a real Bubble Tea runtime
 	// would: execute the Cmd, feed the resulting message back in.
-	switchCmd := coord.AgentSwitchCallbacks().OnSwitch(sessionID, newCard.ID)
+	switchCmd := coord.AgentSwitchCallbacks().OnSwitch(sessionID, newCard.ID, newCard.Driver)
 	if switchCmd == nil {
 		t.Fatal("Expected cmd for switch")
 	}

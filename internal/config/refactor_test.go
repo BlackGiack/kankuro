@@ -71,8 +71,8 @@ func TestUpsertDomainTypes(t *testing.T) {
 		t.Fatalf("update mcp: %v", err)
 	}
 	mcps, _ := repo.ListMCPs()
-	if len(mcps) != 1 {
-		t.Fatalf("expected 1 mcp, got %d", len(mcps))
+	if len(mcps) != 2 {
+		t.Fatalf("expected user mcp and built-in kankuro mcp, got %d", len(mcps))
 	}
 }
 

@@ -127,6 +127,47 @@ func TestResolveCapabilitiesOrdersAndFiltersEveryRegistry(t *testing.T) {
 	}
 }
 
+func TestResolveCapabilitiesAddsMCPAccessSkillOnlyWhenKankuroMCPSelected(t *testing.T) {
+	repo, err := config.NewFileRepository(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := New(repo, nil)
+	withoutMCP, err := service.resolveCapabilities(config.IDCard{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if countMCPCLI(withoutMCP.Skills) > 0 {
+		t.Fatal("mcp-cli access skill was added without selecting Kankuro MCP")
+	}
+	withMCP, err := service.resolveCapabilities(config.IDCard{MCPIDs: []string{config.BuiltinMCPKankuro}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if countMCPCLI(withMCP.Skills) != 1 {
+		t.Fatalf("mcp-cli access skill count = %d, want one", countMCPCLI(withMCP.Skills))
+	}
+	withMCPAndSkill, err := service.resolveCapabilities(config.IDCard{
+		MCPIDs: []string{config.BuiltinMCPKankuro}, SkillIDs: []string{config.BuiltinSkillMCPCLI},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if countMCPCLI(withMCPAndSkill.Skills) != 1 {
+		t.Fatalf("explicit mcp-cli skill duplicated: %#v", withMCPAndSkill.Skills)
+	}
+}
+
+func countMCPCLI(skills []config.Skill) int {
+	count := 0
+	for _, skill := range skills {
+		if skill.ID == config.BuiltinSkillMCPCLI {
+			count++
+		}
+	}
+	return count
+}
+
 //nolint:gocognit // one table-driven scenario validates each abort point and read count.
 func TestResolveCapabilitiesPropagatesEachRegistryFailure(t *testing.T) {
 	for _, tc := range []struct {
@@ -225,8 +266,8 @@ func TestServiceRelaunchAndSwitchResolveLatestSavedCards(t *testing.T) {
 		t.Fatalf("Relaunch: %v", err)
 	}
 	content, err := os.ReadFile(filepath.Join(workspace, "AGENTS.md"))
-	if err != nil || string(content) != first.AgentsMD {
-		t.Fatalf("relaunch did not sync latest saved card configuration: %q, %v", content, err)
+	if err != nil || string(content) != "before" {
+		t.Fatalf("relaunch changed deployed instruction: %q, %v", content, err)
 	}
 	if err := sessions.Kill(sid); err != nil {
 		t.Fatal(err)
@@ -315,6 +356,103 @@ func TestServiceSwitchPreservesWorkspaceAcrossDifferentCardSettings(t *testing.T
 	if _, err := os.Stat(filepath.Join(destinationWorkspace, "preserve.txt")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("destination workspace unexpectedly used; stat error=%v", err)
 	}
+}
+
+//nolint:gocognit,govet // Table-driven lifecycle test verifies path, metadata, spawn directory, and user work.
+func TestServiceRelaunchPreservesSavedWorkspaceIdentity(t *testing.T) {
+	for _, sourceTmp := range []bool{false, true} {
+		name := "source-original"
+		if sourceTmp {
+			name = "source-temporary"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("KANKURO_TMP_DIR", t.TempDir())
+			api, repo, sessions, sourceWorkspace, sourceWorkspaceID := newServiceFixture(t)
+			destinationWorkspace := t.TempDir()
+			if err := repo.SaveWorkspaceSources(
+				[]config.WorkspaceSource{{Path: sourceWorkspace}, {Path: destinationWorkspace}},
+			); err != nil {
+				t.Fatal(err)
+			}
+			workspaces, err := repo.ListWorkspaces()
+			if err != nil {
+				t.Fatal(err)
+			}
+			var destinationID string
+			for _, workspace := range workspaces {
+				if workspace.Path == destinationWorkspace {
+					destinationID = workspace.ID
+				}
+			}
+			spawnLog := filepath.Join(t.TempDir(), "spawn-dirs")
+			driverPath := filepath.Join(t.TempDir(), "record-pwd")
+			script := "#!/bin/sh\nprintf '%s\\n' \"$PWD\" >> " + shellQuote(spawnLog) + "\nexec cat\n"
+			if err := os.WriteFile(driverPath, []byte(script), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			card := saveCard(t, repo.FileRepository, config.IDCard{
+				ID: "card", Name: "card", Driver: driverPath, WorkspaceID: sourceWorkspaceID, UseTmpWorkspace: sourceTmp,
+			})
+			sessionID, err := api.Launch(card)
+			if err != nil {
+				t.Fatalf("launch: %v", err)
+			}
+			waitForSpawnLog(t, spawnLog, 1)
+			before, _ := sessions.GetSession(sessionID)
+			workFile := filepath.Join(before.WorkingDir, "keep.txt")
+			if err := os.WriteFile(workFile, []byte("keep"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := sessions.Kill(sessionID); err != nil {
+				t.Fatal(err)
+			}
+			card.WorkspaceID = destinationID
+			card.UseTmpWorkspace = !sourceTmp
+			if _, err := repo.UpdateIDCard(card); err != nil {
+				t.Fatal(err)
+			}
+			if err := api.Relaunch(sessionID); err != nil {
+				t.Fatalf("relaunch: %v", err)
+			}
+			waitForSpawnLog(t, spawnLog, 2)
+			after, _ := sessions.GetSession(sessionID)
+			if after.WorkingDir != before.WorkingDir || after.OriginalDir != before.OriginalDir || after.UseTmpWorkspace != sourceTmp {
+				t.Fatalf("relaunch changed saved workspace identity: before=%#v after=%#v", before, after)
+			}
+			content, err := os.ReadFile(workFile)
+			if err != nil || string(content) != "keep" {
+				t.Fatalf("work file after relaunch: %q, %v", content, err)
+			}
+			if err := sessions.Kill(sessionID); err != nil {
+				t.Fatal(err)
+			}
+			spawnDirs, err := os.ReadFile(spawnLog)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for got := range strings.SplitSeq(strings.TrimSpace(string(spawnDirs)), "\n") {
+				if got != before.WorkingDir {
+					t.Fatalf("spawn directory %q, want retained %q", got, before.WorkingDir)
+				}
+			}
+		})
+	}
+}
+
+func waitForSpawnLog(t *testing.T, path string, count int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+			if len(lines) >= count && lines[0] != "" {
+				return
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("spawn log %s did not reach %d entries", path, count)
 }
 
 func shellQuote(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'" }

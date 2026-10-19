@@ -8,7 +8,34 @@ import (
 const (
 	// BuiltinSkillMCPCLI is the stable ID for the built-in mcp-cli skill.
 	BuiltinSkillMCPCLI = "builtin:mcp-cli"
+	// BuiltinMCPKankuro is the stable selectable ID for Kankuro's MCP endpoint.
+	BuiltinMCPKankuro = "builtin:kankuro"
 )
+
+// BuiltinMCPs returns the built-in servers offered by Kankuro.
+func BuiltinMCPs() []MCPServer {
+	return []MCPServer{
+		{ID: BuiltinMCPKankuro, Name: "kankuro", Description: "Register this agent's native conversation with Kankuro", Builtin: true},
+	}
+}
+
+// MergeBuiltinMCPs adds built-ins without duplicating persisted entries.
+func MergeBuiltinMCPs(mcps []MCPServer) []MCPServer {
+	result := append([]MCPServer(nil), mcps...)
+	for _, builtin := range BuiltinMCPs() {
+		found := false
+		for _, existing := range result {
+			if existing.ID == builtin.ID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result = append(result, builtin)
+		}
+	}
+	return result
+}
 
 //nolint:gochecknoglobals // startup-injected skill content is shared process configuration.
 var builtinMCPCLISkill struct {

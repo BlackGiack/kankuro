@@ -139,7 +139,7 @@ func TestCardAndCapabilityLookupFailuresRemainVisible(t *testing.T) {
 	if !containsCapabilityError(launchMsgs) || failingRepo.capabilityReads == 0 {
 		t.Fatalf("launch did not propagate capability failure: %v", launchMsgs)
 	}
-	switchMsgs := collectMsgs(t, coord.AgentSwitchCallbacks().OnSwitch(sid, card.ID))
+	switchMsgs := collectMsgs(t, coord.AgentSwitchCallbacks().OnSwitch(sid, card.ID, ""))
 	if !containsSwitchCapabilityError(switchMsgs) || failingRepo.capabilityReads == 0 {
 		t.Fatalf("switch did not propagate capability failure: %v", switchMsgs)
 	}

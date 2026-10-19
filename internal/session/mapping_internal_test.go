@@ -67,6 +67,10 @@ func setNonZero(t *testing.T, v reflect.Value, seed int) {
 		v.SetBool(true)
 	case time.Time:
 		v.Set(reflect.ValueOf(time.Date(2000, 1, seed%28+1, 0, 0, 0, 0, time.UTC)))
+	case map[string][]ConversationBinding:
+		v.Set(reflect.ValueOf(map[string][]ConversationBinding{"card": {{ID: fmt.Sprintf("id-%d", seed), Name: "name", Driver: "driver"}}}))
+	case map[string]bool:
+		v.Set(reflect.ValueOf(map[string]bool{"AGENTS.md": true, "CLAUDE.md": seed%2 == 0}))
 	case Status:
 		v.SetString(fmt.Sprintf("status-%d", seed))
 	default:

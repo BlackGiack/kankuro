@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -106,7 +107,7 @@ func TestSetAgentsMD(t *testing.T) {
 		AgentsMD: "# Inline instruction",
 	}
 
-	if err := d.SetAgentsMD(card, nil, nil, wd, false); err != nil {
+	if _, err := d.SetAgentsMD(card, nil, nil, wd, driver.InstructionReplace); err != nil {
 		t.Fatalf("failed to set agents md: %v", err)
 	}
 
@@ -119,6 +120,123 @@ func TestSetAgentsMD(t *testing.T) {
 	}
 }
 
+func TestManagedConversationInstructionsAreIdempotentInAppendMode(t *testing.T) {
+	d := driver.NewGenericCLIDriver()
+	wd := t.TempDir()
+	if err := os.WriteFile(filepath.Join(wd, "AGENTS.md"), []byte("workspace instructions"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	card := config.IDCard{AgentsMD: "card instructions"}
+	for range 2 {
+		if _, err := d.SetAgentsMD(card, nil, config.BuiltinMCPs(), wd, driver.InstructionAppend); err != nil {
+			t.Fatal(err)
+		}
+	}
+	content, err := os.ReadFile(filepath.Join(wd, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(content), "KANKURO CONVERSATION INSTRUCTIONS START") != 1 {
+		t.Fatalf("managed instruction block duplicated: %q", content)
+	}
+	if !strings.Contains(string(content), "workspace instructions") || !strings.Contains(string(content), "card instructions") {
+		t.Fatalf("append behavior lost authored content: %q", content)
+	}
+	if !strings.Contains(string(content), "MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json") ||
+		strings.Contains(string(content), "Bearer ") || strings.Contains(string(content), "http://127.0.0.1") ||
+		strings.Contains(string(content), "KANKURO_MCP_CONFIG_PATH") {
+		t.Fatalf("managed block contains missing references or activation-specific secrets: %q", content)
+	}
+}
+
+func TestManagedConversationInstructionsExistWithoutCardInstructions(t *testing.T) {
+	wd := t.TempDir()
+	if _, err := driver.NewGenericCLIDriver().
+		SetAgentsMD(config.IDCard{}, nil, config.BuiltinMCPs(), wd, driver.InstructionReplace); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(filepath.Join(wd, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "call kankuro register_conversation") {
+		t.Fatalf("empty card instruction did not receive managed conversation block: %q", content)
+	}
+}
+
+func TestManagedConversationInstructionsAreRemovedWhenKankuroIsUnselected(t *testing.T) {
+	wd := t.TempDir()
+	d := driver.NewGenericCLIDriver()
+	card := config.IDCard{AgentsMD: "card-authored instructions"}
+	if _, err := d.SetAgentsMD(card, nil, config.BuiltinMCPs(), wd, driver.InstructionReplace); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.SetAgentsMD(config.IDCard{}, nil, nil, wd, driver.InstructionAppend); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(filepath.Join(wd, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(content), "KANKURO CONVERSATION INSTRUCTIONS START") {
+		t.Fatalf("unselected Kankuro instructions remain: %q", content)
+	}
+	if !strings.Contains(string(content), "card-authored instructions") {
+		t.Fatalf("removing the managed block lost authored content: %q", content)
+	}
+}
+
+func TestEmptyReplacementClearsPreviousCardInstructions(t *testing.T) {
+	wd := t.TempDir()
+	d := driver.NewGenericCLIDriver()
+	cardA := config.IDCard{AgentsMD: "ROLE_A_PRIVATE_INSTRUCTIONS"}
+	if _, err := d.SetAgentsMD(cardA, nil, config.BuiltinMCPs(), wd, driver.InstructionReplace); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.SetAgentsMD(config.IDCard{}, nil, nil, wd, driver.InstructionReplace); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(filepath.Join(wd, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(content) != 0 {
+		t.Fatalf("empty replacement retained previous card instructions: %q", content)
+	}
+}
+
+func TestSetSessionArguments(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		driver driver.AgentDriver
+	}{
+		{name: "generic", driver: driver.NewGenericCLIDriver()},
+		{name: "claude inherits generic", driver: driver.NewClaudeCodeDriver()},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := test.driver.SetSession(""); len(got) != 0 {
+				t.Fatalf("new-conversation args = %#v", got)
+			}
+			got := test.driver.SetSession("native id; not shell syntax")
+			want := []string{"--session", "native id; not shell syntax"}
+			if !slices.Equal(got, want) {
+				t.Fatalf("resume args = %#v, want %#v", got, want)
+			}
+		})
+	}
+}
+
+func TestCodexSetSessionArguments(t *testing.T) {
+	d := driver.NewCodexCLIDriver()
+	if got := d.SetSession(""); len(got) != 0 {
+		t.Fatalf("new-conversation args = %#v", got)
+	}
+	want := []string{"resume", "native-session-id"}
+	if got := d.SetSession("native-session-id"); !slices.Equal(got, want) {
+		t.Fatalf("Codex resume args = %#v, want %#v", got, want)
+	}
+}
+
 func TestClaudeCodeDriver(t *testing.T) {
 	d := driver.NewClaudeCodeDriver()
 	wd := t.TempDir()
@@ -127,7 +245,7 @@ func TestClaudeCodeDriver(t *testing.T) {
 		AgentsMD: "# Claude instruction",
 	}
 
-	if err := d.SetAgentsMD(card, nil, nil, wd, false); err != nil {
+	if _, err := d.SetAgentsMD(card, nil, nil, wd, driver.InstructionReplace); err != nil {
 		t.Fatalf("failed to set agents md: %v", err)
 	}
 

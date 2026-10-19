@@ -71,6 +71,7 @@ type MCPServer struct {
 	URL         string            `yaml:"url"`
 	Headers     map[string]string `yaml:"headers"`
 	Description string            `yaml:"description"`
+	Builtin     bool              `yaml:"builtin,omitempty"`
 }
 
 type IDCardsFile struct {

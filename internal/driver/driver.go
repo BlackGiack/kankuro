@@ -43,6 +43,22 @@ const (
 	killPollInterval = 20 * time.Millisecond
 )
 
+const (
+	EnvKankuroMCPConfigPath = "KANKURO_MCP_CONFIG_PATH"
+	//nolint:gosec // This names a reserved environment variable; it is not a credential value.
+	EnvKankuroMCPToken = "KANKURO_MCP_TOKEN"
+)
+
+// InstructionSyncMode controls how the destination card's instruction content
+// interacts with an existing workspace instruction file.
+type InstructionSyncMode uint8
+
+const (
+	InstructionReplace InstructionSyncMode = iota
+	InstructionAppend
+	InstructionPreserveWhenEmpty
+)
+
 type AgentConfig struct {
 	Driver            string
 	Model             string
@@ -63,11 +79,20 @@ type AgentDriver interface {
 	Spawn(config AgentConfig) (*SessionHandle, error)
 	Kill() error
 
-	SetAgentsMD(card config.IDCard, personas []config.Persona, mcps []config.MCPServer, workspaceRoot string, appendIfExist bool) error
+	// SetAgentsMD reports whether card/capability content is managed in the
+	// instruction file; preserved workspace-authored content is not managed.
+	SetAgentsMD(
+		card config.IDCard,
+		personas []config.Persona,
+		mcps []config.MCPServer,
+		workspaceRoot string,
+		mode InstructionSyncMode,
+	) (bool, error)
 	SetSkills(skills []config.Skill, workspaceRoot ...string) error
 	SetPersonas(personas []config.Persona, workspaceRoot ...string) error
 	SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error
 	SetModel(model string) []string
+	SetSession(conversationID string) []string
 
 	// SendInput and SendInputBytes both write into the active PTY session,
 	// synchronized against Kill via the driver's own lock. This is the only
@@ -79,6 +104,7 @@ type AgentDriver interface {
 
 	GetStatus() SessionStatus
 	GetAgentFolder() string
+	GetInstructionFileName() string
 }
 
 type GenericCLIDriver struct {
@@ -101,17 +127,19 @@ func NewGenericCLIDriver() *GenericCLIDriver {
 	return &GenericCLIDriver{status: StatusTerminated, killGrace: defaultKillGrace}
 }
 
-func (d *GenericCLIDriver) GetAgentFolder() string { return ".agents" }
+func (d *GenericCLIDriver) GetAgentFolder() string         { return ".agents" }
+func (d *GenericCLIDriver) GetInstructionFileName() string { return "AGENTS.md" }
 
-// SetAgentsMD ensures the agent instruction file (AGENTS.md) is present in the session workspace.
+// SetAgentsMD syncs the agent instruction file and reports whether this card
+// installed managed content that may need clearing on a later replacement.
 func (d *GenericCLIDriver) SetAgentsMD(
 	card config.IDCard,
 	personas []config.Persona,
 	mcps []config.MCPServer,
 	workspaceRoot string,
-	appendIfExist bool,
-) error {
-	return syncInstructionFile(workspaceRoot, "AGENTS.md", d.GetAgentFolder(), card, personas, mcps, appendIfExist)
+	mode InstructionSyncMode,
+) (bool, error) {
+	return syncInstructionFile(workspaceRoot, d.GetInstructionFileName(), d.GetAgentFolder(), card, personas, mcps, mode)
 }
 
 // ClaudeCodeDriver specializes the GenericCLIDriver to write CLAUDE.md instead of AGENTS.md.
@@ -124,17 +152,18 @@ func NewClaudeCodeDriver() *ClaudeCodeDriver {
 	return &ClaudeCodeDriver{GenericCLIDriver: NewGenericCLIDriver()}
 }
 
-func (d *ClaudeCodeDriver) GetAgentFolder() string { return ".claude" }
+func (d *ClaudeCodeDriver) GetAgentFolder() string         { return ".claude" }
+func (d *ClaudeCodeDriver) GetInstructionFileName() string { return "CLAUDE.md" }
 
-// SetAgentsMD ensures the agent instruction file (CLAUDE.md) is present in the session workspace.
+// SetAgentsMD syncs the Claude instruction file and reports its managed ownership.
 func (d *ClaudeCodeDriver) SetAgentsMD(
 	card config.IDCard,
 	personas []config.Persona,
 	mcps []config.MCPServer,
 	workspaceRoot string,
-	appendIfExist bool,
-) error {
-	return syncInstructionFile(workspaceRoot, "CLAUDE.md", d.GetAgentFolder(), card, personas, mcps, appendIfExist)
+	mode InstructionSyncMode,
+) (bool, error) {
+	return syncInstructionFile(workspaceRoot, d.GetInstructionFileName(), d.GetAgentFolder(), card, personas, mcps, mode)
 }
 
 func (d *ClaudeCodeDriver) SetSkills(skills []config.Skill, workspaceRoot ...string) error {
@@ -145,16 +174,34 @@ func (d *ClaudeCodeDriver) SetPersonas(personas []config.Persona, workspaceRoot 
 	return setPersonas(personas, d.GetAgentFolder(), workspaceRoot...)
 }
 
+// CodexCLIDriver specializes native conversation resume arguments for Codex CLI.
+type CodexCLIDriver struct {
+	*GenericCLIDriver
+}
+
+// NewCodexCLIDriver returns the Codex CLI driver with generic workspace behavior.
+func NewCodexCLIDriver() *CodexCLIDriver {
+	return &CodexCLIDriver{GenericCLIDriver: NewGenericCLIDriver()}
+}
+
+// SetSession returns Codex CLI's native resume subcommand and session ID.
+func (d *CodexCLIDriver) SetSession(conversationID string) []string {
+	if conversationID == "" {
+		return nil
+	}
+	return []string{"resume", conversationID}
+}
+
 func syncInstructionFile(
 	finalWD, filename, agentFolder string,
 	card config.IDCard,
 	personas []config.Persona,
 	mcps []config.MCPServer,
-	appendIfExist bool,
-) error {
+	mode InstructionSyncMode,
+) (bool, error) {
 	content, err := resolveAgentsMDContent(card)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if len(personas) == 1 {
@@ -164,12 +211,79 @@ func syncInstructionFile(
 	if len(mcps) > 0 {
 		content = appendMCPInstruction(content, mcps)
 	}
-
-	if content == "" {
-		return nil
+	if hasKankuroMCP(mcps) {
+		content = withConversationInstructions(content)
+	} else {
+		content = removeConversationInstructionBlock(content)
 	}
 
-	return writeInstructionFile(finalWD, filename, content, appendIfExist)
+	if content == "" {
+		if mode != InstructionReplace {
+			return false, removeConversationInstructionBlockFromFile(finalWD, filename)
+		}
+		return false, writeInstructionFile(finalWD, filename, "", false)
+	}
+
+	if writeErr := writeInstructionFile(finalWD, filename, content, mode == InstructionAppend); writeErr != nil {
+		return false, writeErr
+	}
+	return true, nil
+}
+
+func hasKankuroMCP(mcps []config.MCPServer) bool {
+	for _, mcp := range mcps {
+		if mcp.ID == config.BuiltinMCPKankuro {
+			return true
+		}
+	}
+	return false
+}
+
+func removeConversationInstructionBlockFromFile(dir, filename string) error {
+	path := filepath.Join(dir, filename)
+	existing, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read %s: %w", filename, err)
+	}
+	cleaned := removeConversationInstructionBlock(string(existing))
+	if cleaned == string(existing) {
+		return nil
+	}
+	//nolint:gosec // This is the workspace's existing managed instruction file.
+	if writeErr := os.WriteFile(path, []byte(cleaned), 0o600); writeErr != nil {
+		return fmt.Errorf("write %s: %w", filename, writeErr)
+	}
+	return nil
+}
+
+const conversationInstructionStart = "<!-- KANKURO CONVERSATION INSTRUCTIONS START -->"
+const conversationInstructionEnd = "<!-- KANKURO CONVERSATION INSTRUCTIONS END -->"
+
+// withConversationInstructions replaces only Kankuro's managed block, leaving
+// card-authored instructions and their existing append/replace behavior intact.
+func withConversationInstructions(content string) string {
+	content = removeConversationInstructionBlock(content)
+	block := conversationInstructionStart + "\nWhen a native conversation ID is available, discover the CLI's actual ID and a meaningful name, then register it with Kankuro using `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call kankuro register_conversation`. Run this from the workspace root; if you changed into a subdirectory, return to the workspace root first. Report only an ID confirmed by the CLI. Retry the same report after one second, up to five times, if activation is still starting." + "\n" + conversationInstructionEnd
+	if content == "" {
+		return block
+	}
+	return content + "\n\n" + block
+}
+
+func removeConversationInstructionBlock(content string) string {
+	start := strings.Index(content, conversationInstructionStart)
+	if start >= 0 {
+		end := strings.Index(content[start:], conversationInstructionEnd)
+		if end >= 0 {
+			before := strings.TrimSuffix(content[:start], "\n\n")
+			after := strings.TrimPrefix(content[start+end+len(conversationInstructionEnd):], "\n\n")
+			content = before + after
+		}
+	}
+	return content
 }
 
 func resolveAgentsMDContent(card config.IDCard) (string, error) {
@@ -213,24 +327,25 @@ func writeInstructionFile(dir, filename, content string, appendIfExist bool) err
 		return os.WriteFile(path, []byte(content), 0o600)
 	}
 
+	// Append mode is used when a temporary copy started from a workspace with
+	// its own instruction file. Replace the managed block in that copy first,
+	// so repeated launches cannot accumulate duplicate Kankuro instructions.
+	existing, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("read %s: %w", filename, err)
+	}
+	if len(existing) > 0 {
+		base := removeConversationInstructionBlock(string(existing))
+		if base != "" {
+			content = strings.TrimRight(base, "\n") + "\n\n" + strings.TrimLeft(content, "\n")
+		}
+	}
 	// G703: Path traversal via taint analysis.
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return fmt.Errorf("open %s: %w", filename, err)
+	//nolint:gosec // Target is the workspace's managed instruction file, selected by the configured driver.
+	if writeErr := os.WriteFile(path, []byte(content), 0o600); writeErr != nil {
+		return fmt.Errorf("write %s: %w", filename, writeErr)
 	}
-	defer f.Close()
-
-	stat, err := f.Stat()
-	if err != nil {
-		return fmt.Errorf("stat %s: %w", filename, err)
-	}
-
-	if stat.Size() > 0 {
-		content = "\n\n" + content
-	}
-
-	_, err = f.WriteString(content)
-	return err
+	return nil
 }
 
 // Spawn starts an interactive CLI process in a PTY and wires streaming output.
@@ -529,59 +644,10 @@ func setPersonas(personas []config.Persona, agentsFolder string, workspaceRoot .
 
 // SelectMCPs ensures MCP configuration is present in the session workspace.
 func (d *GenericCLIDriver) SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error {
-	if len(mcps) == 0 {
-		return nil
-	}
-	root := ""
-	if len(workspaceRoot) > 0 {
-		root = strings.TrimSpace(workspaceRoot[0])
-	}
-	if root == "" {
+	if len(workspaceRoot) == 0 || strings.TrimSpace(workspaceRoot[0]) == "" {
 		return errors.New("workspace root is required for MCP sync")
 	}
-	kankuroDir := filepath.Join(root, ".kankuro")
-	if err := os.MkdirAll(kankuroDir, 0o700); err != nil {
-		return fmt.Errorf("create .kankuro dir: %w", err)
-	}
-
-	type mcpEntry struct {
-		Command string            `json:"command,omitempty"`
-		Args    []string          `json:"args,omitempty"`
-		Env     map[string]string `json:"env,omitempty"`
-		CWD     string            `json:"cwd,omitempty"`
-		URL     string            `json:"url,omitempty"`
-		Headers map[string]string `json:"headers,omitempty"`
-	}
-	type mcpConfig struct {
-		MCPServers map[string]mcpEntry `json:"mcpServers"`
-	}
-
-	cfg := mcpConfig{MCPServers: make(map[string]mcpEntry)}
-	for _, mcp := range mcps {
-		entry := mcpEntry{
-			Args:    mcp.Args,
-			Env:     mcp.Env,
-			CWD:     mcp.CWD,
-			Headers: mcp.Headers,
-		}
-		if mcp.Command != "" {
-			entry.Command = mcp.Command
-		}
-		if mcp.URL != "" {
-			entry.URL = mcp.URL
-		}
-		cfg.MCPServers[mcp.Name] = entry
-	}
-
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal mcp config: %w", err)
-	}
-
-	if err = os.WriteFile(filepath.Join(kankuroDir, "mcp-servers.json"), data, 0o600); err != nil {
-		return fmt.Errorf("write mcp-servers.json: %w", err)
-	}
-	return nil
+	return writeWorkspaceMCPConfig(mcps, strings.TrimSpace(workspaceRoot[0]))
 }
 
 // SetModel returns the command line arguments to configure the model.
@@ -590,6 +656,14 @@ func (d *GenericCLIDriver) SetModel(model string) []string {
 		return nil
 	}
 	return []string{"--model", model}
+}
+
+// SetSession returns the generic CLI's native conversation resume arguments.
+func (d *GenericCLIDriver) SetSession(conversationID string) []string {
+	if conversationID == "" {
+		return nil
+	}
+	return []string{"--session", conversationID}
 }
 
 // SendInput writes raw input bytes into the active PTY session.
@@ -653,7 +727,14 @@ func (d *GenericCLIDriver) closeDone() {
 }
 
 func mergeEnvWithPwd(extra map[string]string, pwd string) []string {
-	base := os.Environ()
+	base := make([]string, 0, len(os.Environ())+len(extra)+1)
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		if key == EnvKankuroMCPConfigPath || key == EnvKankuroMCPToken {
+			continue
+		}
+		base = append(base, entry)
+	}
 	keys := make([]string, 0, len(extra))
 	for k := range extra {
 		keys = append(keys, k)

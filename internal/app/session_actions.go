@@ -38,8 +38,12 @@ func (a sessionActions) launch(card config.IDCard) tea.Cmd {
 // SessionAttachRequestedMsg (with a Warning when only the record failed to
 // save) or an ErrorMsg.
 func (a sessionActions) relaunch(sessionID string) tea.Cmd {
+	return a.relaunchWithChoice(sessionID, session.ConversationChoice{New: true})
+}
+
+func (a sessionActions) relaunchWithChoice(sessionID string, choice session.ConversationChoice) tea.Cmd {
 	return func() tea.Msg {
-		relaunchErr := a.service.Relaunch(sessionID)
+		relaunchErr := a.service.RelaunchWithChoice(sessionID, choice)
 		if relaunchErr != nil {
 			if !errors.Is(relaunchErr, session.ErrPersistFailed) {
 				return messages.ErrorMsg{Err: relaunchErr}
@@ -61,8 +65,12 @@ func (a sessionActions) relaunch(sessionID string) tea.Cmd {
 // dead, reachable-by-one-wiring-change copy of the blocking-work-inside-Update
 // bug.
 func (a sessionActions) switchAgent(sessionID, newCardID string) tea.Cmd {
+	return a.switchAgentWithChoice(sessionID, newCardID, session.ConversationChoice{New: true})
+}
+
+func (a sessionActions) switchAgentWithChoice(sessionID, newCardID string, choice session.ConversationChoice) tea.Cmd {
 	return func() tea.Msg {
-		err := a.service.SwitchAgent(sessionID, newCardID)
+		err := a.service.SwitchAgentWithChoice(sessionID, newCardID, choice)
 		return messages.AgentSwitchedMsg{SessionID: sessionID, Err: err}
 	}
 }

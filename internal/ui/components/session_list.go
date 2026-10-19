@@ -17,13 +17,17 @@ import (
 
 // Session styling .
 const (
-	SessionDelegateHeight = 4
+	SessionDelegateHeight  = 4
+	registrationErrorWidth = 18
+	conversationLabelWidth = 12
+	conversationIDWidth    = 12
 )
 
 // SessionListItem wraps session.Snapshot for list display.
 type SessionListItem struct {
 	Session session.Snapshot
 	Card    *config.IDCard // Reference to card for face style
+	Width   int
 }
 
 // SessionListCallbacks defines callbacks for session actions.
@@ -259,6 +263,7 @@ func (s *SessionList) refreshItems() {
 		items = append(items, SessionListItem{
 			Session: sess,
 			Card:    card,
+			Width:   s.Width,
 		})
 	}
 
@@ -316,6 +321,34 @@ func (i SessionListItem) Description() string {
 
 	cardLine := cardName + " " + face
 	descLine := fmt.Sprintf("%s pid=%d", i.Session.Status, i.Session.PID)
+	if i.Session.Registration != "" && i.Session.Registration != session.RegistrationUnavailable {
+		descLine += " reg=" + string(i.Session.Registration)
+		if i.Session.RegistrationPersistence == session.RegistrationUnsaved {
+			descLine += "/not-saved"
+		}
+		if i.Session.RegistrationErr != "" {
+			descLine += " !" + TruncateTail(DisplayText(i.Session.RegistrationErr), registrationErrorWidth)
+		}
+	}
+	conversationIdentity := ""
+	for _, binding := range i.Session.Conversations[i.Session.CardID] {
+		if binding.ID == i.Session.ActiveConversationID {
+			conversationIdentity = TruncateTail(
+				DisplayText(binding.Name),
+				conversationLabelWidth,
+			) + ":" + TruncateTail(
+				DisplayText(binding.ID),
+				conversationIDWidth,
+			)
+			break
+		}
+	}
+	if conversationIdentity != "" {
+		descLine += " " + conversationIdentity
+	}
+	if i.Width > 0 {
+		descLine = TruncateHead(DisplayText(descLine), i.Width)
+	}
 
 	const maxWorkspaceLen = 25
 

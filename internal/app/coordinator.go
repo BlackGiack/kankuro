@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -27,6 +28,7 @@ const (
 	ViewMCPForm
 	ViewSessionLauncher
 	ViewAgentSwitch
+	ViewConversationChoice
 )
 
 type Coordinator struct {
@@ -192,6 +194,7 @@ func (c *Coordinator) Update(msg tea.Msg) (*Coordinator, tea.Cmd) {
 	return c, cmd
 }
 
+//nolint:funlen // Central message router keeps ordering-sensitive app transitions together.
 func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -249,7 +252,14 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 
 	case messages.ErrorMsg:
 		c.err = m.Err
+		if c.currentView == ViewConversationChoice {
+			return true, c.refreshDataSeeded()
+		}
 		return true, nil
+
+	case messages.MCPServerFailedMsg:
+		c.err = m.Err
+		return true, tea.Quit
 
 	case messages.MCPDeleteRequestedMsg:
 		// Disk I/O deferred to a tea.Cmd, consistent with every other
@@ -304,6 +314,9 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		}
 		return true, c.navigateTo(ViewAgentSwitch)
 
+	case messages.ConversationChoiceRequestedMsg:
+		return true, c.handleConversationChoiceRequested(m)
+
 	case messages.AgentSwitchedMsg:
 		return true, c.handleAgentSwitched(m)
 
@@ -329,10 +342,100 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 	return false, nil
 }
 
+func (c *Coordinator) handleConversationChoiceRequested(m messages.ConversationChoiceRequestedMsg) tea.Cmd {
+	snapshot, found := c.session.GetSession(m.SessionID)
+	if !found {
+		c.err = fmt.Errorf("session not found: %s", m.SessionID)
+		return nil
+	}
+	if snapshot.Status != session.StatusTerminated {
+		c.err = errors.New("session is no longer terminated; refresh and retry the action")
+		return c.refreshDataSeeded()
+	}
+	cardID := m.CardID
+	if cardID == "" {
+		cardID = snapshot.CardID
+	}
+	bindings := snapshot.Conversations[cardID]
+	if len(bindings) == 0 {
+		c.err = errors.New("saved conversations are no longer available; refresh and retry the action")
+		return c.refreshDataSeeded()
+	}
+	choiceView, ok := c.views[ViewConversationChoice].(*views.ConversationChoiceView)
+	if !ok {
+		c.err = errors.New("conversation selection view is unavailable")
+		return nil
+	}
+	choiceView.SetContext(m.SessionID, cardID, m.Driver, m.ReturnView, bindings)
+	return c.navigateTo(ViewConversationChoice)
+}
+
+func (c *Coordinator) refreshConversationChoiceContext() {
+	choiceView, ok := c.views[ViewConversationChoice].(*views.ConversationChoiceView)
+	if !ok {
+		return
+	}
+	sessionID, cardID, _ := choiceView.Target()
+	snapshot, found := c.session.GetSession(sessionID)
+	if !found {
+		c.setConversationChoiceError(choiceView, "The selected session was removed. Cancel and start again.")
+		return
+	}
+	if snapshot.Status != session.StatusTerminated {
+		c.setConversationChoiceError(choiceView, "The session is no longer terminated. Cancel and choose another action.")
+		return
+	}
+	dashboard, ok := c.views[ViewDashboard].(*views.Dashboard)
+	if !ok {
+		c.setConversationChoiceError(choiceView, "Session data is unavailable. Cancel and try again.")
+		return
+	}
+	var destination *config.IDCard
+	for i := range dashboard.Cards() {
+		card := dashboard.Cards()[i]
+		if card.ID == cardID {
+			destination = &card
+			break
+		}
+	}
+	if destination == nil {
+		c.setConversationChoiceError(choiceView, "The destination card was removed. Cancel and choose another card.")
+		return
+	}
+	bindings := snapshot.Conversations[cardID]
+	if len(bindings) == 0 {
+		c.setConversationChoiceError(choiceView, "Saved conversations are no longer available. Cancel and restart the action.")
+		return
+	}
+	if selected, hasSelected := choiceView.SelectedBinding(); hasSelected {
+		foundSelected := false
+		for _, binding := range bindings {
+			if binding.ID == selected.ID && binding.Driver == selected.Driver {
+				foundSelected = true
+				break
+			}
+		}
+		if !foundSelected {
+			c.setConversationChoiceError(
+				choiceView,
+				"The selected conversation is no longer available for this driver. Cancel and restart the action.",
+			)
+			return
+		}
+	}
+	choiceView.RefreshContext(sessionID, cardID, destination.Driver, bindings)
+}
+
+func (c *Coordinator) setConversationChoiceError(view *views.ConversationChoiceView, message string) {
+	err := errors.New(message)
+	view.SetContextError(message)
+	c.err = err
+}
+
 func (c *Coordinator) handleAgentSwitched(m messages.AgentSwitchedMsg) tea.Cmd {
 	if m.Err != nil && !errors.Is(m.Err, session.ErrPersistFailed) {
 		c.err = m.Err
-		return nil
+		return c.refreshDataSeeded()
 	}
 	// The agent did switch (its process restarted); a persist failure only
 	// means its on-disk record didn't save, so still attach, but warn. Set

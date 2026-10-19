@@ -37,6 +37,7 @@ func (c *Coordinator) initViews() {
 	c.views[ViewMCPForm] = views.NewMCPForm(c.mcpCallbacks())
 	c.views[ViewSessionLauncher] = views.NewSessionLauncher(c.sessionLauncherCallbacks())
 	c.views[ViewAgentSwitch] = views.NewAgentSwitchView(c.agentSwitchCallbacks())
+	c.views[ViewConversationChoice] = views.NewConversationChoiceView(c.conversationChoiceCallbacks())
 }
 
 // navigateTo switches the current view and returns the new view's Init command.
@@ -141,6 +142,8 @@ func convertViewType(vt messages.ViewType) ViewType {
 		return ViewSessionLauncher
 	case messages.ViewAgentSwitch:
 		return ViewAgentSwitch
+	case messages.ViewConversationChoice:
+		return ViewConversationChoice
 	default:
 		return ViewDashboard
 	}

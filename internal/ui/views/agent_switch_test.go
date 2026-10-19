@@ -84,7 +84,7 @@ func TestAgentSwitchView_EscapeBehavior(t *testing.T) {
 func TestAgentSwitchView_Switch(t *testing.T) {
 	var switchedSessionID, switchedCardID string
 	v := views.NewAgentSwitchView(views.AgentSwitchCallbacks{
-		OnSwitch: func(sid, cid string) tea.Cmd {
+		OnSwitch: func(sid, cid, _ string) tea.Cmd {
 			switchedSessionID = sid
 			switchedCardID = cid
 			return nil

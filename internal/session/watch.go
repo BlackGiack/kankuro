@@ -36,6 +36,10 @@ func (m *Manager) watch(sessionID string, gen uint64, d driver.AgentDriver) {
 		if status == driver.StatusTerminated {
 			s.Status = StatusTerminated
 			s.Pinged = false
+			if s.Registration == RegistrationPending {
+				s.Registration = RegistrationUnconfirmed
+			}
+			m.revokeSessionActivationLocked(s)
 			if exitCoder, hasExitCode := d.(interface{ ExitCode() int }); hasExitCode {
 				s.ExitCode = exitCoder.ExitCode()
 			}
@@ -43,6 +47,9 @@ func (m *Manager) watch(sessionID string, gen uint64, d driver.AgentDriver) {
 			m.closeSubscribersLocked(sessionID)
 			m.mu.Unlock()
 			return
+		}
+		if s.Registration == RegistrationPending && time.Since(s.RegistrationAt) >= 60*time.Second {
+			s.Registration = RegistrationUnconfirmed
 		}
 		if driver.IsPromptLike(s.LastOutput, s.LastWordAt, time.Now().UTC()) {
 			s.Status = StatusWaiting

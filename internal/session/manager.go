@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -28,20 +29,33 @@ const (
 )
 
 type Session struct {
-	ID              string
-	CardID          string
-	Name            string
-	PID             int
-	WorkingDir      string
-	OriginalDir     string
-	UseTmpWorkspace bool
-	StartedAt       time.Time
-	LastWordAt      time.Time
-	LastOutput      string
-	Status          Status
-	Pinged          bool
-	ExitCode        int
-	Driver          driver.AgentDriver
+	ID                string
+	CardID            string
+	Name              string
+	PID               int
+	WorkingDir        string
+	OriginalDir       string
+	UseTmpWorkspace   bool
+	KankuroMCPEnabled bool
+	// InstructionOwnership tracks managed content independently per instruction file.
+	InstructionOwnership    map[string]bool
+	InstructionsManaged     bool
+	StartedAt               time.Time
+	LastWordAt              time.Time
+	LastOutput              string
+	Status                  Status
+	Pinged                  bool
+	ExitCode                int
+	Conversations           map[string][]ConversationBinding
+	Registration            RegistrationState
+	RegistrationPersistence RegistrationPersistence
+	RegistrationAt          time.Time
+	RegistrationErr         string
+	ActiveConversationID    string
+	ActivationID            string
+	ActivationToken         string
+	ExpectedConversationID  string
+	Driver                  driver.AgentDriver
 	// PTY is the raw pseudo-terminal file, used only for ioctl-based resize
 	// (Attach hands it out as AttachHandle.PTY). Keystrokes must NOT be
 	// written directly to this fd - it races Kill, which closes and nils the
@@ -88,20 +102,61 @@ var (
 )
 
 type Snapshot struct {
-	ID              string
-	CardID          string
-	Name            string
-	PID             int
-	WorkingDir      string
-	OriginalDir     string
-	UseTmpWorkspace bool
-	StartedAt       time.Time
-	LastWordAt      time.Time
-	LastOutput      string
-	Status          Status
-	Pinged          bool
-	ExitCode        int
+	ID                      string
+	CardID                  string
+	Name                    string
+	PID                     int
+	WorkingDir              string
+	OriginalDir             string
+	UseTmpWorkspace         bool
+	KankuroMCPEnabled       bool
+	InstructionOwnership    map[string]bool
+	InstructionsManaged     bool
+	StartedAt               time.Time
+	LastWordAt              time.Time
+	LastOutput              string
+	Status                  Status
+	Pinged                  bool
+	ExitCode                int
+	Conversations           map[string][]ConversationBinding
+	Registration            RegistrationState
+	RegistrationPersistence RegistrationPersistence
+	RegistrationErr         string
+	ActiveConversationID    string
 }
+
+// ConversationBinding identifies one native CLI conversation within a card
+// and Kankuro session. Names are display metadata, never identity.
+type ConversationBinding struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Driver string `json:"driver"`
+}
+
+type RegistrationState string
+
+const (
+	RegistrationUnavailable RegistrationState = "unavailable"
+	RegistrationPending     RegistrationState = "pending"
+	RegistrationUnconfirmed RegistrationState = "unconfirmed"
+	RegistrationRegistered  RegistrationState = "registered"
+	RegistrationFailed      RegistrationState = "failed"
+)
+
+type RegistrationPersistence string
+
+// ConversationChoice is the explicit activation decision shown by the UI.
+// New starts without a native ID; ID resumes one binding for the destination card.
+type ConversationChoice struct {
+	New bool
+	ID  string
+}
+
+const (
+	RegistrationNotAttempted RegistrationPersistence = "not_attempted"
+	RegistrationSaved        RegistrationPersistence = "saved"
+	RegistrationUnsaved      RegistrationPersistence = "unsaved"
+)
 
 // WorkspaceReader provides the minimal interface the session manager needs
 // to resolve workspace paths when launching sessions.
@@ -140,6 +195,8 @@ type Manager struct {
 	watchers    sync.WaitGroup
 	activations sync.WaitGroup
 	closed      bool
+	authorities map[string]*activationAuthority
+	mcpEndpoint string
 }
 
 // Option configures the Manager.
@@ -167,12 +224,13 @@ func WithLogger(logger *slog.Logger) Option {
 // NewManager creates a session registry and loads persisted sessions.
 func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager {
 	m := &Manager{
-		sessions:  make(map[string]*Session),
-		configDir: configDir,
-		repo:      repo,
-		drivers:   driver.NewBuiltinRegistry(), // default builtin registry
-		logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-		stop:      make(chan struct{}),
+		sessions:    make(map[string]*Session),
+		configDir:   configDir,
+		repo:        repo,
+		drivers:     driver.NewBuiltinRegistry(), // default builtin registry
+		logger:      slog.New(slog.NewTextHandler(io.Discard, nil)),
+		stop:        make(chan struct{}),
+		authorities: make(map[string]*activationAuthority),
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -187,6 +245,13 @@ func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager
 	}
 
 	return m
+}
+
+// SetMCPEndpoint sets the loopback endpoint before any activation is started.
+func (m *Manager) SetMCPEndpoint(endpoint string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.mcpEndpoint = endpoint
 }
 
 // LoadErrors returns any error encountered while hydrating persisted
@@ -262,19 +327,27 @@ func (m *Manager) List() []Snapshot {
 // (read or write) while calling this.
 func (s *Session) snapshot() Snapshot {
 	return Snapshot{
-		ID:              s.ID,
-		CardID:          s.CardID,
-		Name:            s.Name,
-		PID:             s.PID,
-		WorkingDir:      s.WorkingDir,
-		OriginalDir:     s.OriginalDir,
-		UseTmpWorkspace: s.UseTmpWorkspace,
-		StartedAt:       s.StartedAt,
-		LastWordAt:      s.LastWordAt,
-		LastOutput:      s.LastOutput,
-		Status:          s.Status,
-		Pinged:          s.Pinged,
-		ExitCode:        s.ExitCode,
+		ID:                      s.ID,
+		CardID:                  s.CardID,
+		Name:                    s.Name,
+		PID:                     s.PID,
+		WorkingDir:              s.WorkingDir,
+		OriginalDir:             s.OriginalDir,
+		UseTmpWorkspace:         s.UseTmpWorkspace,
+		KankuroMCPEnabled:       s.KankuroMCPEnabled,
+		InstructionsManaged:     s.InstructionsManaged,
+		InstructionOwnership:    sessionInstructionOwnership(s),
+		StartedAt:               s.StartedAt,
+		LastWordAt:              s.LastWordAt,
+		LastOutput:              s.LastOutput,
+		Status:                  s.Status,
+		Pinged:                  s.Pinged,
+		ExitCode:                s.ExitCode,
+		Conversations:           cloneConversations(s.Conversations),
+		Registration:            s.Registration,
+		RegistrationPersistence: s.RegistrationPersistence,
+		RegistrationErr:         s.RegistrationErr,
+		ActiveConversationID:    s.ExpectedConversationID,
 	}
 }
 
@@ -282,19 +355,68 @@ func (s *Session) snapshot() Snapshot {
 // m.mu (read or write) while calling this.
 func (s *Session) data() *Data {
 	return &Data{
-		ID:              s.ID,
-		CardID:          s.CardID,
-		Name:            s.Name,
-		PID:             s.PID,
-		WorkingDir:      s.WorkingDir,
-		OriginalDir:     s.OriginalDir,
-		UseTmpWorkspace: s.UseTmpWorkspace,
-		StartedAt:       s.StartedAt,
-		LastWordAt:      s.LastWordAt,
-		LastOutput:      s.LastOutput,
-		Status:          s.Status,
-		ExitCode:        s.ExitCode,
+		ID:                   s.ID,
+		CardID:               s.CardID,
+		Name:                 s.Name,
+		PID:                  s.PID,
+		WorkingDir:           s.WorkingDir,
+		OriginalDir:          s.OriginalDir,
+		UseTmpWorkspace:      s.UseTmpWorkspace,
+		KankuroMCPEnabled:    s.KankuroMCPEnabled,
+		InstructionsManaged:  s.InstructionsManaged,
+		InstructionOwnership: sessionInstructionOwnership(s),
+		StartedAt:            s.StartedAt,
+		LastWordAt:           s.LastWordAt,
+		LastOutput:           s.LastOutput,
+		Status:               s.Status,
+		ExitCode:             s.ExitCode,
+		Conversations:        cloneConversations(s.Conversations),
 	}
+}
+
+func cloneConversations(in map[string][]ConversationBinding) map[string][]ConversationBinding {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string][]ConversationBinding, len(in))
+	for cardID, bindings := range in {
+		out[cardID] = append([]ConversationBinding(nil), bindings...)
+	}
+	return out
+}
+
+func cloneInstructionOwnership(in map[string]bool) map[string]bool {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]bool, len(in))
+	maps.Copy(out, in)
+	return out
+}
+
+func sessionInstructionOwnership(s *Session) map[string]bool {
+	ownership := cloneInstructionOwnership(s.InstructionOwnership)
+	if ownership == nil {
+		ownership = make(map[string]bool)
+	}
+	// Older session records only stored the generic driver's ownership flag.
+	if s.InstructionsManaged && len(s.InstructionOwnership) == 0 {
+		ownership["AGENTS.md"] = true
+	}
+	return ownership
+}
+
+func updateInstructionOwnership(previous map[string]bool, filename string, managed bool) map[string]bool {
+	updated := cloneInstructionOwnership(previous)
+	if updated == nil {
+		updated = make(map[string]bool)
+	}
+	if managed {
+		updated[filename] = true
+	} else {
+		delete(updated, filename)
+	}
+	return updated
 }
 
 // SetName updates the name of an existing session and persists it.

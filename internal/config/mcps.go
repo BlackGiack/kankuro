@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 )
 
 // ListMCPs returns the MCP server registry sorted by name.
@@ -20,8 +21,14 @@ func (r *FileRepository) listMCPsLocked() ([]MCPServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(f.MCPs, func(i, j int) bool { return f.MCPs[i].Name < f.MCPs[j].Name })
-	return f.MCPs, nil
+	for _, mcp := range f.MCPs {
+		if mcp.ID == BuiltinMCPKankuro || strings.EqualFold(mcp.Name, "kankuro") {
+			return nil, fmt.Errorf("MCP registry collides with built-in kankuro server: %s", mcp.ID)
+		}
+	}
+	merged := MergeBuiltinMCPs(f.MCPs)
+	sort.Slice(merged, func(i, j int) bool { return merged[i].Name < merged[j].Name })
+	return merged, nil
 }
 
 // UpsertMCP creates or updates one MCP server entry.
@@ -31,6 +38,9 @@ func (r *FileRepository) UpsertMCP(mcp MCPServer) (MCPServer, error) {
 
 	if mcp.Name == "" {
 		return MCPServer{}, errors.New("mcp name is required")
+	}
+	if mcp.ID == BuiltinMCPKankuro || strings.EqualFold(mcp.Name, "kankuro") {
+		return MCPServer{}, errors.New("the built-in kankuro MCP cannot be edited or shadowed")
 	}
 	if mcp.Command == "" && mcp.URL == "" {
 		return MCPServer{}, errors.New("mcp command or url is required")
@@ -58,6 +68,9 @@ func (r *FileRepository) UpsertMCP(mcp MCPServer) (MCPServer, error) {
 func (r *FileRepository) DeleteMCP(id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if id == BuiltinMCPKankuro {
+		return errors.New("the built-in kankuro MCP cannot be deleted")
+	}
 
 	cards, err := r.listIDCardsLocked()
 	if err != nil {

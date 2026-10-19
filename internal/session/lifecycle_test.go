@@ -47,16 +47,26 @@ func (d *stubKillDriver) Kill() error {
 	return errStubKill
 }
 
-func (d *stubKillDriver) SetAgentsMD(_ config.IDCard, _ []config.Persona, _ []config.MCPServer, _ string, _ bool) error {
-	return nil
+func (d *stubKillDriver) SetAgentsMD(
+	_ config.IDCard,
+	_ []config.Persona,
+	_ []config.MCPServer,
+	_ string,
+	_ driver.InstructionSyncMode,
+) (bool, error) {
+	return false, nil
 }
 func (d *stubKillDriver) SetSkills(_ []config.Skill, _ ...string) error      { return nil }
 func (d *stubKillDriver) SetPersonas(_ []config.Persona, _ ...string) error  { return nil }
 func (d *stubKillDriver) SelectMCPs(_ []config.MCPServer, _ ...string) error { return nil }
 func (d *stubKillDriver) SetModel(_ string) []string                         { return nil }
-func (d *stubKillDriver) SendInput(_ string) error                           { return nil }
-func (d *stubKillDriver) SendInputBytes(_ []byte) (int, error)               { return 0, nil }
-func (d *stubKillDriver) GetAgentFolder() string                             { return ".agents" }
+func (d *stubKillDriver) SetSession(id string) []string {
+	return (&driver.GenericCLIDriver{}).SetSession(id)
+}
+func (d *stubKillDriver) SendInput(_ string) error             { return nil }
+func (d *stubKillDriver) SendInputBytes(_ []byte) (int, error) { return 0, nil }
+func (d *stubKillDriver) GetAgentFolder() string               { return ".agents" }
+func (d *stubKillDriver) GetInstructionFileName() string       { return "AGENTS.md" }
 
 func (d *stubKillDriver) GetStatus() driver.SessionStatus {
 	if d.terminated.Load() {
@@ -571,16 +581,26 @@ func (d *gateDriver) Kill() error {
 	return nil
 }
 
-func (d *gateDriver) SetAgentsMD(_ config.IDCard, _ []config.Persona, _ []config.MCPServer, _ string, _ bool) error {
-	return nil
+func (d *gateDriver) SetAgentsMD(
+	_ config.IDCard,
+	_ []config.Persona,
+	_ []config.MCPServer,
+	_ string,
+	_ driver.InstructionSyncMode,
+) (bool, error) {
+	return false, nil
 }
 func (d *gateDriver) SetSkills(_ []config.Skill, _ ...string) error      { return nil }
 func (d *gateDriver) SetPersonas(_ []config.Persona, _ ...string) error  { return nil }
 func (d *gateDriver) SelectMCPs(_ []config.MCPServer, _ ...string) error { return nil }
 func (d *gateDriver) SetModel(_ string) []string                         { return nil }
-func (d *gateDriver) SendInput(_ string) error                           { return nil }
-func (d *gateDriver) SendInputBytes(_ []byte) (int, error)               { return 0, nil }
-func (d *gateDriver) GetAgentFolder() string                             { return ".agents" }
+func (d *gateDriver) SetSession(id string) []string {
+	return (&driver.GenericCLIDriver{}).SetSession(id)
+}
+func (d *gateDriver) SendInput(_ string) error             { return nil }
+func (d *gateDriver) SendInputBytes(_ []byte) (int, error) { return 0, nil }
+func (d *gateDriver) GetAgentFolder() string               { return ".agents" }
+func (d *gateDriver) GetInstructionFileName() string       { return "AGENTS.md" }
 
 func (d *gateDriver) GetStatus() driver.SessionStatus {
 	if d.terminated.Load() {

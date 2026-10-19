@@ -29,16 +29,15 @@ var ErrManagerClosed = errors.New("session manager is shut down")
 
 // syncDriverFiles clears temp directories (if needed) and syncs skill/persona/MCP files.
 func (m *Manager) syncDriverFiles(
+	d driver.AgentDriver,
 	card config.IDCard,
 	skills []config.Skill,
 	personas []config.Persona,
 	mcps []config.MCPServer,
 	workingDir string,
 	clearTmp bool,
-	appendAgentsMD bool,
-) (driver.AgentDriver, error) {
-	d := m.drivers.Get(card.Driver)
-
+	instructionMode driver.InstructionSyncMode,
+) (driver.AgentDriver, bool, error) {
 	if clearTmp {
 		// TODO: if other names become relevant, implement a more elegant way of handling this
 		agentDirs := []string{".agents", ".claude"}
@@ -49,28 +48,26 @@ func (m *Manager) syncDriverFiles(
 			// Clear existing .agents directories in tmp workspace
 			skillsDir := filepath.Join(workingDir, agentDir, "skills")
 			if err := os.RemoveAll(skillsDir); err != nil {
-				return nil, fmt.Errorf("clear tmp skills dir: %w", err)
+				return nil, false, fmt.Errorf("clear tmp skills dir: %w", err)
 			}
 			personasDir := filepath.Join(workingDir, agentDir, "agents")
 			if err := os.RemoveAll(personasDir); err != nil {
-				return nil, fmt.Errorf("clear tmp personas dir: %w", err)
+				return nil, false, fmt.Errorf("clear tmp personas dir: %w", err)
 			}
 		}
 	}
 
-	if err := d.SetAgentsMD(card, personas, mcps, workingDir, appendAgentsMD); err != nil {
-		return nil, fmt.Errorf("set agents.md: %w", err)
+	instructionsManaged, err := d.SetAgentsMD(card, personas, mcps, workingDir, instructionMode)
+	if err != nil {
+		return nil, false, fmt.Errorf("set agents.md: %w", err)
 	}
-	if err := d.SetSkills(skills, workingDir); err != nil {
-		return nil, fmt.Errorf("set skills: %w", err)
+	if skillsErr := d.SetSkills(skills, workingDir); skillsErr != nil {
+		return nil, false, fmt.Errorf("set skills: %w", skillsErr)
 	}
-	if err := d.SetPersonas(personas, workingDir); err != nil {
-		return nil, fmt.Errorf("set personas: %w", err)
+	if personasErr := d.SetPersonas(personas, workingDir); personasErr != nil {
+		return nil, false, fmt.Errorf("set personas: %w", personasErr)
 	}
-	if err := d.SelectMCPs(mcps, workingDir); err != nil {
-		return nil, fmt.Errorf("select mcps: %w", err)
-	}
-	return d, nil
+	return d, instructionsManaged, nil
 }
 
 func (m *Manager) Launch(card config.IDCard, skills []config.Skill, personas []config.Persona, mcps []config.MCPServer) (string, error) {
@@ -86,14 +83,49 @@ func (m *Manager) Launch(card config.IDCard, skills []config.Skill, personas []c
 	m.activations.Add(1)
 	m.mu.Unlock()
 	defer m.activations.Done()
-	return sid, m.startSession(sid, card, skills, personas, mcps, true, "")
+	return sid, m.startSession(sid, card, skills, personas, mcps, true, "", "", nil, "")
 }
 
 // activationSnapshot holds the session fields Relaunch/SwitchAgent need while
 // the lock is not held, copied under m.mu so they are never read racily.
 type activationSnapshot struct {
-	WorkingDir      string
-	UseTmpWorkspace bool
+	WorkingDir           string
+	OriginalDir          string
+	UseTmpWorkspace      bool
+	InstructionOwnership map[string]bool
+	KankuroMCPEnabled    bool
+}
+
+func validateConversationChoice(s *Session, cardID, driverName string, choice ConversationChoice) (string, error) {
+	bindings := s.Conversations[cardID]
+	if choice.New && choice.ID != "" {
+		return "", errors.New("choose either a new conversation or one saved conversation")
+	}
+	if len(bindings) == 0 {
+		if choice.ID != "" {
+			return "", errors.New("conversation is not saved for this card")
+		}
+		return "", nil
+	}
+	if choice.New {
+		return "", nil
+	}
+	if choice.ID == "" {
+		return "", errors.New("conversation selection required for this card")
+	}
+	hasIDForAnotherDriver := false
+	for _, binding := range bindings {
+		if binding.ID == choice.ID && binding.Driver == driverName {
+			return binding.ID, nil
+		}
+		if binding.ID == choice.ID {
+			hasIDForAnotherDriver = true
+		}
+	}
+	if hasIDForAnotherDriver {
+		return "", errors.New("conversation belongs to a different driver")
+	}
+	return "", errors.New("conversation is not saved for this card")
 }
 
 // reserveForActivation checks, under m.mu, that the session can be
@@ -105,25 +137,75 @@ type activationSnapshot struct {
 // same critical section as the !closed check), and the caller must call
 // m.activations.Done() when the activation is over, after any
 // releaseActivation, so Shutdown does not return while it is still working.
-func (m *Manager) reserveForActivation(id, notTerminatedMsg string) (activationSnapshot, error) {
+func (m *Manager) reserveForActivation(
+	id, cardID, driverName, notTerminatedMsg string,
+	choice ConversationChoice,
+) (activationSnapshot, string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.closed {
-		return activationSnapshot{}, ErrManagerClosed
+		return activationSnapshot{}, "", ErrManagerClosed
 	}
 	s, ok := m.sessions[id]
 	if !ok {
-		return activationSnapshot{}, fmt.Errorf("session not found: %s", id)
+		return activationSnapshot{}, "", fmt.Errorf("session not found: %s", id)
 	}
 	if s.Status != StatusTerminated {
-		return activationSnapshot{}, errors.New(notTerminatedMsg)
+		return activationSnapshot{}, "", errors.New(notTerminatedMsg)
 	}
 	if s.activating {
-		return activationSnapshot{}, errors.New("session is already being started")
+		return activationSnapshot{}, "", errors.New("session is already being started")
 	}
+	conversationID, err := validateConversationChoice(s, cardID, driverName, choice)
+	if err != nil {
+		return activationSnapshot{}, "", err
+	}
+	m.revokeSessionActivationLocked(s)
+	s.Registration = RegistrationUnavailable
+	s.RegistrationPersistence = RegistrationNotAttempted
+	s.RegistrationErr = ""
+	s.ExpectedConversationID = ""
 	s.activating = true
 	m.activations.Add(1)
-	return activationSnapshot{WorkingDir: s.WorkingDir, UseTmpWorkspace: s.UseTmpWorkspace}, nil
+	return activationSnapshot{
+		WorkingDir: s.WorkingDir, OriginalDir: s.OriginalDir,
+		UseTmpWorkspace: s.UseTmpWorkspace, InstructionOwnership: sessionInstructionOwnership(s),
+		KankuroMCPEnabled: s.KankuroMCPEnabled,
+	}, conversationID, nil
+}
+
+type instructionFileSnapshot struct {
+	content []byte
+	mode    os.FileMode
+	exists  bool
+}
+
+func snapshotInstructionFile(path string) (instructionFileSnapshot, error) {
+	info, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return instructionFileSnapshot{}, nil
+	}
+	if err != nil {
+		return instructionFileSnapshot{}, err
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return instructionFileSnapshot{}, err
+	}
+	return instructionFileSnapshot{content: content, mode: info.Mode().Perm(), exists: true}, nil
+}
+
+func (s instructionFileSnapshot) restore(path string) error {
+	if !s.exists {
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("restore instruction file: %w", err)
+		}
+		return nil
+	}
+	if err := os.WriteFile(path, s.content, s.mode); err != nil {
+		return fmt.Errorf("restore instruction file: %w", err)
+	}
+	return nil
 }
 
 // releaseActivation clears the reservation taken by reserveForActivation after
@@ -133,17 +215,43 @@ func (m *Manager) releaseActivation(id string) {
 	defer m.mu.Unlock()
 	if s, ok := m.sessions[id]; ok {
 		s.activating = false
+		s.Registration = RegistrationFailed
+		s.RegistrationErr = "activation failed before conversation registration"
 	}
 }
 
 // Relaunch restarts a terminated session using its existing workspace (if tmp).
 func (m *Manager) Relaunch(id string, card config.IDCard) error {
-	snap, err := m.reserveForActivation(id, "session is already running")
+	return m.RelaunchWithChoice(id, card, ConversationChoice{})
+}
+
+func (m *Manager) RelaunchWithChoice(
+	id string,
+	card config.IDCard,
+	choice ConversationChoice,
+) error {
+	snap, conversationID, err := m.reserveForActivation(id, card.ID, card.Driver, "session is already running", choice)
 	if err != nil {
 		return err
 	}
 	defer m.activations.Done()
-	err = m.startSession(id, card, nil, nil, nil, false, snap.WorkingDir)
+	card.UseTmpWorkspace = snap.UseTmpWorkspace
+	var mcps []config.MCPServer
+	if snap.KankuroMCPEnabled {
+		mcps = config.BuiltinMCPs()
+	}
+	err = m.startSession(
+		id,
+		card,
+		nil,
+		nil,
+		mcps,
+		false,
+		snap.WorkingDir,
+		snap.OriginalDir,
+		snap.InstructionOwnership,
+		conversationID,
+	)
 	// ErrPersistFailed means the activation did happen (and already cleared
 	// the reservation); any other error means it did not.
 	if err != nil && !errors.Is(err, ErrPersistFailed) {
@@ -160,7 +268,25 @@ func (m *Manager) SwitchAgent(
 	personas []config.Persona,
 	mcps []config.MCPServer,
 ) error {
-	snap, err := m.reserveForActivation(id, "session must be terminated before switching agents")
+	return m.SwitchAgentWithChoice(id, card, skills, personas, mcps, ConversationChoice{})
+}
+
+//nolint:funlen,gocognit // Reservation, workspace sync, spawn publication, and persistence form one lifecycle transaction.
+func (m *Manager) SwitchAgentWithChoice(
+	id string,
+	card config.IDCard,
+	skills []config.Skill,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+	choice ConversationChoice,
+) (returnErr error) {
+	snap, conversationID, err := m.reserveForActivation(
+		id,
+		card.ID,
+		card.Driver,
+		"session must be terminated before switching agents",
+		choice,
+	)
 	if err != nil {
 		return err
 	}
@@ -173,11 +299,8 @@ func (m *Manager) SwitchAgent(
 	}()
 
 	finalWD := snap.WorkingDir
-	if finalWD == "" {
-		return errors.New("session workspace is empty")
-	}
-	if _, errStat := os.Stat(finalWD); errStat != nil {
-		return fmt.Errorf("session workspace missing: %w", errStat)
+	if workspaceErr := validateSessionWorkspace(finalWD); workspaceErr != nil {
+		return workspaceErr
 	}
 	if prepareErr := m.prepareSubWorkspaces(card, finalWD); prepareErr != nil {
 		return prepareErr
@@ -185,20 +308,46 @@ func (m *Manager) SwitchAgent(
 
 	// Clear tmp directories if using tmp workspace
 	clearTmp := snap.UseTmpWorkspace
-	// SwitchAgent should replace agents.md content, not append
-	d, err := m.syncDriverFiles(card, skills, personas, mcps, finalWD, clearTmp, false)
+	// Replace content owned by the previous card. If it had no managed
+	// instructions, an empty destination must preserve workspace-authored rules.
+	d := m.drivers.Get(card.Driver)
+	instructionFile := d.GetInstructionFileName()
+	instructionMode := driver.InstructionReplace
+	if !snap.InstructionOwnership[instructionFile] {
+		instructionMode = driver.InstructionPreserveWhenEmpty
+	}
+	previousFile, previousFileErr := snapshotInstructionFile(filepath.Join(finalWD, instructionFile))
+	if previousFileErr != nil {
+		return previousFileErr
+	}
+	defer func() {
+		if !activated {
+			returnErr = errors.Join(returnErr, previousFile.restore(filepath.Join(finalWD, instructionFile)))
+		}
+	}()
+	d, instructionsManaged, err := m.syncDriverFiles(d, card, skills, personas, mcps, finalWD, clearTmp, instructionMode)
 	if err != nil {
 		return err
 	}
 
-	args := d.SetModel(card.Model)
+	token, tokenErr := m.prepareActivationMCPConfig(id, card, d, mcps, conversationID, finalWD, false)
+	if tokenErr != nil {
+		return tokenErr
+	}
+	published := false
+	defer func() {
+		if !published {
+			m.revokeActivation(token)
+		}
+	}()
+	args := append(d.SetModel(card.Model), d.SetSession(conversationID)...)
 	h, errSpawn := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,
 		Model:             card.Model,
 		Args:              args,
 		WorkingDir:        finalWD,
 		SystemInstruction: card.SystemInstruction,
-		Env:               card.Env,
+		Env:               activationEnv(card.Env),
 	})
 	if errSpawn != nil {
 		return errSpawn
@@ -227,6 +376,14 @@ func (m *Manager) SwitchAgent(
 	}
 
 	m.activateSessionLocked(s, card, d, h, pid, now)
+	s.InstructionOwnership = updateInstructionOwnership(snap.InstructionOwnership, instructionFile, instructionsManaged)
+	s.InstructionsManaged = instructionsManaged
+	s.KankuroMCPEnabled = token != ""
+	m.publishActivationLocked(token, s)
+	if token == "" {
+		s.ExpectedConversationID = conversationID
+	}
+	published = true
 	activated = true
 	s.PendingAttachHeader = fmt.Appendf(nil, "\r\n--- Switched agent to %s at %s ---\r\n\r\n",
 		card.Name, now.Format(time.RFC3339))
@@ -241,6 +398,10 @@ func (m *Manager) SwitchAgent(
 	// callers can tell "did not start" apart from "started, but its record
 	// did not save" and still offer the normal attach flow.
 	if persistErr := m.persistSessionLockedErr(s); persistErr != nil {
+		if s.Registration == RegistrationRegistered {
+			s.RegistrationPersistence = RegistrationUnsaved
+			s.RegistrationErr = conversationPersistenceWarning
+		}
 		return fmt.Errorf("%w: %w", ErrPersistFailed, persistErr)
 	}
 	return nil
@@ -264,9 +425,25 @@ func (m *Manager) resolveWorkspacePath(card config.IDCard, override string) (str
 	return "", fmt.Errorf("workspace not found: %s", card.WorkspaceID)
 }
 
+func validateSessionWorkspace(path string) error {
+	if path == "" {
+		return errors.New("session workspace is empty")
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("session workspace %q is unavailable; restore the directory before retrying: %w", path, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("session workspace %q is not a directory; restore the directory before retrying", path)
+	}
+	return nil
+}
+
 // startSession runs one activation. Its callers hold an m.activations
 // registration (Launch, or reserveForActivation for Relaunch), which is also
 // what guarantees Shutdown had not started when they began.
+//
+//nolint:funlen,gocognit // Workspace preparation, sync, spawn, publication, and persistence form one owned activation path.
 func (m *Manager) startSession(
 	sid string,
 	card config.IDCard,
@@ -275,20 +452,64 @@ func (m *Manager) startSession(
 	mcps []config.MCPServer,
 	isNew bool,
 	workspaceOverride string,
-) error {
-	wd, finalWD, d, err := m.prepareActivationWorkspace(sid, card, skills, personas, mcps, isNew, workspaceOverride)
-	if err != nil {
-		return err
+	originalOverride string,
+	previousInstructionOwnership map[string]bool,
+	conversationID string,
+) (returnErr error) {
+	var wd, finalWD string
+	if isNew {
+		var err error
+		wd, err = m.resolveWorkspacePath(card, workspaceOverride)
+		if err != nil {
+			return err
+		}
+		var errPrep error
+		finalWD, errPrep = m.prepareWorkspace(sid, card, wd, true)
+		if errPrep != nil {
+			return m.cleanupNewTemporaryWorkspace(sid, card, true, errPrep)
+		}
+	} else {
+		wd, finalWD = originalOverride, workspaceOverride
+		if err := validateSessionWorkspace(finalWD); err != nil {
+			return err
+		}
+	}
+	d := m.drivers.Get(card.Driver)
+	instructionFile := d.GetInstructionFileName()
+	instructionsManaged := previousInstructionOwnership[instructionFile]
+	committedInstructions := false
+	if isNew {
+		var rollback func() error
+		var prepareErr error
+		instructionsManaged, rollback, prepareErr = m.prepareNewSessionFiles(d, card, skills, personas, mcps, finalWD)
+		if prepareErr != nil {
+			return m.cleanupNewTemporaryWorkspace(sid, card, true, prepareErr)
+		}
+		defer func() {
+			if !committedInstructions {
+				returnErr = errors.Join(returnErr, rollback())
+			}
+		}()
 	}
 
-	args := d.SetModel(card.Model)
+	token, tokenErr := m.prepareActivationMCPConfig(sid, card, d, mcps, conversationID, finalWD, !isNew)
+	if tokenErr != nil {
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, tokenErr)
+	}
+	published := false
+	defer func() {
+		if !published {
+			m.revokeActivation(token)
+		}
+	}()
+	args := append(d.SetModel(card.Model), d.SetSession(conversationID)...)
 	h, errSpawn := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,
 		Model:             card.Model,
 		Args:              args,
 		WorkingDir:        finalWD,
 		SystemInstruction: card.SystemInstruction,
-		Env:               card.Env,
+		Env:               activationEnv(card.Env),
 	})
 	if errSpawn != nil {
 		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errSpawn)
@@ -319,10 +540,19 @@ func (m *Manager) startSession(
 	}
 
 	m.activateSessionLocked(s, card, d, h, pid, now)
+	s.InstructionOwnership = updateInstructionOwnership(previousInstructionOwnership, instructionFile, instructionsManaged)
+	s.InstructionsManaged = instructionsManaged
+	s.KankuroMCPEnabled = token != ""
+	m.publishActivationLocked(token, s)
+	if token == "" {
+		s.ExpectedConversationID = conversationID
+	}
+	published = true
+	committedInstructions = true
+	s.WorkingDir = finalWD
+	s.OriginalDir = wd
+	s.UseTmpWorkspace = card.UseTmpWorkspace
 	if isNew {
-		s.WorkingDir = finalWD
-		s.OriginalDir = wd
-		s.UseTmpWorkspace = card.UseTmpWorkspace
 		s.Scrollback = nil
 		s.PendingAttachHeader = nil
 	} else {
@@ -342,51 +572,48 @@ func (m *Manager) startSession(
 	// callers can tell "did not start" apart from "started, but its record
 	// did not save" and still offer the normal attach flow.
 	if persistErr := m.persistSessionLockedErr(s); persistErr != nil {
+		if s.Registration == RegistrationRegistered {
+			s.RegistrationPersistence = RegistrationUnsaved
+			s.RegistrationErr = conversationPersistenceWarning
+		}
 		return fmt.Errorf("%w: %w", ErrPersistFailed, persistErr)
 	}
 	return nil
 }
 
-func (m *Manager) prepareActivationWorkspace(
-	sid string,
-	card config.IDCard,
-	skills []config.Skill,
-	personas []config.Persona,
-	mcps []config.MCPServer,
-	isNew bool,
-	workspaceOverride string,
-) (string, string, driver.AgentDriver, error) {
-	if !isNew {
-		if workspaceOverride == "" {
-			return "", "", nil, errors.New("session workspace is empty")
-		}
-		info, err := os.Stat(workspaceOverride)
-		if err != nil {
-			return "", "", nil, fmt.Errorf("session workspace %q: %w", workspaceOverride, err)
-		}
-		if !info.IsDir() {
-			return "", "", nil, fmt.Errorf("session workspace %q is not a directory", workspaceOverride)
-		}
-		// Relaunch uses current runtime settings but deliberately does not
-		// deploy configuration: only Launch and SwitchAgent do that.
-		return workspaceOverride, workspaceOverride, m.drivers.Get(card.Driver), nil
+func (m *Manager) prepareNewSessionFiles(
+	d driver.AgentDriver, card config.IDCard, skills []config.Skill,
+	personas []config.Persona, mcps []config.MCPServer, workingDir string,
+) (bool, func() error, error) {
+	if err := m.prepareSubWorkspaces(card, workingDir); err != nil {
+		return false, nil, err
 	}
-	wd, err := m.resolveWorkspacePath(card, "")
+	instructionPath := filepath.Join(workingDir, d.GetInstructionFileName())
+	previousFile, err := snapshotInstructionFile(instructionPath)
 	if err != nil {
-		return "", "", nil, err
+		return false, nil, err
 	}
-	finalWD, err := m.prepareWorkspace(sid, card, wd, true)
-	if err == nil {
-		err = m.prepareSubWorkspaces(card, finalWD)
+	rollback := func() error { return previousFile.restore(instructionPath) }
+	mode := driver.InstructionPreserveWhenEmpty
+	if card.UseTmpWorkspace {
+		mode = driver.InstructionAppend
 	}
-	if err == nil {
-		var d driver.AgentDriver
-		d, err = m.syncDriverFiles(card, skills, personas, mcps, finalWD, card.UseTmpWorkspace, card.UseTmpWorkspace)
-		if err == nil {
-			return wd, finalWD, d, nil
+	_, managed, err := m.syncDriverFiles(d, card, skills, personas, mcps, workingDir, card.UseTmpWorkspace, mode)
+	if err != nil {
+		return false, nil, errors.Join(err, rollback())
+	}
+	return managed, rollback, nil
+}
+
+func activationEnv(cardEnv map[string]string) map[string]string {
+	env := make(map[string]string, len(cardEnv))
+	for key, value := range cardEnv {
+		if key == driver.EnvKankuroMCPToken || key == driver.EnvKankuroMCPConfigPath {
+			continue
 		}
+		env[key] = value
 	}
-	return "", "", nil, m.cleanupNewTemporaryWorkspace(sid, card, true, err)
+	return env
 }
 
 func (m *Manager) cleanupNewTemporaryWorkspace(sid string, card config.IDCard, isNew bool, cause error) error {
@@ -425,7 +652,14 @@ func (m *Manager) activateSessionLocked(
 // must hold m.mu.
 func (m *Manager) persistSessionLockedErr(s *Session) error {
 	sessionsDir := filepath.Join(m.configDir, "sessions")
-	return saveSession(sessionsDir, s.data())
+	if err := saveSession(sessionsDir, s.data()); err != nil {
+		return err
+	}
+	if s.Registration == RegistrationRegistered {
+		s.RegistrationPersistence = RegistrationSaved
+		s.RegistrationErr = ""
+	}
+	return nil
 }
 
 // persistSessionLocked is the background-safe variant: failures cannot
@@ -475,6 +709,10 @@ func (m *Manager) Kill(id string) error {
 	}
 	s.Status = StatusTerminated
 	s.Pinged = false
+	if s.Registration == RegistrationPending {
+		s.Registration = RegistrationUnconfirmed
+	}
+	m.revokeSessionActivationLocked(s)
 	return errors.Join(killErr, m.persistSessionLockedErr(s))
 }
 

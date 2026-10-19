@@ -106,6 +106,29 @@ func TestSessionListStaysWithinItsBox(t *testing.T) {
 	}
 }
 
+func TestSessionListRegistrationDetailsStayWithinTheirRows(t *testing.T) {
+	sessions, cards := sessionFixtures(1, []string{strings.Repeat("n", 200)})
+	sessions[0].Registration = session.RegistrationPending
+	sessions[0].RegistrationErr = strings.Repeat("registration failure ", 20)
+	sessions[0].ActiveConversationID = strings.Repeat("native-id-", 20)
+	sessions[0].Conversations = map[string][]session.ConversationBinding{
+		sessions[0].CardID: {{ID: sessions[0].ActiveConversationID, Name: strings.Repeat("conversation name ", 10), Driver: "codex"}},
+	}
+	for _, width := range []int{sessionListMinWidth, 23, 40, 80} {
+		list := components.NewSessionList(components.SessionListCallbacks{})
+		list.SetSize(width, sessionListMinHeight)
+		list.SetSessions(sessions, cards)
+		uitest.AssertWithin(
+			t,
+			list.View(),
+			width,
+			sessionListMinHeight,
+			fmt.Sprintf("registration details %dx%d", width, sessionListMinHeight),
+		)
+		assertItemRows(t, list, sessionListMinHeight, fmt.Sprintf("registration rows %d", width))
+	}
+}
+
 // TestSessionListKeepsItemRowsInPlace checks each item against its own region.
 // Every name from AdversarialNames gets its own sweep, since a single wrapped
 // or overlong title shifts every row below it.

@@ -47,3 +47,25 @@ func TestMergeEnvWithPwd(t *testing.T) {
 		t.Fatalf("expected PWD to win with workdir value, got %q", values["PWD"])
 	}
 }
+
+func TestMergeEnvWithPwdDropsInheritedMCPCredentials(t *testing.T) {
+	t.Setenv(EnvKankuroMCPConfigPath, "/parent/activation.json")
+	t.Setenv(EnvKankuroMCPToken, "parent-token")
+
+	env := mergeEnvWithPwd(map[string]string{
+		EnvKankuroMCPConfigPath: "/current/private/activation.json",
+	}, "/tmp/workdir")
+	values := make(map[string][]string)
+	for _, entry := range env {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok {
+			values[key] = append(values[key], value)
+		}
+	}
+	if got := values[EnvKankuroMCPConfigPath]; len(got) != 1 || got[0] != "/current/private/activation.json" {
+		t.Fatalf("current activation config path = %#v", got)
+	}
+	if got := values[EnvKankuroMCPToken]; len(got) != 0 {
+		t.Fatalf("inherited activation token leaked to child: %#v", got)
+	}
+}

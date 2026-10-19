@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
@@ -30,7 +31,7 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 			return c.attachSession(sessionID)
 		},
 
-		OnRelaunch: c.actions.relaunch,
+		OnRelaunch: c.requestRelaunch,
 
 		OnKill: func(sessionID string) (tea.Cmd, error) {
 			return func() tea.Msg {
@@ -404,11 +405,64 @@ func (c *Coordinator) agentSwitchCallbacks() views.AgentSwitchCallbacks {
 		// attach + warning dance (moved there because it needs
 		// c.currentView, which this closure cannot safely touch either - see
 		// that handler's comment for the navigation hazard).
-		OnSwitch: c.actions.switchAgent,
+		OnSwitch: c.requestSwitch,
 		OnCancel: func() tea.Cmd {
 			return func() tea.Msg {
 				return messages.NavigateMsg{View: messages.ViewDashboard}
 			}
+		},
+	}
+}
+
+func (c *Coordinator) requestRelaunch(sessionID string) tea.Cmd {
+	snapshot, found := c.session.GetSession(sessionID)
+	if found && len(snapshot.Conversations[snapshot.CardID]) > 0 {
+		driverName := ""
+		if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+			for _, card := range dashboard.Cards() {
+				if card.ID == snapshot.CardID {
+					driverName = card.Driver
+					break
+				}
+			}
+		}
+		return func() tea.Msg {
+			return messages.ConversationChoiceRequestedMsg{
+				SessionID:  sessionID,
+				CardID:     snapshot.CardID,
+				Driver:     driverName,
+				ReturnView: messages.ViewDashboard,
+			}
+		}
+	}
+	return c.actions.relaunch(sessionID)
+}
+
+func (c *Coordinator) requestSwitch(sessionID, cardID, driverName string) tea.Cmd {
+	snapshot, found := c.session.GetSession(sessionID)
+	if found && len(snapshot.Conversations[cardID]) > 0 {
+		return func() tea.Msg {
+			return messages.ConversationChoiceRequestedMsg{
+				SessionID:  sessionID,
+				CardID:     cardID,
+				Driver:     driverName,
+				ReturnView: messages.ViewAgentSwitch,
+			}
+		}
+	}
+	return c.actions.switchAgent(sessionID, cardID)
+}
+
+func (c *Coordinator) conversationChoiceCallbacks() views.ConversationChoiceCallbacks {
+	return views.ConversationChoiceCallbacks{
+		OnSelect: func(sessionID, cardID string, choice session.ConversationChoice) tea.Cmd {
+			if cardID == "" {
+				return c.actions.relaunchWithChoice(sessionID, choice)
+			}
+			return c.actions.switchAgentWithChoice(sessionID, cardID, choice)
+		},
+		OnCancel: func(returnView messages.ViewType) tea.Cmd {
+			return func() tea.Msg { return messages.NavigateMsg{View: returnView} }
 		},
 	}
 }
