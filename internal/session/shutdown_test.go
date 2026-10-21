@@ -72,7 +72,7 @@ func TestActivationAfterShutdownIsRefused(t *testing.T) {
 	if _, err := h.sm.Launch(h.card, nil, nil, nil); !errors.Is(err, session.ErrManagerClosed) {
 		t.Fatalf("Launch: want ErrManagerClosed, got %v", err)
 	}
-	if err := h.sm.Relaunch(sid, h.card, nil, nil, nil); !errors.Is(err, session.ErrManagerClosed) {
+	if err := h.sm.Relaunch(sid, h.card); !errors.Is(err, session.ErrManagerClosed) {
 		t.Fatalf("Relaunch: want ErrManagerClosed, got %v", err)
 	}
 	if err := h.sm.SwitchAgent(sid, h.card, nil, nil, nil); !errors.Is(err, session.ErrManagerClosed) {
@@ -135,7 +135,7 @@ func TestShutdownDuringSpawnKillsTheNewProcess(t *testing.T) {
 	sid := h.launchTerminated(t)
 
 	result := make(chan error, 1)
-	go func() { result <- h.sm.Relaunch(sid, h.card, nil, nil, nil) }()
+	go func() { result <- h.sm.Relaunch(sid, h.card) }()
 	waitSignal(t, entered, "Relaunch to enter Spawn")
 
 	returned := shutdownAsync(h.sm)

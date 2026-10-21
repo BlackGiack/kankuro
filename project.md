@@ -153,8 +153,10 @@ codebase — see invariant 1 in §6.
    kills its own just-spawned process and removes a new session's tmp copy; this is the
    `Manager.activations` WaitGroup), stops the watchers, and refuses later activations
    (`ErrManagerClosed`).
-4. **Relaunch / switch agent**: a terminated session restarts in the *same* workspace,
-   with the same card or a different one. Each activation bumps a generation counter so
+4. **Relaunch / switch agent**: relaunch restarts a terminated session in its existing
+   workspace without changing deployed files; it uses the current card's runtime settings.
+   Switch Agent (including selecting the same card) explicitly reapplies card configuration
+   and prepares newly selected sub workspaces. Each activation bumps a generation counter so
    goroutines left over from the previous run stop touching the session.
 5. **Remove**: deletes the record and, for a temporary workspace, the copy.
 

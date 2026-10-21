@@ -93,7 +93,7 @@ func TestRelaunchSurvivesStaleWatchers(t *testing.T) {
 		t.Fatalf("kill: %v", errKill)
 	}
 
-	if errRelaunch := sm.Relaunch(sid, card, nil, nil, nil); errRelaunch != nil {
+	if errRelaunch := sm.Relaunch(sid, card); errRelaunch != nil {
 		t.Fatalf("relaunch: %v", errRelaunch)
 	}
 	defer sm.Kill(sid)

@@ -36,7 +36,7 @@ Workspaces are managed as a registry, similar to skills and personas.
 
 An active or persisted instance of an ID Card.
 
-* **Lifecycle:** Sessions are tracked as **sub-processes**. Metadata is persisted to disk, allowing terminated sessions to be **relaunched** later.
+* **Lifecycle:** Sessions are tracked as **sub-processes**. Metadata is persisted to disk, allowing terminated sessions to be **relaunched** later. Relaunch preserves the existing workspace and its deployed files while using the current card's runtime settings. Use **Switch Agent** to explicitly apply edited card configuration; selecting the same card is supported and refreshes its deployed configuration.
 * **Persistence:** 
     * **Standard:** Runs in a specific directory (`$PWD` or absolute path).
     * **Temporary:** Clones the original workspace into a disposable folder (via `KANKURO_TMP_DIR` or `~/.config/kankuro/tmp/`). Changes made by the agent are isolated from the original source but persist across session relaunches.
