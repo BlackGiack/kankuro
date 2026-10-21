@@ -56,11 +56,11 @@ func (a sessionActions) relaunch(sessionID string) tea.Cmd {
 		if sess == nil {
 			return messages.ErrorMsg{Err: fmt.Errorf("session not found: %s", sessionID)}
 		}
-		bundle, err := a.resolveCard(sess.CardID)
+		card, err := a.loadCard(sess.CardID)
 		if err != nil {
 			return messages.ErrorMsg{Err: err}
 		}
-		relaunchErr := a.sessions.Relaunch(sessionID, bundle.Card, bundle.Skills, bundle.Personas, bundle.MCPs)
+		relaunchErr := a.sessions.Relaunch(sessionID, card)
 		if relaunchErr != nil {
 			if !errors.Is(relaunchErr, session.ErrPersistFailed) {
 				return messages.ErrorMsg{Err: relaunchErr}
@@ -167,8 +167,8 @@ func (a sessionActions) launchWorkspaceCommand(sessionID, command string, notCon
 	return fmt.Errorf("session not found: %s", sessionID)
 }
 
-// cardBundle groups an ID card with its resolved capabilities, so a
-// launch/relaunch/switch only has to read each registry once - see
+// cardBundle groups an ID card with its resolved capabilities, so launch and
+// switch only have to read each registry once - see
 // debt_impl_plan_5.md step 2.
 type cardBundle struct {
 	Card     config.IDCard
@@ -183,9 +183,21 @@ type cardBundle struct {
 // 3): a read failure now surfaces as "list cards: ...", not the misleading
 // "card not found" a discarded error used to produce.
 func (a sessionActions) resolveCard(cardID string) (cardBundle, error) {
+	card, err := a.loadCard(cardID)
+	if err != nil {
+		return cardBundle{}, err
+	}
+	skills, personas, mcps, err := a.resolveCapabilities(card)
+	if err != nil {
+		return cardBundle{}, err
+	}
+	return cardBundle{Card: card, Skills: skills, Personas: personas, MCPs: mcps}, nil
+}
+
+func (a sessionActions) loadCard(cardID string) (config.IDCard, error) {
 	cards, err := a.repo.ListIDCards()
 	if err != nil {
-		return cardBundle{}, fmt.Errorf("list cards: %w", err)
+		return config.IDCard{}, fmt.Errorf("list cards: %w", err)
 	}
 	var card config.IDCard
 	found := false
@@ -197,13 +209,9 @@ func (a sessionActions) resolveCard(cardID string) (cardBundle, error) {
 		}
 	}
 	if !found {
-		return cardBundle{}, fmt.Errorf("card not found: %s", cardID)
+		return config.IDCard{}, fmt.Errorf("card not found: %s", cardID)
 	}
-	skills, personas, mcps, err := a.resolveCapabilities(card)
-	if err != nil {
-		return cardBundle{}, err
-	}
-	return cardBundle{Card: card, Skills: skills, Personas: personas, MCPs: mcps}, nil
+	return card, nil
 }
 
 // resolveCapabilities reads the skill/persona/MCP registries once each and

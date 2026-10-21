@@ -91,7 +91,7 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	}
 
 	// 5. Relaunch
-	if errRelaunch := sm.Relaunch(sid, card, nil, nil, nil); errRelaunch != nil {
+	if errRelaunch := sm.Relaunch(sid, card); errRelaunch != nil {
 		t.Fatalf("relaunch: %v", errRelaunch)
 	}
 

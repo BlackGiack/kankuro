@@ -137,13 +137,13 @@ func (m *Manager) releaseActivation(id string) {
 }
 
 // Relaunch restarts a terminated session using its existing workspace (if tmp).
-func (m *Manager) Relaunch(id string, card config.IDCard, skills []config.Skill, personas []config.Persona, mcps []config.MCPServer) error {
+func (m *Manager) Relaunch(id string, card config.IDCard) error {
 	snap, err := m.reserveForActivation(id, "session is already running")
 	if err != nil {
 		return err
 	}
 	defer m.activations.Done()
-	err = m.startSession(id, card, skills, personas, mcps, false, snap.WorkingDir)
+	err = m.startSession(id, card, nil, nil, nil, false, snap.WorkingDir)
 	// ErrPersistFailed means the activation did happen (and already cleared
 	// the reservation); any other error means it did not.
 	if err != nil && !errors.Is(err, ErrPersistFailed) {
@@ -276,26 +276,9 @@ func (m *Manager) startSession(
 	isNew bool,
 	workspaceOverride string,
 ) error {
-	wd, err := m.resolveWorkspacePath(card, workspaceOverride)
+	wd, finalWD, d, err := m.prepareActivationWorkspace(sid, card, skills, personas, mcps, isNew, workspaceOverride)
 	if err != nil {
 		return err
-	}
-
-	finalWD, errPrep := m.prepareWorkspace(sid, card, wd, isNew)
-	if errPrep != nil {
-		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errPrep)
-	}
-	if prepareErr := m.prepareSubWorkspaces(card, finalWD); prepareErr != nil {
-		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, prepareErr)
-	}
-
-	// Sync driver files (clear generated content for tmp workspaces on every launch)
-	clearTmp := card.UseTmpWorkspace
-	// startSession should append to agents.md if it's a new session and using tmp workspace
-	appendAgentsMD := card.UseTmpWorkspace && isNew
-	d, err := m.syncDriverFiles(card, skills, personas, mcps, finalWD, clearTmp, appendAgentsMD)
-	if err != nil {
-		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, err)
 	}
 
 	args := d.SetModel(card.Model)
@@ -336,10 +319,10 @@ func (m *Manager) startSession(
 	}
 
 	m.activateSessionLocked(s, card, d, h, pid, now)
-	s.WorkingDir = finalWD
-	s.OriginalDir = wd
-	s.UseTmpWorkspace = card.UseTmpWorkspace
 	if isNew {
+		s.WorkingDir = finalWD
+		s.OriginalDir = wd
+		s.UseTmpWorkspace = card.UseTmpWorkspace
 		s.Scrollback = nil
 		s.PendingAttachHeader = nil
 	} else {
@@ -362,6 +345,48 @@ func (m *Manager) startSession(
 		return fmt.Errorf("%w: %w", ErrPersistFailed, persistErr)
 	}
 	return nil
+}
+
+func (m *Manager) prepareActivationWorkspace(
+	sid string,
+	card config.IDCard,
+	skills []config.Skill,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+	isNew bool,
+	workspaceOverride string,
+) (string, string, driver.AgentDriver, error) {
+	if !isNew {
+		if workspaceOverride == "" {
+			return "", "", nil, errors.New("session workspace is empty")
+		}
+		info, err := os.Stat(workspaceOverride)
+		if err != nil {
+			return "", "", nil, fmt.Errorf("session workspace %q: %w", workspaceOverride, err)
+		}
+		if !info.IsDir() {
+			return "", "", nil, fmt.Errorf("session workspace %q is not a directory", workspaceOverride)
+		}
+		// Relaunch uses current runtime settings but deliberately does not
+		// deploy configuration: only Launch and SwitchAgent do that.
+		return workspaceOverride, workspaceOverride, m.drivers.Get(card.Driver), nil
+	}
+	wd, err := m.resolveWorkspacePath(card, "")
+	if err != nil {
+		return "", "", nil, err
+	}
+	finalWD, err := m.prepareWorkspace(sid, card, wd, true)
+	if err == nil {
+		err = m.prepareSubWorkspaces(card, finalWD)
+	}
+	if err == nil {
+		var d driver.AgentDriver
+		d, err = m.syncDriverFiles(card, skills, personas, mcps, finalWD, card.UseTmpWorkspace, card.UseTmpWorkspace)
+		if err == nil {
+			return wd, finalWD, d, nil
+		}
+	}
+	return "", "", nil, m.cleanupNewTemporaryWorkspace(sid, card, true, err)
 }
 
 func (m *Manager) cleanupNewTemporaryWorkspace(sid string, card config.IDCard, isNew bool, cause error) error {

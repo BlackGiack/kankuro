@@ -689,10 +689,10 @@ func TestConcurrentRelaunchStartsOnce(t *testing.T) {
 	sid := h.launchTerminated(t)
 
 	first := make(chan error, 1)
-	go func() { first <- h.sm.Relaunch(sid, h.card, nil, nil, nil) }()
+	go func() { first <- h.sm.Relaunch(sid, h.card) }()
 	waitSignal(t, entered, "first Relaunch to enter Spawn")
 
-	if err := h.sm.Relaunch(sid, h.card, nil, nil, nil); err == nil {
+	if err := h.sm.Relaunch(sid, h.card); err == nil {
 		t.Fatal("second Relaunch during an in-flight Relaunch must be rejected")
 	}
 
@@ -717,7 +717,7 @@ func TestSwitchAgentDuringRelaunchRejected(t *testing.T) {
 	sid := h.launchTerminated(t)
 
 	first := make(chan error, 1)
-	go func() { first <- h.sm.Relaunch(sid, h.card, nil, nil, nil) }()
+	go func() { first <- h.sm.Relaunch(sid, h.card) }()
 	waitSignal(t, entered, "Relaunch to enter Spawn")
 
 	if err := h.sm.SwitchAgent(sid, h.card, nil, nil, nil); err == nil {
@@ -745,10 +745,10 @@ func TestFailedRelaunchReleasesReservation(t *testing.T) {
 	})
 	sid := h.launchTerminated(t)
 
-	if err := h.sm.Relaunch(sid, h.card, nil, nil, nil); !errors.Is(err, errSpawn) {
+	if err := h.sm.Relaunch(sid, h.card); !errors.Is(err, errSpawn) {
 		t.Fatalf("expected spawn error, got %v", err)
 	}
-	if err := h.sm.Relaunch(sid, h.card, nil, nil, nil); err != nil {
+	if err := h.sm.Relaunch(sid, h.card); err != nil {
 		t.Fatalf("Relaunch after a failed one must succeed, got %v", err)
 	}
 	_ = h.sm.Kill(sid)
@@ -787,7 +787,7 @@ func TestRemoveDuringRelaunchRejected(t *testing.T) {
 	}
 
 	first := make(chan error, 1)
-	go func() { first <- h.sm.Relaunch(sid, h.card, nil, nil, nil) }()
+	go func() { first <- h.sm.Relaunch(sid, h.card) }()
 	waitSignal(t, entered, "Relaunch to enter Spawn")
 
 	if err := h.sm.Remove(sid); err == nil {
@@ -863,7 +863,7 @@ func TestKillDuringRelaunchDoesNotTerminateNewActivation(t *testing.T) {
 
 	// The old process exits, then the user relaunches before Kill returns.
 	h.sm.SetStatusForTest(sid, session.StatusTerminated)
-	if errRelaunch := h.sm.Relaunch(sid, h.card, nil, nil, nil); errRelaunch != nil {
+	if errRelaunch := h.sm.Relaunch(sid, h.card); errRelaunch != nil {
 		t.Fatalf("relaunch: %v", errRelaunch)
 	}
 
