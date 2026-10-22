@@ -11,14 +11,15 @@ which they can use as independent factories without imposing a factory workflow.
 
 ## Scope and constraints
 
-- Introduce dashboard membership independently of session ancestry. A parent/child
-  relationship does not determine navigation or act as a substitute for membership.
+- Introduce factory/dashboard membership for agents and sessions, with an
+  orchestrator associated with each factory and responsible for its sessions.
+  Do not add a separate parent/child session hierarchy (feature 3 is canceled).
 - Support independent dashboard views of associated agents/cards and sessions.
   Keep conversation continuity and workspace retention intact.
 - Design navigation after reviewing the working single-dashboard experience. The
   original left/right parent-child drill-down idea is not a requirement.
-- One orchestrator per dashboard is an expected user convention, not an enforced
-  limit. Workflows remain user-defined.
+- Each factory has its own orchestrator; its workflow remains user-defined.
+  Define how that association survives stop, relaunch, replacement, or removal.
 - Preserve existing installations with a clear default-dashboard migration.
 - Integrate membership with MCP discovery, creation, and caller scopes so agents
   cannot accidentally mix unrelated dashboard operations.
@@ -29,19 +30,19 @@ which they can use as independent factories without imposing a factory workflow.
   and switch between them without losing active sessions or their context.
 - MCP callers see and control the intended scope according to explicit rules.
 - Existing records migrate without lost cards, sessions, workspaces, or bindings.
-- Parenthood, descendant deletion restrictions, and dashboard membership behave
-  consistently in the cases supported by the chosen design.
+- Orchestrator association, replacement, and session membership survive restart
+  and follow explicit lifecycle rules without cascading session deletion.
 
 ## Planning decisions
 
 Settle the dashboard data model, shared-versus-exclusive card membership, session
-moves, cross-dashboard ancestry, dashboard deletion, and navigation at this stage.
+moves, orchestrator association/replacement, dashboard deletion, and navigation at this stage.
 Do not assume dashboard deletion means deleting its sessions. Consult the user for
 material UX/product choices once the preceding features provide concrete evidence.
 
 ## Out of scope
 
-Mandatory planner roles, workflow engines, agent-managed workspace configuration,
+Prescribed planner/executor/reviewer workflows, agent-managed workspace configuration,
 and a persistent background daemon.
 
 ## Working agreement

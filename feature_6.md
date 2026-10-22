@@ -21,7 +21,7 @@ on the existing dashboard, then resolve integration issues before expanding the 
 - Verify that session records and bindings recover truthfully after restart;
   quitting still stops processes. No daemon or automatic workflow resumption.
 - Improve operation errors and existing-dashboard visibility where real use exposes
-  gaps. Show descendant activity independently of the parent's process status.
+  gaps. Keep each managed session's activity visible independently of the orchestrator.
 - Supply clear MCP tool documentation. Add a small usage skill only if needed;
   keep role selection, file conventions, review rules, and completion policy in
   user-owned instructions or an explicitly labeled example.

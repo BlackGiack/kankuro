@@ -65,8 +65,10 @@ a factory, come after the capabilities work well on the existing dashboard.
 - Conversation continuity and workspace continuity are separate. Users and
   orchestrators decide how to brief agents about changes made while another card
   was active; Kankuro supplies the input and inspection capabilities.
-- Parenthood is persisted metadata, not filesystem nesting. Temporary session
-  workspaces remain independently stored under their own session IDs.
+- Factory membership will group agents and sessions, with each factory
+  orchestrator responsible for its sessions. Session ancestry is canceled; no
+  parent/child tree is needed. Temporary workspaces remain independently stored
+  under their own session IDs.
 
 ### Application boundary and MCP
 
@@ -104,13 +106,12 @@ a factory, come after the capabilities work well on the existing dashboard.
 
 ### Deletion
 
-- Deleting a parent deletes its entire descendant subtree.
-- Deletion is prohibited if the parent or any descendant is running or undergoing
-  launch, relaunch, or card switching. Descendant activity therefore makes the
-  parent undeletable even if its own process has stopped.
-- Keep the parent's own process status distinct from aggregate descendant activity.
-- Enforce the subtree rule in the shared service, including protection against a
-  concurrent child creation or activation during deletion.
+- Retain existing individual-session deletion guards: running or activating
+  sessions cannot be removed. Deleting an orchestrator does not cascade to other
+  sessions it manages.
+- Session ancestry and recursive deletion (feature 3) are canceled as of 2026-10-22.
+- Factory deletion and orchestrator replacement semantics will be designed with
+  factories in feature 7, not inherited from the canceled subtree model.
 
 ## Main checkpoints
 
@@ -160,7 +161,8 @@ invalid resume references as well as the successful path.
 - Keep stop and activation behavior explicit: a process waiting at a prompt is
   still running. Stop the current process before activating another card while
   retaining its conversation binding.
-- Implement persisted ancestry and the subtree deletion rules.
+- Preserve individual-session deletion rules; do not introduce parentage. Define
+  caller control scopes for the current dashboard, ready for later factory grouping.
 - Define input ownership so human interaction and orchestrator commands cannot
   accidentally interleave into the same prompt.
 
@@ -192,7 +194,7 @@ instructions. No transfer into its workspace or built-in workflow engine is need
   that processes stop when Kankuro exits.
 - Provide bounded output inspection with explicit truncation/gap behavior; do not
   treat lossy preview subscriptions as a reliable communication channel.
-- Show descendant activity even when the parent process is stopped, and make
+- Show managed session activity independently of the orchestrator, and make
   session state and operation failures understandable on the existing dashboard.
 - Verify deletion, manual intervention, registration failure, and resume failure
   through real agent runs and appropriate automated checks.
@@ -207,12 +209,12 @@ status and recoverable failures.
 Only begin after the single-dashboard workflow is useful and dependable.
 
 - Give each factory its own dashboard and associated agents/sessions.
-- Separate factory membership from session ancestry; parenthood does not dictate
-  navigation or layout.
+- Use factory membership and an associated orchestrator to group and manage
+  sessions. No separate session ancestry model is required.
 - Design factory navigation at this stage. The original left/right parent-child
   drill-down proposal in `feature.md` is superseded by this direction.
-- Expect one orchestrator per factory in the usual workflow without making that a
-  hard architectural constraint.
+- Associate each factory with its own orchestrator. Define replacement and removal
+  behavior while keeping workflow conventions user-defined.
 
 **Acceptance:** independent factories can be operated and inspected without mixing
 their associated agents and sessions. Workflow conventions remain user-defined.
@@ -240,7 +242,8 @@ their associated agents and sessions. Workflow conventions remain user-defined.
 ## Feature briefs and review sequence
 
 Proceed sequentially with a dedicated planner/reviewer and executor for each
-feature. After each feature's implementation cycle, return the work for integration
+active feature. Feature 3 is canceled; feature 4 follows accepted feature 2.
+After each feature's implementation cycle, return the work for integration
 review against this roadmap before starting dependent work. A feature may need
 more than one execution session; these briefs do not prescribe implementation plans.
 
@@ -248,7 +251,7 @@ more than one execution session; these briefs do not prescribe implementation pl
 |-------|-------|------------------|
 | 1 | [Shared application operations](feature_1.md) | Foundation for checkpoint 1 and later tools |
 | 2 | [Native conversation continuity and minimal MCP](feature_2.md) | Checkpoint 1 |
-| 3 | [Session ancestry and subtree lifecycle](feature_3.md) | Checkpoint 2 lifecycle foundation |
+| 3 | [Session ancestry and subtree lifecycle](feature_3.md) | Canceled; skip to feature 4 after feature 2 |
 | 4 | [MCP discovery and session lifecycle control](feature_4.md) | Checkpoint 2 lifecycle tools |
 | 5 | [Session input and bounded output inspection](feature_5.md) | Checkpoint 2 communication tools |
 | 6 | [Validate and harden user-defined orchestration](feature_6.md) | Checkpoints 3 and 4 |

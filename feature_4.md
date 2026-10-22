@@ -2,7 +2,7 @@
 
 Status: proposed; implementation and integration review pending.
 
-Dependency: Feature 3 accepted.
+Dependency: Feature 2 accepted. Feature 3 is canceled; proceed directly here.
 
 ## Intent
 
@@ -17,9 +17,11 @@ same operations available to the human UI.
 - Return stable session IDs and resolved workspace/sub-workspace paths. Reuse
   existing workspace, skill, persona, and MCP preparation. Additional files are
   created by the orchestrator using its own filesystem tools.
-- Creation from a session records authenticated parentage. Define explicit caller
-  scopes for which sessions can be inspected or controlled; ancestry alone and
-  caller-supplied IDs must not grant arbitrary authority.
+- Define explicit caller scopes for which sessions can be inspected or controlled
+  on the current dashboard. Authenticate callers without recording parentage or
+  introducing an interim ownership tree. Later, factory membership and its
+  orchestrator association will provide the grouping and control scope.
+  Caller-supplied session IDs alone must not grant authority.
 - Make stopped-versus-running requirements explicit. A waiting process is still
   running. If switching requires stopping first, document the sequence and errors.
 - Apply conversation continuity from feature 2 to remote lifecycle operations.
@@ -35,7 +37,7 @@ same operations available to the human UI.
   paths, and creates a file there using its own tools.
 - It stops, switches, and relaunches that session without changing its workspace,
   and obtains the expected native conversation binding when returning to a card.
-- Unauthorized calls, retry behavior, subtree deletion, and partial-success outcomes
+- Unauthorized calls, retry behavior, individual-session deletion guards, and partial-success outcomes
   are exercised through the MCP boundary as well as the shared service.
 
 ## Planning decisions

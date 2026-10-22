@@ -1,63 +1,28 @@
 # Feature 3: Session ancestry and subtree lifecycle
 
-Status: proposed; implementation and integration review pending.
+Status: canceled before implementation (2026-10-22). Skip this feature; feature 4
+now depends directly on accepted feature 2. Feature numbering is retained.
 
-Dependency: Feature 2 accepted.
+## Decision
 
-## Intent
+Factory membership will group agents and sessions. Each factory will have its own
+orchestrator, responsible for the sessions in that factory. A separate persistent
+parent/child session hierarchy is unnecessary for this model.
 
-Allow an ordinary session to be recorded as created by another session, with clear
-lifecycle and deletion behavior. Parenthood is metadata, not a new session type.
+Cancel parent relationships, cycle/orphan handling, recursive session deletion,
+and descendant-based deletion guards and activity indicators. Deleting an
+orchestrator session does not implicitly delete the other sessions it manages.
 
-## Scope and constraints
+## Requirements retained elsewhere
 
-- Persist parent relationships; older sessions load as roots. Reject invalid
-  relationships and cycles, and define behavior for corrupt/orphaned persisted data.
-- New sessions use the chosen card's existing workspace preparation, including
-  temporary workspaces and sub workspaces. Do not copy the parent's workspace by
-  default or nest a child's storage under its parent's temporary directory.
-- Deleting a parent deletes its entire descendant subtree. Reject deletion if any
-  member is running or launching, relaunching, or switching cards.
-- Protect deletion against concurrent child creation/activation. Specify recovery
-  and truthful error reporting when filesystem or record deletion partially fails.
-- Keep each process's own status separate from aggregate descendant activity.
-  Surface enough information on the current dashboard to explain deletion refusal;
-  show the affected scope in the human deletion confirmation.
-- Retain current shutdown semantics. This feature does not imply recursive stop.
+- Reuse ordinary sessions and existing card-scoped workspace preparation (feature 4).
+- Keep temporary workspace storage independent per session.
+- Preserve existing individual-session lifecycle/deletion guards and shutdown rules.
+- Authenticate MCP callers and define their control scope (feature 4); authentication
+  remains necessary without ancestry. Do not build a temporary ownership tree.
+- Introduce factory membership and its orchestrator association in feature 7.
+  Decide factory deletion and orchestrator replacement behavior there; do not
+  silently translate the canceled recursive-deletion rule into factory deletion.
 
-## Acceptance criteria
-
-- Parentage survives restart without changing existing session/workspace identities.
-- Children can use projects different from their parent's project.
-- Running and activating descendants prevent subtree deletion, including concurrent
-  attempts. A stopped subtree can be removed without affecting unrelated sessions.
-- Tests cover deeper descendants, temporary-workspace cleanup, legacy records, and
-  failure paths rather than only a single parent/child happy path.
-
-## Planning decisions
-
-Choose the smallest relationship representation and deletion reservation strategy.
-Document whether and how ancestry may change; creation-time parentage is sufficient
-initially. Define failure behavior without promising transactional filesystem deletes.
-
-## Out of scope
-
-Tree navigation, factory dashboards, ticket models, and workflow scheduling.
-
-## Working agreement
-
-Read `project.md` for onboarding and `roadmap.md` for the agreed direction, then
-inspect the current code and prerequisite handoffs before planning. This is a
-feature brief, not an implementation plan. Reuse existing session concepts and
-workspace preparation; user-defined workflows must remain outside the core model.
-
-Update `project.md` during implementation with accurate entry points, behavior,
-and invariants, preserving its role as an agent onboarding guide. Run the required
-checks documented there and add meaningful tests for new behavior. Do not commit
-unless explicitly asked.
-
-Before dependent work starts, hand back the implementation for integration review.
-Provide a concise handoff with changed contracts, verification results, known
-limitations, and unresolved decisions. Update this brief's status to reflect the
-actual outcome; implementation complete and integration review accepted are
-separate states. Resolve review findings before starting dependent features.
+The user's workflow remains configurable. This cancellation does not introduce
+new ticket types or require factories to be implemented before MCP session control.
