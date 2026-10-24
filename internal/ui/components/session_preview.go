@@ -17,13 +17,11 @@ import (
 
 // Preview layout .
 const (
-	PreviewIDLabelPrefixLen   = 4
-	PreviewCardLabelPrefixLen = 6
 	PreviewBorderLines        = 2
 	PreviewMaxScrollbackBytes = 8 * 1024 // 8KB cap
 	PreviewContentHPadding    = 2
-
-	WidthBorders = 6
+	previewPuppetGap          = 3
+	previewMinTextWidth       = 24
 )
 
 // Status badge styles.
@@ -57,7 +55,6 @@ type SessionPreview struct {
 	card                *config.IDCard
 	scrollback          []byte
 	puppets             []config.Puppet
-	truncateLimit       int
 	lastMeaningfulLines []string
 	lastSessionID       string
 
@@ -70,15 +67,12 @@ type SessionPreview struct {
 
 // NewSessionPreview creates a new session preview component.
 func NewSessionPreview() *SessionPreview {
-	return &SessionPreview{
-		truncateLimit: 25, //nolint:mnd // responsive sizing
-	}
+	return &SessionPreview{}
 }
 
 // SetSize implements component.Model.
 func (p *SessionPreview) SetSize(width, height int) {
 	p.Base.SetSize(width, height)
-	p.truncateLimit = max(10, width/3) //nolint:mnd // responsive sizing
 }
 
 // SetPuppets sets the puppet catalog for rendering.
@@ -252,24 +246,49 @@ func (p *SessionPreview) View() string {
 
 // renderPlaceholder shows the empty state.
 func (p *SessionPreview) renderPlaceholder() string {
-	placeholder := `
-   No session
-   selected
-
-   Select a session
-   from the list to
-   see a preview here.
-`
+	placeholder := wrapPreviewWords(
+		"No session selected Select a session to see a preview here",
+		p.Width,
+	)
 
 	return clampToSize(
 		lipgloss.NewStyle().
-			Width(p.Width-WidthBorders).
+			Width(p.Width).
+			MaxWidth(p.Width).
 			Height(p.Height).
 			Align(lipgloss.Center, lipgloss.Center).
 			Foreground(styles.Gray).
 			Render(placeholder),
 		p.Width, p.Height,
 	)
+}
+
+func wrapPreviewWords(text string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+
+	var lines []string
+	line := ""
+	for word := range strings.FieldsSeq(text) {
+		if ansi.StringWidth(word) > width {
+			word = TruncateHead(word, width)
+		}
+		candidate := word
+		if line != "" {
+			candidate = line + " " + word
+		}
+		if ansi.StringWidth(candidate) <= width {
+			line = candidate
+			continue
+		}
+		lines = append(lines, line)
+		line = word
+	}
+	if line != "" {
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // renderPreview renders the full session preview.
@@ -281,7 +300,7 @@ func (p *SessionPreview) renderPreview() string {
 		sessionName = p.snapshot.ID
 	}
 
-	wdStr := TruncatePath(p.snapshot.WorkingDir, p.truncateLimit)
+	wdStr := p.snapshot.WorkingDir
 	var startedStr string
 	if !p.snapshot.StartedAt.IsZero() {
 		startedStr = p.snapshot.StartedAt.Format("15:04:05")
@@ -295,31 +314,37 @@ func (p *SessionPreview) renderPreview() string {
 		puppetStyle = p.card.Puppet
 	}
 	puppetStr := RenderAgentPuppet(puppetStyle, p.puppets)
+	textWidth := p.Width
+	puppetWidth := renderedBlockWidth(puppetStr)
+	if puppetWidth > 0 && p.Width >= puppetWidth+previewPuppetGap+previewMinTextWidth {
+		textWidth -= puppetWidth + previewPuppetGap
+	} else {
+		// Prefer complete, readable metadata to clipped character art.
+		puppetStr = ""
+	}
 
 	// Build header
 	headerLines := []string{
-		TitleStyle.Render(TruncateHead(sessionName, p.Width-WidthBorders)),
-		lipgloss.JoinHorizontal(lipgloss.Center, statusBadge),
-		lipgloss.NewStyle().Foreground(styles.Gray).Render(
-			"ID: " + TruncateHead(p.snapshot.ID, p.Width-PreviewIDLabelPrefixLen-WidthBorders),
-		),
-		lipgloss.NewStyle().Foreground(styles.Gray).Render("WS: " + wdStr),
-		lipgloss.NewStyle().Foreground(styles.Gray).Render("Started: " + startedStr),
+		TitleStyle.Render(TruncateHead(DisplayText(sessionName), textWidth)),
+		lipgloss.NewStyle().MaxWidth(textWidth).Render(statusBadge),
+		renderPreviewField("ID: ", p.snapshot.ID, textWidth, false),
+		renderPreviewField("WS: ", wdStr, textWidth, true),
+		renderPreviewField("Started: ", startedStr, textWidth, false),
 	}
 
 	if p.card != nil {
-		headerLines = append(headerLines,
-			lipgloss.NewStyle().Foreground(styles.Gray).Render(
-				"Card: "+TruncateHead(p.card.Name, p.Width-PreviewCardLabelPrefixLen-WidthBorders),
-			),
-		)
+		headerLines = append(headerLines, renderPreviewField("Card: ", p.card.Name, textWidth, false))
 	}
 	headerLines = append(headerLines, "")
 
-	header := strings.Join(headerLines, "\n")
+	header := lipgloss.NewStyle().Width(textWidth).MaxWidth(textWidth).Render(strings.Join(headerLines, "\n"))
 
-	// Combine header with puppet
-	headerWithPuppet := lipgloss.JoinHorizontal(lipgloss.Top, header, "   ", puppetStr)
+	// The padded text block reserves a stable art column before composition.
+	headerWithPuppet := header
+	if puppetStr != "" {
+		headerWithPuppet = lipgloss.JoinHorizontal(lipgloss.Top, header,
+			strings.Repeat(" ", previewPuppetGap), puppetStr)
+	}
 	topHeight := lipgloss.Height(headerWithPuppet)
 	scrollbackHeight := max(1, p.Height-topHeight)
 
@@ -354,6 +379,30 @@ func (p *SessionPreview) renderPreview() string {
 	// post-sanitization guarantee that the View() output never exceeds the
 	// allotted size, even if lipgloss soft-wraps or pads content unexpectedly.
 	return clampToSize(body, p.Width, p.Height)
+}
+
+func renderedBlockWidth(block string) int {
+	width := 0
+	for line := range strings.SplitSeq(block, "\n") {
+		width = max(width, ansi.StringWidth(line))
+	}
+	return width
+}
+
+func renderPreviewField(label, value string, width int, keepTail bool) string {
+	labelWidth := ansi.StringWidth(label)
+	valueWidth := max(0, width-labelWidth)
+	value = DisplayText(value)
+	if keepTail {
+		value = TruncateTail(value, valueWidth)
+	} else {
+		value = TruncateHead(value, valueWidth)
+	}
+	line := label + value
+	if ansi.StringWidth(line) > width {
+		line = TruncateHead(line, width)
+	}
+	return lipgloss.NewStyle().Foreground(styles.Gray).Render(line)
 }
 
 // ClampToSize hard-truncates a rendered string to at most maxHeight rows and

@@ -128,6 +128,7 @@ func TestCardEditorPreservesUnmanagedFields(t *testing.T) {
 		WorkspaceID:        "ws-1",
 		SubWorkspaceIDs:    []string{"ws-2"},
 		UseTmpWorkspace:    true,
+		DashboardControl:   true,
 		SystemInstruction:  "be a test",
 		SkillIDs:           []string{"s1"},
 		PersonaIDs:         []string{"p1"},
@@ -174,6 +175,23 @@ func TestCardEditorPreservesUnmanagedFields(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Card() after editing only Name changed other fields too, or "+
 			"dropped one it should have preserved:\ngot:  %+v\nwant: %+v", got, want)
+	}
+}
+
+func TestDashboardControlCardEditorToggleRoundTrip(t *testing.T) {
+	editor := views.NewCardEditor(views.CardEditorCallbacks{})
+	card := config.IDCard{ID: "card", Name: "control", DashboardControl: true}
+	editor.SetCard(card)
+	for editor.FocusIndex() != views.FocusDashboardControl {
+		editor.CycleFocus(1)
+	}
+	editor.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	if editor.Card().DashboardControl {
+		t.Fatal("Space did not turn Dashboard Control off")
+	}
+	editor.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	if !editor.Card().DashboardControl {
+		t.Fatal("Dashboard Control did not round-trip through the card")
 	}
 }
 

@@ -810,7 +810,10 @@ func (d *Dashboard) SetSize(width, height int) {
 	// Preview pane has no title block, so its component fits in outer Height - borders (2) = paneHeight - 2.
 	d.cardList.SetSize(d.cardsWidth-paneBorderRing, paneHeight-paneBorderRing-previewTitleBlock)
 	d.sessionList.SetSize(d.sessionsWidth-paneBorderRing, paneHeight-paneBorderRing-previewTitleBlock)
-	d.preview.SetSize(d.previewWidth-paneBorderRing, paneHeight-paneBorderRing)
+	d.preview.SetSize(
+		d.previewWidth-paneBorderRing-2*paneContentGutter,
+		paneHeight-paneBorderRing,
+	)
 	d.deleteModal.SetSize(width, height)
 }
 
@@ -869,7 +872,7 @@ func (d *Dashboard) renderCardsPane() string {
 		d.search.IsActive && d.focusedPane == PaneCards, d.cardsWidth)
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
-		lipgloss.NewStyle().Padding(0, 1).Render(title),
+		paneTitleStyle().Render(title),
 		d.cardList.View(),
 	)
 
@@ -899,7 +902,8 @@ func (d *Dashboard) renderPreviewPane() string {
 	// in SetSize, so its body is up to contentHeight + previewTitleBlock rows.
 	// Adding the 2-cell border ring gives the expected bordered pane height.
 	// Cutting this short would shave the bottom border off.
-	rendered := style.Render(d.preview.View())
+	content := lipgloss.NewStyle().Padding(0, paneContentGutter).Render(d.preview.View())
+	rendered := style.Render(content)
 	maxW := d.previewWidth
 	maxH := d.contentHeight
 	return components.ClampToSize(rendered, maxW, maxH)
@@ -914,10 +918,12 @@ func (d *Dashboard) renderPreviewPane() string {
 const (
 	paneBorderRing    = 2
 	previewTitleBlock = 2
+	paneContentGutter = 2
 
-	// paneTitlePadding is the columns the title block's horizontal padding
-	// (Padding(0, 1)) takes from a pane's inner width.
-	paneTitlePadding = 2
+	// paneTitlePadding is the columns the title block's horizontal padding takes
+	// from a pane's inner width.
+	paneTitlePadding      = paneContentGutter + paneTitleRightPadding
+	paneTitleRightPadding = 1
 )
 
 // Rows of the dashboard render, top to bottom: the header and its bottom
@@ -978,11 +984,15 @@ func (d *Dashboard) renderSessionsPane() string {
 	}
 
 	pane := lipgloss.JoinVertical(lipgloss.Left,
-		lipgloss.NewStyle().Padding(0, 1).Render(title),
+		paneTitleStyle().Render(title),
 		content,
 	)
 
 	return style.Render(pane)
+}
+
+func paneTitleStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Padding(0, paneTitleRightPadding, 0, paneContentGutter)
 }
 
 // Footer key groups. The footer shows the navigation group, the group of the

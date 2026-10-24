@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -33,6 +34,29 @@ type spawnFailGateDriver struct {
 
 	entered chan struct{}
 	release <-chan struct{}
+}
+
+type cancellationSpawnDriver struct {
+	*driver.GenericCLIDriver
+
+	entered    chan struct{}
+	release    <-chan struct{}
+	spawnCalls atomic.Int32
+	terminated atomic.Bool
+}
+
+func (d *cancellationSpawnDriver) Spawn(cfg driver.AgentConfig) (*driver.SessionHandle, error) {
+	if d.spawnCalls.Add(1) == 1 {
+		close(d.entered)
+		<-d.release
+	}
+	cfg.Driver = "cat"
+	return d.GenericCLIDriver.Spawn(cfg)
+}
+
+func (d *cancellationSpawnDriver) Kill() error {
+	d.terminated.Store(true)
+	return d.GenericCLIDriver.Kill()
 }
 
 func (d *spawnFailGateDriver) Spawn(_ driver.AgentConfig) (*driver.SessionHandle, error) {
@@ -282,5 +306,97 @@ func TestFailedOlderActivationCannotCleanupNewerWorkspaceConfig(t *testing.T) {
 	}
 	if err := manager.Kill(newerID); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCancellationAfterMCPConfigBeforeSpawnRevokesAndUnpublishes(t *testing.T) {
+	skillContent, skillErr := os.ReadFile("../../kankuro_skills/mcp-cli/SKILL.md")
+	if skillErr != nil {
+		t.Fatal(skillErr)
+	}
+	config.SetBuiltinMCPCLISkillContent(skillContent)
+	t.Cleanup(func() { config.SetBuiltinMCPCLISkillContent(nil) })
+	configDir := t.TempDir()
+	tmpRoot := t.TempDir()
+	t.Setenv("KANKURO_TMP_DIR", tmpRoot)
+	repo, setupErr := config.NewFileRepository(configDir)
+	if setupErr != nil {
+		t.Fatal(setupErr)
+	}
+	workspace := t.TempDir()
+	if err := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: workspace}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, listErr := repo.ListWorkspaces()
+	if listErr != nil || len(workspaces) != 1 {
+		t.Fatalf("workspaces: %v", listErr)
+	}
+	entered, release := make(chan struct{}), make(chan struct{})
+	driverRegistry := driver.NewBuiltinRegistry()
+	gatedDriver := &cancellationSpawnDriver{
+		GenericCLIDriver: driver.NewGenericCLIDriver(), entered: entered, release: release,
+	}
+	driverRegistry.Register("cancel-spawn", func() driver.AgentDriver {
+		return gatedDriver
+	})
+	manager := newTestManager(t, repo.Dir(), repo, session.WithDriverRegistry(driverRegistry))
+	manager.SetMCPEndpoint("http://127.0.0.1:43210/mcp")
+	card := config.IDCard{
+		ID: "controller", Name: "controller", Driver: "cancel-spawn", WorkspaceID: workspaces[0].ID,
+		UseTmpWorkspace: true, DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro},
+	}
+	sessionID := "a9e0e5eb-32d7-4a94-8548-43db75642f8c"
+	activationContext, cancelActivation := context.WithCancel(context.Background())
+	defer cancelActivation()
+	launchResult := make(chan error, 1)
+	go func() {
+		_, launchErr := manager.LaunchWithIDContext(
+			activationContext, sessionID, card, nil, nil, config.BuiltinMCPs(),
+		)
+		launchResult <- launchErr
+	}()
+	select {
+	case <-entered:
+	case <-time.After(workspaceMCPInterleaveTimeout):
+		close(release)
+		t.Fatal("activation did not reach gated spawn after MCP config publication")
+	}
+	workspaceCopy := filepath.Join(tmpRoot, sessionID, filepath.Base(workspace))
+	token := tokenFromConfig(t, driver.MCPConfigPath(workspaceCopy))
+	if !manager.HasActivationCredential(token) {
+		t.Fatal("published pre-spawn credential was not live at the gate")
+	}
+	cancelActivation()
+	close(release)
+	select {
+	case launchErr := <-launchResult:
+		if !errors.Is(launchErr, context.Canceled) {
+			t.Fatalf("cancelled launch error = %v, want context cancellation", launchErr)
+		}
+	case <-time.After(workspaceMCPInterleaveTimeout):
+		t.Fatal("cancelled activation did not return")
+	}
+	if manager.HasActivationCredential(token) {
+		t.Fatal("cancelled unpublished activation credential remained authorized")
+	}
+	if _, exists := manager.GetSession(sessionID); exists {
+		t.Fatal("cancelled activation was published into the session registry")
+	}
+	if gatedDriver == nil || !gatedDriver.terminated.Load() {
+		t.Fatal("process spawned after cancellation was not torn down")
+	}
+	if _, statErr := os.Stat(filepath.Join(tmpRoot, sessionID)); !os.IsNotExist(statErr) {
+		t.Fatalf("cancelled activation left its temporary workspace: %v", statErr)
+	}
+	if _, retryErr := manager.LaunchWithIDContext(
+		context.Background(), sessionID, card, nil, nil, config.BuiltinMCPs(),
+	); retryErr != nil {
+		t.Fatalf("activation reservation was not released: %v", retryErr)
+	}
+	if killErr := manager.Kill(sessionID); killErr != nil {
+		t.Fatal(killErr)
+	}
+	if _, removeErr := manager.RemoveDetailed(sessionID); removeErr != nil {
+		t.Fatalf("remove retried temporary activation: %v", removeErr)
 	}
 }

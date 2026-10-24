@@ -17,6 +17,8 @@ func (m *Manager) startWatchLocked(id string, gen uint64, d driver.AgentDriver) 
 // watch polls one activation's driver until it terminates, its generation goes
 // stale, or Shutdown closes m.stop. It is the only goroutine that writes
 // session records in the background, which is why it must be stoppable.
+//
+//nolint:gocognit // One poll loop owns status, registration timeout, persistence, and subscriber teardown.
 func (m *Manager) watch(sessionID string, gen uint64, d driver.AgentDriver) {
 	ticker := time.NewTicker(watchInterval)
 	defer ticker.Stop()
@@ -30,6 +32,14 @@ func (m *Manager) watch(sessionID string, gen uint64, d driver.AgentDriver) {
 		m.mu.Lock()
 		s, ok := m.sessions[sessionID]
 		if !ok || s.generation != gen {
+			m.mu.Unlock()
+			return
+		}
+		if s.deleting || s.stopping {
+			m.mu.Unlock()
+			continue
+		}
+		if s.Status == StatusTerminated {
 			m.mu.Unlock()
 			return
 		}

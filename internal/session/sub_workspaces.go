@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -25,6 +26,58 @@ const (
 type subWorkspaceManifest struct {
 	SchemaVersion int                         `json:"schema_version"`
 	Copies        map[string]subWorkspaceCopy `json:"copies"`
+}
+
+// SubWorkspaceDescriptor identifies a deployed copy, not a current card selection.
+type SubWorkspaceDescriptor struct {
+	WorkspaceID     string `json:"workspace_id"`
+	SourcePath      string `json:"source_path"`
+	DestinationPath string `json:"destination_path"`
+}
+
+// ReadSubWorkspaceDescriptors reads the workspace manifest without preparing or
+// recreating anything. The availability result distinguishes absent/invalid legacy metadata.
+func ReadSubWorkspaceDescriptors(workingDir string) ([]SubWorkspaceDescriptor, bool) {
+	if validateSessionWorkspace(workingDir) != nil {
+		return nil, false
+	}
+	manifestPath := filepath.Join(workingDir, ".kankuro", "sub-workspaces.json")
+	manifest, err := loadSubWorkspaceManifest(manifestPath)
+	if err != nil {
+		return nil, false
+	}
+	if _, statErr := os.Stat(manifestPath); statErr != nil {
+		return nil, false
+	}
+	names := make([]string, 0, len(manifest.Copies))
+	for name := range manifest.Copies {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	descriptors := make([]SubWorkspaceDescriptor, 0, len(names))
+	for _, name := range names {
+		entry := manifest.Copies[name]
+		destination, absErr := filepath.Abs(filepath.Join(workingDir, "tmp", name))
+		if absErr != nil {
+			return nil, false
+		}
+		descriptors = append(descriptors, SubWorkspaceDescriptor{
+			WorkspaceID: entry.WorkspaceID, SourcePath: entry.SourcePath, DestinationPath: destination,
+		})
+	}
+	return descriptors, true
+}
+
+func preparedSubWorkspaceDescriptors(workingDir string) ([]SubWorkspaceDescriptor, bool) {
+	descriptors, available := ReadSubWorkspaceDescriptors(workingDir)
+	if available {
+		return descriptors, true
+	}
+	manifestPath := filepath.Join(workingDir, ".kankuro", "sub-workspaces.json")
+	if _, err := os.Stat(manifestPath); errors.Is(err, os.ErrNotExist) {
+		return nil, true
+	}
+	return nil, false
 }
 
 type subWorkspaceCopy struct {
@@ -44,12 +97,16 @@ type subWorkspaceTransaction struct {
 }
 
 // prepareSubWorkspaces serializes manifest decisions and copy publication for a working directory.
-func (m *Manager) prepareSubWorkspaces(card config.IDCard, workingDir string) error {
+func (m *Manager) prepareSubWorkspaces(ctx context.Context, card config.IDCard, workingDir string) error {
 	if len(card.SubWorkspaceIDs) == 0 {
 		return nil
 	}
-	m.subWorkspaceMu.Lock()
-	defer m.subWorkspaceMu.Unlock()
+	select {
+	case m.subWorkspaceGate <- struct{}{}:
+		defer func() { <-m.subWorkspaceGate }()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 
 	canonicalDir, canonicalErr := canonicalDirectory(workingDir)
 	if canonicalErr != nil {
@@ -79,7 +136,7 @@ func (m *Manager) prepareSubWorkspaces(card config.IDCard, workingDir string) er
 		if !shouldCopy {
 			continue
 		}
-		if copyErr := copyAndPublishSubWorkspace(source, tmpDir, tx); copyErr != nil {
+		if copyErr := copyAndPublishSubWorkspace(ctx, source, tmpDir, tx); copyErr != nil {
 			return tx.rollback(copyErr)
 		}
 		updated.Copies[source.name] = subWorkspaceCopy{WorkspaceID: source.id, SourcePath: source.path}
@@ -236,14 +293,14 @@ func shouldCopySubWorkspace(source subWorkspaceSource, tmpDir string, manifest s
 	return true, nil
 }
 
-func copyAndPublishSubWorkspace(source subWorkspaceSource, tmpDir string, tx *subWorkspaceTransaction) error {
+func copyAndPublishSubWorkspace(ctx context.Context, source subWorkspaceSource, tmpDir string, tx *subWorkspaceTransaction) error {
 	stage := filepath.Join(tmpDir, ".kankuro-stage-"+uuid.NewString())
 	tx.stages = append(tx.stages, stage)
 	if err := os.Mkdir(stage, 0o700); err != nil {
 		return fmt.Errorf("create sub workspace staging directory: %w", err)
 	}
 	//nolint:gosec // explicit argv keeps registered path arguments out of shell interpretation.
-	cmd := exec.CommandContext(context.Background(), "cp", "-a", "--", source.path+string(filepath.Separator)+".", stage)
+	cmd := exec.CommandContext(ctx, "cp", "-a", "--", source.path+string(filepath.Separator)+".", stage)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("copy sub workspace %s: %s: %w", source.id, output, err)
 	}

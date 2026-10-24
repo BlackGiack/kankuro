@@ -81,14 +81,22 @@ func run(registry driver.Registry) error {
 		session.WithDriverRegistry(registry),
 		session.WithLogger(sessionLogger),
 	)
-	mcpRuntime, err := mcp.Start(api.New(repo, sm))
+	sharedAPI := api.New(repo, sm)
+	operationRunner := api.NewOperationRunner(repo.Dir(), sharedAPI)
+	sharedAPI.SetOperationRunner(operationRunner)
+	if journalErr := operationRunner.LoadError(); journalErr != nil {
+		fmt.Fprintf(os.Stderr, "kankuro: lifecycle MCP tools disabled because the operation journal could not be loaded: %v\n", journalErr)
+	}
+	mcpRuntime, err := mcp.Start(sharedAPI)
 	if err != nil {
+		operationRunner.Shutdown()
 		sm.Shutdown()
 		return fmt.Errorf("start MCP endpoint: %w", err)
 	}
 	sm.SetMCPEndpoint(mcpRuntime.Endpoint())
 	application, err := app.New(repo, sm)
 	if err != nil {
+		operationRunner.Shutdown()
 		sm.Shutdown()
 		shutdownErr := shutdownMCP(mcpRuntime)
 		if shutdownErr != nil {
@@ -147,6 +155,7 @@ func run(registry driver.Registry) error {
 	// waits, Bubble Tea no longer handles signals, so a second ctrl+c or
 	// SIGTERM gets Go's default action and exits at once - an acceptable
 	// "force quit".
+	operationRunner.Shutdown()
 	stopSessions(sm)
 	mcpShutdownErr := shutdownMCP(mcpRuntime)
 

@@ -42,6 +42,7 @@ An active or persisted instance of an ID Card.
     * **Temporary:** Clones the original workspace into a disposable folder (via `KANKURO_TMP_DIR` or `~/.config/kankuro/tmp/`). Changes made by the agent are isolated from the original source but persist across session relaunches.
 * **Detachment:** Users can "detach" from a session terminal using a global hotkey (e.g., `Ctrl+K`) to return to the dashboard without stopping the agent.
 * **Switch:** Users can switch ID cards keeping the same session.
+* **Dashboard Control:** A card may opt its activation into discovering and controlling other sessions in the linked dashboard through Kankuro MCP. This is independent of selecting the Kankuro MCP server; both are required. MCP provides `list_cards`, `list_sessions`, `get_session`, `create_session`, `stop_session`, `relaunch_session`, `switch_session_card`, `delete_session`, `get_operation`, and `cancel_operation`. Waiting is still running; stop and await completion before relaunch or switch. Mutations require a caller-generated UUID request ID; identical retries return the original operation. Calls wait up to ten seconds, then return an operation ID to poll. A persistence warning may accompany an effect that succeeded; an `interrupted` operation after restart has unknown effects and is never auto-replayed.
 * **Quitting:** Quitting KANKURO (`q`, `Ctrl+C`, SIGTERM, or closing the terminal) kills every running session: its process group gets SIGTERM, then SIGKILL after 2 seconds. The session records stay on disk, so the sessions can be relaunched next time.
 
 ### 1.3 The Waiting status
@@ -150,9 +151,10 @@ type AgentDriver interface {
     * `Esc`: Return to the previous view.
 
 * **Agent Card Editor Interactions:**
-    * `Tab`: Cycle focus between fields (Name, Driver, Model, Workspace, Sub Workspaces, Face, Tmp, AgentsMD, Skills, Personas, MCPs).
+    * `Tab`: Cycle focus between fields (Name, Driver, Model, Workspace, Sub Workspaces, Face, Tmp, Dashboard Control, AgentsMD, Skills, Personas, MCPs).
       Persona and MCP sections are optional and disappear from focus order when disabled in Settings.
     * `Space` (on Workspace): Open the searchable workspace picker.
+    * `Space` (on Dashboard Control): Toggle permission for this activation to discover and control other sessions in the linked dashboard. Kankuro MCP must also be selected on the card.
     * `Ctrl+X` (on Sub Workspaces): Clear all sub workspace selections in the form; Enter saves the change.
     * `Space` (on Lists): Toggle selection of the highlighted Skill, Persona, or MCP.
     * `ctrl+e` (on Lists): Open the specialized form to add a new Skill Source, Persona Source, or MCP Server.

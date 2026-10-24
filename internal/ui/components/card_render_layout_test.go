@@ -173,3 +173,40 @@ func TestRenderCardItemSanitisesUserText(t *testing.T) {
 		}
 	}
 }
+
+func TestCardListUsesBalancedCellGuttersAcrossSelectionAndFiltering(t *testing.T) {
+	for _, width := range []int{44, 60, 100} {
+		list := components.NewCardList(components.CardListCallbacks{})
+		list.SetPuppets(builtinPuppets(t))
+		list.SetCards([]config.IDCard{
+			{ID: "one", Name: "First", Driver: "cat", Puppet: "kankuro"},
+			{ID: "two", Name: "Second", Driver: "cat", Puppet: "kankuro"},
+		}, nil, nil)
+		list.SetSize(width, 30)
+		for _, state := range []struct {
+			name        string
+			selectIndex int
+			query       string
+		}{
+			{name: "first selected", selectIndex: 0},
+			{name: "second selected", selectIndex: 1},
+			{name: "filtered", selectIndex: 0, query: "Second"},
+		} {
+			list.Select(state.selectIndex)
+			list.SetSearchQuery(state.query)
+			out := ansi.Strip(list.View())
+			for line := range strings.SplitSeq(out, "\n") {
+				leftAt, rightAt := strings.Index(line, "╭"), strings.LastIndex(line, "╮")
+				if leftAt < 0 || rightAt < 0 {
+					continue
+				}
+				left := ansi.StringWidth(line[:leftAt])
+				right := width - ansi.StringWidth(line[:rightAt+len("╮")])
+				if left != 2 || right != 2 {
+					t.Errorf("%s width=%d: card gutters left=%d right=%d, want 2/2:\n%s", state.name, width, left, right, out)
+				}
+				break
+			}
+		}
+	}
+}

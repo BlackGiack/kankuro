@@ -848,13 +848,16 @@ func TestKillAfterRemoveDoesNotResurrectRecord(t *testing.T) {
 
 	// Simulate the process exiting on its own while Kill is still blocked.
 	h.sm.SetStatusForTest(sid, session.StatusTerminated)
-	if errRemove := h.sm.Remove(sid); errRemove != nil {
-		t.Fatalf("remove: %v", errRemove)
+	if errRemove := h.sm.Remove(sid); errRemove == nil {
+		t.Fatal("remove during reserved stop unexpectedly succeeded")
 	}
 
 	close(gate)
 	if errKill := waitErr(t, killed, "Kill"); errKill != nil {
 		t.Fatalf("kill: %v", errKill)
+	}
+	if errRemove := h.sm.Remove(sid); errRemove != nil {
+		t.Fatalf("remove after stop: %v", errRemove)
 	}
 
 	record := filepath.Join(h.repoDir, "sessions", sid+".json")
@@ -883,13 +886,16 @@ func TestKillDuringRelaunchDoesNotTerminateNewActivation(t *testing.T) {
 
 	// The old process exits, then the user relaunches before Kill returns.
 	h.sm.SetStatusForTest(sid, session.StatusTerminated)
-	if errRelaunch := h.sm.Relaunch(sid, h.card); errRelaunch != nil {
-		t.Fatalf("relaunch: %v", errRelaunch)
+	if errRelaunch := h.sm.Relaunch(sid, h.card); errRelaunch == nil {
+		t.Fatal("relaunch during reserved stop unexpectedly succeeded")
 	}
 
 	close(gate)
 	if errKill := waitErr(t, killed, "Kill"); errKill != nil {
 		t.Fatalf("kill: %v", errKill)
+	}
+	if errRelaunch := h.sm.Relaunch(sid, h.card); errRelaunch != nil {
+		t.Fatalf("relaunch after stop: %v", errRelaunch)
 	}
 
 	s, _ := h.sm.GetSession(sid)

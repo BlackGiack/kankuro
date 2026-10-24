@@ -329,8 +329,7 @@ func (c *Coordinator) sourceUpdateMsg(err error) tea.Msg {
 	if err == nil {
 		return messages.DataRefreshRequestedMsg{}
 	}
-	var syncErr *config.SyncFailedError
-	if errors.As(err, &syncErr) {
+	if _, ok := errors.AsType[*config.SyncFailedError](err); ok {
 		return tea.Batch(refreshRequestedCmd(), errorCmd(err))()
 	}
 	return messages.ErrorMsg{Err: err}

@@ -125,10 +125,11 @@ func readTerminalLaunchRecord(t *testing.T, path string) struct {
 				Dir  string   `json:"dir"`
 			}
 			decodeErr := json.Unmarshal(data, &result)
-			if decodeErr != nil {
-				t.Fatal(decodeErr)
+			if decodeErr == nil {
+				return result
 			}
-			return result
+			// The child writes this test record directly; a concurrent read may
+			// observe the file between truncate and completion, especially under -race.
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

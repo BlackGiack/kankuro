@@ -398,6 +398,7 @@ func assertEmptyInstructionFile(t *testing.T, path, context string) {
 	}
 }
 
+//nolint:gocognit // Exercises copy, session persistence, kill, relaunch, and retained user edits end to end.
 func TestLaunchCopiesSubWorkspaceAndRetainsManagedEdits(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	mainDir, subDir := t.TempDir(), t.TempDir()
@@ -432,7 +433,14 @@ func TestLaunchCopiesSubWorkspaceAndRetainsManagedEdits(t *testing.T) {
 	if !ok {
 		t.Fatal("session missing")
 	}
+	if !snapshot.SubWorkspaceMetadataAvailable || len(snapshot.SubWorkspaces) != 1 {
+		t.Fatalf("deployed sub-workspace metadata = %#v, available=%v", snapshot.SubWorkspaces, snapshot.SubWorkspaceMetadataAvailable)
+	}
 	copyPath := filepath.Join(snapshot.WorkingDir, "tmp", filepath.Base(subDir))
+	if descriptor := snapshot.SubWorkspaces[0]; descriptor.WorkspaceID != subID ||
+		descriptor.SourcePath != subDir || descriptor.DestinationPath != copyPath {
+		t.Fatalf("deployed sub-workspace descriptor = %#v", descriptor)
+	}
 	if _, statErr := os.Stat(filepath.Join(copyPath, "source.txt")); statErr != nil {
 		t.Fatalf("copied source: %v", statErr)
 	}
@@ -449,6 +457,10 @@ func TestLaunchCopiesSubWorkspaceAndRetainsManagedEdits(t *testing.T) {
 	})
 	if relaunchErr != nil {
 		t.Fatalf("relaunch: %v", relaunchErr)
+	}
+	relaunched, ok := sm.GetSession(sid)
+	if !ok || len(relaunched.SubWorkspaces) != 1 || relaunched.SubWorkspaces[0] != snapshot.SubWorkspaces[0] {
+		t.Fatalf("relaunch changed deployed sub-workspace metadata: %#v", relaunched.SubWorkspaces)
 	}
 	if content, readErr := os.ReadFile(edit); readErr != nil || string(content) != "agent edit" {
 		t.Fatalf("managed edit not retained: %q, %v", content, readErr)
@@ -873,6 +885,130 @@ func TestRelaunchPreservesDeployedConfigurationAcrossRestart(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+//nolint:gocognit,gocyclo,cyclop,govet // Exercises deployed credential authorization across lifecycle transitions and legacy loading.
+func TestDashboardControlDeploymentAcrossRelaunchReloadAndSwitch(t *testing.T) {
+	skillContent, skillErr := os.ReadFile("../../kankuro_skills/mcp-cli/SKILL.md")
+	if skillErr != nil {
+		t.Fatal(skillErr)
+	}
+	config.SetBuiltinMCPCLISkillContent(skillContent)
+	t.Cleanup(func() { config.SetBuiltinMCPCLISkillContent(nil) })
+	repo, err := config.NewFileRepository(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	workspace := t.TempDir()
+	if err := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: workspace}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, err := repo.ListWorkspaces()
+	if err != nil || len(workspaces) != 1 {
+		t.Fatalf("list workspace: %v (%d)", err, len(workspaces))
+	}
+	manager := newTestManager(t, repo.Dir(), repo)
+	manager.SetMCPEndpoint("http://127.0.0.1:43210/mcp")
+	card := config.IDCard{ID: "controller", Name: "controller", Driver: "cat", WorkspaceID: workspaces[0].ID,
+		DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro}}
+	secondCard := card
+	secondCard.ID, secondCard.Name = "second-controller", "second controller"
+	secondCard.DashboardControl = true
+	sessionID, err := manager.Launch(card, nil, nil, config.BuiltinMCPs())
+	if err != nil {
+		t.Fatalf("launch opted-in card: %v", err)
+	}
+	configPath := filepath.Join(workspace, ".kankuro", "mcp-servers.json")
+	firstToken := readRelaunchToken(t, configPath)
+	if _, err := manager.ResolveDashboardCaller(firstToken); err != nil {
+		t.Fatalf("initial deployed grant was denied: %v", err)
+	}
+	card.DashboardControl = false
+	if err := manager.Kill(sessionID); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Relaunch(sessionID, card); err != nil {
+		t.Fatalf("relaunch after card grant edit: %v", err)
+	}
+	relaunchedToken := readRelaunchToken(t, configPath)
+	if _, err := manager.ResolveDashboardCaller(relaunchedToken); err != nil {
+		t.Fatalf("ordinary relaunch did not preserve deployed grant: %v", err)
+	}
+	if manager.HasActivationCredential(firstToken) {
+		t.Fatal("relaunch left the prior activation credential authorized")
+	}
+	if err := manager.Kill(sessionID); err != nil {
+		t.Fatal(err)
+	}
+	if manager.Shutdown() != 0 {
+		t.Fatal("manager shutdown reported running sessions")
+	}
+	manager = newTestManager(t, repo.Dir(), repo)
+	manager.SetMCPEndpoint("http://127.0.0.1:43210/mcp")
+	if err := manager.Relaunch(sessionID, card); err != nil {
+		t.Fatalf("relaunch after persisted manager reload: %v", err)
+	}
+	reloadedToken := readRelaunchToken(t, configPath)
+	if _, err := manager.ResolveDashboardCaller(reloadedToken); err != nil {
+		t.Fatalf("persisted deployed grant was not preserved across reload: %v", err)
+	}
+	if err := manager.Kill(sessionID); err != nil {
+		t.Fatal(err)
+	}
+	if manager.Shutdown() != 0 {
+		t.Fatal("manager shutdown reported running sessions")
+	}
+	// A pre-grant-era record has no dashboard_control field; its zero value must
+	// remain registration-only even when the Kankuro server was deployed.
+	recordPath := filepath.Join(repo.Dir(), "sessions", sessionID+".json")
+	recordData, err := os.ReadFile(recordPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var legacyRecord map[string]json.RawMessage
+	if err := json.Unmarshal(recordData, &legacyRecord); err != nil {
+		t.Fatal(err)
+	}
+	delete(legacyRecord, "dashboard_control")
+	recordData, err = json.Marshal(legacyRecord)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(recordPath, recordData, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	manager = newTestManager(t, repo.Dir(), repo)
+	manager.SetMCPEndpoint("http://127.0.0.1:43210/mcp")
+	if err := manager.Relaunch(sessionID, card); err != nil {
+		t.Fatalf("legacy relaunch: %v", err)
+	}
+	legacyToken := readRelaunchToken(t, configPath)
+	if _, err := manager.ResolveDashboardCaller(legacyToken); err == nil {
+		t.Fatal("legacy record without dashboard_control gained dashboard authority")
+	}
+	if err := manager.Kill(sessionID); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.SwitchAgent(sessionID, card, nil, nil, config.BuiltinMCPs()); err != nil {
+		t.Fatalf("switch to same card with current opt-out: %v", err)
+	}
+	sameCardToken := readRelaunchToken(t, configPath)
+	if _, err := manager.ResolveDashboardCaller(sameCardToken); err == nil {
+		t.Fatal("same-card explicit switch did not apply the current opt-out")
+	}
+	if err := manager.Kill(sessionID); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.SwitchAgent(sessionID, secondCard, nil, nil, config.BuiltinMCPs()); err != nil {
+		t.Fatalf("switch to opted-in card: %v", err)
+	}
+	secondToken := readRelaunchToken(t, configPath)
+	if _, err := manager.ResolveDashboardCaller(secondToken); err != nil {
+		t.Fatalf("explicit switch did not apply destination grant: %v", err)
+	}
+	if err := manager.Kill(sessionID); err != nil {
+		t.Fatal(err)
 	}
 }
 

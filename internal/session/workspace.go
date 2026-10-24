@@ -21,6 +21,7 @@ func (m *Manager) tmpRoot() string {
 }
 
 func (m *Manager) prepareWorkspace(
+	ctx context.Context,
 	sid string,
 	card config.IDCard,
 	wd string,
@@ -37,15 +38,27 @@ func (m *Manager) prepareWorkspace(
 		if err := os.MkdirAll(sessionRoot, 0o700); err != nil {
 			return "", fmt.Errorf("create tmp session dir: %w", err)
 		}
-		cmd := exec.CommandContext(context.Background(), "cp", "-r", wd, targetDir)
-		if out, errCopy := cmd.CombinedOutput(); errCopy != nil {
-			return "", fmt.Errorf("copy workspace: %s: %w", string(out), errCopy)
+		if err := m.copyWorkspace(ctx, wd, targetDir); err != nil {
+			return "", err
 		}
-	} else {
-		if _, errStat := os.Stat(targetDir); errStat != nil {
-			return "", fmt.Errorf("tmp workspace missing: %w", errStat)
-		}
+		return targetDir, nil
 	}
-
+	if _, err := os.Stat(targetDir); err != nil {
+		return "", fmt.Errorf("tmp workspace missing: %w", err)
+	}
 	return targetDir, nil
+}
+
+func (m *Manager) copyWorkspace(ctx context.Context, source, destination string) error {
+	if m.workspaceCopier != nil {
+		if err := m.workspaceCopier(ctx, source, destination); err != nil {
+			return fmt.Errorf("copy workspace: %w", err)
+		}
+		return nil
+	}
+	cmd := exec.CommandContext(ctx, "cp", "-r", source, destination)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("copy workspace: %s: %w", string(output), err)
+	}
+	return nil
 }

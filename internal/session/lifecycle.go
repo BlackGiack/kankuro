@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -26,6 +27,14 @@ var ErrPersistFailed = errors.New("session state could not be saved")
 // Shutdown has started: the manager no longer starts processes it could not
 // stop or watch.
 var ErrManagerClosed = errors.New("session manager is shut down")
+
+var (
+	ErrConversationChoiceInvalid  = errors.New("conversation choice is invalid")
+	ErrConversationChoiceRequired = errors.New("conversation choice is required")
+	ErrLifecycleConflict          = errors.New("session lifecycle conflict")
+	ErrSessionNotFound            = errors.New("session not found")
+	ErrWorkspaceUnavailable       = errors.New("saved session workspace is unavailable")
+)
 
 // syncDriverFiles clears temp directories (if needed) and syncs skill/persona/MCP files.
 func (m *Manager) syncDriverFiles(
@@ -71,7 +80,33 @@ func (m *Manager) syncDriverFiles(
 }
 
 func (m *Manager) Launch(card config.IDCard, skills []config.Skill, personas []config.Persona, mcps []config.MCPServer) (string, error) {
-	sid := uuid.NewString()
+	return m.LaunchWithID(uuid.NewString(), card, skills, personas, mcps)
+}
+
+// LaunchWithID starts a new session using an ID allocated by Kankuro's
+// operation journal. External callers must not choose session identities.
+func (m *Manager) LaunchWithID(
+	sid string,
+	card config.IDCard,
+	skills []config.Skill,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+) (string, error) {
+	return m.LaunchWithIDContext(context.Background(), sid, card, skills, personas, mcps)
+}
+
+// LaunchWithIDContext starts an activation that can be cancelled before publication.
+func (m *Manager) LaunchWithIDContext(
+	ctx context.Context,
+	sid string,
+	card config.IDCard,
+	skills []config.Skill,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+) (string, error) {
+	if _, err := uuid.Parse(sid); err != nil {
+		return "", fmt.Errorf("invalid preallocated session ID: %w", err)
+	}
 	// The closed check and the Add share one critical section, the same
 	// ordering argument as startWatchLocked: Shutdown sets closed under m.mu
 	// before it Waits, so no Add can race a Wait that started at zero.
@@ -80,10 +115,24 @@ func (m *Manager) Launch(card config.IDCard, skills []config.Skill, personas []c
 		m.mu.Unlock()
 		return sid, ErrManagerClosed
 	}
+	if _, exists := m.sessions[sid]; exists {
+		m.mu.Unlock()
+		return sid, fmt.Errorf("session already exists: %s", sid)
+	}
+	if _, exists := m.launching[sid]; exists {
+		m.mu.Unlock()
+		return sid, fmt.Errorf("session launch already reserved: %s", sid)
+	}
+	m.launching[sid] = struct{}{}
 	m.activations.Add(1)
 	m.mu.Unlock()
-	defer m.activations.Done()
-	return sid, m.startSession(sid, card, skills, personas, mcps, true, "", "", nil, "")
+	defer func() {
+		m.mu.Lock()
+		delete(m.launching, sid)
+		m.mu.Unlock()
+		m.activations.Done()
+	}()
+	return sid, m.startSession(ctx, sid, card, skills, personas, mcps, true, "", "", nil, "")
 }
 
 // activationSnapshot holds the session fields Relaunch/SwitchAgent need while
@@ -94,16 +143,17 @@ type activationSnapshot struct {
 	UseTmpWorkspace      bool
 	InstructionOwnership map[string]bool
 	KankuroMCPEnabled    bool
+	DashboardControl     bool
 }
 
 func validateConversationChoice(s *Session, cardID, driverName string, choice ConversationChoice) (string, error) {
 	bindings := s.Conversations[cardID]
 	if choice.New && choice.ID != "" {
-		return "", errors.New("choose either a new conversation or one saved conversation")
+		return "", fmt.Errorf("%w: choose either new or one saved conversation", ErrConversationChoiceInvalid)
 	}
 	if len(bindings) == 0 {
 		if choice.ID != "" {
-			return "", errors.New("conversation is not saved for this card")
+			return "", fmt.Errorf("%w: conversation is not saved for this card", ErrConversationChoiceInvalid)
 		}
 		return "", nil
 	}
@@ -111,7 +161,7 @@ func validateConversationChoice(s *Session, cardID, driverName string, choice Co
 		return "", nil
 	}
 	if choice.ID == "" {
-		return "", errors.New("conversation selection required for this card")
+		return "", fmt.Errorf("%w: conversation selection required for this card; choose saved or start new", ErrConversationChoiceRequired)
 	}
 	hasIDForAnotherDriver := false
 	for _, binding := range bindings {
@@ -123,9 +173,9 @@ func validateConversationChoice(s *Session, cardID, driverName string, choice Co
 		}
 	}
 	if hasIDForAnotherDriver {
-		return "", errors.New("conversation belongs to a different driver")
+		return "", fmt.Errorf("%w: conversation belongs to a different driver", ErrConversationChoiceInvalid)
 	}
-	return "", errors.New("conversation is not saved for this card")
+	return "", fmt.Errorf("%w: conversation is not saved for this card", ErrConversationChoiceInvalid)
 }
 
 // reserveForActivation checks, under m.mu, that the session can be
@@ -148,13 +198,16 @@ func (m *Manager) reserveForActivation(
 	}
 	s, ok := m.sessions[id]
 	if !ok {
-		return activationSnapshot{}, "", fmt.Errorf("session not found: %s", id)
+		return activationSnapshot{}, "", fmt.Errorf("%w: %s", ErrSessionNotFound, id)
 	}
 	if s.Status != StatusTerminated {
-		return activationSnapshot{}, "", errors.New(notTerminatedMsg)
+		return activationSnapshot{}, "", fmt.Errorf("%w: %s", ErrLifecycleConflict, notTerminatedMsg)
 	}
 	if s.activating {
-		return activationSnapshot{}, "", errors.New("session is already being started")
+		return activationSnapshot{}, "", fmt.Errorf("%w: session is already being started", ErrLifecycleConflict)
+	}
+	if s.stopping || s.deleting {
+		return activationSnapshot{}, "", fmt.Errorf("%w: another lifecycle operation is in progress", ErrLifecycleConflict)
 	}
 	conversationID, err := validateConversationChoice(s, cardID, driverName, choice)
 	if err != nil {
@@ -171,6 +224,7 @@ func (m *Manager) reserveForActivation(
 		WorkingDir: s.WorkingDir, OriginalDir: s.OriginalDir,
 		UseTmpWorkspace: s.UseTmpWorkspace, InstructionOwnership: sessionInstructionOwnership(s),
 		KankuroMCPEnabled: s.KankuroMCPEnabled,
+		DashboardControl:  s.DashboardControl,
 	}, conversationID, nil
 }
 
@@ -230,17 +284,29 @@ func (m *Manager) RelaunchWithChoice(
 	card config.IDCard,
 	choice ConversationChoice,
 ) error {
+	return m.RelaunchWithChoiceContext(context.Background(), id, card, choice)
+}
+
+// RelaunchWithChoiceContext propagates cancellation through workspace preparation.
+func (m *Manager) RelaunchWithChoiceContext(
+	ctx context.Context,
+	id string,
+	card config.IDCard,
+	choice ConversationChoice,
+) error {
 	snap, conversationID, err := m.reserveForActivation(id, card.ID, card.Driver, "session is already running", choice)
 	if err != nil {
 		return err
 	}
 	defer m.activations.Done()
 	card.UseTmpWorkspace = snap.UseTmpWorkspace
+	card.DashboardControl = snap.DashboardControl
 	var mcps []config.MCPServer
 	if snap.KankuroMCPEnabled {
 		mcps = config.BuiltinMCPs()
 	}
 	err = m.startSession(
+		ctx,
 		id,
 		card,
 		nil,
@@ -271,8 +337,22 @@ func (m *Manager) SwitchAgent(
 	return m.SwitchAgentWithChoice(id, card, skills, personas, mcps, ConversationChoice{})
 }
 
-//nolint:funlen,gocognit // Reservation, workspace sync, spawn publication, and persistence form one lifecycle transaction.
 func (m *Manager) SwitchAgentWithChoice(
+	id string,
+	card config.IDCard,
+	skills []config.Skill,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+	choice ConversationChoice,
+) error {
+	return m.SwitchAgentWithChoiceContext(context.Background(), id, card, skills, personas, mcps, choice)
+}
+
+// SwitchAgentWithChoiceContext propagates cancellation until activation publication.
+//
+//nolint:gocognit,funlen // Reservation, rollback, spawn publication, and persistence form one activation transaction.
+func (m *Manager) SwitchAgentWithChoiceContext(
+	ctx context.Context,
 	id string,
 	card config.IDCard,
 	skills []config.Skill,
@@ -302,9 +382,10 @@ func (m *Manager) SwitchAgentWithChoice(
 	if workspaceErr := validateSessionWorkspace(finalWD); workspaceErr != nil {
 		return workspaceErr
 	}
-	if prepareErr := m.prepareSubWorkspaces(card, finalWD); prepareErr != nil {
+	if prepareErr := m.prepareSubWorkspaces(ctx, card, finalWD); prepareErr != nil {
 		return prepareErr
 	}
+	subWorkspaces, subWorkspaceMetadataAvailable := preparedSubWorkspaceDescriptors(finalWD)
 
 	// Clear tmp directories if using tmp workspace
 	clearTmp := snap.UseTmpWorkspace
@@ -325,9 +406,15 @@ func (m *Manager) SwitchAgentWithChoice(
 			returnErr = errors.Join(returnErr, previousFile.restore(filepath.Join(finalWD, instructionFile)))
 		}
 	}()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
 	d, instructionsManaged, err := m.syncDriverFiles(d, card, skills, personas, mcps, finalWD, clearTmp, instructionMode)
 	if err != nil {
 		return err
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
 	}
 
 	token, tokenErr := m.prepareActivationMCPConfig(id, card, d, mcps, conversationID, finalWD, false)
@@ -340,6 +427,9 @@ func (m *Manager) SwitchAgentWithChoice(
 			m.revokeActivation(token)
 		}
 	}()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
 	args := append(d.SetModel(card.Model), d.SetSession(conversationID)...)
 	h, errSpawn := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,
@@ -360,6 +450,10 @@ func (m *Manager) SwitchAgentWithChoice(
 	}
 
 	m.mu.Lock()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		m.mu.Unlock()
+		return errors.Join(ctxErr, d.Kill())
+	}
 	if m.closed {
 		// Shutdown started during the unlocked spawn. The process is already
 		// running and no watcher will ever own it: kill it here, outside the
@@ -372,13 +466,16 @@ func (m *Manager) SwitchAgentWithChoice(
 	defer m.mu.Unlock()
 	s, ok := m.sessions[id]
 	if !ok {
-		return fmt.Errorf("session not found: %s", id)
+		return fmt.Errorf("%w: %s", ErrSessionNotFound, id)
 	}
 
 	m.activateSessionLocked(s, card, d, h, pid, now)
 	s.InstructionOwnership = updateInstructionOwnership(snap.InstructionOwnership, instructionFile, instructionsManaged)
 	s.InstructionsManaged = instructionsManaged
 	s.KankuroMCPEnabled = token != ""
+	s.DashboardControl = card.DashboardControl && token != ""
+	s.SubWorkspaces = subWorkspaces
+	s.SubWorkspaceMetadataAvailable = subWorkspaceMetadataAvailable
 	m.publishActivationLocked(token, s)
 	if token == "" {
 		s.ExpectedConversationID = conversationID
@@ -431,10 +528,10 @@ func validateSessionWorkspace(path string) error {
 	}
 	info, err := os.Stat(path)
 	if err != nil {
-		return fmt.Errorf("session workspace %q is unavailable; restore the directory before retrying: %w", path, err)
+		return fmt.Errorf("%w: %q; restore the directory before retrying: %w", ErrWorkspaceUnavailable, path, err)
 	}
 	if !info.IsDir() {
-		return fmt.Errorf("session workspace %q is not a directory; restore the directory before retrying", path)
+		return fmt.Errorf("%w: %q is not a directory; restore the directory before retrying", ErrWorkspaceUnavailable, path)
 	}
 	return nil
 }
@@ -445,6 +542,7 @@ func validateSessionWorkspace(path string) error {
 //
 //nolint:funlen,gocognit // Workspace preparation, sync, spawn, publication, and persistence form one owned activation path.
 func (m *Manager) startSession(
+	ctx context.Context,
 	sid string,
 	card config.IDCard,
 	skills []config.Skill,
@@ -464,7 +562,7 @@ func (m *Manager) startSession(
 			return err
 		}
 		var errPrep error
-		finalWD, errPrep = m.prepareWorkspace(sid, card, wd, true)
+		finalWD, errPrep = m.prepareWorkspace(ctx, sid, card, wd, true)
 		if errPrep != nil {
 			return m.cleanupNewTemporaryWorkspace(sid, card, true, errPrep)
 		}
@@ -478,18 +576,24 @@ func (m *Manager) startSession(
 	instructionFile := d.GetInstructionFileName()
 	instructionsManaged := previousInstructionOwnership[instructionFile]
 	committedInstructions := false
+	var deployedSubWorkspaces []SubWorkspaceDescriptor
+	subWorkspaceMetadataAvailable := false
 	if isNew {
 		var rollback func() error
 		var prepareErr error
-		instructionsManaged, rollback, prepareErr = m.prepareNewSessionFiles(d, card, skills, personas, mcps, finalWD)
+		instructionsManaged, rollback, prepareErr = m.prepareNewSessionFiles(ctx, d, card, skills, personas, mcps, finalWD)
 		if prepareErr != nil {
 			return m.cleanupNewTemporaryWorkspace(sid, card, true, prepareErr)
 		}
+		deployedSubWorkspaces, subWorkspaceMetadataAvailable = preparedSubWorkspaceDescriptors(finalWD)
 		defer func() {
 			if !committedInstructions {
 				returnErr = errors.Join(returnErr, rollback())
 			}
 		}()
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, ctxErr)
 	}
 
 	token, tokenErr := m.prepareActivationMCPConfig(sid, card, d, mcps, conversationID, finalWD, !isNew)
@@ -502,7 +606,13 @@ func (m *Manager) startSession(
 			m.revokeActivation(token)
 		}
 	}()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, ctxErr)
+	}
 	args := append(d.SetModel(card.Model), d.SetSession(conversationID)...)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, ctxErr)
+	}
 	h, errSpawn := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,
 		Model:             card.Model,
@@ -522,6 +632,10 @@ func (m *Manager) startSession(
 	}
 
 	m.mu.Lock()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		m.mu.Unlock()
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ctxErr, d.Kill()))
+	}
 	if m.closed {
 		// Shutdown started during the unlocked spawn; see SwitchAgent. A new
 		// session has no record, so nothing would ever point at its tmp copy.
@@ -543,6 +657,11 @@ func (m *Manager) startSession(
 	s.InstructionOwnership = updateInstructionOwnership(previousInstructionOwnership, instructionFile, instructionsManaged)
 	s.InstructionsManaged = instructionsManaged
 	s.KankuroMCPEnabled = token != ""
+	s.DashboardControl = card.DashboardControl && token != ""
+	if isNew {
+		s.SubWorkspaces = deployedSubWorkspaces
+		s.SubWorkspaceMetadataAvailable = subWorkspaceMetadataAvailable
+	}
 	m.publishActivationLocked(token, s)
 	if token == "" {
 		s.ExpectedConversationID = conversationID
@@ -582,10 +701,11 @@ func (m *Manager) startSession(
 }
 
 func (m *Manager) prepareNewSessionFiles(
+	ctx context.Context,
 	d driver.AgentDriver, card config.IDCard, skills []config.Skill,
 	personas []config.Persona, mcps []config.MCPServer, workingDir string,
 ) (bool, func() error, error) {
-	if err := m.prepareSubWorkspaces(card, workingDir); err != nil {
+	if err := m.prepareSubWorkspaces(ctx, card, workingDir); err != nil {
 		return false, nil, err
 	}
 	instructionPath := filepath.Join(workingDir, d.GetInstructionFileName())
@@ -675,21 +795,52 @@ func (m *Manager) persistSessionLocked(s *Session) {
 	}
 }
 
-// Kill terminates one managed session. If the driver reports an error (e.g.
-// the process had already exited), the session is still marked Terminated
-// and persisted; the error is returned after the state update.
+// Kill terminates one managed session. A teardown error is returned after the
+// manager checks the driver's observed process state; an active process keeps
+// its prior status and remains eligible for another stop attempt.
 func (m *Manager) Kill(id string) error {
-	m.mu.RLock()
+	_, err := m.KillDetailed(id)
+	return err
+}
+
+type StopResult struct {
+	ProcessTerminated      bool
+	SessionRecordPersisted bool
+}
+
+// KillDetailed separates process teardown from session-record durability.
+func (m *Manager) KillDetailed(id string) (StopResult, error) {
+	return m.killDetailed(id, false)
+}
+
+func (m *Manager) killDetailed(id string, duringShutdown bool) (StopResult, error) {
+	m.mu.Lock()
+	if m.closed && !duringShutdown {
+		m.mu.Unlock()
+		return StopResult{}, ErrManagerClosed
+	}
 	s, ok := m.sessions[id]
 	var d driver.AgentDriver
 	var gen uint64
 	if ok {
+		if s.activating || s.stopping || s.deleting {
+			m.mu.Unlock()
+			return StopResult{}, fmt.Errorf("%w: %s", ErrLifecycleConflict, id)
+		}
+		if s.Status == StatusTerminated {
+			persistErr := m.persistSessionLockedErr(s)
+			m.mu.Unlock()
+			return StopResult{ProcessTerminated: true, SessionRecordPersisted: persistErr == nil}, persistErr
+		}
+		s.stopping = true
+		m.stops.Add(1)
 		d, gen = s.Driver, s.generation
 	}
-	m.mu.RUnlock()
+	m.mu.Unlock()
 	if !ok {
-		return fmt.Errorf("session not found: %s", id)
+		return StopResult{}, fmt.Errorf("%w: %s", ErrSessionNotFound, id)
 	}
+	defer m.stops.Done()
 
 	// Called with no lock held on purpose: it can block on process teardown,
 	// and watch needs m.mu in the meantime.
@@ -697,6 +848,7 @@ func (m *Manager) Kill(id string) error {
 	if d != nil {
 		killErr = d.Kill()
 	}
+	processTerminated := d == nil || d.GetStatus() == StatusTerminated
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -705,7 +857,11 @@ func (m *Manager) Kill(id string) error {
 	// not have its deleted record re-created by our persist, and a Relaunch
 	// must not have its new, running activation marked dead.
 	if cur, still := m.sessions[id]; !still || cur != s || s.generation != gen {
-		return killErr
+		return StopResult{ProcessTerminated: processTerminated}, killErr
+	}
+	s.stopping = false
+	if !processTerminated {
+		return StopResult{}, errors.Join(killErr, errors.New("session process remains active"))
 	}
 	s.Status = StatusTerminated
 	s.Pinged = false
@@ -713,25 +869,49 @@ func (m *Manager) Kill(id string) error {
 		s.Registration = RegistrationUnconfirmed
 	}
 	m.revokeSessionActivationLocked(s)
-	return errors.Join(killErr, m.persistSessionLockedErr(s))
+	persistErr := m.persistSessionLockedErr(s)
+	return StopResult{ProcessTerminated: true, SessionRecordPersisted: persistErr == nil}, errors.Join(killErr, persistErr)
 }
 
 // Remove deletes a terminated session from the registry.
 func (m *Manager) Remove(id string) error {
+	_, err := m.RemoveDetailed(id)
+	return err
+}
+
+type RemovalResult struct {
+	InMemoryRemoved           bool
+	SessionRecordDeleted      bool
+	TemporaryWorkspaceRemoved bool
+}
+
+// RemoveDetailed reports each deletion effect independently.
+func (m *Manager) RemoveDetailed(id string) (RemovalResult, error) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	s, ok := m.sessions[id]
 	if !ok {
-		return fmt.Errorf("session not found: %s", id)
+		m.mu.Unlock()
+		return RemovalResult{}, fmt.Errorf("%w: %s", ErrSessionNotFound, id)
 	}
 	if s.Status != StatusTerminated {
-		return fmt.Errorf("session still running: %s", id)
+		m.mu.Unlock()
+		return RemovalResult{}, fmt.Errorf("%w: session still running or waiting", ErrLifecycleConflict)
 	}
 	// A relaunch/switch in its unlocked phase is still Terminated; removing
 	// now would delete the tmp workspace it is syncing into.
 	if s.activating {
-		return fmt.Errorf("session is being started: %s", id)
+		m.mu.Unlock()
+		return RemovalResult{}, fmt.Errorf("%w: session is activating", ErrLifecycleConflict)
 	}
+	if s.stopping || s.deleting {
+		m.mu.Unlock()
+		return RemovalResult{}, fmt.Errorf("%w: %s", ErrLifecycleConflict, id)
+	}
+	s.deleting = true
+	m.revokeSessionActivationLocked(s)
+	m.closeSubscribersLocked(id)
+	tmp := s.UseTmpWorkspace
+	m.mu.Unlock()
 
 	sessionsDir := filepath.Join(m.configDir, "sessions")
 	deleteErr := deleteSession(sessionsDir, id)
@@ -744,7 +924,7 @@ func (m *Manager) Remove(id string) error {
 	}
 
 	var rmErr error
-	if s.UseTmpWorkspace {
+	if tmp {
 		sessionRoot := filepath.Join(m.tmpRoot(), id)
 		// G703: Path traversal via taint analysis.
 		// sessionRoot is derived from managed ID.
@@ -753,7 +933,11 @@ func (m *Manager) Remove(id string) error {
 
 	// Always drop the in-memory session so the UI does not wedge on a row it
 	// cannot delete, even if the on-disk cleanup below failed.
-	delete(m.sessions, id)
+	m.mu.Lock()
+	if m.sessions[id] == s {
+		delete(m.sessions, id)
+	}
+	m.mu.Unlock()
 
 	var errs []error
 	if deleteErr != nil {
@@ -762,7 +946,8 @@ func (m *Manager) Remove(id string) error {
 	if rmErr != nil {
 		errs = append(errs, fmt.Errorf("remove tmp workspace: %w", rmErr))
 	}
-	return errors.Join(errs...)
+	return RemovalResult{InMemoryRemoved: true, SessionRecordDeleted: deleteErr == nil,
+		TemporaryWorkspaceRemoved: tmp && rmErr == nil}, errors.Join(errs...)
 }
 
 // RunningCount reports how many sessions are running or waiting, so a caller
@@ -803,6 +988,19 @@ func (m *Manager) RunningCount() int {
 // rewriting every historic record on each quit would be pure churn.
 func (m *Manager) Shutdown() int {
 	m.mu.Lock()
+	if m.shutdownDone != nil {
+		done := m.shutdownDone
+		select {
+		case <-done:
+			m.mu.Unlock()
+			return 0
+		default:
+		}
+		m.mu.Unlock()
+		<-done
+		return m.shutdownCount
+	}
+	m.shutdownDone = make(chan struct{})
 	m.closed = true
 	var live []string
 	for id, s := range m.sessions {
@@ -814,13 +1012,22 @@ func (m *Manager) Shutdown() int {
 
 	var wg sync.WaitGroup
 	for _, id := range live {
-		wg.Go(func() { _ = m.Kill(id) })
+		wg.Go(func() {
+			if _, err := m.killDetailed(id, true); err != nil && !errors.Is(err, ErrLifecycleConflict) {
+				m.logger.Warn("session shutdown stop failed", "session_id", id, "error", err)
+			}
+		})
 	}
 	wg.Wait()
 
+	m.stops.Wait()
 	m.activations.Wait()
 
 	m.stopOnce.Do(func() { close(m.stop) })
 	m.watchers.Wait()
+	m.mu.Lock()
+	m.shutdownCount = len(live)
+	close(m.shutdownDone)
+	m.mu.Unlock()
 	return len(live)
 }

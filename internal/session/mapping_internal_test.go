@@ -71,6 +71,8 @@ func setNonZero(t *testing.T, v reflect.Value, seed int) {
 		v.Set(reflect.ValueOf(map[string][]ConversationBinding{"card": {{ID: fmt.Sprintf("id-%d", seed), Name: "name", Driver: "driver"}}}))
 	case map[string]bool:
 		v.Set(reflect.ValueOf(map[string]bool{"AGENTS.md": true, "CLAUDE.md": seed%2 == 0}))
+	case []SubWorkspaceDescriptor:
+		v.Set(reflect.ValueOf([]SubWorkspaceDescriptor{{WorkspaceID: "workspace", SourcePath: "/source", DestinationPath: "/destination"}}))
 	case Status:
 		v.SetString(fmt.Sprintf("status-%d", seed))
 	default:

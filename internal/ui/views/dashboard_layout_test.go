@@ -278,6 +278,162 @@ func TestDashboardLongSearchQueryFits(t *testing.T) {
 	}
 }
 
+func TestDashboardPaneContentBaselinesAcrossResizeAndStates(t *testing.T) {
+	for _, size := range []struct{ width, height int }{{80, 24}, {120, 40}, {160, 45}} {
+		loaded := dashboardFixtures(t, dashboardData{sessions: 3, cards: 3})
+		loaded.Cards[0].Name = "Aligned card"
+		for i := range loaded.Sessions {
+			loaded.Sessions[i].Name = fmt.Sprintf("Aligned session %d", i)
+			loaded.Sessions[i].StartedAt = time.Date(2026, 1, 2, i, 0, 0, 0, time.UTC)
+		}
+		dash := views.NewDashboard(views.DashboardCallbacks{})
+		dash.SetSize(size.width, size.height-views.CoordinatorRows)
+		dash.SetData(loaded)
+		assertDashboardContentBaselines(t, dash, size.width, "initial cards focus")
+
+		// Selection and scrolling must not change the selected/unselected text
+		// origin relative to the pane title or the preview metadata.
+		dash.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+		assertDashboardContentBaselines(t, dash, size.width, "card selection")
+		dash.TogglePane()
+		dash.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+		assertDashboardContentBaselines(t, dash, size.width, "session selection/scroll")
+
+		// Search/filter title rows keep the same cell baseline as list content.
+		dash.Update(tea.KeyPressMsg{Code: 0, Text: "/"})
+		dash.Update(tea.KeyPressMsg{Code: 0, Text: "Aligned"})
+		assertDashboardContentBaselines(t, dash, size.width, "session search")
+	}
+
+	for _, size := range []struct{ width, height int }{{80, 24}, {120, 40}, {160, 45}} {
+		empty := newDashboard(t, size.width, size.height, dashboardData{cards: 3})
+		assertDashboardPaneTitles(t, empty, size.width, "empty sessions")
+		assertEmptyDashboardPreview(t, empty, size.width, size.height)
+	}
+}
+
+func assertEmptyDashboardPreview(t *testing.T, dash *views.Dashboard, width, height int) {
+	t.Helper()
+	plain := ansi.Strip(dash.View())
+	rows := strings.Split(plain, "\n")
+	var wordRows []int
+	for rowIndex, row := range rows {
+		if strings.Contains(row, "session") || strings.Contains(row, "selected") {
+			wordRows = append(wordRows, rowIndex)
+		}
+	}
+	if len(wordRows) == 0 {
+		t.Fatalf("empty %dx%d dashboard lost the preview placeholder words:\n%s", width, height, plain)
+	}
+	if !strings.Contains(plain, "session") || !strings.Contains(plain, "selected") {
+		t.Errorf("empty %dx%d dashboard should retain complete session/selected words:\n%s", width, height, plain)
+	}
+
+	// The placeholder is vertically centered inside the preview's content box,
+	// after the dashboard's header and the pane's top border.
+	first, last := wordRows[0], wordRows[len(wordRows)-1]
+	previewTop := 3             // header + margin + top pane border
+	previewHeight := height - 5 // header, margin, footer, and preview borders
+	contentCenter := previewTop + previewHeight/2
+	wordsCenter := (first + last) / 2
+	if wordsCenter < contentCenter-2 || wordsCenter > contentCenter+2 {
+		t.Errorf("empty %dx%d placeholder rows %d..%d are not centered near row %d", width, height, first, last, contentCenter)
+	}
+	assertDashboardShape(t, dash, width, height, fmt.Sprintf("empty dashboard %dx%d", width, height))
+}
+
+func assertDashboardContentBaselines(t *testing.T, dash *views.Dashboard, width int, state string) {
+	t.Helper()
+	rows := strings.Split(ansi.Strip(dash.View()), "\n")
+	cardTitle, ok := findCellColumn(rows, "ID Cards", 0, 0)
+	if !ok || cardTitle != 3 {
+		t.Errorf("%s width=%d: card title column=%d found=%v, want 3", state, width, cardTitle, ok)
+	}
+	activeTitle, ok := findCellColumn(rows, "Active Sessions", 0, 0)
+	if !ok || activeTitle != dash.CardsWidth()+dash.PreviewWidth()+3 {
+		t.Errorf("%s width=%d: sessions title column=%d found=%v, want %d", state, width, activeTitle, ok,
+			dash.CardsWidth()+dash.PreviewWidth()+3)
+	}
+	previewID, ok := findCellColumn(rows, "ID: ", dash.CardsWidth()+1, dash.CardsWidth()+dash.PreviewWidth())
+	if !ok || previewID != dash.CardsWidth()+3 {
+		t.Errorf("%s width=%d: preview metadata column=%d found=%v, want %d", state, width, previewID, ok,
+			dash.CardsWidth()+3)
+	}
+	sessionStart := dash.CardsWidth() + dash.PreviewWidth()
+	sessionNames := findAllCellColumns(rows, "Aligned session", sessionStart, width)
+	if len(sessionNames) == 0 {
+		t.Errorf("%s width=%d: no session names found after pane origin", state, width)
+	}
+	for _, column := range sessionNames {
+		if column != sessionStart+3 {
+			t.Errorf("%s width=%d: session text column=%d, want %d", state, width, column, sessionStart+3)
+		}
+	}
+	cardBorder, ok := findCellColumn(rows, "╭", 0, dash.CardsWidth())
+	if !ok || cardBorder != 3 {
+		t.Errorf("%s width=%d: card border column=%d found=%v, want 3", state, width, cardBorder, ok)
+	}
+}
+
+func assertDashboardPaneTitles(t *testing.T, dash *views.Dashboard, width int, state string) {
+	t.Helper()
+	rows := strings.Split(ansi.Strip(dash.View()), "\n")
+	for _, title := range []struct {
+		text string
+		want int
+	}{{"ID Cards", 3}, {"Active Sessions", dash.CardsWidth() + dash.PreviewWidth() + 3}} {
+		got, ok := findCellColumn(rows, title.text, 0, 0)
+		if !ok || got != title.want {
+			t.Errorf("%s width=%d: %q column=%d found=%v, want %d", state, width, title.text, got, ok, title.want)
+		}
+	}
+}
+
+func findCellColumn(rows []string, text string, minColumn, maxColumn int) (int, bool) {
+	for _, row := range rows {
+		search := row
+		base := 0
+		if minColumn > 0 {
+			search = ansi.TruncateLeft(row, minColumn, "")
+			base = minColumn
+		}
+		byteIndex := strings.Index(search, text)
+		if byteIndex < 0 {
+			continue
+		}
+		column := base + ansi.StringWidth(search[:byteIndex])
+		if maxColumn == 0 || column+ansi.StringWidth(text) <= maxColumn {
+			return column, true
+		}
+	}
+	return 0, false
+}
+
+func findAllCellColumns(rows []string, text string, minColumn, maxColumn int) []int {
+	var columns []int
+	for _, row := range rows {
+		search := row
+		base := 0
+		if minColumn > 0 {
+			search = ansi.TruncateLeft(row, minColumn, "")
+			base = minColumn
+		}
+		for offset := 0; offset < len(search); {
+			relative := strings.Index(search[offset:], text)
+			if relative < 0 {
+				break
+			}
+			byteIndex := offset + relative
+			column := base + ansi.StringWidth(search[:byteIndex])
+			if (maxColumn == 0 || column+ansi.StringWidth(text) <= maxColumn) && column >= minColumn {
+				columns = append(columns, column)
+			}
+			offset = byteIndex + len(text)
+		}
+	}
+	return columns
+}
+
 // TestDashboardFocusedBorderColour: the focused pane's border is drawn in the
 // primary colour and the other outer pane's in grey, and Tab moves the focus.
 // It reads a body row below the lists' items, where the only "│" runes are the

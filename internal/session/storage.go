@@ -17,22 +17,25 @@ const (
 )
 
 type Data struct {
-	ID                   string                           `json:"id"`
-	CardID               string                           `json:"card_id"`
-	Name                 string                           `json:"name"`
-	PID                  int                              `json:"pid"`
-	WorkingDir           string                           `json:"working_dir"`
-	OriginalDir          string                           `json:"original_dir"`
-	UseTmpWorkspace      bool                             `json:"use_tmp_workspace"`
-	KankuroMCPEnabled    bool                             `json:"kankuro_mcp_enabled,omitempty"`
-	InstructionsManaged  bool                             `json:"instructions_managed"`
-	InstructionOwnership map[string]bool                  `json:"instruction_ownership,omitempty"`
-	StartedAt            time.Time                        `json:"started_at"`
-	LastWordAt           time.Time                        `json:"last_word_at"`
-	LastOutput           string                           `json:"last_output,omitempty"`
-	Status               Status                           `json:"status"`
-	ExitCode             int                              `json:"exit_code,omitempty"`
-	Conversations        map[string][]ConversationBinding `json:"conversations,omitempty"`
+	ID                            string                           `json:"id"`
+	CardID                        string                           `json:"card_id"`
+	Name                          string                           `json:"name"`
+	PID                           int                              `json:"pid"`
+	WorkingDir                    string                           `json:"working_dir"`
+	OriginalDir                   string                           `json:"original_dir"`
+	UseTmpWorkspace               bool                             `json:"use_tmp_workspace"`
+	SubWorkspaces                 []SubWorkspaceDescriptor         `json:"sub_workspaces,omitempty"`
+	SubWorkspaceMetadataAvailable bool                             `json:"sub_workspace_metadata_available,omitempty"`
+	KankuroMCPEnabled             bool                             `json:"kankuro_mcp_enabled,omitempty"`
+	DashboardControl              bool                             `json:"dashboard_control,omitempty"`
+	InstructionsManaged           bool                             `json:"instructions_managed"`
+	InstructionOwnership          map[string]bool                  `json:"instruction_ownership,omitempty"`
+	StartedAt                     time.Time                        `json:"started_at"`
+	LastWordAt                    time.Time                        `json:"last_word_at"`
+	LastOutput                    string                           `json:"last_output,omitempty"`
+	Status                        Status                           `json:"status"`
+	ExitCode                      int                              `json:"exit_code,omitempty"`
+	Conversations                 map[string][]ConversationBinding `json:"conversations,omitempty"`
 }
 
 // restore builds a fresh in-memory Session from a persisted Data record.
@@ -40,25 +43,28 @@ type Data struct {
 // restart, so any loaded session is by definition not running.
 func (d *Data) restore() *Session {
 	return &Session{
-		ID:                      d.ID,
-		CardID:                  d.CardID,
-		Name:                    d.Name,
-		PID:                     d.PID,
-		WorkingDir:              d.WorkingDir,
-		OriginalDir:             d.OriginalDir,
-		UseTmpWorkspace:         d.UseTmpWorkspace,
-		KankuroMCPEnabled:       d.KankuroMCPEnabled,
-		InstructionsManaged:     d.InstructionsManaged,
-		InstructionOwnership:    cloneInstructionOwnership(d.InstructionOwnership),
-		StartedAt:               d.StartedAt,
-		LastWordAt:              d.LastWordAt,
-		LastOutput:              d.LastOutput,
-		Status:                  StatusTerminated,
-		Registration:            RegistrationUnavailable,
-		RegistrationPersistence: RegistrationNotAttempted,
-		ExitCode:                d.ExitCode,
-		Conversations:           cloneConversations(d.Conversations),
-		Subscribers:             make(map[chan []byte]struct{}),
+		ID:                            d.ID,
+		CardID:                        d.CardID,
+		Name:                          d.Name,
+		PID:                           d.PID,
+		WorkingDir:                    d.WorkingDir,
+		OriginalDir:                   d.OriginalDir,
+		UseTmpWorkspace:               d.UseTmpWorkspace,
+		SubWorkspaces:                 append([]SubWorkspaceDescriptor(nil), d.SubWorkspaces...),
+		SubWorkspaceMetadataAvailable: d.SubWorkspaceMetadataAvailable,
+		KankuroMCPEnabled:             d.KankuroMCPEnabled,
+		DashboardControl:              d.DashboardControl,
+		InstructionsManaged:           d.InstructionsManaged,
+		InstructionOwnership:          cloneInstructionOwnership(d.InstructionOwnership),
+		StartedAt:                     d.StartedAt,
+		LastWordAt:                    d.LastWordAt,
+		LastOutput:                    d.LastOutput,
+		Status:                        StatusTerminated,
+		Registration:                  RegistrationUnavailable,
+		RegistrationPersistence:       RegistrationNotAttempted,
+		ExitCode:                      d.ExitCode,
+		Conversations:                 cloneConversations(d.Conversations),
+		Subscribers:                   make(map[chan []byte]struct{}),
 	}
 }
 

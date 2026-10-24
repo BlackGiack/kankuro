@@ -34,6 +34,15 @@ type activationAuthority struct {
 	staged       *ConversationBinding
 }
 
+// CallerIdentity is the manager-derived identity of a published activation.
+// It intentionally contains no credential and is not available during startup.
+type CallerIdentity struct {
+	SessionID        string
+	CardID           string
+	Driver           string
+	DashboardControl bool
+}
+
 func (m *Manager) prepareActivationMCPConfig(
 	sessionID string,
 	card config.IDCard,
@@ -314,6 +323,29 @@ func (m *Manager) HasActivationCredential(token string) bool {
 	defer m.mu.RUnlock()
 	authority, ok := m.authorities[token]
 	return !m.closed && ok && !authority.revoked
+}
+
+// ResolveDashboardCaller validates a current published activation and returns
+// only its safe identity. Lifecycle discovery/control requires both an active
+// Kankuro credential and the permission deployed by that activation.
+func (m *Manager) ResolveDashboardCaller(token string) (CallerIdentity, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.closed {
+		return CallerIdentity{}, ErrManagerClosed
+	}
+	authority := m.authorities[token]
+	if authority == nil || authority.revoked || !authority.published {
+		return CallerIdentity{}, errors.New("activation credential is stale or unpublished")
+	}
+	s := m.sessions[authority.sessionID]
+	if s == nil || s.ActivationID != authority.activationID || s.Status == StatusTerminated {
+		return CallerIdentity{}, errors.New("activation is no longer live")
+	}
+	if !s.DashboardControl {
+		return CallerIdentity{}, errors.New("dashboard control is not enabled for this activation")
+	}
+	return CallerIdentity{SessionID: authority.sessionID, CardID: authority.cardID, Driver: authority.driver, DashboardControl: true}, nil
 }
 
 func addConversationBinding(s *Session, cardID string, binding ConversationBinding) {
