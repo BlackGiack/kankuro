@@ -1,8 +1,55 @@
 # Feature 5: MCP message delivery and explicit replies
 
-Status: proposed; implementation and integration review pending.
+Status: independent integration review accepted on 2026-10-25 for commit
+`b95b853`. Feature 6 may proceed.
+The implementation handoff reports that automated checks and the real
+`tui-test` CLI acceptance matrix passed with Codex CLI 0.164.0 and OpenCode 2.1.4.
+Codex's two-phase text/500 ms pause/Enter submission passed attached and detached
+sends. Both recipients registered their actual native IDs and reported through
+MCP themselves. The user's corrected Codex permission defaults worked in managed
+sessions without CLI overrides. See `review_6.md` and
+`/tmp/kankuro-feature5-e2e6/verification.md` for lifecycle, deletion, restart,
+interruption, screenshots, recordings, and sanitized MCP evidence.
 
 Dependency: Feature 4 accepted.
+
+## Integration acceptance — 2026-10-25
+
+The test-isolation finding below is resolved: cleanup restores the previous
+contents of both built-in skills instead of clearing shared state. The exact
+previously failing sequence passed five repetitions under the race detector;
+the full API package passed two repetitions normally and under the race detector.
+Build, vet, full normal/race suites, lint (0 issues), and diff checks also passed.
+Delegated verification logs survived the usage-limit interruption and were checked
+before acceptance; see `.kankuro/review-feature5-fix/verification.md`.
+
+This completes the independent review of the messaging implementation and its
+previously inspected Codex/OpenCode evidence. No new native CLI run was needed for
+this test-only correction. The earlier finding below is retained as review history.
+
+## Independent integration review — 2026-10-24
+
+Reviewed commit: `aa5d6b8`. Code review and audited native CLI evidence support
+the agreed explicit-message protocol, including attached delivery and recipient
+MCP reports. No production defect was established in this review.
+
+**P2 — Restore shared built-in skill state in test cleanup.**
+`TestMessagingOperationsPinActivationsAndPersistExplicitReports` clears the
+`kankuro-puppet` content in cleanup (`internal/api/service_test.go:1740`), although
+`TestMain` initializes it only once. Other messaging fixtures initialize only
+`mcp-cli` and rely on that shared puppet content. Repeated runs then fail during
+setup rather than exercising the messaging behavior. Deterministic reproduction:
+
+```sh
+go test -race -count=2 ./internal/api -run 'TestMessagingOperationsPinActivationsAndPersistExplicitReports|TestReplyWaitReturnsWhenRecipientHistoryWasDeleted'
+```
+
+The second iteration fails with `built-in skill content not found:
+kankuro-puppet`. Restore the previous global contents on cleanup, or make the
+fixtures consistently own initialization/restoration of both skills. Verify the
+reproducer and repeated messaging checks before advancing. This is a test-fixture
+issue, not an observed production messaging failure. Independent evidence and logs
+are retained in `.kankuro/review-feature5-current/`.
 
 ## Intent
 

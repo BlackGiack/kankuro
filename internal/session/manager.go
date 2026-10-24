@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -85,9 +86,11 @@ type Session struct {
 	// It is what makes that guard exclusive: the unlocked middle of an
 	// activation (workspace sync, Spawn) is long, and Status stays
 	// Terminated throughout it.
-	activating bool
-	stopping   bool
-	deleting   bool
+	activating        bool
+	stopping          bool
+	deleting          bool
+	activeSubmissions int
+	submissionsDone   chan struct{}
 }
 
 type AttachHandle struct {
@@ -134,6 +137,7 @@ type Snapshot struct {
 	RegistrationPersistence       RegistrationPersistence
 	RegistrationErr               string
 	ActiveConversationID          string
+	ActivationID                  string
 }
 
 // ConversationBinding identifies one native CLI conversation within a card
@@ -187,6 +191,7 @@ type Manager struct {
 	drivers          driver.Registry
 	loadErr          error
 	logger           *slog.Logger
+	messages         *MessageStore
 
 	// stop is closed by Shutdown to make every watch goroutine return without
 	// a final tick; watchers counts them so Shutdown can wait. closed (under
@@ -204,16 +209,17 @@ type Manager struct {
 	// activation is mostly unlocked work (workspace copy, Spawn), and one that
 	// notices closed only afterwards must still get to kill its own process
 	// and remove its tmp copy before the app exits.
-	stop          chan struct{}
-	stopOnce      sync.Once
-	watchers      sync.WaitGroup
-	activations   sync.WaitGroup
-	stops         sync.WaitGroup
-	shutdownDone  chan struct{}
-	shutdownCount int
-	closed        bool
-	authorities   map[string]*activationAuthority
-	mcpEndpoint   string
+	stop              chan struct{}
+	stopOnce          sync.Once
+	watchers          sync.WaitGroup
+	activations       sync.WaitGroup
+	stops             sync.WaitGroup
+	shutdownDone      chan struct{}
+	shutdownCount     int
+	closed            bool
+	authorities       map[string]*activationAuthority
+	messageAdmissions map[*MessageAdmission]struct{}
+	mcpEndpoint       string
 }
 
 // Option configures the Manager.
@@ -250,16 +256,17 @@ func WithLogger(logger *slog.Logger) Option {
 // NewManager creates a session registry and loads persisted sessions.
 func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager {
 	m := &Manager{
-		sessions:         make(map[string]*Session),
-		pendingCardRefs:  make(map[string]int),
-		subWorkspaceGate: make(chan struct{}, 1),
-		launching:        make(map[string]struct{}),
-		configDir:        configDir,
-		repo:             repo,
-		drivers:          driver.NewBuiltinRegistry(), // default builtin registry
-		logger:           slog.New(slog.DiscardHandler),
-		stop:             make(chan struct{}),
-		authorities:      make(map[string]*activationAuthority),
+		sessions:          make(map[string]*Session),
+		pendingCardRefs:   make(map[string]int),
+		subWorkspaceGate:  make(chan struct{}, 1),
+		launching:         make(map[string]struct{}),
+		configDir:         configDir,
+		repo:              repo,
+		drivers:           driver.NewBuiltinRegistry(), // default builtin registry
+		logger:            slog.New(slog.DiscardHandler),
+		stop:              make(chan struct{}),
+		authorities:       make(map[string]*activationAuthority),
+		messageAdmissions: make(map[*MessageAdmission]struct{}),
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -272,9 +279,21 @@ func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager
 	for _, d := range loaded {
 		m.sessions[d.ID] = d.restore()
 	}
+	messageStore, messageErr := NewMessageStore(configDir)
+	if messageErr != nil {
+		m.loadErr = errors.Join(m.loadErr, messageErr)
+	} else {
+		m.messages = messageStore
+		if recoverErr := messageStore.Recover(m.sessions); recoverErr != nil {
+			m.loadErr = errors.Join(m.loadErr, recoverErr)
+		}
+	}
 
 	return m
 }
+
+// Messages returns the manager-owned durable messaging store shared by all frontends.
+func (m *Manager) Messages() *MessageStore { return m.messages }
 
 // SetMCPEndpoint sets the loopback endpoint before any activation is started.
 func (m *Manager) SetMCPEndpoint(endpoint string) {
@@ -390,6 +409,7 @@ func (s *Session) snapshot() Snapshot {
 		RegistrationPersistence:       s.RegistrationPersistence,
 		RegistrationErr:               s.RegistrationErr,
 		ActiveConversationID:          s.ExpectedConversationID,
+		ActivationID:                  s.ActivationID,
 	}
 }
 

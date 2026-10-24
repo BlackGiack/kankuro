@@ -1,6 +1,7 @@
 package session_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -65,8 +66,11 @@ func (d *stubKillDriver) SetSession(id string) []string {
 }
 func (d *stubKillDriver) SendInput(_ string) error             { return nil }
 func (d *stubKillDriver) SendInputBytes(_ []byte) (int, error) { return 0, nil }
-func (d *stubKillDriver) GetAgentFolder() string               { return ".agents" }
-func (d *stubKillDriver) GetInstructionFileName() string       { return "AGENTS.md" }
+func (d *stubKillDriver) SubmitPrompt(_ context.Context, _, _, _ string) (driver.SubmissionEvidence, error) {
+	return driver.SubmissionEvidence{State: driver.SubmissionNoBytes}, nil
+}
+func (d *stubKillDriver) GetAgentFolder() string         { return ".agents" }
+func (d *stubKillDriver) GetInstructionFileName() string { return "AGENTS.md" }
 
 func (d *stubKillDriver) GetStatus() driver.SessionStatus {
 	if d.terminated.Load() {
@@ -599,8 +603,11 @@ func (d *gateDriver) SetSession(id string) []string {
 }
 func (d *gateDriver) SendInput(_ string) error             { return nil }
 func (d *gateDriver) SendInputBytes(_ []byte) (int, error) { return 0, nil }
-func (d *gateDriver) GetAgentFolder() string               { return ".agents" }
-func (d *gateDriver) GetInstructionFileName() string       { return "AGENTS.md" }
+func (d *gateDriver) SubmitPrompt(_ context.Context, _, _, _ string) (driver.SubmissionEvidence, error) {
+	return driver.SubmissionEvidence{State: driver.SubmissionNoBytes}, nil
+}
+func (d *gateDriver) GetAgentFolder() string         { return ".agents" }
+func (d *gateDriver) GetInstructionFileName() string { return "AGENTS.md" }
 
 func (d *gateDriver) GetStatus() driver.SessionStatus {
 	if d.terminated.Load() {

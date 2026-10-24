@@ -38,6 +38,7 @@ type activationAuthority struct {
 // It intentionally contains no credential and is not available during startup.
 type CallerIdentity struct {
 	SessionID        string
+	ActivationID     string
 	CardID           string
 	Driver           string
 	DashboardControl bool
@@ -131,6 +132,9 @@ func (m *Manager) revokeActivation(token string) {
 func (m *Manager) revokeSessionActivationLocked(s *Session) {
 	m.revokeAuthorityLocked(s.ActivationToken)
 	s.ActivationToken = ""
+	if m.messages != nil {
+		m.messages.Wake()
+	}
 }
 
 func (m *Manager) revokeAuthorityLocked(token string) {
@@ -345,7 +349,13 @@ func (m *Manager) ResolveDashboardCaller(token string) (CallerIdentity, error) {
 	if !s.DashboardControl {
 		return CallerIdentity{}, errors.New("dashboard control is not enabled for this activation")
 	}
-	return CallerIdentity{SessionID: authority.sessionID, CardID: authority.cardID, Driver: authority.driver, DashboardControl: true}, nil
+	return CallerIdentity{
+		SessionID:        authority.sessionID,
+		ActivationID:     authority.activationID,
+		CardID:           authority.cardID,
+		Driver:           authority.driver,
+		DashboardControl: true,
+	}, nil
 }
 
 func addConversationBinding(s *Session, cardID string, binding ConversationBinding) {

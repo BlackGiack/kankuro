@@ -87,6 +87,8 @@ type OperationResult struct {
 // OperationEffects is the structured lifecycle outcome returned over MCP.
 // The journal stores its JSON encoding as RawMessage independently.
 type OperationEffects struct {
+	MessageID                 string             `json:"message_id,omitempty"`
+	Delivery                  string             `json:"delivery,omitempty"`
 	SessionID                 string             `json:"session_id,omitempty"`
 	ProcessTerminated         bool               `json:"process_terminated,omitempty"`
 	SessionRecordPersisted    bool               `json:"session_record_persisted,omitempty"`
@@ -120,6 +122,7 @@ type operationTask struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	apply       func(context.Context, Operation) (json.RawMessage, error)
+	onCancel    func(Operation)
 }
 
 // OperationRunner serializes durable request acceptance and bounds lifecycle work.
@@ -486,6 +489,58 @@ func (r *OperationRunner) Submit(
 	ctx context.Context, token, requestID, kind, target string, arguments any,
 	apply func(context.Context, Operation) (json.RawMessage, error),
 ) (Operation, error) {
+	return r.submit(ctx, token, requestID, kind, target, arguments, nil, apply, nil)
+}
+
+// SubmitWithCancel installs cleanup for an accepted operation canceled before its worker starts.
+func (r *OperationRunner) SubmitWithCancel(
+	ctx context.Context, token, requestID, kind, target string, arguments any,
+	apply func(context.Context, Operation) (json.RawMessage, error), onCancel func(Operation),
+) (Operation, error) {
+	return r.submitWithRecovery(ctx, token, requestID, kind, target, arguments, nil, apply, onCancel)
+}
+
+// SubmitWithAdmission runs beforeAccept after queue capacity is reserved and
+// persists the operation from inside its transaction before a worker can start.
+func (r *OperationRunner) SubmitWithAdmission(
+	ctx context.Context, token, requestID, kind, target string, arguments any,
+	beforeAccept func(persistAcceptance func() error) error,
+	apply func(context.Context, Operation) (json.RawMessage, error), onCancel func(Operation),
+) (Operation, error) {
+	return r.submitWithRecovery(ctx, token, requestID, kind, target, arguments, beforeAccept, apply, onCancel)
+}
+
+func (r *OperationRunner) submitWithRecovery(
+	ctx context.Context, token, requestID, kind, target string, arguments any,
+	beforeAccept func(func() error) error,
+	apply func(context.Context, Operation) (json.RawMessage, error), onCancel func(Operation),
+) (Operation, error) {
+	operation, err := r.submit(ctx, token, requestID, kind, target, arguments, beforeAccept, apply, onCancel)
+	if operation.ID != "" || err == nil {
+		return operation, err
+	}
+	caller, authErr := r.service.ResolveCaller(token)
+	if authErr != nil {
+		return operation, err
+	}
+	parsed, parseErr := uuid.Parse(requestID)
+	if parseErr != nil {
+		return operation, err
+	}
+	key := operationKey{caller: caller.SessionID, request: parsed.String()}
+	r.mu.Lock()
+	if accepted := r.records[key]; accepted != nil {
+		operation = cloneOperation(accepted)
+	}
+	r.mu.Unlock()
+	return operation, err
+}
+
+func (r *OperationRunner) submit(
+	ctx context.Context, token, requestID, kind, target string, arguments any,
+	beforeAccept func(func() error) error,
+	apply func(context.Context, Operation) (json.RawMessage, error), onCancel func(Operation),
+) (Operation, error) {
 	if _, err := uuid.Parse(requestID); err != nil {
 		return Operation{}, reject("invalid_request", "request_id must be a UUID")
 	}
@@ -499,7 +554,20 @@ func (r *OperationRunner) Submit(
 	}
 	fingerprint := operationFingerprint(kind, target, encoded)
 	key := operationKey{caller: caller.SessionID, request: requestID}
-	op, accepted, err := r.accept(caller.SessionID, caller.DashboardID, key, requestID, kind, target, encoded, fingerprint, token, apply)
+	op, accepted, err := r.accept(
+		caller.SessionID,
+		caller.DashboardID,
+		key,
+		requestID,
+		kind,
+		target,
+		encoded,
+		fingerprint,
+		token,
+		apply,
+		onCancel,
+		beforeAccept,
+	)
 	if err != nil {
 		return op, err
 	}
@@ -578,6 +646,8 @@ func (r *OperationRunner) accept(
 	callerID, dashboardID string, key operationKey, requestID, kind, target string, encoded []byte,
 	fingerprint, token string,
 	apply func(context.Context, Operation) (json.RawMessage, error),
+	onCancel func(Operation),
+	beforeAccept func(func() error) error,
 ) (Operation, bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -603,13 +673,18 @@ func (r *OperationRunner) accept(
 	op := &Operation{ID: uuid.NewString(), CallerSession: callerID, DashboardID: dashboardID, RequestID: requestID,
 		Kind: kind, State: OperationPending, TargetSession: target, Fingerprint: fingerprint,
 		Arguments: encoded, CreatedAt: now, UpdatedAt: now}
-	if saveErr := r.saveLocked(op); saveErr != nil {
+	persistAcceptance := func() error { return r.saveLocked(op) }
+	if beforeAccept != nil {
+		if admitErr := beforeAccept(persistAcceptance); admitErr != nil {
+			return Operation{}, false, admitErr
+		}
+	} else if saveErr := persistAcceptance(); saveErr != nil {
 		return Operation{}, false, reject("journal_unavailable", "lifecycle operations are temporarily unavailable")
 	}
 	r.records[key], r.byID[op.ID] = op, key
 	opCtx, cancel := context.WithTimeout(context.Background(), operationTimeout)
 	r.running[op.ID] = cancel
-	r.queue <- operationTask{operationID: op.ID, token: token, ctx: opCtx, cancel: cancel, apply: apply}
+	r.queue <- operationTask{operationID: op.ID, token: token, ctx: opCtx, cancel: cancel, apply: apply, onCancel: onCancel}
 	return cloneOperation(op), true, nil
 }
 
@@ -720,20 +795,28 @@ func (r *OperationRunner) execute(task operationTask) {
 		return
 	}
 	if task.ctx.Err() != nil {
+		snapshot := cloneOperation(op)
 		op.State = OperationCancelled
 		op.ErrorCode = "cancelled"
 		op.ErrorMessage = "operation cancelled before execution"
 		r.finishLocked(op)
 		r.mu.Unlock()
+		if task.onCancel != nil {
+			task.onCancel(snapshot)
+		}
 		task.cancel()
 		return
 	}
 	if err := r.service.validateOperationScope(task.token, *op); err != nil {
+		snapshot := cloneOperation(op)
 		op.State = OperationCancelled
 		op.ErrorCode = "caller_revoked"
 		op.ErrorMessage = "caller activation is no longer authorized"
 		r.finishLocked(op)
 		r.mu.Unlock()
+		if task.onCancel != nil {
+			task.onCancel(snapshot)
+		}
 		task.cancel()
 		return
 	}

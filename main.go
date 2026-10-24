@@ -27,11 +27,15 @@ import (
 //go:embed kankuro_skills/mcp-cli/SKILL.md
 var embeddedMCPCLISkill []byte
 
+//go:embed kankuro_skills/kankuro-puppet/SKILL.md
+var embeddedKankuroPuppetSkill []byte
+
 const mcpShutdownTimeout = 5 * time.Second
 
 // main wires repository, session manager, MCP endpoint, and TUI program startup.
 func main() {
 	config.SetBuiltinMCPCLISkillContent(embeddedMCPCLISkill)
+	config.SetBuiltinKankuroPuppetSkillContent(embeddedKankuroPuppetSkill)
 	// Create and configure driver registry
 	registry := driver.NewBuiltinRegistry()
 

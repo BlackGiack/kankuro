@@ -209,6 +209,9 @@ func (m *Manager) reserveForActivation(
 	if s.stopping || s.deleting {
 		return activationSnapshot{}, "", fmt.Errorf("%w: another lifecycle operation is in progress", ErrLifecycleConflict)
 	}
+	if s.activeSubmissions > 0 {
+		return activationSnapshot{}, "", fmt.Errorf("%w: message submission is in progress", ErrLifecycleConflict)
+	}
 	conversationID, err := validateConversationChoice(s, cardID, driverName, choice)
 	if err != nil {
 		return activationSnapshot{}, "", err
@@ -813,6 +816,7 @@ func (m *Manager) KillDetailed(id string) (StopResult, error) {
 	return m.killDetailed(id, false)
 }
 
+//nolint:gocognit,nestif,funlen // Stop serialization, prompt drain, and durable teardown are one lifecycle transition.
 func (m *Manager) killDetailed(id string, duringShutdown bool) (StopResult, error) {
 	m.mu.Lock()
 	if m.closed && !duringShutdown {
@@ -822,17 +826,28 @@ func (m *Manager) killDetailed(id string, duringShutdown bool) (StopResult, erro
 	s, ok := m.sessions[id]
 	var d driver.AgentDriver
 	var gen uint64
+	var submissionsDone chan struct{}
 	if ok {
 		if s.activating || s.stopping || s.deleting {
 			m.mu.Unlock()
 			return StopResult{}, fmt.Errorf("%w: %s", ErrLifecycleConflict, id)
 		}
 		if s.Status == StatusTerminated {
+			if s.activeSubmissions > 0 {
+				done := s.submissionsDone
+				m.mu.Unlock()
+				<-done
+				return m.killDetailed(id, duringShutdown)
+			}
 			persistErr := m.persistSessionLockedErr(s)
 			m.mu.Unlock()
 			return StopResult{ProcessTerminated: true, SessionRecordPersisted: persistErr == nil}, persistErr
 		}
 		s.stopping = true
+		m.cancelPendingMessageAdmissionsLocked(s)
+		if s.activeSubmissions > 0 {
+			submissionsDone = s.submissionsDone
+		}
 		m.stops.Add(1)
 		d, gen = s.Driver, s.generation
 	}
@@ -841,6 +856,9 @@ func (m *Manager) killDetailed(id string, duringShutdown bool) (StopResult, erro
 		return StopResult{}, fmt.Errorf("%w: %s", ErrSessionNotFound, id)
 	}
 	defer m.stops.Done()
+	if submissionsDone != nil {
+		<-submissionsDone
+	}
 
 	// Called with no lock held on purpose: it can block on process teardown,
 	// and watch needs m.mu in the meantime.
@@ -870,6 +888,9 @@ func (m *Manager) killDetailed(id string, duringShutdown bool) (StopResult, erro
 	}
 	m.revokeSessionActivationLocked(s)
 	persistErr := m.persistSessionLockedErr(s)
+	if m.messages != nil {
+		m.messages.Wake()
+	}
 	return StopResult{ProcessTerminated: true, SessionRecordPersisted: persistErr == nil}, errors.Join(killErr, persistErr)
 }
 
@@ -907,7 +928,12 @@ func (m *Manager) RemoveDetailed(id string) (RemovalResult, error) {
 		m.mu.Unlock()
 		return RemovalResult{}, fmt.Errorf("%w: %s", ErrLifecycleConflict, id)
 	}
+	if s.activeSubmissions > 0 {
+		m.mu.Unlock()
+		return RemovalResult{}, fmt.Errorf("%w: message submission is in progress", ErrLifecycleConflict)
+	}
 	s.deleting = true
+	m.cancelPendingMessageAdmissionsLocked(s)
 	m.revokeSessionActivationLocked(s)
 	m.closeSubscribersLocked(id)
 	tmp := s.UseTmpWorkspace
@@ -938,6 +964,9 @@ func (m *Manager) RemoveDetailed(id string) (RemovalResult, error) {
 		delete(m.sessions, id)
 	}
 	m.mu.Unlock()
+	if m.messages != nil {
+		m.messages.Wake()
+	}
 
 	var errs []error
 	if deleteErr != nil {
@@ -945,6 +974,11 @@ func (m *Manager) RemoveDetailed(id string) (RemovalResult, error) {
 	}
 	if rmErr != nil {
 		errs = append(errs, fmt.Errorf("remove tmp workspace: %w", rmErr))
+	}
+	if len(errs) == 0 && m.messages != nil {
+		if messageErr := m.messages.DeleteRecipient(id); messageErr != nil {
+			errs = append(errs, fmt.Errorf("delete recipient message history: %w", messageErr))
+		}
 	}
 	return RemovalResult{InMemoryRemoved: true, SessionRecordDeleted: deleteErr == nil,
 		TemporaryWorkspaceRemoved: tmp && rmErr == nil}, errors.Join(errs...)
@@ -1003,12 +1037,29 @@ func (m *Manager) Shutdown() int {
 	m.shutdownDone = make(chan struct{})
 	m.closed = true
 	var live []string
+	var activeSubmissions []chan struct{}
+	for admission := range m.messageAdmissions {
+		if admission.started || admission.publishing {
+			continue
+		}
+		admission.invalidated = true
+		m.releaseMessageAdmissionLocked(admission)
+	}
 	for id, s := range m.sessions {
 		if s.Status != StatusTerminated {
 			live = append(live, id)
 		}
+		if s.activeSubmissions > 0 {
+			activeSubmissions = append(activeSubmissions, s.submissionsDone)
+		}
 	}
 	m.mu.Unlock()
+	if m.messages != nil {
+		m.messages.Wake()
+	}
+	for _, done := range activeSubmissions {
+		<-done
+	}
 
 	var wg sync.WaitGroup
 	for _, id := range live {

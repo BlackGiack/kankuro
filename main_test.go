@@ -41,3 +41,26 @@ func TestEmbeddedMCPCLISkillDeploysThroughConfig(t *testing.T) {
 		t.Fatal("deployed skill differs from embedded bytes")
 	}
 }
+
+func TestEmbeddedKankuroPuppetSkillDeploysThroughConfig(t *testing.T) {
+	if len(embeddedKankuroPuppetSkill) == 0 || !bytes.Contains(embeddedKankuroPuppetSkill, []byte("name: kankuro-puppet")) {
+		t.Fatal("embedded puppet skill is empty or missing its canonical metadata")
+	}
+	config.SetBuiltinKankuroPuppetSkillContent(embeddedKankuroPuppetSkill)
+	t.Cleanup(func() { config.SetBuiltinKankuroPuppetSkillContent(nil) })
+	workspace := t.TempDir()
+	skill, ok := config.GetBuiltinSkill(config.BuiltinSkillKankuroPuppet)
+	if !ok {
+		t.Fatal("built-in puppet skill metadata is missing")
+	}
+	if err := driver.NewGenericCLIDriver().SetSkills([]config.Skill{skill}, workspace); err != nil {
+		t.Fatal(err)
+	}
+	deployed, err := os.ReadFile(filepath.Join(workspace, ".agents", "skills", "kankuro-puppet", "SKILL.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(deployed, embeddedKankuroPuppetSkill) {
+		t.Fatal("deployed puppet skill differs from embedded bytes")
+	}
+}

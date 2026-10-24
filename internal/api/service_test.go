@@ -20,7 +20,14 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestMain(m *testing.M) { os.Exit(testenv.Run(m, "api")) }
+func TestMain(m *testing.M) {
+	puppet, err := os.ReadFile("../../kankuro_skills/kankuro-puppet/SKILL.md")
+	if err != nil {
+		os.Exit(2)
+	}
+	config.SetBuiltinKankuroPuppetSkillContent(puppet)
+	os.Exit(testenv.Run(m, "api"))
+}
 
 type testRepository struct {
 	*config.FileRepository
@@ -1190,8 +1197,8 @@ func TestResolveCapabilitiesAddsMCPAccessSkillOnlyWhenKankuroMCPSelected(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	if countMCPCLI(withMCP.Skills) != 1 {
-		t.Fatalf("mcp-cli access skill count = %d, want one", countMCPCLI(withMCP.Skills))
+	if countMCPCLI(withMCP.Skills) != 1 || countKankuroPuppet(withMCP.Skills) != 1 {
+		t.Fatalf("Kankuro protocol skills = %#v, want one mcp-cli and one kankuro-puppet", withMCP.Skills)
 	}
 	withMCPAndSkill, err := service.resolveCapabilities(config.IDCard{
 		MCPIDs: []string{config.BuiltinMCPKankuro}, SkillIDs: []string{config.BuiltinSkillMCPCLI},
@@ -1199,9 +1206,19 @@ func TestResolveCapabilitiesAddsMCPAccessSkillOnlyWhenKankuroMCPSelected(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	if countMCPCLI(withMCPAndSkill.Skills) != 1 {
-		t.Fatalf("explicit mcp-cli skill duplicated: %#v", withMCPAndSkill.Skills)
+	if countMCPCLI(withMCPAndSkill.Skills) != 1 || countKankuroPuppet(withMCPAndSkill.Skills) != 1 {
+		t.Fatalf("explicit mcp-cli selection duplicated or puppet skill missing: %#v", withMCPAndSkill.Skills)
 	}
+}
+
+func countKankuroPuppet(skills []config.Skill) int {
+	count := 0
+	for _, skill := range skills {
+		if skill.ID == config.BuiltinSkillKankuroPuppet {
+			count++
+		}
+	}
+	return count
 }
 
 func countMCPCLI(skills []config.Skill) int {
@@ -1705,5 +1722,125 @@ func TestServiceMissingSessionAndActivationErrorsRemainDistinct(t *testing.T) {
 	}
 	if len(sessions.List()) != 0 {
 		t.Fatalf("activation spawned despite capability resolution failure: %#v", sessions.List())
+	}
+}
+
+//nolint:gocognit // One end-to-end scenario verifies the messaging lifecycle and replay behavior.
+func TestMessagingOperationsPinActivationsAndPersistExplicitReports(t *testing.T) {
+	mcpSkill, err := os.ReadFile("../../kankuro_skills/mcp-cli/SKILL.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	puppetSkill, err := os.ReadFile("../../kankuro_skills/kankuro-puppet/SKILL.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	previousMCPSkill, _ := config.GetBuiltinSkillContent("mcp-cli")
+	previousPuppetSkill, _ := config.GetBuiltinSkillContent("kankuro-puppet")
+	config.SetBuiltinMCPCLISkillContent(mcpSkill)
+	config.SetBuiltinKankuroPuppetSkillContent(puppetSkill)
+	t.Cleanup(func() {
+		config.SetBuiltinMCPCLISkillContent(previousMCPSkill)
+		config.SetBuiltinKankuroPuppetSkillContent(previousPuppetSkill)
+	})
+	service, repo, manager, workspace, workspaceID := newServiceFixture(t)
+	manager.SetMCPEndpoint("http://127.0.0.1:12345/mcp")
+	callerCard := saveCard(
+		t,
+		repo.FileRepository,
+		config.IDCard{ID: "orchestrator", Name: "orchestrator", Driver: "cat", WorkspaceID: workspaceID,
+			DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro}},
+	)
+	recipientCard := saveCard(
+		t,
+		repo.FileRepository,
+		config.IDCard{ID: "recipient", Name: "recipient", Driver: "cat", WorkspaceID: workspaceID,
+			MCPIDs: []string{config.BuiltinMCPKankuro}},
+	)
+	_, err = service.Launch(callerCard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokenFromWorkspace := func() string {
+		var configFile struct {
+			Servers map[string]struct {
+				Headers map[string]string `json:"headers"`
+			} `json:"mcpServers"`
+		}
+		data, readErr := os.ReadFile(filepath.Join(workspace, ".kankuro", "mcp-servers.json"))
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if readErr = json.Unmarshal(data, &configFile); readErr != nil {
+			t.Fatal(readErr)
+		}
+		return strings.TrimPrefix(configFile.Servers["kankuro"].Headers["Authorization"], "Bearer ")
+	}
+	callerToken := tokenFromWorkspace()
+	recipientID, err := service.Launch(recipientCard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipientToken := tokenFromWorkspace()
+	runner := NewOperationRunner(repo.Dir(), service)
+	service.SetOperationRunner(runner)
+	t.Cleanup(runner.Shutdown)
+	inspection, err := service.GetSession(callerToken, recipientID)
+	if err != nil || inspection.ActivationID == "" || !inspection.KankuroMCPEnabled {
+		t.Fatalf("recipient inspection = %#v, %v", inspection, err)
+	}
+	requestID := uuid.NewString()
+	result, err := service.SendMessage(
+		context.Background(),
+		callerToken,
+		requestID,
+		recipientID,
+		inspection.ActivationID,
+		"check the workspace",
+	)
+	if err != nil || result.State != OperationSucceeded || result.Result == nil || result.Result.MessageID == "" ||
+		result.Result.Delivery != string(session.MessageSubmitted) {
+		t.Fatalf("send result = %#v, %v", result, err)
+	}
+	retry, err := service.SendMessage(
+		context.Background(),
+		callerToken,
+		requestID,
+		recipientID,
+		inspection.ActivationID,
+		"check the workspace",
+	)
+	if err != nil || retry.ID != result.ID || retry.Result.MessageID != result.Result.MessageID {
+		t.Fatalf("send retry = %#v, %v", retry, err)
+	}
+	if _, err = service.SendMessage(
+		context.Background(),
+		callerToken,
+		requestID,
+		recipientID,
+		inspection.ActivationID,
+		"different text",
+	); err == nil {
+		t.Fatal("changed send retry was accepted")
+	}
+	stored, err := service.GetMessage(callerToken, result.Result.MessageID)
+	if err != nil || stored.Text != "check the workspace" {
+		t.Fatalf("stored message = %#v, %v", stored, err)
+	}
+	if _, err = service.ReportReply(recipientToken, uuid.NewString(), result.Result.MessageID, "completed", "done"); err != nil {
+		t.Fatalf("recipient without Dashboard Control could not report: %v", err)
+	}
+	page, err := service.GetReplies(context.Background(), callerToken, result.Result.MessageID, "", 50, 0)
+	if err != nil || len(page.Items) != 1 || page.Items[0].Kind != "completed" {
+		t.Fatalf("reply page = %#v, %v", page, err)
+	}
+	if err = manager.Kill(recipientID); err != nil {
+		t.Fatal(err)
+	}
+	if err = service.RemoveSession(recipientID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = service.GetMessage(callerToken, result.Result.MessageID); err == nil {
+		t.Fatal("recipient deletion kept message content")
 	}
 }

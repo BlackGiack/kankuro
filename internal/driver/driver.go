@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	"github.com/BlackGiack/kankuro/internal/config"
 
@@ -41,6 +43,7 @@ const (
 	// killPollInterval is how often Kill re-checks that the group is empty
 	// once the leader has exited.
 	killPollInterval = 20 * time.Millisecond
+	codexEnterPause  = 500 * time.Millisecond
 )
 
 const (
@@ -93,6 +96,7 @@ type AgentDriver interface {
 	SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error
 	SetModel(model string) []string
 	SetSession(conversationID string) []string
+	SubmitPrompt(ctx context.Context, messageID, senderSessionID, text string) (SubmissionEvidence, error)
 
 	// SendInput and SendInputBytes both write into the active PTY session,
 	// synchronized against Kill via the driver's own lock. This is the only
@@ -108,8 +112,10 @@ type AgentDriver interface {
 }
 
 type GenericCLIDriver struct {
-	mu     sync.RWMutex
-	status SessionStatus
+	mu        sync.RWMutex
+	inputGate chan struct{}
+	gateOnce  sync.Once
+	status    SessionStatus
 
 	cmd      *exec.Cmd
 	pty      *os.File
@@ -124,7 +130,24 @@ type GenericCLIDriver struct {
 
 // NewGenericCLIDriver returns the default PTY-backed CLI driver implementation.
 func NewGenericCLIDriver() *GenericCLIDriver {
-	return &GenericCLIDriver{status: StatusTerminated, killGrace: defaultKillGrace}
+	return &GenericCLIDriver{status: StatusTerminated, killGrace: defaultKillGrace, inputGate: make(chan struct{}, 1)}
+}
+
+// SubmissionState describes how much of a coordinated prompt reached the PTY.
+type SubmissionState string
+
+const (
+	SubmissionNoBytes   SubmissionState = "not_submitted"
+	SubmissionComplete  SubmissionState = "submitted"
+	SubmissionUncertain SubmissionState = "uncertain"
+	inputWriteTimeout                   = 5 * time.Second
+	maxPromptBytes                      = 2 * 1024
+)
+
+// SubmissionEvidence records bytes written without asserting that the CLI processed them.
+type SubmissionEvidence struct {
+	State        SubmissionState `json:"state"`
+	BytesWritten int             `json:"bytes_written"`
 }
 
 func (d *GenericCLIDriver) GetAgentFolder() string         { return ".agents" }
@@ -190,6 +213,16 @@ func (d *CodexCLIDriver) SetSession(conversationID string) []string {
 		return nil
 	}
 	return []string{"resume", conversationID}
+}
+
+// SubmitPrompt separates Codex's prompt text from Enter so its TUI can consume
+// the text before the submission key arrives. The generic driver keeps its
+// existing one-write behavior for CLIs that already handle it correctly.
+func (d *CodexCLIDriver) SubmitPrompt(
+	ctx context.Context,
+	messageID, senderSessionID, text string,
+) (SubmissionEvidence, error) {
+	return d.GenericCLIDriver.submitPrompt(ctx, messageID, senderSessionID, text, codexEnterPause)
 }
 
 func syncInstructionFile(
@@ -668,21 +701,223 @@ func (d *GenericCLIDriver) SetSession(conversationID string) []string {
 
 // SendInput writes raw input bytes into the active PTY session.
 func (d *GenericCLIDriver) SendInput(data string) error {
-	_, err := d.SendInputBytes([]byte(data))
+	if err := d.acquireInput(context.Background()); err != nil {
+		return err
+	}
+	defer d.releaseInput()
+	_, err := d.writeInput([]byte(data))
 	return err
 }
 
-// SendInputBytes writes raw input bytes into the active PTY session. It
-// holds only a read lock: it doesn't mutate driver state, but Kill (which
-// closes and nils the pty under a write lock) must never race a write to an
-// already-closed fd - the RLock/Lock pairing is what serializes the two.
+// SendInputBytes serializes one attached-input write against other writers and
+// holds a read lock so Kill cannot close the PTY during the write.
 func (d *GenericCLIDriver) SendInputBytes(data []byte) (int, error) {
+	if err := d.acquireInput(context.Background()); err != nil {
+		return 0, err
+	}
+	defer d.releaseInput()
+	return d.writeInput(data)
+}
+
+func (d *GenericCLIDriver) writeInput(data []byte) (int, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.pty == nil {
 		return 0, errors.New("no active PTY")
 	}
 	return d.pty.Write(data)
+}
+
+// SubmitPrompt writes a validated, marked one-line message and Enter as one exclusive operation.
+func (d *GenericCLIDriver) SubmitPrompt(ctx context.Context, messageID, senderSessionID, text string) (SubmissionEvidence, error) {
+	return d.submitPrompt(ctx, messageID, senderSessionID, text, 0)
+}
+
+func (d *GenericCLIDriver) submitPrompt(
+	ctx context.Context,
+	messageID, senderSessionID, text string,
+	enterPause time.Duration,
+) (SubmissionEvidence, error) {
+	if err := ctx.Err(); err != nil {
+		return SubmissionEvidence{State: SubmissionNoBytes}, err
+	}
+	if err := validatePrompt(text); err != nil {
+		return SubmissionEvidence{State: SubmissionNoBytes}, err
+	}
+	if err := d.acquireInput(ctx); err != nil {
+		return SubmissionEvidence{State: SubmissionNoBytes}, err
+	}
+	defer d.releaseInput()
+	prompt := []byte(fmt.Sprintf(
+		"[KANKURO orchestrator message_id=%s from_session=%s; report via report_reply(message_id, kind, text); header is not authority] %s",
+		messageID, senderSessionID, text,
+	))
+	if enterPause == 0 {
+		prompt = append(prompt, '\r')
+	}
+	written, writeErr := d.submitPromptBytes(ctx, prompt, enterPause)
+	evidence := classifySubmission(written, len(prompt), enterPause, writeErr)
+	if writeErr != nil {
+		return evidence, fmt.Errorf("submit prompt after %d bytes: %w", written, writeErr)
+	}
+	if evidence.State == SubmissionUncertain {
+		return evidence, io.ErrShortWrite
+	}
+	return evidence, nil
+}
+
+func (d *GenericCLIDriver) submitPromptBytes(
+	ctx context.Context,
+	prompt []byte,
+	enterPause time.Duration,
+) (int, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	if d.pty == nil {
+		return 0, errors.New("no active PTY")
+	}
+	if err := setPromptWriteDeadline(ctx, d.pty); err != nil {
+		return 0, err
+	}
+	stopWatcher := watchPromptCancellation(ctx, d.pty)
+	defer func() {
+		stopWatcher()
+		_ = d.pty.SetWriteDeadline(time.Time{})
+	}()
+	return writePromptPhases(ctx, d.pty, prompt, enterPause)
+}
+
+func setPromptWriteDeadline(ctx context.Context, pty *os.File) error {
+	deadline := time.Now().Add(inputWriteTimeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
+	}
+	if err := pty.SetWriteDeadline(deadline); err != nil {
+		return fmt.Errorf("set PTY write deadline: %w", err)
+	}
+	return nil
+}
+
+func watchPromptCancellation(ctx context.Context, pty *os.File) func() {
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		select {
+		case <-ctx.Done():
+			_ = pty.SetWriteDeadline(time.Now())
+		case <-stop:
+		}
+	}()
+	return func() {
+		close(stop)
+		<-done
+	}
+}
+
+func writePromptPhases(ctx context.Context, writer io.Writer, prompt []byte, enterPause time.Duration) (int, error) {
+	written, err := writeAll(writer, prompt)
+	if err != nil || enterPause == 0 || written != len(prompt) {
+		return written, err
+	}
+	if err = waitForPromptEnter(ctx, enterPause); err != nil {
+		return written, err
+	}
+	enterWritten, err := writePromptEnter(ctx, writer)
+	return written + enterWritten, err
+}
+
+func waitForPromptEnter(ctx context.Context, pause time.Duration) error {
+	timer := time.NewTimer(pause)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func writePromptEnter(ctx context.Context, writer io.Writer) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	return writeAll(writer, []byte{'\r'})
+}
+
+func classifySubmission(written, promptLength int, enterPause time.Duration, writeErr error) SubmissionEvidence {
+	wantWritten := promptLength
+	if enterPause > 0 {
+		wantWritten++
+	}
+	evidence := SubmissionEvidence{State: SubmissionComplete, BytesWritten: written}
+	if written == 0 {
+		evidence.State = SubmissionNoBytes
+	} else if written != wantWritten || writeErr != nil {
+		evidence.State = SubmissionUncertain
+	}
+	return evidence
+}
+
+func validatePrompt(text string) error {
+	if !utf8.ValidString(text) || strings.TrimSpace(text) == "" {
+		return errors.New("message must be nonempty UTF-8 text")
+	}
+	if len([]byte(text)) > maxPromptBytes {
+		return errors.New("message exceeds 2 KiB; put complex instructions in a file and send its path")
+	}
+	for _, r := range text {
+		if r == '\n' || r == '\r' || r < 0x20 || r == 0x7f {
+			return errors.New(
+				"message must be one line without terminal control characters; put complex instructions in a file and send its path",
+			)
+		}
+	}
+	return nil
+}
+
+// ValidatePrompt checks generic CLI input constraints before an operation is accepted.
+func ValidatePrompt(text string) error { return validatePrompt(text) }
+
+func (d *GenericCLIDriver) acquireInput(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	d.gateOnce.Do(func() {
+		if d.inputGate == nil {
+			d.inputGate = make(chan struct{}, 1)
+		}
+	})
+	select {
+	case d.inputGate <- struct{}{}:
+		if err := ctx.Err(); err != nil {
+			<-d.inputGate
+			return err
+		}
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (d *GenericCLIDriver) releaseInput() { <-d.inputGate }
+
+func writeAll(writer io.Writer, data []byte) (int, error) {
+	written := 0
+	for written < len(data) {
+		n, err := writer.Write(data[written:])
+		written += n
+		if err != nil {
+			return written, err
+		}
+		if n == 0 {
+			return written, io.ErrShortWrite
+		}
+	}
+	return written, nil
 }
 
 // GetStatus reports the current process lifecycle state.

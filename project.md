@@ -3,8 +3,9 @@
 Read this first. It covers what the project does, how it is built, where everything
 lives, the rules the code relies on, and which files to open for a given kind of task.
 `kankuro_specs.md` describes what the product should do; this file describes how the
-code actually does it. Last updated: 2026-10-24 (Feature 4 integration accepted
-at `7695a4c`; card-deletion/activation correction verified; Feature 5 may proceed).
+code actually does it. Last updated: 2026-10-25 (Feature 5 independently accepted
+at `b95b853`; fixture cleanup and repeated/full checks verified; Feature 6 may
+proceed. See `feature_5.md`).
 
 ---
 
@@ -24,6 +25,7 @@ The core concepts:
 | **Workspace registry** | Directories you can run agents in. A *source* is either one workspace or a root whose direct children each become a workspace. Cards reference a workspace by ID, never by path. | `config/workspaces.go` |
 | **Capability registries** | Skills, personas and puppets are discovered from source directories; MCP servers are entered by hand. Cards reference them by ID. | `config/*_sources.go`, `config/mcps.go` |
 | **Session** | A running (or stopped, relaunchable) instance of a card: a child process in a PTY, its scrollback, deployed sub-workspace descriptors, and a JSON record on disk so it survives restarts. | `internal/session` |
+| **Message** | A single-line orchestrator prompt pinned to one recipient activation, with explicit replies stored separately from terminal output. | `internal/session/messaging.go`, `internal/api/messaging.go` |
 | **Conversation binding** | A native CLI conversation ID, display name, and driver identity saved per card inside one Kankuro session. Names are not identities; bindings never cross Kankuro sessions. | `session.ConversationBinding` |
 | **Registration state** | Per-activation `unavailable`, `pending`, `unconfirmed`, `registered`, or `failed`; metadata durability is tracked independently as `not_attempted`, `saved`, or `unsaved`. Runtime state does not survive restart. | `session.RegistrationState`, `session.RegistrationPersistence` |
 | **Temporary workspace** | Optionally, a session runs in a disposable copy of the workspace rather than the original, so the agent cannot damage the source. The copy persists across relaunches of that session. | `session/workspace.go` |
@@ -44,13 +46,14 @@ LLM controller, a notification stack).
   `charmbracelet/x/ansi` and `x/term`. `impl_plan.md` and `review.md` contain Feature 4
   planning and review history; they are not the Bubble Tea migration record.
 - PTY: `creack/pty`. Terminal width of wide runes: `mattn/go-runewidth`.
-- Storage: YAML (`gopkg.in/yaml.v3`) for config, JSON for session records.
+- Storage: YAML (`gopkg.in/yaml.v3`) for config, JSON for session records, operation
+  journals, and bounded messaging history (`<config>/messaging/history.json`).
 - MCP transport: official Go MCP SDK Streamable HTTP transport on a loopback-only listener.
 - IDs: `google/uuid` for cards and sources; SHA-256 hex for skills, personas,
   puppets and workspaces derived from their source path.
 - No test framework beyond the standard library.
-- One file embedded into the binary: the built-in `mcp-cli` skill
-  (`main.go` → `kankuro_skills/mcp-cli/SKILL.md`), injected into config at startup.
+- Built-in `mcp-cli` and `kankuro-puppet` skills are embedded and injected into
+  config at startup (`main.go` → `kankuro_skills/`).
 
 ---
 
@@ -59,12 +62,14 @@ LLM controller, a notification stack).
 ```
 main.go                      # root command, embedded skill, loopback MCP lifetime, repository, drivers, session manager, tea.Program
 main_test.go                 # embedded skill → config → driver deployment integration
-kankuro_skills/mcp-cli/      # the one built-in skill's source
+kankuro_skills/mcp-cli/      # MCP command-line usage skill
+kankuro_skills/kankuro-puppet/ # registration, message, and explicit reply protocol
 .golangci.yml                # lint config — the suite exits 0 and must stay that way
 internal/
   api/                       # UI-independent shared operations; owns no process or config state
     service.go               #   shared lifecycle, discovery, registration, and capability resolution
     operations.go            #   durable mutation journal, bounded workers, deduplication, polling and cancellation
+    messaging.go             #   pinned send admission, explicit reports, retrieval and bounded waits
     service_test.go          #   service resolution contracts without a coordinator or Bubble Tea
   mcp/                       # authenticated Streamable HTTP transport adapter; depends on api.Service, not app/UI
     server.go                #   conversation registration, discovery, and lifecycle tools; host/origin/auth checks
@@ -86,7 +91,7 @@ internal/
     types.go                 #   IDCard, Workspace, Skill, Persona, MCPServer, Puppet, AppSettings
     id_cards.go mcps.go skills.go personas.go workspaces.go *_sources.go
     sync.go                  #   scanning source dirs; expandPath (errors on undefined $VARS)
-    builtins.go              #   built-in skills (mcp-cli) and selectable Kankuro MCP; puppets live in internal/ascii
+    builtins.go              #   built-in skills (mcp-cli, kankuro-puppet) and selectable Kankuro MCP
     validation*.go errors.go #   card validation; SyncFailedError
   driver/                    # one AgentDriver per CLI
     driver.go                #   GenericCLIDriver (.agents/, AGENTS.md) and ClaudeCodeDriver (.claude/, CLAUDE.md);
@@ -96,6 +101,7 @@ internal/
   fsutil/                    # WriteFileAtomic: temp file + fsync + rename, shared by config and session
   session/                   # process lifecycle and persistence
     manager.go               #   Manager, Session/Snapshot, bindings, runtime registration states and mappings
+    messaging.go             #   manager-owned durable message store, delivery receipts, reports and cursors
     conversation.go          #   per-activation credentials, pending report staging, binding persistence and revocation
     lifecycle.go             #   Launch, explicit new/resume Relaunch/SwitchAgent, Kill, Remove, persistence calls
     watch.go io.go           #   per-activation goroutines: status polling, output tracking and scrollback
@@ -177,7 +183,8 @@ when that manifest is missing or unreadable.
 The `internal/mcp` package is a transport adapter over `api.Service`; it does not
 depend on the coordinator or own session/process state. It exposes
 `register_conversation(conversation_id, name)`, read-only `list_cards`,
-`list_sessions`, `get_session`, and the lifecycle tools `create_session`,
+`list_sessions`, `get_session`, messaging tools `send_message`, `get_message`,
+`report_reply`, `get_replies`, and the lifecycle tools `create_session`,
 `stop_session`, `relaunch_session`, `switch_session_card`, `delete_session`,
 `get_operation`, and `cancel_operation`. Discovery/control requires a published,
 live activation with a deployed Dashboard Control grant. Listings exclude the
@@ -200,6 +207,43 @@ publication fails after an effect, the in-memory observed outcome and target ID 
 returned with a durability warning; a restart treats the durable nonterminal intent
 as interrupted instead of repeating the effect.
 
+Messaging permissions and activation identity are resolved in `api.Service` and
+`session.Manager`. A sender needs a live Dashboard Control activation; the target
+must be a different live session with Kankuro MCP deployed, and sends pin the
+nonsecret activation ID exposed by `get_session`. Reports require the exact live
+recipient activation but do not require Dashboard Control. Message headers are a
+protocol cue, never authorization. Send requests use the lifecycle operation runner
+and caller UUIDs; the journal stores only the target, activation, and fingerprint,
+not the prompt body. Durable intent is written before any PTY bytes. Identical
+retries return the same operation/message, changed arguments conflict, and an
+accepted send is never replayed after restart.
+
+The manager-owned message store uses atomic mode-0600 JSON writes and a separate
+store mutex. It retains at most 64 MiB or 10,000 whole messages per dashboard,
+evicting oldest messages together with replies, with no age expiry. Send receipts
+retain only compact identity/fingerprint data after history deletion or eviction.
+Reports are limited to 16 KiB and 128 per message. `get_replies` defaults to 50
+reports, caps a page at 100 reports and 256 KiB, and uses dashboard/filter-bound
+cursors. Deletion or eviction advances a cursor generation; a gap resumes at the
+oldest retained matching report and may repeat reply IDs. Optional waits default to
+zero, cap at ten seconds, and allow 32 concurrent waiters per manager.
+
+The generic driver serializes `SubmitPrompt`, attached `SendInput`, and
+`SendInputBytes`; one marked single-line prompt and its final carriage return stay
+under one input gate with a five-second write deadline. Admission release, intent
+publication, lifecycle invalidation, and driver capture are coordinated under the
+manager-owned activation boundary; publication already underway retains its reservation
+until its durable transaction completes. Text is nonempty UTF-8, at
+most 2 KiB, and rejects line breaks and terminal controls. Delivery states are
+`accepted`, `submitting`, `submitted`, `not_submitted`, and `uncertain`; `submitted`
+means bytes including Enter were written, not that the CLI processed them. Sends
+are FIFO per recipient activation. Stop/replacement waits for an in-progress write
+without holding the manager mutex across PTY I/O. Serialization does not clear or
+reserve the human's prompt, so already-typed text can mix with an injected prompt.
+Partial writes are uncertain and may leave input-buffer residue. The
+`kankuro-puppet` skill is deployed alongside `mcp-cli` whenever Kankuro MCP is
+selected; its first instruction is native conversation discovery and registration.
+
 ### A session's life
 
 1. **Launch** (`Manager.Launch` → `startSession`): resolve the workspace; create the
@@ -208,7 +252,8 @@ as interrupted instead of repeating the effect.
    `<agent folder>/agents/`); resolve the complete selected MCP list and atomically
    replace `<WorkingDir>/.kankuro/mcp-servers.json` before spawn. When selected, built-in
    `kankuro` receives the loopback endpoint and a fresh activation bearer credential in
-   that file. The built-in `mcp-cli` skill and managed registration block use the same
+   that file. The built-in `mcp-cli` and `kankuro-puppet` skills and managed
+   registration block use the same
    workspace-relative path. Legacy path/token environment variables are stripped from
    parent/card env and never injected. Spawn the CLI in a PTY, start the `watch` and
    `trackOutput` goroutines, and write the session record.
@@ -342,7 +387,8 @@ shared non-temporary workspaces intentionally share that file.
   activation, and shutdown revoke it. Cleanup removes the Kankuro entry only if that
   file still contains the revoked token.
 - The Kankuro MCP is a selectable built-in (`builtin:kankuro`), not auto-enabled on
-  existing cards. Its registration endpoint exposes only `register_conversation`.
+  existing cards. Its endpoint exposes conversation registration, discovery,
+  lifecycle, and messaging tools; each call enforces activation authorization.
   The manager binds reports to the credential's session/card/activation and rejects
   stale, mismatched, or conflicting IDs. A token authenticates the caller but cannot
   prove ownership of an arbitrary external CLI conversation ID.
@@ -351,9 +397,29 @@ shared non-temporary workspaces intentionally share that file.
   0.164.0 created two actual native thread IDs in the isolated Kankuro target's
   temporary workspace. Both were registered with `mcp-cli` (`saved`), and Kankuro's
   A→B→A switch selected the exact first ID and spawned `codex resume <A-ID>` while
-  retaining a file created on B. The Codex sandbox denied its own outbound MCP call;
-  the canonical registration command succeeded from the host. Full details and
-  sanitized command outcomes are in `/tmp/kankuro-feature4-native/artifacts/`.
+  retaining a file created on B. Feature 5 end-to-end acceptance subsequently
+  passed with Codex CLI 0.164.0 and OpenCode 2.1.4. Codex prompt submission writes
+  text, waits 500 ms cancellably under the input gate, then writes Enter separately
+  after checking cancellation. OpenCode uses generic prompt-plus-Enter submission.
+  Repeated attached and detached sends produced real assistant responses and
+  recipient-originated `completed`, `question`, and `blocked` MCP reports, retrieved
+  through MCP. Both CLIs discovered and registered their actual native IDs with
+  persistence `saved`; both received the deployed `kankuro-puppet` skill.
+  The user's root `sandbox_mode = "danger-full-access"` and
+  `approval_policy = "never"` defaults worked in managed Codex sessions without
+  CLI permission overrides. Earlier sandbox-denied and host-assisted runs are
+  historical diagnostics, superseded by these recipient-originated results.
+  Both CLIs passed typed-input interaction, interruption/detach, stop/resume,
+  card-switch/stale-activation rejection, and original-send deduplication checks.
+  UI/MCP deletion removed history and workspaces without replaying old sends.
+  Codex and OpenCode replies survived normal restart; a forced crash during
+  submission recovered uncertain delivery and an interrupted operation without
+  replay. Existing human drafts join injected prompts; serialization does not
+  isolate prompt composition. Missing reports remain unanswered.
+  See `review_6.md` and `/tmp/kankuro-feature5-e2e6/verification.md` for the accepted
+  matrix, inspected 80×24/120×40 PNGs, recordings, sanitized MCP results, and test-tool
+  limitations. Final shutdown exited 0 and left no isolated test processes.
+  Feature 4 command outcomes are in `/tmp/kankuro-feature4-native/artifacts/`.
 - The debug log (`--debug`) goes to `os.UserCacheDir()/kankuro/kankuro.log`. Without
   `--debug`, the session package's logger discards output — **never write to stdout or
   stderr from app code**; it corrupts the TUI.

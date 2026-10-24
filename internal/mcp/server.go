@@ -42,6 +42,13 @@ type discoveryService interface {
 	CancelOperation(string, string) (api.OperationResult, error)
 }
 
+type messagingService interface {
+	SendMessage(context.Context, string, string, string, string, string) (api.OperationResult, error)
+	GetMessage(string, string) (api.MessageRecord, error)
+	ReportReply(string, string, string, string, string) (api.MessageReply, error)
+	GetReplies(context.Context, string, string, string, int, time.Duration) (api.ReplyPage, error)
+}
+
 type contextKey struct{}
 
 type registrationInput struct {
@@ -78,6 +85,28 @@ type switchSessionInput struct {
 
 type operationInput struct {
 	OperationID string `json:"operation_id" jsonschema:"operation ID returned by a lifecycle mutation"`
+}
+
+type sendMessageInput struct {
+	RequestID    string `json:"request_id"    jsonschema:"caller-generated UUID, stable across retries"`
+	SessionID    string `json:"session_id"    jsonschema:"recipient session ID"`
+	ActivationID string `json:"activation_id" jsonschema:"recipient activation ID from get_session"`
+	Text         string `json:"text"          jsonschema:"short single-line instruction, up to 2 KiB"`
+}
+type messageInput struct {
+	MessageID string `json:"message_id"`
+}
+type reportReplyInput struct {
+	RequestID string `json:"request_id" jsonschema:"caller-generated UUID, stable across retries"`
+	MessageID string `json:"message_id"`
+	Kind      string `json:"kind"       jsonschema:"completed, question, or blocked"`
+	Text      string `json:"text"       jsonschema:"explicit report text, up to 16 KiB"`
+}
+type repliesInput struct {
+	MessageID   string `json:"message_id,omitempty"`
+	Cursor      string `json:"cursor,omitempty"`
+	Limit       int    `json:"limit,omitempty"`
+	WaitSeconds int    `json:"wait_seconds,omitempty" jsonschema:"zero by default, at most ten"`
 }
 
 type requestRejection struct {
@@ -139,6 +168,9 @@ func Start(registrar registrar) (*Runtime, error) {
 	})
 	if discovery, ok := registrar.(discoveryService); ok {
 		addDiscoveryTools(mcpServer, discovery)
+	}
+	if messaging, ok := registrar.(messagingService); ok {
+		addMessagingTools(mcpServer, messaging)
 	}
 	stream := sdk.NewStreamableHTTPHandler(
 		func(*http.Request) *sdk.Server { return mcpServer },
@@ -287,6 +319,81 @@ func addLifecycleTools(server *sdk.Server, service discoveryService) {
 		result, err := service.CancelOperation(callerToken(ctx), input.OperationID)
 		return lifecycleResponse(result, err)
 	})
+}
+
+func addMessagingTools(server *sdk.Server, service messagingService) {
+	sdk.AddTool(
+		server,
+		&sdk.Tool{
+			Name:        "send_message",
+			Description: "Send a short single-line prompt to a pinned live session activation. A successful submission means the marked prompt and Enter were written, not that the CLI processed it. Retries with the same request UUID are deduplicated.",
+		},
+		func(ctx context.Context, _ *sdk.CallToolRequest, input sendMessageInput) (*sdk.CallToolResult, lifecycleToolResponse, error) {
+			result, err := service.SendMessage(ctx, callerToken(ctx), input.RequestID, input.SessionID, input.ActivationID, input.Text)
+			return lifecycleResponse(result, err)
+		},
+	)
+	sdk.AddTool(
+		server,
+		&sdk.Tool{Name: "get_message", Description: "Read retained content and process-submission evidence for a message."},
+		func(ctx context.Context, _ *sdk.CallToolRequest, input messageInput) (*sdk.CallToolResult, any, error) {
+			result, err := service.GetMessage(callerToken(ctx), input.MessageID)
+			if err != nil {
+				return messageError(err)
+			}
+			return nil, map[string]any{"message": result}, nil
+		},
+	)
+	sdk.AddTool(
+		server,
+		&sdk.Tool{
+			Name:        "report_reply",
+			Description: "Persist an explicit completed, question, or blocked report for a message assigned to this activation. Use a stable request UUID for retries.",
+		},
+		func(ctx context.Context, _ *sdk.CallToolRequest, input reportReplyInput) (*sdk.CallToolResult, any, error) {
+			result, err := service.ReportReply(callerToken(ctx), input.RequestID, input.MessageID, input.Kind, input.Text)
+			if err != nil {
+				return messageError(err)
+			}
+			return nil, map[string]any{"reply": result}, nil
+		},
+	)
+	sdk.AddTool(
+		server,
+		&sdk.Tool{
+			Name:        "get_replies",
+			Description: "Retrieve explicit correlated reports with a bounded cursor page. Empty results and timeouts do not imply completion; cursor gaps may repeat retained reply IDs.",
+		},
+		func(ctx context.Context, _ *sdk.CallToolRequest, input repliesInput) (*sdk.CallToolResult, any, error) {
+			result, err := service.GetReplies(
+				ctx,
+				callerToken(ctx),
+				input.MessageID,
+				input.Cursor,
+				input.Limit,
+				time.Duration(input.WaitSeconds)*time.Second,
+			)
+			if err != nil {
+				return messageError(err)
+			}
+			return nil, result, nil
+		},
+	)
+}
+
+func messageError(err error) (*sdk.CallToolResult, any, error) {
+	rejected := api.SafeRejection(err)
+	payload := requestRejection{Code: rejected.Code, Message: rejected.Message}
+	encoded, marshalErr := json.Marshal(payload)
+	if marshalErr != nil {
+		return nil, nil, marshalErr
+	}
+	return &sdk.CallToolResult{
+		IsError: true,
+		Content: []sdk.Content{&sdk.TextContent{Text: string(encoded)}},
+	}, map[string]any{
+		"error": payload,
+	}, nil
 }
 
 func callerToken(ctx context.Context) string {

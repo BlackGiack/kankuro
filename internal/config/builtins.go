@@ -7,7 +7,8 @@ import (
 
 const (
 	// BuiltinSkillMCPCLI is the stable ID for the built-in mcp-cli skill.
-	BuiltinSkillMCPCLI = "builtin:mcp-cli"
+	BuiltinSkillMCPCLI        = "builtin:mcp-cli"
+	BuiltinSkillKankuroPuppet = "builtin:kankuro-puppet"
 	// BuiltinMCPKankuro is the stable selectable ID for Kankuro's MCP endpoint.
 	BuiltinMCPKankuro = "builtin:kankuro"
 )
@@ -44,6 +45,13 @@ var builtinMCPCLISkill struct {
 	content []byte
 }
 
+//nolint:gochecknoglobals // Startup-injected skill content is shared process configuration.
+var builtinPuppetSkill struct {
+	sync.RWMutex
+
+	content []byte
+}
+
 // SetBuiltinMCPCLISkillContent sets process-wide content supplied by main at startup.
 // It clones the input so the embedding owner cannot mutate config's shared bytes.
 func SetBuiltinMCPCLISkillContent(content []byte) {
@@ -56,6 +64,13 @@ func SetBuiltinMCPCLISkillContent(content []byte) {
 	builtinMCPCLISkill.content = slices.Clone(content)
 }
 
+// SetBuiltinKankuroPuppetSkillContent installs embedded protocol guidance.
+func SetBuiltinKankuroPuppetSkillContent(content []byte) {
+	builtinPuppetSkill.Lock()
+	defer builtinPuppetSkill.Unlock()
+	builtinPuppetSkill.content = slices.Clone(content)
+}
+
 // BuiltinSkills returns all built-in skill entries.
 func BuiltinSkills() []Skill {
 	return []Skill{
@@ -63,6 +78,12 @@ func BuiltinSkills() []Skill {
 			ID:          BuiltinSkillMCPCLI,
 			Name:        "mcp-cli",
 			Description: "Interface for MCP (Model Context Protocol) servers via CLI",
+			Builtin:     true,
+		},
+		{
+			ID:          BuiltinSkillKankuroPuppet,
+			Name:        "kankuro-puppet",
+			Description: "Receive Kankuro messages and send explicit correlated reports",
 			Builtin:     true,
 		},
 	}
@@ -87,15 +108,18 @@ func GetBuiltinSkill(id string) (Skill, bool) {
 
 // GetBuiltinSkillContent returns the injected content for a built-in skill by name.
 func GetBuiltinSkillContent(name string) ([]byte, bool) {
-	if name != "mcp-cli" {
+	switch name {
+	case "mcp-cli":
+		builtinMCPCLISkill.RLock()
+		defer builtinMCPCLISkill.RUnlock()
+		return slices.Clone(builtinMCPCLISkill.content), len(builtinMCPCLISkill.content) > 0
+	case "kankuro-puppet":
+		builtinPuppetSkill.RLock()
+		defer builtinPuppetSkill.RUnlock()
+		return slices.Clone(builtinPuppetSkill.content), len(builtinPuppetSkill.content) > 0
+	default:
 		return nil, false
 	}
-	builtinMCPCLISkill.RLock()
-	defer builtinMCPCLISkill.RUnlock()
-	if len(builtinMCPCLISkill.content) == 0 {
-		return nil, false
-	}
-	return slices.Clone(builtinMCPCLISkill.content), true
 }
 
 // MergeBuiltinSkills merges built-in skills into the provided skill list.

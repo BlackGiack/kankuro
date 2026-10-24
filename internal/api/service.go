@@ -80,6 +80,8 @@ type SessionInspection struct {
 	SubWorkspaces                 []session.SubWorkspaceDescriptor         `json:"sub_workspaces"`
 	SubWorkspaceMetadataAvailable bool                                     `json:"sub_workspace_metadata_available"`
 	ActiveConversationID          string                                   `json:"active_conversation_id,omitempty"`
+	ActivationID                  string                                   `json:"activation_id"`
+	KankuroMCPEnabled             bool                                     `json:"kankuro_mcp_enabled"`
 	Registration                  session.RegistrationState                `json:"registration"`
 	RegistrationPersistence       session.RegistrationPersistence          `json:"registration_persistence"`
 }
@@ -87,6 +89,7 @@ type SessionInspection struct {
 // CallerContext identifies the authenticated caller separately from discovered targets.
 type CallerContext struct {
 	SessionID        string `json:"session_id"`
+	ActivationID     string `json:"activation_id"`
 	DashboardID      string `json:"dashboard_id"`
 	DashboardControl bool   `json:"dashboard_control"`
 }
@@ -240,7 +243,7 @@ func (s *Service) ResolveCaller(token string) (CallerContext, error) {
 		return CallerContext{}, reject("forbidden", "caller activation is not authorized for dashboard control")
 	}
 	return CallerContext{
-		SessionID: identity.SessionID, DashboardID: s.scope.DashboardForSession(identity.SessionID),
+		SessionID: identity.SessionID, ActivationID: identity.ActivationID, DashboardID: s.scope.DashboardForSession(identity.SessionID),
 		DashboardControl: true,
 	}, nil
 }
@@ -431,6 +434,7 @@ func (s *Service) GetSession(token, id string) (SessionInspection, error) {
 		UseTmpWorkspace: item.UseTmpWorkspace, Conversations: conversations,
 		SubWorkspaces: subWorkspaces, SubWorkspaceMetadataAvailable: metadataAvailable,
 		ActiveConversationID: item.ActiveConversationID, Registration: item.Registration,
+		ActivationID: item.ActivationID, KankuroMCPEnabled: item.KankuroMCPEnabled,
 		RegistrationPersistence: item.RegistrationPersistence,
 	}, nil
 }
@@ -496,17 +500,19 @@ func (s *Service) resolveCapabilities(card config.IDCard) (cardBundle, error) {
 }
 
 func appendKankuroAccessSkill(card config.IDCard, bundle *cardBundle, skills []config.Skill) {
-	if slices.Contains(card.SkillIDs, config.BuiltinSkillMCPCLI) {
-		return
-	}
 	for _, mcp := range bundle.MCPs {
 		if mcp.ID != config.BuiltinMCPKankuro {
 			continue
 		}
-		for _, skill := range skills {
-			if skill.ID == config.BuiltinSkillMCPCLI {
-				bundle.Skills = append(bundle.Skills, skill)
-				return
+		for _, builtinID := range []string{config.BuiltinSkillMCPCLI, config.BuiltinSkillKankuroPuppet} {
+			if slices.Contains(card.SkillIDs, builtinID) {
+				continue
+			}
+			for _, skill := range skills {
+				if skill.ID == builtinID {
+					bundle.Skills = append(bundle.Skills, skill)
+					break
+				}
 			}
 		}
 	}

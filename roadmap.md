@@ -92,16 +92,18 @@ a factory, come after the capabilities work well on the existing dashboard.
 ### Communication and user-defined workflows
 
 - Terminal `waiting` is a heuristic observation, not proof that work is complete.
-- Expose input delivery and output inspection with clear semantics. Users may
-  arrange explicit reports or handoff files; Kankuro must not infer workflow success
-  from terminal silence or impose implementation/review/completion stages.
+- Deliver orchestrator prompts through coordinated recipient input and return
+  explicit, correlated reports through MCP. Submission does not prove processing,
+  and a missing report remains unanswered.
+- Reports may be `completed`, `question`, or `blocked`; they describe what an agent
+  reports and do not impose implementation/review stages or automatic transitions.
 - Artifacts can remain in the managed session's workspace. The orchestrator does
   not generally need the code copied into its own workspace.
 - Git/GitLab may be used by agents when a workflow requires it. Automatic patch
   transfer, remote Git integration, and local merge automation are not prerequisites.
-- Raw terminal output is useful for inspection but is not necessarily the current
-  visible screen. Output-reading APIs must state what they actually return.
-- Provide clear MCP tool descriptions and, only if needed, a small usage skill.
+- Raw terminal output and previews remain human-facing inspection surfaces, not an
+  orchestrator communication channel. Provide clear MCP tool descriptions and the
+  built-in messaging protocol skill.
   Workflow policies and orchestrator behavior remain under user control.
 
 ### Deletion
@@ -192,8 +194,8 @@ instructions. No transfer into its workspace or built-in workflow engine is need
   and concurrent lifecycle operations without duplicate work or lost bindings.
 - Define recovery of session metadata and conversation bindings after restart, respecting the current rule
   that processes stop when Kankuro exits.
-- Provide bounded output inspection with explicit truncation/gap behavior; do not
-  treat lossy preview subscriptions as a reliable communication channel.
+- Persist bounded explicit replies with cursor gap behavior; do not treat lossy
+  preview subscriptions or terminal silence as proof of communication or completion.
 - Show managed session activity independently of the orchestrator, and make
   session state and operation failures understandable on the existing dashboard.
 - Verify deletion, manual intervention, registration failure, and resume failure
@@ -253,7 +255,7 @@ more than one execution session; these briefs do not prescribe implementation pl
 | 2 | [Native conversation continuity and minimal MCP](feature_2.md) | Checkpoint 1 |
 | 3 | [Session ancestry and subtree lifecycle](feature_3.md) | Canceled; skip to feature 4 after feature 2 |
 | 4 | [MCP discovery and session lifecycle control](feature_4.md) | Checkpoint 2 lifecycle tools |
-| 5 | [Session input and bounded output inspection](feature_5.md) | Checkpoint 2 communication tools |
+| 5 | [MCP message delivery and explicit replies](feature_5.md) | Checkpoint 2 communication tools |
 | 6 | [Validate and harden user-defined orchestration](feature_6.md) | Checkpoints 3 and 4 |
 | 7 | [Multiple dashboards for independent factories](feature_7.md) | Checkpoint 5; deferred until feature 6 is accepted |
 

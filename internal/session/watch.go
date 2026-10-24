@@ -45,6 +45,7 @@ func (m *Manager) watch(sessionID string, gen uint64, d driver.AgentDriver) {
 		}
 		if status == driver.StatusTerminated {
 			s.Status = StatusTerminated
+			m.cancelPendingMessageAdmissionsLocked(s)
 			s.Pinged = false
 			if s.Registration == RegistrationPending {
 				s.Registration = RegistrationUnconfirmed
@@ -56,6 +57,9 @@ func (m *Manager) watch(sessionID string, gen uint64, d driver.AgentDriver) {
 			m.persistSessionLocked(s)
 			m.closeSubscribersLocked(sessionID)
 			m.mu.Unlock()
+			if m.messages != nil {
+				m.messages.Wake()
+			}
 			return
 		}
 		if s.Registration == RegistrationPending && time.Since(s.RegistrationAt) >= 60*time.Second {

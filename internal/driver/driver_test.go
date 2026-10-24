@@ -2,6 +2,7 @@ package driver_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -35,6 +36,25 @@ func TestSetModel(t *testing.T) {
 	args := d.SetModel("opus")
 	if len(args) != 2 || args[0] != "--model" || args[1] != "opus" {
 		t.Fatalf("unexpected SetModel result: %v", args)
+	}
+}
+
+func TestSubmitPromptValidatesAndSubmitsMarkedLine(t *testing.T) {
+	d, _, output := spawnScript(t, "cat", nil)
+	evidence, err := d.SubmitPrompt(context.Background(), "message-1", "sender-1", "inspect README")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if evidence.State != driver.SubmissionComplete || evidence.BytesWritten == 0 {
+		t.Fatalf("submission evidence = %#v", evidence)
+	}
+	waitForMatch(t, output, "marked prompt", func(value string) bool {
+		return strings.Contains(value, "message_id=message-1 from_session=sender-1") && strings.Contains(value, "inspect README")
+	})
+	for _, invalid := range []string{"", "two\nlines", "escape\x1b[31m", "control\x00byte"} {
+		if _, submitErr := d.SubmitPrompt(context.Background(), "message-2", "sender-1", invalid); submitErr == nil {
+			t.Errorf("SubmitPrompt(%q) succeeded", invalid)
+		}
 	}
 }
 

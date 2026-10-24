@@ -32,6 +32,19 @@ type discoveryRegistrar struct {
 	lastRequestID string
 }
 
+func (r *discoveryRegistrar) SendMessage(context.Context, string, string, string, string, string) (api.OperationResult, error) {
+	return api.OperationResult{}, nil
+}
+func (r *discoveryRegistrar) GetMessage(string, string) (api.MessageRecord, error) {
+	return api.MessageRecord{}, nil
+}
+func (r *discoveryRegistrar) ReportReply(string, string, string, string, string) (api.MessageReply, error) {
+	return api.MessageReply{}, nil
+}
+func (r *discoveryRegistrar) GetReplies(context.Context, string, string, string, int, time.Duration) (api.ReplyPage, error) {
+	return api.ReplyPage{}, nil
+}
+
 func (r *discoveryRegistrar) ResolveCaller(string) (api.CallerContext, error) {
 	return api.CallerContext{SessionID: "caller", DashboardID: api.DefaultDashboardID, DashboardControl: true}, nil
 }
@@ -231,6 +244,7 @@ func TestMCPRegistersLifecycleAndDiscoveryTools(t *testing.T) {
 	want := map[string]bool{"register_conversation": false, "list_cards": false, "list_sessions": false, "get_session": false,
 		"create_session": false, "stop_session": false, "relaunch_session": false, "switch_session_card": false,
 		"delete_session": false, "get_operation": false, "cancel_operation": false}
+	want["send_message"], want["get_message"], want["report_reply"], want["get_replies"] = false, false, false, false
 	for _, tool := range listed.Tools {
 		if _, ok := want[tool.Name]; ok {
 			want[tool.Name] = true
@@ -306,7 +320,12 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 		t.Fatal(skillReadErr)
 	}
 	config.SetBuiltinMCPCLISkillContent(skillContent)
-	t.Cleanup(func() { config.SetBuiltinMCPCLISkillContent(nil) })
+	puppetContent, puppetReadErr := os.ReadFile("../../kankuro_skills/kankuro-puppet/SKILL.md")
+	if puppetReadErr != nil {
+		t.Fatal(puppetReadErr)
+	}
+	config.SetBuiltinKankuroPuppetSkillContent(puppetContent)
+	t.Cleanup(func() { config.SetBuiltinMCPCLISkillContent(nil); config.SetBuiltinKankuroPuppetSkillContent(nil) })
 	configDir := t.TempDir()
 	t.Setenv("KANKURO_TMP_DIR", filepath.Join(configDir, "tmp"))
 	repository, setupErr := config.NewFileRepository(configDir)
@@ -500,6 +519,54 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	}
 	targetToken := readMCPBearer(t, filepath.Join(workingDir, ".kankuro", "mcp-servers.json"))
 	targetClientSession := connectAgent(targetToken)
+	targetInspection, inspectTargetErr := service.GetSession(token, targetID)
+	if inspectTargetErr != nil {
+		t.Fatal(inspectTargetErr)
+	}
+	messageID := "mcp-error-contract-message"
+	if _, createMessageErr := manager.Messages().CreateIntent(session.MessageRecord{
+		ID: messageID, DashboardID: api.DefaultDashboardID, SenderSessionID: "controller",
+		RecipientSessionID: targetID, RecipientActivationID: targetInspection.ActivationID, Text: "report through MCP",
+	}, uuid.NewString(), session.SendFingerprint(targetID, targetInspection.ActivationID, "report through MCP")); createMessageErr != nil {
+		t.Fatal(createMessageErr)
+	}
+	malformedCursor, malformedCursorErr := clientSession.CallTool(ctx, &sdk.CallToolParams{
+		Name: "get_replies", Arguments: map[string]any{"message_id": messageID, "cursor": "%%%", "limit": 10},
+	})
+	if malformedCursorErr != nil {
+		t.Fatal(malformedCursorErr)
+	}
+	assertMCPErrorCode(t, malformedCursor, "invalid_cursor")
+	missingMessage, missingMessageErr := clientSession.CallTool(ctx, &sdk.CallToolParams{
+		Name: "get_message", Arguments: map[string]any{"message_id": "missing-message"},
+	})
+	if missingMessageErr != nil {
+		t.Fatal(missingMessageErr)
+	}
+	assertMCPErrorCode(t, missingMessage, "history_unavailable")
+	invalidWait, invalidWaitErr := clientSession.CallTool(ctx, &sdk.CallToolParams{
+		Name: "get_replies", Arguments: map[string]any{"message_id": messageID, "wait_seconds": 11},
+	})
+	if invalidWaitErr != nil {
+		t.Fatal(invalidWaitErr)
+	}
+	assertMCPErrorCode(t, invalidWait, "invalid_request")
+	reportRequestID := uuid.NewString()
+	firstReport, firstReportErr := targetClientSession.CallTool(ctx, &sdk.CallToolParams{
+		Name: "report_reply", Arguments: map[string]any{"request_id": reportRequestID, "message_id": messageID,
+			"kind": "completed", "text": "done"},
+	})
+	if firstReportErr != nil || firstReport == nil || firstReport.IsError {
+		t.Fatalf("first correlated report failed: result=%#v err=%v", firstReport, firstReportErr)
+	}
+	changedReport, changedReportErr := targetClientSession.CallTool(ctx, &sdk.CallToolParams{
+		Name: "report_reply", Arguments: map[string]any{"request_id": reportRequestID, "message_id": messageID,
+			"kind": "completed", "text": "different report"},
+	})
+	if changedReportErr != nil {
+		t.Fatal(changedReportErr)
+	}
+	assertMCPErrorCode(t, changedReport, "request_id_conflict")
 	deniedLifecycle, deniedLifecycleErr := targetClientSession.CallTool(ctx, &sdk.CallToolParams{
 		Name: "create_session", Arguments: map[string]any{"request_id": uuid.NewString(), "card_id": secondCard.ID},
 	})
@@ -669,6 +736,28 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	deleteReplay := call("delete_session", map[string]any{"request_id": deleteRequestID, "session_id": targetID})
 	if deleteReplay.Operation.ID != deleted.Operation.ID || !deleteReplay.Operation.Result.TemporaryWorkspaceRemoved {
 		t.Fatalf("partial delete replay changed its saved effects: %#v", deleteReplay.Operation)
+	}
+}
+
+func assertMCPErrorCode(t *testing.T, result *sdk.CallToolResult, want string) {
+	t.Helper()
+	if result == nil || !result.IsError {
+		t.Fatalf("MCP result = %#v, want error code %q", result, want)
+	}
+	encoded, err := json.Marshal(result.StructuredContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rejection struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err = json.Unmarshal(encoded, &rejection); err != nil {
+		t.Fatalf("decode MCP rejection %s: %v", encoded, err)
+	}
+	if rejection.Error.Code != want {
+		t.Fatalf("MCP error code = %q, want %q (payload %s)", rejection.Error.Code, want, encoded)
 	}
 }
 
