@@ -241,7 +241,7 @@ func newReviewMessagingManager(t *testing.T) (*Manager, string, string, string, 
 	if err != nil || len(workspaces) != 1 {
 		t.Fatalf("list workspaces: %v", err)
 	}
-	manager := NewManager(repository.Dir(), repository)
+	manager := NewManager(repository.Dir(), repository, WithStartupDelay(0))
 	manager.SetMCPEndpoint("http://127.0.0.1:12345/mcp")
 	t.Cleanup(func() { manager.Shutdown() })
 	callerCard, err := repository.CreateIDCard(config.IDCard{ID: "review-controller", Name: "controller", Driver: "cat",

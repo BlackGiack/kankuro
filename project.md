@@ -244,6 +244,18 @@ Partial writes are uncertain and may leave input-buffer residue. The
 `kankuro-puppet` skill is deployed alongside `mcp-cli` whenever Kankuro MCP is
 selected; its first instruction is native conversation discovery and registration.
 
+### CLI startup
+
+New PTYs start at 80×24 until attachment supplies a different size. Before
+spawn, Codex and Claude prepare trust for the actual working directory. All
+drivers then wait ten seconds after spawn before publishing the activation.
+Startup output is retained in bounded scrollback; no output is interpreted as a
+readiness signal and no confirmation keys are sent. Cancellation, process exit,
+or manager shutdown aborts startup and kills the unpublished process. The fixed
+pause is a pragmatic policy, not a readiness guarantee. Native conversation
+registration can be staged during startup but does not make the activation
+eligible for delivery before publication.
+
 ### A session's life
 
 1. **Launch** (`Manager.Launch` → `startSession`): resolve the workspace; create the
@@ -252,9 +264,8 @@ selected; its first instruction is native conversation discovery and registratio
    `<agent folder>/agents/`); resolve the complete selected MCP list and atomically
    replace `<WorkingDir>/.kankuro/mcp-servers.json` before spawn. When selected, built-in
    `kankuro` receives the loopback endpoint and a fresh activation bearer credential in
-   that file. The built-in `mcp-cli` and `kankuro-puppet` skills and managed
-   registration block use the same
-   workspace-relative path. Legacy path/token environment variables are stripped from
+   that file. The built-in `mcp-cli` and `kankuro-puppet` skills use that
+   workspace-relative path for registration guidance. Legacy path/token environment variables are stripped from
    parent/card env and never injected. Spawn the CLI in a PTY, start the `watch` and
    `trackOutput` goroutines, and write the session record.
    Instruction sync has three explicit modes: a new temporary workspace appends to
@@ -813,3 +824,33 @@ skill and places its current endpoint/credential in the workspace MCP config.
 | `kankuro_specs.md` | Product specification: concepts, roadmap, UI and keys. §5.1 is the manual-testing setup. |
 | `crow_puppet_theme.md` | The colour palette used in `ui/styles`. |
 | `.leftover/` | Hand-off notes from earlier sessions. Historical. |
+
+### Session startup trust and publication
+
+Before spawning a new, relaunched, or switched session, the selected driver prepares
+trust for the session's actual working directory, including a temporary copy. Codex
+updates `~/.codex/config.toml` under `projects.<absolute path>.trust_level` to
+`trusted`; Claude updates the `trustedDirectories` array in
+`~/.claude/settings.json`. Generic drivers make no trust change. These are
+persistent user-level trust grants for exactly that directory. Configuration is
+parsed and preserved structurally; TOML comments and formatting may change. Invalid
+configuration and write failures abort startup without truncating the original.
+Updates use a restrictive sibling temporary file and atomic rename, retaining an
+existing file's permissions. A process-local lock serializes Kankuro updates, but
+other processes are not covered by that lock.
+
+After a successful spawn, activation publication and MCP delivery wait ten seconds.
+This fixed pause is a pragmatic initial policy, adds latency even to trusted
+workspaces, and is not a readiness guarantee. Startup output is retained for the
+session; cancellation, shutdown, or process exit aborts the activation. Registration
+guidance is supplied by the deployed `kankuro-puppet` skill when Kankuro MCP is
+selected, rather than injected into the workspace instruction file. Normal
+instruction synchronization removes legacy Kankuro registration blocks.
+
+Deleting a temporary session first removes its exact saved working-directory trust
+from both Codex and Claude, including grants from earlier card switches. If either
+configuration cannot be updated, deletion stops and the session remains available
+to retry after fixing the configuration; one CLI's cleanup may already have
+succeeded. Failed new temporary activations also attempt trust cleanup and report
+the exact path for manual removal if it fails. Non-temporary deletion does not
+remove trust.

@@ -16,7 +16,8 @@ type stubDriver struct{}
 func (s *stubDriver) Spawn(_ driver.AgentConfig) (*driver.SessionHandle, error) {
 	return nil, errStubSpawn
 }
-func (s *stubDriver) Kill() error { return nil }
+func (s *stubDriver) PrepareWorkspace(_ context.Context, _ string) error { return nil }
+func (s *stubDriver) Kill() error                                        { return nil }
 
 func (s *stubDriver) SetAgentsMD(
 	_ config.IDCard,

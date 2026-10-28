@@ -79,6 +79,7 @@ type SessionHandle struct {
 }
 
 type AgentDriver interface {
+	PrepareWorkspace(ctx context.Context, workingDir string) error
 	Spawn(config AgentConfig) (*SessionHandle, error)
 	Kill() error
 
@@ -244,11 +245,7 @@ func syncInstructionFile(
 	if len(mcps) > 0 {
 		content = appendMCPInstruction(content, mcps)
 	}
-	if hasKankuroMCP(mcps) {
-		content = withConversationInstructions(content)
-	} else {
-		content = removeConversationInstructionBlock(content)
-	}
+	content = removeConversationInstructionBlock(content)
 
 	if content == "" {
 		if mode != InstructionReplace {
@@ -261,15 +258,6 @@ func syncInstructionFile(
 		return false, writeErr
 	}
 	return true, nil
-}
-
-func hasKankuroMCP(mcps []config.MCPServer) bool {
-	for _, mcp := range mcps {
-		if mcp.ID == config.BuiltinMCPKankuro {
-			return true
-		}
-	}
-	return false
 }
 
 func removeConversationInstructionBlockFromFile(dir, filename string) error {
@@ -295,24 +283,13 @@ func removeConversationInstructionBlockFromFile(dir, filename string) error {
 const conversationInstructionStart = "<!-- KANKURO CONVERSATION INSTRUCTIONS START -->"
 const conversationInstructionEnd = "<!-- KANKURO CONVERSATION INSTRUCTIONS END -->"
 
-// withConversationInstructions replaces only Kankuro's managed block, leaving
-// card-authored instructions and their existing append/replace behavior intact.
-func withConversationInstructions(content string) string {
-	content = removeConversationInstructionBlock(content)
-	block := conversationInstructionStart + "\nWhen a native conversation ID is available, discover the CLI's actual ID and a meaningful name, then register it with Kankuro using `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call kankuro register_conversation`. Run this from the workspace root; if you changed into a subdirectory, return to the workspace root first. Report only an ID confirmed by the CLI. Retry the same report after one second, up to five times, if activation is still starting." + "\n" + conversationInstructionEnd
-	if content == "" {
-		return block
-	}
-	return content + "\n\n" + block
-}
-
 func removeConversationInstructionBlock(content string) string {
 	start := strings.Index(content, conversationInstructionStart)
 	if start >= 0 {
 		end := strings.Index(content[start:], conversationInstructionEnd)
 		if end >= 0 {
-			before := strings.TrimSuffix(content[:start], "\n\n")
-			after := strings.TrimPrefix(content[start+end+len(conversationInstructionEnd):], "\n\n")
+			before := content[:start]
+			after := content[start+end+len(conversationInstructionEnd):]
 			content = before + after
 		}
 	}

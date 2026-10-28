@@ -428,3 +428,51 @@ func TestMessagingErrorsHaveStableInputAndRetryCodes(t *testing.T) {
 		t.Fatal("safe storage rejection exposed filesystem diagnostics")
 	}
 }
+
+//nolint:govet // Error variables are scoped to individual test assertions.
+func TestDeleteSessionReportsTrustCleanupWarningAndAllowsRetry(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	h := newMessagingHarness(t)
+	card := saveCard(
+		t,
+		h.repo.FileRepository,
+		config.IDCard{
+			ID:              "temporary-review",
+			Name:            "temporary",
+			Driver:          "cat",
+			WorkspaceID:     h.callerCard.WorkspaceID,
+			UseTmpWorkspace: true,
+		},
+	)
+	id, err := h.service.Launch(card)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.manager.Kill(id); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(home, ".claude", "settings.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("{"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := h.service.DeleteSession(context.Background(), h.callerToken, uuid.NewString(), id)
+	if err != nil || result.State != OperationSucceededWithWarning || !strings.Contains(result.Warning, "retry deletion") ||
+		result.Result == nil ||
+		result.Result.InMemoryRemoved {
+		t.Fatalf("unexpected deletion result: %#v, %v", result, err)
+	}
+	if _, ok := h.manager.GetSession(id); !ok {
+		t.Fatal("session lost after trust cleanup failure")
+	}
+	if err := os.WriteFile(path, []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	result, err = h.service.DeleteSession(context.Background(), h.callerToken, uuid.NewString(), id)
+	if err != nil || result.State != OperationSucceeded || result.Result == nil || !result.Result.InMemoryRemoved {
+		t.Fatalf("retry failed: %#v, %v", result, err)
+	}
+}

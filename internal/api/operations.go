@@ -345,6 +345,13 @@ func (s *Service) SwitchSessionCard(
 func (s *Service) DeleteSession(ctx context.Context, token, requestID, sessionID string) (OperationResult, error) {
 	apply := func(context.Context) (lifecycleEffects, error) {
 		result, err := s.sessions.RemoveDetailed(sessionID)
+		if errors.Is(err, session.ErrTrustCleanup) {
+			return lifecycleEffects{
+				SessionID: sessionID,
+			}, operationWarningError{
+				"temporary workspace trust cleanup may be incomplete; session retained: fix the CLI configuration and retry deletion",
+			}
+		}
 		if err != nil && result.InMemoryRemoved {
 			return lifecycleEffects{SessionID: sessionID, InMemoryRemoved: result.InMemoryRemoved,
 					SessionRecordDeleted:      result.SessionRecordDeleted,
@@ -861,12 +868,21 @@ func (r *OperationRunner) completeLocked(op *Operation, task operationTask, resu
 	r.finishLocked(op)
 }
 
+//nolint:funlen // Lifecycle outcomes are mapped together for consistent transport semantics.
 func (r *OperationRunner) setOperationOutcome(op *Operation, task operationTask, err error) {
 	var warning operationWarningError
+	var cleanupErr *session.TemporaryTrustCleanupError
 	switch {
 	case errors.As(err, &warning):
 		op.State = OperationSucceededWithWarning
 		op.Warning = warning.message
+	case errors.As(err, &cleanupErr):
+		op.State = OperationFailed
+		op.ErrorCode = "trust_cleanup_failed"
+		op.ErrorMessage = fmt.Sprintf(
+			"startup failed and temporary workspace trust cleanup may be incomplete; fix CLI configuration and remove the exact path %q manually",
+			cleanupErr.WorkingDir,
+		)
 	case errors.Is(err, session.ErrPersistFailed):
 		op.State = OperationSucceededWithWarning
 		op.Warning = "activation started but session metadata was not saved"

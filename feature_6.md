@@ -68,3 +68,13 @@ Provide a concise handoff with changed contracts, verification results, known
 limitations, and unresolved decisions. Update this brief's status to reflect the
 actual outcome; implementation complete and integration review accepted are
 separate states. Resolve review findings before starting dependent features.
+
+### Startup integration finding
+
+Real workflow validation identified CLI workspace trust prompts as a possible
+obstacle to early orchestrator messages. Startup now prepares the actual workspace
+trust in the selected CLI configuration before spawn and delays activation
+publication for ten seconds after spawn. This pause is a pragmatic policy rather
+than a readiness guarantee. Registration instructions are supplied through the
+Kankuro puppet skill, with legacy injected instruction blocks removed during normal
+synchronization. This fix alone does not complete Feature 6 workflow validation.

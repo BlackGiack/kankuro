@@ -147,7 +147,7 @@ func newServiceFixture(t *testing.T, managerOptions ...session.Option) (*Service
 		t.Fatalf("list workspaces: %v (%d)", err, len(workspaces))
 	}
 	repo := &testRepository{FileRepository: base}
-	sessions := session.NewManager(repoDir, repo, managerOptions...)
+	sessions := session.NewManager(repoDir, repo, append(managerOptions, session.WithStartupDelay(0))...)
 	t.Cleanup(func() { sessions.Shutdown() })
 	return New(repo, sessions), repo, sessions, workspace, workspaces[0].ID
 }

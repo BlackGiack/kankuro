@@ -34,7 +34,24 @@ var (
 	ErrLifecycleConflict          = errors.New("session lifecycle conflict")
 	ErrSessionNotFound            = errors.New("session not found")
 	ErrWorkspaceUnavailable       = errors.New("saved session workspace is unavailable")
+	ErrTrustCleanup               = errors.New("temporary workspace trust cleanup failed")
 )
+
+// TemporaryTrustCleanupError identifies a failed rollback with no saved session
+// to retry. The exact path is needed to remove a remaining grant manually.
+type TemporaryTrustCleanupError struct {
+	WorkingDir string
+	Err        error
+}
+
+func (e *TemporaryTrustCleanupError) Error() string {
+	return fmt.Sprintf(
+		"remove trust for failed temporary workspace %q; fix the CLI configuration and remove this path manually: %v",
+		e.WorkingDir,
+		e.Err,
+	)
+}
+func (e *TemporaryTrustCleanupError) Unwrap() error { return e.Err }
 
 // syncDriverFiles clears temp directories (if needed) and syncs skill/persona/MCP files.
 func (m *Manager) syncDriverFiles(
@@ -433,6 +450,12 @@ func (m *Manager) SwitchAgentWithChoiceContext(
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return ctxErr
 	}
+	if prepareErr := d.PrepareWorkspace(ctx, finalWD); prepareErr != nil {
+		return prepareErr
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
 	args := append(d.SetModel(card.Model), d.SetSession(conversationID)...)
 	h, errSpawn := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,
@@ -446,6 +469,12 @@ func (m *Manager) SwitchAgentWithChoiceContext(
 		return errSpawn
 	}
 
+	startupOutput, waitErr := m.startupWait(ctx, m.shutdownStart, h.Done, h.Output)
+	if waitErr != nil {
+		go drainStartupOutput(h.Output)
+		return errors.Join(waitErr, d.Kill())
+	}
+
 	now := time.Now().UTC()
 	pid := 0
 	if h.Cmd != nil && h.Cmd.Process != nil {
@@ -455,6 +484,7 @@ func (m *Manager) SwitchAgentWithChoiceContext(
 	m.mu.Lock()
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		m.mu.Unlock()
+		go drainStartupOutput(h.Output)
 		return errors.Join(ctxErr, d.Kill())
 	}
 	if m.closed {
@@ -463,16 +493,28 @@ func (m *Manager) SwitchAgentWithChoiceContext(
 		// lock (Kill can block on teardown). The deferred releaseActivation
 		// runs after this return.
 		m.mu.Unlock()
+		go drainStartupOutput(h.Output)
 		_ = d.Kill()
 		return ErrManagerClosed
 	}
-	defer m.mu.Unlock()
 	s, ok := m.sessions[id]
 	if !ok {
-		return fmt.Errorf("%w: %s", ErrSessionNotFound, id)
+		m.mu.Unlock()
+		go drainStartupOutput(h.Output)
+		return errors.Join(fmt.Errorf("%w: %s", ErrSessionNotFound, id), d.Kill())
 	}
+	select {
+	case <-h.Done:
+		m.mu.Unlock()
+		go drainStartupOutput(h.Output)
+		return errors.Join(errors.New("agent process exited during startup"), d.Kill())
+	default:
+	}
+	defer m.mu.Unlock()
 
 	m.activateSessionLocked(s, card, d, h, pid, now)
+	s.Scrollback = appendScrollback(s.Scrollback, startupOutput)
+	updateSessionOutputState(s, startupOutput, now)
 	s.InstructionOwnership = updateInstructionOwnership(snap.InstructionOwnership, instructionFile, instructionsManaged)
 	s.InstructionsManaged = instructionsManaged
 	s.KankuroMCPEnabled = token != ""
@@ -543,7 +585,7 @@ func validateSessionWorkspace(path string) error {
 // registration (Launch, or reserveForActivation for Relaunch), which is also
 // what guarantees Shutdown had not started when they began.
 //
-//nolint:funlen,gocognit // Workspace preparation, sync, spawn, publication, and persistence form one owned activation path.
+//nolint:funlen,gocognit,gocyclo,cyclop // Workspace preparation, sync, spawn, publication, and persistence form one owned activation path.
 func (m *Manager) startSession(
 	ctx context.Context,
 	sid string,
@@ -612,6 +654,18 @@ func (m *Manager) startSession(
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, ctxErr)
 	}
+	if err := d.PrepareWorkspace(ctx, finalWD); err != nil {
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, err)
+	}
+	if isNew && card.UseTmpWorkspace {
+		defer func() {
+			if !committedInstructions {
+				if trustErr := driver.RemoveWorkspaceTrust(context.Background(), finalWD); trustErr != nil {
+					returnErr = errors.Join(returnErr, &TemporaryTrustCleanupError{WorkingDir: finalWD, Err: trustErr})
+				}
+			}
+		}()
+	}
 	args := append(d.SetModel(card.Model), d.SetSession(conversationID)...)
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, ctxErr)
@@ -628,6 +682,12 @@ func (m *Manager) startSession(
 		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errSpawn)
 	}
 
+	startupOutput, waitErr := m.startupWait(ctx, m.shutdownStart, h.Done, h.Output)
+	if waitErr != nil {
+		go drainStartupOutput(h.Output)
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(waitErr, d.Kill()))
+	}
+
 	now := time.Now().UTC()
 	pid := 0
 	if h.Cmd != nil && h.Cmd.Process != nil {
@@ -637,13 +697,22 @@ func (m *Manager) startSession(
 	m.mu.Lock()
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		m.mu.Unlock()
+		go drainStartupOutput(h.Output)
 		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ctxErr, d.Kill()))
 	}
 	if m.closed {
 		// Shutdown started during the unlocked spawn; see SwitchAgent. A new
 		// session has no record, so nothing would ever point at its tmp copy.
 		m.mu.Unlock()
+		go drainStartupOutput(h.Output)
 		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ErrManagerClosed, d.Kill()))
+	}
+	select {
+	case <-h.Done:
+		m.mu.Unlock()
+		go drainStartupOutput(h.Output)
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(errors.New("agent process exited during startup"), d.Kill()))
+	default:
 	}
 	defer m.mu.Unlock()
 
@@ -683,6 +752,8 @@ func (m *Manager) startSession(
 		s.PendingAttachHeader = fmt.Appendf(nil, "\r\n--- Relaunched at %s ---\r\n\r\n",
 			now.Format(time.RFC3339))
 	}
+	s.Scrollback = appendScrollback(s.Scrollback, startupOutput)
+	updateSessionOutputState(s, startupOutput, now)
 	gen := s.generation
 
 	go m.trackOutput(sid, gen, h.Output)
@@ -907,6 +978,8 @@ type RemovalResult struct {
 }
 
 // RemoveDetailed reports each deletion effect independently.
+//
+//nolint:funlen // Reservation, retryable cleanup, and deletion form one transaction.
 func (m *Manager) RemoveDetailed(id string) (RemovalResult, error) {
 	m.mu.Lock()
 	s, ok := m.sessions[id]
@@ -937,7 +1010,21 @@ func (m *Manager) RemoveDetailed(id string) (RemovalResult, error) {
 	m.revokeSessionActivationLocked(s)
 	m.closeSubscribersLocked(id)
 	tmp := s.UseTmpWorkspace
+	workingDir := s.WorkingDir
 	m.mu.Unlock()
+
+	if tmp {
+		if trustErr := driver.RemoveWorkspaceTrust(context.Background(), workingDir); trustErr != nil {
+			m.mu.Lock()
+			s.deleting = false
+			m.mu.Unlock()
+			return RemovalResult{}, fmt.Errorf(
+				"%w: cleanup may be incomplete; session retained: fix the CLI configuration and retry deletion: %w",
+				ErrTrustCleanup,
+				trustErr,
+			)
+		}
+	}
 
 	sessionsDir := filepath.Join(m.configDir, "sessions")
 	deleteErr := deleteSession(sessionsDir, id)
@@ -1036,6 +1123,7 @@ func (m *Manager) Shutdown() int {
 	}
 	m.shutdownDone = make(chan struct{})
 	m.closed = true
+	close(m.shutdownStart)
 	var live []string
 	var activeSubmissions []chan struct{}
 	for admission := range m.messageAdmissions {

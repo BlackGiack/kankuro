@@ -34,6 +34,8 @@ func newStubKillDriver() *stubKillDriver {
 	return &stubKillDriver{}
 }
 
+func (d *stubKillDriver) PrepareWorkspace(_ context.Context, _ string) error { return nil }
+
 func (d *stubKillDriver) Spawn(_ driver.AgentConfig) (*driver.SessionHandle, error) {
 	d.output = make(chan []byte)
 	d.done = make(chan struct{})
@@ -549,6 +551,8 @@ type gateDriver struct {
 	done       chan struct{}
 	terminated atomic.Bool
 }
+
+func (d *gateDriver) PrepareWorkspace(_ context.Context, _ string) error { return nil }
 
 func (d *gateDriver) Spawn(_ driver.AgentConfig) (*driver.SessionHandle, error) {
 	d.spawns.Add(1)

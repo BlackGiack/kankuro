@@ -156,16 +156,11 @@ func TestManagedConversationInstructionsAreIdempotentInAppendMode(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Count(string(content), "KANKURO CONVERSATION INSTRUCTIONS START") != 1 {
+	if strings.Count(string(content), "KANKURO CONVERSATION INSTRUCTIONS START") != 0 {
 		t.Fatalf("managed instruction block duplicated: %q", content)
 	}
 	if !strings.Contains(string(content), "workspace instructions") || !strings.Contains(string(content), "card instructions") {
 		t.Fatalf("append behavior lost authored content: %q", content)
-	}
-	if !strings.Contains(string(content), "MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json") ||
-		strings.Contains(string(content), "Bearer ") || strings.Contains(string(content), "http://127.0.0.1") ||
-		strings.Contains(string(content), "KANKURO_MCP_CONFIG_PATH") {
-		t.Fatalf("managed block contains missing references or activation-specific secrets: %q", content)
 	}
 }
 
@@ -179,7 +174,7 @@ func TestManagedConversationInstructionsExistWithoutCardInstructions(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(content), "call kankuro register_conversation") {
+	if strings.Contains(string(content), "call kankuro register_conversation") {
 		t.Fatalf("empty card instruction did not receive managed conversation block: %q", content)
 	}
 }
@@ -443,5 +438,24 @@ func TestSetSkillsRejectsNonBuiltinWithEmptySource(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "no source directory") {
 		t.Fatalf("expected 'no source directory' error, got: %v", err)
+	}
+}
+
+func TestLegacyConversationBlockIsRemovedWithoutChangingSurroundingContent(t *testing.T) {
+	wd := t.TempDir()
+	path := filepath.Join(wd, "AGENTS.md")
+	before := "before\n<!-- KANKURO CONVERSATION INSTRUCTIONS START -->\nold\n<!-- KANKURO CONVERSATION INSTRUCTIONS END -->\nafter\n"
+	if err := os.WriteFile(path, []byte(before), 0600); err != nil {
+		t.Fatal(err)
+	}
+	d := driver.NewGenericCLIDriver()
+	for range 2 {
+		if _, err := d.SetAgentsMD(config.IDCard{}, nil, nil, wd, driver.InstructionPreserveWhenEmpty); err != nil {
+			t.Fatal(err)
+		}
+		got, err := os.ReadFile(path)
+		if err != nil || string(got) != "before\n\nafter\n" {
+			t.Fatalf("unexpected content %q: %v", got, err)
+		}
 	}
 }

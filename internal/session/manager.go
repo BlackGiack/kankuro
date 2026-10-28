@@ -210,6 +210,8 @@ type Manager struct {
 	// notices closed only afterwards must still get to kill its own process
 	// and remove its tmp copy before the app exits.
 	stop              chan struct{}
+	shutdownStart     chan struct{}
+	startupWait       func(context.Context, <-chan struct{}, <-chan struct{}, <-chan []byte) ([]byte, error)
 	stopOnce          sync.Once
 	watchers          sync.WaitGroup
 	activations       sync.WaitGroup
@@ -232,6 +234,18 @@ type WorkspaceCopier func(ctx context.Context, source, destination string) error
 // WithWorkspaceCopier injects the temporary-workspace copy operation.
 func WithWorkspaceCopier(copier WorkspaceCopier) Option {
 	return func(manager *Manager) { manager.workspaceCopier = copier }
+}
+
+// WithStartupWait overrides the post-spawn wait, primarily for deterministic tests.
+func WithStartupWait(wait func(context.Context, <-chan struct{}, <-chan struct{}, <-chan []byte) ([]byte, error)) Option {
+	return func(m *Manager) { m.startupWait = wait }
+}
+
+// WithStartupDelay sets the startup pause; zero is useful for tests.
+func WithStartupDelay(delay time.Duration) Option {
+	return WithStartupWait(func(ctx context.Context, shutdown, done <-chan struct{}, output <-chan []byte) ([]byte, error) {
+		return waitForStartupDuration(ctx, shutdown, done, output, delay)
+	})
 }
 
 // WithDriverRegistry sets a custom driver registry.
@@ -265,6 +279,8 @@ func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager
 		drivers:           driver.NewBuiltinRegistry(), // default builtin registry
 		logger:            slog.New(slog.DiscardHandler),
 		stop:              make(chan struct{}),
+		shutdownStart:     make(chan struct{}),
+		startupWait:       waitForStartup,
 		authorities:       make(map[string]*activationAuthority),
 		messageAdmissions: make(map[*MessageAdmission]struct{}),
 	}

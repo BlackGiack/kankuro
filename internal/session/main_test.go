@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 // watcher can write into it afterwards.
 func newTestManager(t testing.TB, configDir string, repo session.WorkspaceReader, opts ...session.Option) *session.Manager {
 	t.Helper()
-	sm := session.NewManager(configDir, repo, opts...)
+	sm := session.NewManager(configDir, repo, append([]session.Option{session.WithStartupDelay(0)}, opts...)...)
 	t.Cleanup(func() { sm.Shutdown() })
 	return sm
 }

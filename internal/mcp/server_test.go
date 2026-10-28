@@ -315,6 +315,7 @@ func TestMCPRegistersLifecycleAndDiscoveryTools(t *testing.T) {
 
 //nolint:gocognit,gocyclo,cyclop // One end-to-end scenario validates each lifecycle tool over the real HTTP boundary.
 func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	skillContent, skillReadErr := os.ReadFile("../../kankuro_skills/mcp-cli/SKILL.md")
 	if skillReadErr != nil {
 		t.Fatal(skillReadErr)
@@ -357,7 +358,7 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 		t.Fatalf("workspace %q not found in %#v", path, workspaces)
 		return ""
 	}
-	manager := session.NewManager(configDir, repository)
+	manager := session.NewManager(configDir, repository, session.WithStartupDelay(0))
 	t.Cleanup(func() { manager.Shutdown() })
 	service := api.New(repository, manager)
 	runner := api.NewOperationRunner(configDir, service)

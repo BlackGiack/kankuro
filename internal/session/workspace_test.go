@@ -150,7 +150,7 @@ func TestRelaunchPreservesAndEmptyCardSwitchReplacesPriorInstructions(t *testing
 	instructionPath := filepath.Join(workspace, "AGENTS.md")
 	content, err := os.ReadFile(instructionPath)
 	if err != nil || !strings.Contains(string(content), "ROLE_A_PRIVATE_INSTRUCTIONS") ||
-		!strings.Contains(string(content), "KANKURO CONVERSATION INSTRUCTIONS START") {
+		strings.Contains(string(content), "KANKURO CONVERSATION INSTRUCTIONS START") {
 		t.Fatalf("card A instructions were not written: %q, %v", content, err)
 	}
 	if err := manager.Kill(sessionID); err != nil {
