@@ -3,35 +3,35 @@
   "items": [
     {
       "kind": "concept",
-      "id": "Coordinator",
+      "id": "Activation",
       "refs": [
-        "app.Coordinator"
+        "session.Snapshot"
       ],
       "directRefs": [
-        "app.Coordinator"
+        "session.Snapshot"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/app/coordinator.go"
+        "internal/session/manager.go"
       ],
-      "digest": "c60a1ac47e048e204962affe864cfca68f46b0b6e7ebc65a496b793016515921"
+      "digest": "c56ff8b8b535211511a433d79bb0c7f4b06c5e3c066855b4a6ca5233dd2c0547"
     },
     {
       "kind": "concept",
-      "id": "Driver",
+      "id": "Conversation binding",
       "refs": [
-        "driver.AgentDriver"
+        "session.ConversationBinding"
       ],
       "directRefs": [
-        "driver.AgentDriver"
+        "session.ConversationBinding"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/driver/driver.go"
+        "internal/session/manager.go"
       ],
-      "digest": "c239fffaa8674db155867b1f98aa716494577be1cadf9bde7311454b7db88ef0"
+      "digest": "7fbfe0d9acf946f3d7c017c9cd66be7cdd73757b2ad753cd4954f5f1ac1bb9fd"
     },
     {
       "kind": "concept",
@@ -51,19 +51,19 @@
     },
     {
       "kind": "concept",
-      "id": "Registries",
+      "id": "Message and reply",
       "refs": [
-        "config.Repository"
+        "session.MessageRecord"
       ],
       "directRefs": [
-        "config.Repository"
+        "session.MessageRecord"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/config/repository.go"
+        "internal/session/messaging.go"
       ],
-      "digest": "450fe5c150df5d1ab57a71cca27dba4454f1680f351be8eaa273ec1a1424a15a"
+      "digest": "f26f3a86cf948ac178142f3c03d4b28a2543fbbfbb0b9f21d0754e57472824a8"
     },
     {
       "kind": "concept",
@@ -83,51 +83,19 @@
     },
     {
       "kind": "concept",
-      "id": "Status",
+      "id": "Shared service",
       "refs": [
-        "session.Status"
+        "api.Service"
       ],
       "directRefs": [
-        "session.Status"
+        "api.Service"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/session/manager.go"
+        "internal/api/service.go"
       ],
-      "digest": "8cd9d6f256a137c049a6fabcd5e7bff174087a3c4bea8506ff309b0bc7e25d41"
-    },
-    {
-      "kind": "concept",
-      "id": "Sub workspace",
-      "refs": [
-        "session.subWorkspaceManifest"
-      ],
-      "directRefs": [
-        "session.subWorkspaceManifest"
-      ],
-      "participants": [],
-      "supportingRefs": [],
-      "files": [
-        "internal/session/sub_workspaces.go"
-      ],
-      "digest": "2b12722ed35ab3d81b8ec055902baae31d4f0f201b17c7992ebce6d8c4e2db05"
-    },
-    {
-      "kind": "concept",
-      "id": "Workspace command",
-      "refs": [
-        "session.LaunchWorkspaceCommand"
-      ],
-      "directRefs": [
-        "session.LaunchWorkspaceCommand"
-      ],
-      "participants": [],
-      "supportingRefs": [],
-      "files": [
-        "internal/session/workspace_launcher.go"
-      ],
-      "digest": "1aafa8c5cac2998b648dc216365329cfbd3a985b93c274bb9f80f37d5073dc96"
+      "digest": "6b4f3d38d40a39dad168097be899a63b4ee4455a58b06e087ae4af6e84ca5943"
     },
     {
       "kind": "flow",
@@ -176,110 +144,130 @@
     },
     {
       "kind": "flow",
-      "id": "builtin-skill",
+      "id": "card-delete",
       "refs": [
-        "config.GetBuiltinSkillContent",
-        "config.SetBuiltinMCPCLISkillContent",
-        "driver.GenericCLIDriver",
-        "driver.GenericCLIDriver.SetSkills",
-        "driver.deploySkill",
-        "driver.writeBuiltinSkill",
-        "root.main",
-        "session.Manager"
-      ],
-      "directRefs": [
-        "config.GetBuiltinSkillContent",
-        "driver.GenericCLIDriver.SetSkills",
-        "driver.deploySkill",
-        "driver.writeBuiltinSkill"
-      ],
-      "participants": [
-        "config.GetBuiltinSkillContent",
-        "driver.GenericCLIDriver",
-        "session.Manager"
-      ],
-      "supportingRefs": [
-        "config.SetBuiltinMCPCLISkillContent",
-        "root.main"
-      ],
-      "files": [
-        "internal/config/builtins.go",
-        "internal/driver/driver.go",
-        "internal/session/manager.go",
-        "kankuro_skills/mcp-cli/SKILL.md",
-        "main.go",
-        "main_test.go"
-      ],
-      "digest": "70f92ca7a3d3757e7305ee88d4fe33b61d3eac95257ca36f5b2248f69421cef8"
-    },
-    {
-      "kind": "flow",
-      "id": "copy-rollback",
-      "refs": [
-        "session.Manager",
-        "session.Manager.cleanupNewTemporaryWorkspace",
-        "session.copyAndPublishSubWorkspace",
-        "session.persistSubWorkspaceManifest",
-        "session.subWorkspaceTransaction",
-        "session.subWorkspaceTransaction.rollback"
-      ],
-      "directRefs": [
-        "session.Manager.cleanupNewTemporaryWorkspace",
-        "session.copyAndPublishSubWorkspace",
-        "session.persistSubWorkspaceManifest",
-        "session.subWorkspaceTransaction.rollback"
-      ],
-      "participants": [
-        "session.Manager",
-        "session.subWorkspaceTransaction"
-      ],
-      "supportingRefs": [],
-      "files": [
-        "internal/session/lifecycle.go",
-        "internal/session/manager.go",
-        "internal/session/sub_workspaces.go"
-      ],
-      "digest": "0f300ad7f38b960aa5b625c7dd94d3225d67d3f9ba450d2556c5a0085c82dee5"
-    },
-    {
-      "kind": "flow",
-      "id": "deletecard",
-      "refs": [
-        "app.Coordinator",
-        "app.Coordinator.handleSpecialMessages",
+        "api.Service",
+        "api.Service.DeleteCard",
+        "api.Service.reserveCardReference",
         "app.sessionActions",
-        "app.sessionActions.deleteCard",
         "config.FileRepository",
         "config.FileRepository.DeleteIDCard",
         "session.Manager",
-        "session.Manager.List",
-        "views.Dashboard",
-        "views.Dashboard.handleDeleteCard"
+        "session.Manager.DeleteCardIfUnreferenced",
+        "session.Manager.ReserveCardReference"
       ],
       "directRefs": [
-        "app.Coordinator.handleSpecialMessages",
-        "app.sessionActions.deleteCard",
+        "api.Service.DeleteCard",
+        "api.Service.reserveCardReference",
         "config.FileRepository.DeleteIDCard",
-        "session.Manager.List",
-        "views.Dashboard.handleDeleteCard"
+        "session.Manager.DeleteCardIfUnreferenced",
+        "session.Manager.ReserveCardReference"
       ],
       "participants": [
-        "app.Coordinator",
+        "api.Service",
         "app.sessionActions",
         "config.FileRepository",
-        "session.Manager",
-        "views.Dashboard"
+        "session.Manager"
       ],
       "supportingRefs": [],
       "files": [
-        "internal/app/coordinator.go",
+        "internal/api/service.go",
         "internal/app/session_actions.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
-        "internal/session/manager.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "3d458f02431432bcb855280750378985ba724aacb8dfba51d6b28f50e7764642"
+    },
+    {
+      "kind": "flow",
+      "id": "control",
+      "refs": [
+        "api.Service",
+        "api.Service.CreateSession",
+        "api.Service.GetSession",
+        "api.Service.ResolveCaller",
+        "api.Service.launchReservedSession",
+        "mcp.Runtime",
+        "mcp.addDiscoveryTools",
+        "mcp.addLifecycleTools",
+        "session.Manager",
+        "session.Manager.ResolveDashboardCaller"
+      ],
+      "directRefs": [
+        "api.Service.CreateSession",
+        "api.Service.GetSession",
+        "api.Service.ResolveCaller",
+        "api.Service.launchReservedSession",
+        "mcp.addDiscoveryTools",
+        "mcp.addLifecycleTools",
+        "session.Manager.ResolveDashboardCaller"
+      ],
+      "participants": [
+        "api.Service",
+        "mcp.Runtime",
+        "session.Manager"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/mcp/server.go",
+        "internal/session/conversation.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "972d25fb64c134e8dee4d598c42863619d3c84a4207e69092d123dcf417919e1"
+    },
+    {
+      "kind": "flow",
+      "id": "dashboard",
+      "refs": [
+        "components.SessionList.refreshItems",
+        "components.SessionListItem",
+        "components.SessionListItem.Description",
+        "components.SessionPreview",
+        "components.SessionPreview.renderPlaceholder",
+        "components.SessionPreview.renderPreview",
+        "components.cardDelegate.Render",
+        "components.renderPreviewField",
+        "components.renderedBlockWidth",
+        "components.wrapPreviewWords",
+        "views.CardEditor",
+        "views.CardEditor.renderDashboardControlLine",
+        "views.Dashboard",
+        "views.Dashboard.View",
+        "views.Dashboard.renderPreviewPane"
+      ],
+      "directRefs": [
+        "components.SessionListItem.Description",
+        "components.SessionPreview.renderPlaceholder",
+        "components.SessionPreview.renderPreview",
+        "views.CardEditor.renderDashboardControlLine",
+        "views.Dashboard.View"
+      ],
+      "participants": [
+        "components.SessionListItem",
+        "components.SessionPreview",
+        "views.CardEditor",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [
+        "components.SessionList.refreshItems",
+        "components.cardDelegate.Render",
+        "components.renderPreviewField",
+        "components.renderedBlockWidth",
+        "components.wrapPreviewWords",
+        "views.Dashboard.renderPreviewPane"
+      ],
+      "files": [
+        "internal/ui/components/card_list.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/views/card_editor.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "463dffb8ae771c6f696ef6ca5038849b9203ec44a546a2a485911bb2287452e5"
+      "digest": "673a9b28c2dc8d9130652b772185aa34df5878befbcd1f7250a98eb9bd156050"
     },
     {
       "kind": "flow",
@@ -323,41 +311,6 @@
         "internal/ui/views/dashboard.go"
       ],
       "digest": "0c54435722eeb9370cfd453d99d487744c63918a3042b6f540d7eac4985a5e8e"
-    },
-    {
-      "kind": "flow",
-      "id": "failed-activation",
-      "refs": [
-        "app.Coordinator",
-        "app.Coordinator.handleSessionMessages",
-        "app.sessionActions",
-        "driver.GenericCLIDriver",
-        "session.Manager",
-        "session.Manager.cleanupNewTemporaryWorkspace",
-        "session.Manager.startSession",
-        "session.Manager.syncDriverFiles"
-      ],
-      "directRefs": [
-        "app.Coordinator.handleSessionMessages",
-        "session.Manager.cleanupNewTemporaryWorkspace",
-        "session.Manager.startSession",
-        "session.Manager.syncDriverFiles"
-      ],
-      "participants": [
-        "app.Coordinator",
-        "app.sessionActions",
-        "driver.GenericCLIDriver",
-        "session.Manager"
-      ],
-      "supportingRefs": [],
-      "files": [
-        "internal/app/coordinator.go",
-        "internal/app/session_actions.go",
-        "internal/driver/driver.go",
-        "internal/session/lifecycle.go",
-        "internal/session/manager.go"
-      ],
-      "digest": "195a7f1e66ade356ea598c280f0dcc65ec0d42624078531f1979589c2459f79f"
     },
     {
       "kind": "flow",
@@ -412,109 +365,48 @@
     },
     {
       "kind": "flow",
-      "id": "kill",
+      "id": "launch",
       "refs": [
-        "app.Coordinator",
-        "app.Coordinator.dashboardCallbacks",
-        "app.Coordinator.handleSpecialMessages",
+        "api.Service",
+        "api.Service.Launch",
+        "app.sessionActions",
+        "app.sessionActions.launch",
         "driver.GenericCLIDriver",
-        "driver.GenericCLIDriver.Kill",
-        "driver.signalGroup",
+        "driver.GenericCLIDriver.Spawn",
         "session.Manager",
-        "session.Manager.Kill",
-        "views.Dashboard",
-        "views.Dashboard.handleKill"
+        "session.Manager.LaunchWithIDContext",
+        "session.Manager.prepareActivationMCPConfig",
+        "session.Manager.prepareWorkspace",
+        "session.Manager.startSession",
+        "session.Manager.syncDriverFiles"
       ],
       "directRefs": [
-        "app.Coordinator.dashboardCallbacks",
-        "app.Coordinator.handleSpecialMessages",
-        "driver.GenericCLIDriver.Kill",
-        "driver.signalGroup",
-        "session.Manager.Kill",
-        "views.Dashboard.handleKill"
+        "api.Service.Launch",
+        "app.sessionActions.launch",
+        "driver.GenericCLIDriver.Spawn",
+        "session.Manager.LaunchWithIDContext",
+        "session.Manager.prepareActivationMCPConfig",
+        "session.Manager.prepareWorkspace",
+        "session.Manager.startSession",
+        "session.Manager.syncDriverFiles"
       ],
       "participants": [
-        "app.Coordinator",
+        "api.Service",
+        "app.sessionActions",
         "driver.GenericCLIDriver",
-        "session.Manager",
-        "views.Dashboard"
+        "session.Manager"
       ],
       "supportingRefs": [],
       "files": [
-        "internal/app/callbacks.go",
-        "internal/app/coordinator.go",
-        "internal/driver/driver.go",
-        "internal/session/lifecycle.go",
-        "internal/session/manager.go",
-        "internal/ui/views/dashboard.go"
-      ],
-      "digest": "92400f0a751040cda59be35284ac09015a7e2ce4c7d3d27d2ac4266cd5d4f415"
-    },
-    {
-      "kind": "flow",
-      "id": "launch",
-      "refs": [
-        "app.Coordinator",
-        "app.Coordinator.handleSessionMessages",
-        "app.Coordinator.launchCard",
-        "app.Coordinator.navigateTo",
-        "app.sessionActions",
-        "app.sessionActions.launch",
-        "app.sessionActions.resolveCapabilities",
-        "driver.GenericCLIDriver",
-        "driver.GenericCLIDriver.Spawn",
-        "session.Manager",
-        "session.Manager.Launch",
-        "session.Manager.activateSessionLocked",
-        "session.Manager.cleanupNewTemporaryWorkspace",
-        "session.Manager.prepareSubWorkspaces",
-        "session.Manager.prepareWorkspace",
-        "session.Manager.startSession",
-        "session.Manager.syncDriverFiles",
-        "session.saveSession",
-        "views.Dashboard",
-        "views.Dashboard.handleEnter"
-      ],
-      "directRefs": [
-        "app.Coordinator.handleSessionMessages",
-        "app.Coordinator.launchCard",
-        "app.Coordinator.navigateTo",
-        "app.sessionActions.launch",
-        "app.sessionActions.resolveCapabilities",
-        "driver.GenericCLIDriver.Spawn",
-        "session.Manager.Launch",
-        "session.Manager.activateSessionLocked",
-        "session.Manager.prepareSubWorkspaces",
-        "session.Manager.prepareWorkspace",
-        "session.Manager.syncDriverFiles",
-        "session.saveSession",
-        "views.Dashboard.handleEnter"
-      ],
-      "participants": [
-        "app.Coordinator",
-        "app.sessionActions",
-        "driver.GenericCLIDriver",
-        "session.Manager",
-        "views.Dashboard"
-      ],
-      "supportingRefs": [
-        "session.Manager.cleanupNewTemporaryWorkspace",
-        "session.Manager.startSession"
-      ],
-      "files": [
-        "internal/app/callbacks.go",
-        "internal/app/coordinator.go",
-        "internal/app/navigation.go",
+        "internal/api/service.go",
         "internal/app/session_actions.go",
         "internal/driver/driver.go",
+        "internal/session/conversation.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
-        "internal/session/storage.go",
-        "internal/session/sub_workspaces.go",
-        "internal/session/workspace.go",
-        "internal/ui/views/dashboard.go"
+        "internal/session/workspace.go"
       ],
-      "digest": "59dce4a7df12bd39e1ac686112ea861e4e04bfe7d9a22977102fe417ffa039c1"
+      "digest": "dad760fd35541543e17cfccb881f7be1b5a9dcbe40f5a56e25df01052fe6724b"
     },
     {
       "kind": "flow",
@@ -548,6 +440,48 @@
         "internal/ui/views/mcp_form.go"
       ],
       "digest": "2a2fb65d8b9587934ebf2458440cfb488bfd42679b7e591edd3e5bf5e24dce6b"
+    },
+    {
+      "kind": "flow",
+      "id": "mcp-config",
+      "refs": [
+        "driver.GenericCLIDriver",
+        "driver.GenericCLIDriver.SelectMCPs",
+        "driver.MCPConfigPath",
+        "driver.RefreshKankuroMCP",
+        "driver.RemoveKankuroMCPIfAuthorizationMatches",
+        "driver.writeWorkspaceMCPConfig",
+        "session.Manager",
+        "session.Manager.prepareActivationMCPConfig",
+        "session.Manager.revokeAuthorityLocked",
+        "session.activationEnv",
+        "session.syncActivationMCPConfig"
+      ],
+      "directRefs": [
+        "driver.GenericCLIDriver.SelectMCPs",
+        "driver.RefreshKankuroMCP",
+        "driver.RemoveKankuroMCPIfAuthorizationMatches",
+        "driver.writeWorkspaceMCPConfig",
+        "session.Manager.prepareActivationMCPConfig",
+        "session.Manager.revokeAuthorityLocked"
+      ],
+      "participants": [
+        "driver.GenericCLIDriver",
+        "session.Manager"
+      ],
+      "supportingRefs": [
+        "driver.MCPConfigPath",
+        "session.activationEnv",
+        "session.syncActivationMCPConfig"
+      ],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/driver/mcp_config.go",
+        "internal/session/conversation.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "43af700021d2a86fadbf47e8427dbc185b7a00c4fdbcb53f21925e06e8609083"
     },
     {
       "kind": "flow",
@@ -589,6 +523,43 @@
         "internal/ui/views/dashboard.go"
       ],
       "digest": "8c91bd0963ca1af13fde055dc536e331ba97e1e90c87c99306c58c4bf19d1815"
+    },
+    {
+      "kind": "flow",
+      "id": "operations",
+      "refs": [
+        "api.OperationRunner",
+        "api.OperationRunner.Cancel",
+        "api.OperationRunner.Replay",
+        "api.OperationRunner.accept",
+        "api.OperationRunner.execute",
+        "api.OperationRunner.finishLocked",
+        "api.OperationRunner.loadRecord",
+        "api.Service",
+        "api.Service.CreateSession",
+        "session.Manager"
+      ],
+      "directRefs": [
+        "api.OperationRunner.Cancel",
+        "api.OperationRunner.Replay",
+        "api.OperationRunner.accept",
+        "api.OperationRunner.execute",
+        "api.OperationRunner.finishLocked",
+        "api.OperationRunner.loadRecord",
+        "api.Service.CreateSession"
+      ],
+      "participants": [
+        "api.OperationRunner",
+        "api.Service",
+        "session.Manager"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "c39a99d1e54a532e28b8c758e5e910d1625fa332a626507598a91e9c613a468f"
     },
     {
       "kind": "flow",
@@ -682,133 +653,212 @@
       "kind": "flow",
       "id": "quit",
       "refs": [
-        "driver.GenericCLIDriver",
-        "driver.GenericCLIDriver.Kill",
-        "driver.groupAlive",
+        "api.OperationRunner",
+        "api.OperationRunner.Shutdown",
+        "app.Coordinator",
+        "mcp.Runtime",
+        "mcp.Runtime.Failures",
         "root.run",
-        "root.stopSessions",
+        "root.shutdownMCP",
         "session.Manager",
-        "session.Manager.Kill",
-        "session.Manager.Shutdown",
-        "session.Manager.persistSessionLockedErr",
-        "views.Dashboard",
-        "views.Dashboard.handleKey"
+        "session.Manager.Shutdown"
       ],
       "directRefs": [
-        "driver.GenericCLIDriver.Kill",
-        "driver.groupAlive",
+        "api.OperationRunner.Shutdown",
+        "mcp.Runtime.Failures",
         "root.run",
-        "root.stopSessions",
-        "session.Manager.Kill",
-        "session.Manager.Shutdown",
-        "session.Manager.persistSessionLockedErr",
-        "views.Dashboard.handleKey"
+        "root.shutdownMCP",
+        "session.Manager.Shutdown"
       ],
       "participants": [
-        "driver.GenericCLIDriver",
+        "api.OperationRunner",
+        "app.Coordinator",
+        "mcp.Runtime",
         "root.run",
-        "session.Manager",
-        "views.Dashboard"
+        "session.Manager"
       ],
       "supportingRefs": [],
       "files": [
-        "internal/driver/driver.go",
+        "internal/api/operations.go",
+        "internal/app/coordinator.go",
+        "internal/mcp/server.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
-        "internal/ui/views/dashboard.go",
         "main.go"
       ],
-      "digest": "0eab47e3c0ea7508b62e93800ec3301085e8100cf12bcc8a044f55a1498620fd"
+      "digest": "2a2f9ece39a7dff5f6683f25340ae72c281d83d7a7ddf61b48f839ea4dcc3e52"
     },
     {
       "kind": "flow",
-      "id": "relaunch",
+      "id": "readiness",
       "refs": [
+        "api.Service",
+        "api.inspectionFromSnapshot",
         "app.Coordinator",
-        "app.Coordinator.attachSession",
-        "app.Coordinator.handleSessionMessages",
-        "app.sessionActions",
-        "app.sessionActions.relaunch",
-        "app.sessionActions.resolveCard",
         "driver.GenericCLIDriver",
         "session.Manager",
-        "session.Manager.Relaunch",
-        "session.Manager.prepareSubWorkspaces",
-        "session.Manager.reserveForActivation",
-        "session.Manager.startSession",
-        "views.Dashboard",
-        "views.Dashboard.handleSessionEnter"
+        "session.Manager.Attach",
+        "session.Manager.activateSessionLocked",
+        "session.Manager.deliveryAvailableLocked",
+        "session.Manager.snapshotLocked",
+        "session.Manager.startStartupLocked"
       ],
       "directRefs": [
-        "app.Coordinator.attachSession",
-        "app.Coordinator.handleSessionMessages",
-        "app.sessionActions.relaunch",
-        "app.sessionActions.resolveCard",
-        "session.Manager.Relaunch",
-        "session.Manager.prepareSubWorkspaces",
-        "session.Manager.reserveForActivation",
-        "session.Manager.startSession",
-        "views.Dashboard.handleSessionEnter"
+        "api.inspectionFromSnapshot",
+        "session.Manager.Attach",
+        "session.Manager.activateSessionLocked",
+        "session.Manager.deliveryAvailableLocked",
+        "session.Manager.snapshotLocked",
+        "session.Manager.startStartupLocked"
       ],
       "participants": [
+        "api.Service",
         "app.Coordinator",
-        "app.sessionActions",
         "driver.GenericCLIDriver",
-        "session.Manager",
-        "views.Dashboard"
+        "session.Manager"
       ],
       "supportingRefs": [],
       "files": [
-        "internal/app/attach.go",
+        "internal/api/service.go",
         "internal/app/coordinator.go",
-        "internal/app/session_actions.go",
         "internal/driver/driver.go",
+        "internal/session/attach.go",
         "internal/session/lifecycle.go",
-        "internal/session/manager.go",
-        "internal/session/sub_workspaces.go",
-        "internal/ui/views/dashboard.go"
+        "internal/session/manager.go"
       ],
-      "digest": "42e4c31d7528c4d09e2c722b42b310d584e5961fb6a985cb591952cef698ca37"
+      "digest": "43c05405465bb8be5730d85d695e552f58abdb81a6b7bfb2eab866a1b7af1bb4"
     },
     {
       "kind": "flow",
-      "id": "remove",
+      "id": "recovery",
       "refs": [
-        "app.Coordinator",
-        "app.Coordinator.dashboardCallbacks",
-        "app.Coordinator.handleSpecialMessages",
-        "components.Modal",
-        "components.ModalState.Open",
+        "api.OperationRunner",
+        "api.OperationRunner.load",
+        "api.OperationRunner.loadRecord",
+        "session.Data.restore",
         "session.Manager",
-        "session.Manager.Remove",
-        "views.Dashboard",
-        "views.Dashboard.confirmDelete",
-        "views.Dashboard.handleDeleteSession"
+        "session.MessageStore",
+        "session.MessageStore.Recover",
+        "session.NewMessageStore",
+        "session.loadSessions"
       ],
       "directRefs": [
-        "app.Coordinator.dashboardCallbacks",
-        "app.Coordinator.handleSpecialMessages",
-        "components.ModalState.Open",
-        "session.Manager.Remove",
-        "views.Dashboard.confirmDelete",
-        "views.Dashboard.handleDeleteSession"
+        "api.OperationRunner.load",
+        "api.OperationRunner.loadRecord",
+        "session.Data.restore",
+        "session.MessageStore.Recover",
+        "session.NewMessageStore",
+        "session.loadSessions"
       ],
       "participants": [
-        "app.Coordinator",
-        "components.Modal",
+        "api.OperationRunner",
         "session.Manager",
-        "views.Dashboard"
+        "session.MessageStore"
       ],
       "supportingRefs": [],
       "files": [
-        "internal/app/callbacks.go",
-        "internal/app/coordinator.go",
-        "internal/session/lifecycle.go",
+        "internal/api/operations.go",
         "internal/session/manager.go",
-        "internal/ui/components/modal.go",
-        "internal/ui/views/dashboard.go"
+        "internal/session/messaging.go",
+        "internal/session/storage.go"
       ],
-      "digest": "8a87d49f04ba2835a08eb7e18b3aaf44f88c87976168337f28a6dd86a39649ab"
+      "digest": "4480062e29359963e7709897c18fc4de70f46b1b452e18fc2629b90284af8c3f"
+    },
+    {
+      "kind": "flow",
+      "id": "registration",
+      "refs": [
+        "api.Service",
+        "api.Service.RegisterConversation",
+        "mcp.Runtime",
+        "mcp.Start",
+        "mcp.authorize",
+        "session.Manager",
+        "session.Manager.RegisterConversation",
+        "session.Manager.activationAuthorityLocked",
+        "session.Manager.persistSessionLockedErr",
+        "session.Manager.publishActivationLocked",
+        "session.Manager.registerConversationLocked",
+        "session.Manager.validateReportedConversationLocked",
+        "session.addConversationBinding"
+      ],
+      "directRefs": [
+        "api.Service.RegisterConversation",
+        "mcp.Start",
+        "mcp.authorize",
+        "session.Manager.RegisterConversation",
+        "session.Manager.persistSessionLockedErr",
+        "session.Manager.registerConversationLocked"
+      ],
+      "participants": [
+        "api.Service",
+        "mcp.Runtime",
+        "session.Manager"
+      ],
+      "supportingRefs": [
+        "session.Manager.activationAuthorityLocked",
+        "session.Manager.publishActivationLocked",
+        "session.Manager.validateReportedConversationLocked",
+        "session.addConversationBinding"
+      ],
+      "files": [
+        "internal/api/service.go",
+        "internal/mcp/server.go",
+        "internal/session/conversation.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "36100fcb4fcd71d224896aeeac9135944b060d0cf801f5cb3bcf1c0dd2aeddab"
+    },
+    {
+      "kind": "flow",
+      "id": "reports",
+      "refs": [
+        "api.Service",
+        "api.Service.GetMessage",
+        "api.Service.GetReplies",
+        "api.Service.ReportReply",
+        "mcp.Runtime",
+        "mcp.addMessagingTools",
+        "session.Manager",
+        "session.Manager.MessageRecipientLive",
+        "session.Manager.ReportMessage",
+        "session.MessageStore",
+        "session.MessageStore.GetReplies",
+        "session.MessageStore.RecordReply",
+        "session.MessageStore.Recover",
+        "session.MessageStore.createIntent",
+        "session.MessageStore.evictLocked"
+      ],
+      "directRefs": [
+        "api.Service.GetReplies",
+        "api.Service.ReportReply",
+        "mcp.addMessagingTools",
+        "session.Manager.MessageRecipientLive",
+        "session.Manager.ReportMessage",
+        "session.MessageStore.GetReplies",
+        "session.MessageStore.RecordReply"
+      ],
+      "participants": [
+        "api.Service",
+        "mcp.Runtime",
+        "session.Manager",
+        "session.MessageStore"
+      ],
+      "supportingRefs": [
+        "api.Service.GetMessage",
+        "session.MessageStore.Recover",
+        "session.MessageStore.createIntent",
+        "session.MessageStore.evictLocked"
+      ],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/service.go",
+        "internal/mcp/server.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "45e8a721f7ecf1a17969d6518b8cc6a56e3102fad0e10323c178ca89442670d3"
     },
     {
       "kind": "flow",
@@ -860,6 +910,72 @@
     },
     {
       "kind": "flow",
+      "id": "resume",
+      "refs": [
+        "api.Service",
+        "api.Service.Conversations",
+        "api.Service.SwitchAgentWithChoice",
+        "app.Coordinator",
+        "app.Coordinator.conversationChoiceCallbacks",
+        "app.Coordinator.handleConversationChoiceRequested",
+        "app.Coordinator.requestRelaunch",
+        "app.Coordinator.requestSwitch",
+        "driver.AgentDriver",
+        "driver.ClaudeCodeDriver.SetSession",
+        "driver.CodexCLIDriver.SetSession",
+        "driver.GenericCLIDriver.SetSession",
+        "session.Manager",
+        "session.Manager.SwitchAgentWithChoiceContext",
+        "session.Manager.reserveForActivation",
+        "session.validateConversationChoice",
+        "session.validateSessionWorkspace",
+        "views.ConversationChoiceView",
+        "views.ConversationChoiceView.RefreshContext",
+        "views.ConversationChoiceView.SelectedBinding",
+        "views.ConversationChoiceView.SetContext",
+        "views.ConversationChoiceView.Update"
+      ],
+      "directRefs": [
+        "api.Service.Conversations",
+        "api.Service.SwitchAgentWithChoice",
+        "app.Coordinator.conversationChoiceCallbacks",
+        "app.Coordinator.requestRelaunch",
+        "driver.ClaudeCodeDriver.SetSession",
+        "driver.CodexCLIDriver.SetSession",
+        "driver.GenericCLIDriver.SetSession",
+        "session.Manager.SwitchAgentWithChoiceContext",
+        "session.Manager.reserveForActivation",
+        "session.validateSessionWorkspace",
+        "views.ConversationChoiceView.SetContext"
+      ],
+      "participants": [
+        "api.Service",
+        "app.Coordinator",
+        "driver.AgentDriver",
+        "session.Manager",
+        "views.ConversationChoiceView"
+      ],
+      "supportingRefs": [
+        "app.Coordinator.handleConversationChoiceRequested",
+        "app.Coordinator.requestSwitch",
+        "session.validateConversationChoice",
+        "views.ConversationChoiceView.RefreshContext",
+        "views.ConversationChoiceView.SelectedBinding",
+        "views.ConversationChoiceView.Update"
+      ],
+      "files": [
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/ui/views/conversation_choice.go"
+      ],
+      "digest": "e8c81f61f6aaf6c7fd9ed9d09e8947fc7ded10bfbcdff4e76954013dde75dac3"
+    },
+    {
+      "kind": "flow",
       "id": "savecard",
       "refs": [
         "app.Coordinator",
@@ -904,6 +1020,67 @@
         "internal/ui/views/card_editor.go"
       ],
       "digest": "a2a3a688665fea508ee2a80d77449e67c92310079e2815bf134b36ffc344154d"
+    },
+    {
+      "kind": "flow",
+      "id": "send",
+      "refs": [
+        "api.OperationRunner",
+        "api.OperationRunner.SubmitWithAdmission",
+        "api.Service",
+        "api.Service.SendMessage",
+        "driver.CodexCLIDriver",
+        "driver.CodexCLIDriver.SubmitPrompt",
+        "driver.GenericCLIDriver.submitPrompt",
+        "driver.GenericCLIDriver.submitPromptBytes",
+        "driver.ValidatePrompt",
+        "driver.classifySubmission",
+        "driver.writePromptPhases",
+        "session.Manager",
+        "session.Manager.PublishMessageAdmission",
+        "session.Manager.ReserveMessageAdmission",
+        "session.Manager.SubmitMessage",
+        "session.Manager.beginMessageSubmission",
+        "session.MessageStore",
+        "session.MessageStore.CreateIntentWithAdmission",
+        "session.MessageStore.UpdateDelivery",
+        "session.MessageStore.WaitTurn"
+      ],
+      "directRefs": [
+        "api.OperationRunner.SubmitWithAdmission",
+        "api.Service.SendMessage",
+        "driver.CodexCLIDriver.SubmitPrompt",
+        "driver.GenericCLIDriver.submitPrompt",
+        "session.Manager.ReserveMessageAdmission",
+        "session.Manager.beginMessageSubmission",
+        "session.MessageStore.CreateIntentWithAdmission",
+        "session.MessageStore.UpdateDelivery",
+        "session.MessageStore.WaitTurn"
+      ],
+      "participants": [
+        "api.OperationRunner",
+        "api.Service",
+        "driver.CodexCLIDriver",
+        "session.Manager",
+        "session.MessageStore"
+      ],
+      "supportingRefs": [
+        "driver.GenericCLIDriver.submitPromptBytes",
+        "driver.ValidatePrompt",
+        "driver.classifySubmission",
+        "driver.writePromptPhases",
+        "session.Manager.PublishMessageAdmission",
+        "session.Manager.SubmitMessage"
+      ],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/driver/driver.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "cf340b0cd73b9744b2aae1763d6328721595c8938fad72ddc77d67fd9a35c62f"
     },
     {
       "kind": "flow",
@@ -1057,6 +1234,52 @@
     },
     {
       "kind": "flow",
+      "id": "skills",
+      "refs": [
+        "api.Service",
+        "api.appendKankuroAccessSkill",
+        "config.BuiltinMCPs",
+        "config.BuiltinSkills",
+        "config.FileRepository",
+        "config.GetBuiltinSkillContent",
+        "config.SetBuiltinKankuroPuppetSkillContent",
+        "driver.GenericCLIDriver",
+        "driver.GenericCLIDriver.SetSkills",
+        "driver.syncInstructionFile",
+        "driver.writeBuiltinSkill",
+        "driver.writeInstructionFile",
+        "root.main"
+      ],
+      "directRefs": [
+        "api.appendKankuroAccessSkill",
+        "config.SetBuiltinKankuroPuppetSkillContent",
+        "driver.GenericCLIDriver.SetSkills",
+        "driver.syncInstructionFile",
+        "driver.writeBuiltinSkill"
+      ],
+      "participants": [
+        "api.Service",
+        "config.FileRepository",
+        "driver.GenericCLIDriver",
+        "root.main"
+      ],
+      "supportingRefs": [
+        "config.BuiltinMCPs",
+        "config.BuiltinSkills",
+        "config.GetBuiltinSkillContent",
+        "driver.writeInstructionFile"
+      ],
+      "files": [
+        "internal/api/service.go",
+        "internal/config/builtins.go",
+        "internal/config/repository.go",
+        "internal/driver/driver.go",
+        "main.go"
+      ],
+      "digest": "92b4467bc7dc2f2342abcb6736adcbe0d0dd3f087189144b69c49bf90de43c85"
+    },
+    {
+      "kind": "flow",
       "id": "source",
       "refs": [
         "app.Coordinator",
@@ -1096,70 +1319,94 @@
       "kind": "flow",
       "id": "startup",
       "refs": [
+        "api.New",
+        "api.NewOperationRunner",
+        "api.OperationRunner",
+        "api.Service",
         "app.Coordinator",
-        "app.Coordinator.Init",
-        "app.Coordinator.handleConfigFingerprint",
-        "app.NewCoordinator",
-        "app.refresher",
-        "app.refresher.fullSeeded",
-        "app.tick",
         "config.FileRepository",
-        "config.FileRepository.SyncSkillsFromSources",
-        "config.GetBuiltinSkillContent",
         "config.NewFileRepository",
-        "config.SetBuiltinMCPCLISkillContent",
-        "driver.NewBuiltinRegistry",
-        "root.logDir",
+        "mcp.Runtime",
+        "mcp.Start",
         "root.main",
         "root.run",
         "session.Manager",
-        "session.NewManager",
-        "session.loadSessions"
+        "session.Manager.SetMCPEndpoint",
+        "session.NewManager"
       ],
       "directRefs": [
-        "app.Coordinator.Init",
-        "app.Coordinator.handleConfigFingerprint",
-        "app.NewCoordinator",
-        "app.refresher.fullSeeded",
-        "app.tick",
-        "config.FileRepository.SyncSkillsFromSources",
+        "api.New",
+        "api.NewOperationRunner",
         "config.NewFileRepository",
-        "config.SetBuiltinMCPCLISkillContent",
-        "driver.NewBuiltinRegistry",
+        "mcp.Start",
+        "root.main",
         "root.run",
-        "session.NewManager",
-        "session.loadSessions"
+        "session.Manager.SetMCPEndpoint",
+        "session.NewManager"
       ],
       "participants": [
+        "api.OperationRunner",
+        "api.Service",
         "app.Coordinator",
-        "app.refresher",
         "config.FileRepository",
-        "config.SetBuiltinMCPCLISkillContent",
-        "root.main",
+        "mcp.Runtime",
+        "root.run",
         "session.Manager"
       ],
-      "supportingRefs": [
-        "config.GetBuiltinSkillContent",
-        "root.logDir",
-        "root.main"
-      ],
+      "supportingRefs": [],
       "files": [
-        "README.md",
-        "go.mod",
+        "internal/api/operations.go",
+        "internal/api/service.go",
         "internal/app/coordinator.go",
-        "internal/app/handlers.go",
-        "internal/app/refresh.go",
-        "internal/config/builtins.go",
         "internal/config/repository.go",
-        "internal/config/skill_sources.go",
-        "internal/driver/registry.go",
+        "internal/mcp/server.go",
         "internal/session/manager.go",
-        "internal/session/storage.go",
-        "kankuro_skills/mcp-cli/SKILL.md",
-        "main.go",
-        "main_test.go"
+        "main.go"
       ],
-      "digest": "4828126f1cb44d9c3013351a897df82caa8efd6ae6161a0ebb11eae483a05647"
+      "digest": "2c8692814dc52505deabcd3f5783847618e2393b5bad61d08b91ec65becbf815"
+    },
+    {
+      "kind": "flow",
+      "id": "stop-delete",
+      "refs": [
+        "api.Service",
+        "api.Service.DeleteSession",
+        "api.Service.StopSession",
+        "driver.GenericCLIDriver",
+        "driver.GenericCLIDriver.Kill",
+        "session.Manager",
+        "session.Manager.RemoveDetailed",
+        "session.Manager.killDetailed",
+        "session.Manager.revokeSessionActivationLocked",
+        "session.MessageStore",
+        "session.MessageStore.DeleteRecipient"
+      ],
+      "directRefs": [
+        "api.Service.DeleteSession",
+        "api.Service.StopSession",
+        "driver.GenericCLIDriver.Kill",
+        "session.Manager.RemoveDetailed",
+        "session.Manager.killDetailed",
+        "session.Manager.revokeSessionActivationLocked",
+        "session.MessageStore.DeleteRecipient"
+      ],
+      "participants": [
+        "api.Service",
+        "driver.GenericCLIDriver",
+        "session.Manager",
+        "session.MessageStore"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/driver/driver.go",
+        "internal/session/conversation.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "80e7115804b7a7d65d4913bbbf8aced36195ad1b9759eac7f013eddb9547cdb0"
     },
     {
       "kind": "flow",
@@ -1202,58 +1449,6 @@
         "project.md"
       ],
       "digest": "9f4602ea24d220cce6477cfe12a6da6afa1c92bd9cc98e46146e4a084c56efa1"
-    },
-    {
-      "kind": "flow",
-      "id": "sub-copy",
-      "refs": [
-        "config.FileRepository",
-        "config.FileRepository.ListWorkspaces",
-        "fsutil.WriteFileAtomic",
-        "session.Manager",
-        "session.Manager.prepareSubWorkspaces",
-        "session.canonicalDirectory",
-        "session.copyAndPublishSubWorkspace",
-        "session.copySubWorkspaceManifest",
-        "session.ensureDestinationOutsideSource",
-        "session.loadSubWorkspaceManifest",
-        "session.persistSubWorkspaceManifest",
-        "session.prepareSubWorkspaceDirectory",
-        "session.rejectSymlink",
-        "session.resolveSubWorkspaceSources",
-        "session.safeSubWorkspaceName",
-        "session.shouldCopySubWorkspace"
-      ],
-      "directRefs": [
-        "config.FileRepository.ListWorkspaces",
-        "session.Manager.prepareSubWorkspaces",
-        "session.canonicalDirectory",
-        "session.copyAndPublishSubWorkspace",
-        "session.copySubWorkspaceManifest",
-        "session.ensureDestinationOutsideSource",
-        "session.loadSubWorkspaceManifest",
-        "session.persistSubWorkspaceManifest",
-        "session.prepareSubWorkspaceDirectory",
-        "session.shouldCopySubWorkspace"
-      ],
-      "participants": [
-        "config.FileRepository",
-        "fsutil.WriteFileAtomic",
-        "session.Manager"
-      ],
-      "supportingRefs": [
-        "session.rejectSymlink",
-        "session.resolveSubWorkspaceSources",
-        "session.safeSubWorkspaceName"
-      ],
-      "files": [
-        "internal/config/repository.go",
-        "internal/config/workspaces.go",
-        "internal/fsutil/atomic.go",
-        "internal/session/manager.go",
-        "internal/session/sub_workspaces.go"
-      ],
-      "digest": "5fe628092929f530696863836c619c4b623dd343754564366ed13ab8b0140290"
     },
     {
       "kind": "flow",
@@ -1308,53 +1503,6 @@
         "internal/ui/views/workspace_picker_test.go"
       ],
       "digest": "66dc01360c20eb5c411935ca7a5a0185ac5ea4dcda46560a8c197cc9c4e93d77"
-    },
-    {
-      "kind": "flow",
-      "id": "switch",
-      "refs": [
-        "app.Coordinator",
-        "app.Coordinator.handleAgentSwitched",
-        "app.Coordinator.handleSessionMessages",
-        "app.sessionActions",
-        "app.sessionActions.switchAgent",
-        "session.Manager",
-        "session.Manager.SwitchAgent",
-        "session.Manager.prepareSubWorkspaces",
-        "views.AgentSwitchView",
-        "views.AgentSwitchView.SetSession",
-        "views.AgentSwitchView.handleKey",
-        "views.Dashboard",
-        "views.Dashboard.handleSwitch"
-      ],
-      "directRefs": [
-        "app.Coordinator.handleAgentSwitched",
-        "app.Coordinator.handleSessionMessages",
-        "app.sessionActions.switchAgent",
-        "session.Manager.SwitchAgent",
-        "session.Manager.prepareSubWorkspaces",
-        "views.AgentSwitchView.SetSession",
-        "views.AgentSwitchView.handleKey",
-        "views.Dashboard.handleSwitch"
-      ],
-      "participants": [
-        "app.Coordinator",
-        "app.sessionActions",
-        "session.Manager",
-        "views.AgentSwitchView",
-        "views.Dashboard"
-      ],
-      "supportingRefs": [],
-      "files": [
-        "internal/app/coordinator.go",
-        "internal/app/session_actions.go",
-        "internal/session/lifecycle.go",
-        "internal/session/manager.go",
-        "internal/session/sub_workspaces.go",
-        "internal/ui/views/agent_switch.go",
-        "internal/ui/views/dashboard.go"
-      ],
-      "digest": "b942baa008cffe5b41f7e0934c9a42bdcbbad68a0f20a111195588aa735e7180"
     },
     {
       "kind": "flow",
@@ -1488,40 +1636,138 @@
     },
     {
       "kind": "flow",
-      "id": "watch",
+      "id": "trust",
       "refs": [
-        "app.previewSub",
-        "driver.GenericCLIDriver",
-        "driver.GenericCLIDriver.streamOutput",
-        "driver.IsPromptLike",
+        "driver.AgentDriver",
+        "driver.ClaudeCodeDriver.PrepareWorkspace",
+        "driver.CodexCLIDriver.PrepareWorkspace",
+        "driver.GenericCLIDriver.PrepareWorkspace",
+        "driver.RemoveWorkspaceTrust",
+        "driver.atomicTrustWrite",
+        "driver.trustJSONObject",
+        "driver.updateClaudeTrust",
+        "driver.updateCodexTrust",
+        "driver.updateTrust",
         "session.Manager",
-        "session.Manager.trackOutput",
-        "session.Manager.watch",
-        "session.appendScrollback",
-        "session.broadcast"
+        "session.Manager.RemoveDetailed",
+        "session.Manager.startSession"
       ],
       "directRefs": [
-        "driver.GenericCLIDriver.streamOutput",
-        "driver.IsPromptLike",
-        "session.Manager.trackOutput",
-        "session.Manager.watch",
-        "session.appendScrollback",
-        "session.broadcast"
+        "driver.ClaudeCodeDriver.PrepareWorkspace",
+        "driver.CodexCLIDriver.PrepareWorkspace",
+        "driver.RemoveWorkspaceTrust",
+        "driver.atomicTrustWrite",
+        "driver.updateTrust",
+        "session.Manager.RemoveDetailed",
+        "session.Manager.startSession"
       ],
       "participants": [
-        "app.previewSub",
-        "driver.GenericCLIDriver",
+        "driver.AgentDriver",
         "session.Manager"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "driver.GenericCLIDriver.PrepareWorkspace",
+        "driver.trustJSONObject",
+        "driver.updateClaudeTrust",
+        "driver.updateCodexTrust"
+      ],
       "files": [
-        "internal/app/preview.go",
         "internal/driver/driver.go",
+        "internal/driver/trust.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "be22f02f2c39e5f0be5869ab6dadcb063d64432442783e55344cf9372fd8e49d"
+    },
+    {
+      "kind": "flow",
+      "id": "watch",
+      "refs": [
+        "driver.GenericCLIDriver",
+        "session.Manager",
+        "session.Manager.RegisterConversation",
+        "session.Manager.cancelPendingMessageAdmissionsLocked",
+        "session.Manager.persistSessionLockedErr",
+        "session.Manager.revokeSessionActivationLocked",
+        "session.Manager.trackOutput",
+        "session.Manager.watch",
+        "session.MessageStore",
+        "session.MessageStore.Wake",
+        "session.Session.snapshot",
+        "session.updateSessionOutputState"
+      ],
+      "directRefs": [
+        "session.Manager.cancelPendingMessageAdmissionsLocked",
+        "session.Manager.persistSessionLockedErr",
+        "session.Manager.revokeSessionActivationLocked",
+        "session.Manager.trackOutput",
+        "session.Manager.watch",
+        "session.MessageStore.Wake"
+      ],
+      "participants": [
+        "driver.GenericCLIDriver",
+        "session.Manager",
+        "session.MessageStore"
+      ],
+      "supportingRefs": [
+        "session.Manager.RegisterConversation",
+        "session.Session.snapshot",
+        "session.updateSessionOutputState"
+      ],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/session/conversation.go",
         "internal/session/io.go",
+        "internal/session/lifecycle.go",
         "internal/session/manager.go",
+        "internal/session/messaging.go",
         "internal/session/watch.go"
       ],
-      "digest": "907bd19646c77a8fd24b997db4a74718acda262680c6f3e5348b5e3d81e20e28"
+      "digest": "f0a6aad62e3ae247679a7bb801f68a6492b2318bd91be6c437025763f11f1b80"
+    },
+    {
+      "kind": "flow",
+      "id": "workspace",
+      "refs": [
+        "api.Service",
+        "api.Service.GetSession",
+        "api.Service.resolveCard",
+        "session.Manager",
+        "session.Manager.RelaunchWithChoiceContext",
+        "session.Manager.cleanupNewTemporaryWorkspace",
+        "session.Manager.copyWorkspace",
+        "session.Manager.prepareSubWorkspaces",
+        "session.Manager.resolveWorkspacePath",
+        "session.ReadSubWorkspaceDescriptors",
+        "session.copyAndPublishSubWorkspace",
+        "session.preparedSubWorkspaceDescriptors"
+      ],
+      "directRefs": [
+        "api.Service.GetSession",
+        "api.Service.resolveCard",
+        "session.Manager.copyWorkspace",
+        "session.Manager.prepareSubWorkspaces",
+        "session.ReadSubWorkspaceDescriptors",
+        "session.copyAndPublishSubWorkspace"
+      ],
+      "participants": [
+        "api.Service",
+        "session.Manager"
+      ],
+      "supportingRefs": [
+        "session.Manager.RelaunchWithChoiceContext",
+        "session.Manager.cleanupNewTemporaryWorkspace",
+        "session.Manager.resolveWorkspacePath",
+        "session.preparedSubWorkspaceDescriptors"
+      ],
+      "files": [
+        "internal/api/service.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/sub_workspaces.go",
+        "internal/session/workspace.go"
+      ],
+      "digest": "ead0db0072a7fb7ecc1d6d362e54766112057779977a6bd8705fa5bd98379d02"
     },
     {
       "kind": "flow",
@@ -1609,17 +1855,44 @@
     },
     {
       "kind": "package",
+      "id": "api",
+      "refs": [
+        "api",
+        "api.OperationResult",
+        "api.OperationRunner",
+        "api.Service",
+        "api.SessionInspection"
+      ],
+      "directRefs": [
+        "api",
+        "api.OperationResult",
+        "api.OperationRunner",
+        "api.Service",
+        "api.SessionInspection"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/errors.go",
+        "internal/api/messaging.go",
+        "internal/api/operations.go",
+        "internal/api/service.go"
+      ],
+      "digest": "0367025268556c7a03438bbda0fb1592d217f791b9e493073921199b8d161a5b"
+    },
+    {
+      "kind": "package",
       "id": "app",
       "refs": [
         "app",
         "app.Coordinator",
-        "app.Coordinator.handleWorkspaceCommandResult",
-        "app.Coordinator.launchTerminal",
         "app.attachExec",
         "app.previewSub",
         "app.refresher",
         "app.sessionActions",
-        "app.sessionActions.launchWorkspaceCommand"
+        "app.sessionActions.launch",
+        "app.sessionActions.relaunchWithChoice",
+        "app.sessionActions.switchAgentWithChoice"
       ],
       "directRefs": [
         "app",
@@ -1631,25 +1904,23 @@
       ],
       "participants": [],
       "supportingRefs": [
-        "app.Coordinator.handleWorkspaceCommandResult",
-        "app.Coordinator.launchTerminal",
-        "app.sessionActions.launchWorkspaceCommand"
+        "app.sessionActions.launch",
+        "app.sessionActions.relaunchWithChoice",
+        "app.sessionActions.switchAgentWithChoice"
       ],
       "files": [
         "internal/app/app.go",
         "internal/app/attach.go",
         "internal/app/callbacks.go",
-        "internal/app/command_race_internal_test.go",
         "internal/app/coordinator.go",
         "internal/app/handlers.go",
         "internal/app/navigation.go",
         "internal/app/preview.go",
         "internal/app/refresh.go",
         "internal/app/session_actions.go",
-        "internal/app/size_guard.go",
-        "internal/app/terminal_launch_test.go"
+        "internal/app/size_guard.go"
       ],
-      "digest": "a8f3736aa9bf5ae535c2681ac9a2500f854d53ebdb0c7c2d0dfedc9d323e7449"
+      "digest": "d26448b50999cf12d9a1f9d7afb60a07d114ef1255d2d57737bbc7e0a193c778"
     },
     {
       "kind": "package",
@@ -1749,7 +2020,7 @@
         "internal/ui/components/source_list.go",
         "internal/ui/components/text.go"
       ],
-      "digest": "0c89271e9a01b0df91e7d04861ab5fddcb7b9700397e33d2f7046e72e5af3a33"
+      "digest": "77eae37019e79cf0d9effdf7463e40948cd1b1a020c045205921cc60a573c6cb"
     },
     {
       "kind": "package",
@@ -1791,7 +2062,7 @@
         "internal/config/validation_helpers.go",
         "internal/config/workspaces.go"
       ],
-      "digest": "517eb964b3ad3d79bb9fe0d684f1bea0863900812e80c082eef19421c771278a"
+      "digest": "f2cc0a946a785b8f80a38991239082276ea62d61bf77dd0953440bb49bd1e3fa"
     },
     {
       "kind": "package",
@@ -1810,30 +2081,35 @@
         "driver",
         "driver.AgentDriver",
         "driver.ClaudeCodeDriver",
+        "driver.ClaudeCodeDriver.SetSession",
+        "driver.CodexCLIDriver",
+        "driver.CodexCLIDriver.SetSession",
         "driver.GenericCLIDriver",
-        "driver.MapRegistry",
-        "driver.deploySkill",
-        "driver.writeBuiltinSkill"
+        "driver.GenericCLIDriver.SubmitPrompt",
+        "driver.RemoveWorkspaceTrust"
       ],
       "directRefs": [
         "driver",
         "driver.AgentDriver",
         "driver.ClaudeCodeDriver",
-        "driver.GenericCLIDriver",
-        "driver.MapRegistry"
+        "driver.CodexCLIDriver",
+        "driver.GenericCLIDriver"
       ],
       "participants": [],
       "supportingRefs": [
-        "driver.deploySkill",
-        "driver.writeBuiltinSkill"
+        "driver.ClaudeCodeDriver.SetSession",
+        "driver.CodexCLIDriver.SetSession",
+        "driver.GenericCLIDriver.SubmitPrompt",
+        "driver.RemoveWorkspaceTrust"
       ],
       "files": [
         "internal/driver/driver.go",
-        "internal/driver/driver_test.go",
         "internal/driver/factory.go",
-        "internal/driver/registry.go"
+        "internal/driver/mcp_config.go",
+        "internal/driver/registry.go",
+        "internal/driver/trust.go"
       ],
-      "digest": "d1524ae9fdc00fff458509a2704034d324fc6f5e797bb0ba08846ce33d8a0a90"
+      "digest": "a5986c3977115191c904efc4352c4f6b292cbaeb22107df60b088c259c067b6a"
     },
     {
       "kind": "package",
@@ -1853,14 +2129,31 @@
     },
     {
       "kind": "package",
+      "id": "mcp",
+      "refs": [
+        "mcp",
+        "mcp.Runtime"
+      ],
+      "directRefs": [
+        "mcp",
+        "mcp.Runtime"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/mcp/server.go"
+      ],
+      "digest": "605138e2ebe70adef086f1114f2ca09a8ffafe95512700e8e8b39a40cdee9c7b"
+    },
+    {
+      "kind": "package",
       "id": "messages",
       "refs": [
         "messages",
         "messages.DataLoadedMsg",
         "messages.DataReceiver",
         "messages.PreviewDataMsg",
-        "messages.SessionsRefreshedMsg",
-        "messages.TerminalLaunchedMsg"
+        "messages.SessionsRefreshedMsg"
       ],
       "directRefs": [
         "messages",
@@ -1870,13 +2163,11 @@
         "messages.SessionsRefreshedMsg"
       ],
       "participants": [],
-      "supportingRefs": [
-        "messages.TerminalLaunchedMsg"
-      ],
+      "supportingRefs": [],
       "files": [
         "internal/ui/messages/messages.go"
       ],
-      "digest": "1bf25e102939d403e3327da3b6dbbd862171135ab2e2d59a0257b49fdbb2e00a"
+      "digest": "2760c8bfb81f7cff3187bb6828462a3ddcffa1ec5e9ec328ed876088ebbfda66"
     },
     {
       "kind": "package",
@@ -1915,56 +2206,54 @@
         "main.go",
         "main_test.go"
       ],
-      "digest": "25957f0813b2b65d019041c31a3777413082b664a3f154b87f70e5d9d1bbf4df"
+      "digest": "2d5094981a669a1915766393db2f64bb96d1316f23ee1f819cdd9b7e5a588876"
     },
     {
       "kind": "package",
       "id": "session",
       "refs": [
         "session",
-        "session.AttachHandle",
-        "session.IDELauncher",
-        "session.LaunchWorkspaceCommand",
         "session.Manager",
+        "session.Manager.SwitchAgentWithChoiceContext",
+        "session.Manager.deliveryAvailableLocked",
+        "session.Manager.startSession",
+        "session.MessageAdmission",
+        "session.MessageStore",
         "session.Session",
-        "session.Snapshot",
-        "session.subWorkspaceCopy",
-        "session.subWorkspaceManifest",
-        "session.subWorkspaceSource",
-        "session.subWorkspaceTransaction"
+        "session.Snapshot"
       ],
       "directRefs": [
         "session",
-        "session.AttachHandle",
-        "session.IDELauncher",
         "session.Manager",
+        "session.MessageAdmission",
+        "session.MessageStore",
         "session.Session",
         "session.Snapshot"
       ],
       "participants": [],
       "supportingRefs": [
-        "session.IDELauncher",
-        "session.LaunchWorkspaceCommand",
-        "session.subWorkspaceCopy",
-        "session.subWorkspaceManifest",
-        "session.subWorkspaceSource",
-        "session.subWorkspaceTransaction"
+        "session.Manager.SwitchAgentWithChoiceContext",
+        "session.Manager.deliveryAvailableLocked",
+        "session.Manager.startSession",
+        "session.MessageStore"
       ],
       "files": [
         "internal/session/attach.go",
+        "internal/session/card_references.go",
+        "internal/session/conversation.go",
         "internal/session/ide_launcher.go",
-        "internal/session/ide_launcher_test.go",
         "internal/session/io.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
+        "internal/session/messaging.go",
+        "internal/session/startup.go",
         "internal/session/storage.go",
         "internal/session/sub_workspaces.go",
         "internal/session/watch.go",
         "internal/session/workspace.go",
-        "internal/session/workspace_launcher.go",
-        "internal/session/workspace_test.go"
+        "internal/session/workspace_launcher.go"
       ],
-      "digest": "2b8da2f1c40e7ed0db635fdbccd3969e970c1100e6dd9a1bf5984b78e09991a0"
+      "digest": "31d981a7e425c3c9cde98fa9b918d9f91a61eeb164c5eca65fcb2316a6f78630"
     },
     {
       "kind": "package",
@@ -1990,7 +2279,7 @@
       "participants": [],
       "supportingRefs": [],
       "files": [],
-      "digest": "71eb565c730de2c643777a25dca1d0592317c28c1ba51902d0ab4cc182a4a64e"
+      "digest": "3468d384456563b8fccad84f4e39fecb1e021d3e9af96013c489452d55dd77a4"
     },
     {
       "kind": "package",
@@ -2006,7 +2295,7 @@
       "files": [
         "internal/testenv/testenv.go"
       ],
-      "digest": "ed4b4979110f2a74c519003ff0ab4eedac7e9664768ab795b818ba72b0a4c40d"
+      "digest": "5e6b919f3e6762d58cbe6f2dde311c5bdfffffb1176cfe519b2a32ef2540a165"
     },
     {
       "kind": "package",
@@ -2022,7 +2311,7 @@
       "files": [
         "internal/ui/uitest/shape.go"
       ],
-      "digest": "4413c5fa3c291e421542dfbe6aa026e7cea58dd54e4d6b4ccb443707a850a94f"
+      "digest": "d391993c5f39f486b9c4f17f3957dbc28e8d0ee239dd47d0f23918570e01fa6b"
     },
     {
       "kind": "package",
@@ -2031,110 +2320,34 @@
         "views",
         "views.AgentSwitchView",
         "views.CardEditor",
-        "views.CardEditor.Reset",
-        "views.CardEditor.SetCard",
-        "views.CardEditor.fieldBlocks",
-        "views.Dashboard",
-        "views.Dashboard.footerText",
-        "views.Dashboard.handleLaunchSession",
-        "views.DashboardCallbacks",
-        "views.MCPForm",
-        "views.NewCardEditor",
-        "views.NewSettingsView",
-        "views.SessionLauncher",
-        "views.SettingsView",
-        "views.SettingsView.TerminalInput",
-        "views.SourceManager",
-        "views.editorKeyIdentity",
-        "views.focusTargetTable",
-        "views.workspaceItem",
-        "views.workspaceItem.Title"
+        "views.ConversationChoiceView",
+        "views.Dashboard"
       ],
       "directRefs": [
         "views",
         "views.AgentSwitchView",
         "views.CardEditor",
-        "views.Dashboard",
-        "views.MCPForm",
-        "views.SessionLauncher",
-        "views.SettingsView",
-        "views.SourceManager"
+        "views.ConversationChoiceView",
+        "views.Dashboard"
       ],
       "participants": [],
-      "supportingRefs": [
-        "views.CardEditor.Reset",
-        "views.CardEditor.SetCard",
-        "views.CardEditor.fieldBlocks",
-        "views.Dashboard.footerText",
-        "views.Dashboard.handleLaunchSession",
-        "views.DashboardCallbacks",
-        "views.NewCardEditor",
-        "views.NewSettingsView",
-        "views.SettingsView.TerminalInput",
-        "views.editorKeyIdentity",
-        "views.focusTargetTable",
-        "views.workspaceItem",
-        "views.workspaceItem.Title"
-      ],
+      "supportingRefs": [],
       "files": [
         "internal/ui/views/agent_switch.go",
         "internal/ui/views/agentsmd_editor_modal.go",
         "internal/ui/views/card_editor.go",
         "internal/ui/views/constants.go",
+        "internal/ui/views/conversation_choice.go",
         "internal/ui/views/dashboard.go",
-        "internal/ui/views/dashboard_layout_test.go",
-        "internal/ui/views/dashboard_test.go",
         "internal/ui/views/mcp_form.go",
         "internal/ui/views/puppet_selector_modal.go",
         "internal/ui/views/session_launcher.go",
         "internal/ui/views/settings.go",
-        "internal/ui/views/settings_test.go",
         "internal/ui/views/source_manager.go",
         "internal/ui/views/source_type.go",
         "internal/ui/views/workspace_picker_modal.go"
       ],
-      "digest": "bdc979c5fd228eaebeddba4b2b21d63778d1c8aac56700aa22c46f930d2cc1e9"
-    },
-    {
-      "kind": "path",
-      "id": "1",
-      "refs": [
-        "app"
-      ],
-      "directRefs": [
-        "app"
-      ],
-      "participants": [],
-      "supportingRefs": [],
-      "files": [
-        "internal/app/app.go",
-        "internal/app/attach.go",
-        "internal/app/callbacks.go",
-        "internal/app/coordinator.go",
-        "internal/app/handlers.go",
-        "internal/app/navigation.go",
-        "internal/app/preview.go",
-        "internal/app/refresh.go",
-        "internal/app/session_actions.go",
-        "internal/app/size_guard.go"
-      ],
-      "digest": "ba320d8c41b0aa70a0363d286fb5e4a3a2c2a36b78d851d2de96f88f630819df"
-    },
-    {
-      "kind": "path",
-      "id": "2",
-      "refs": [
-        "app.Coordinator"
-      ],
-      "directRefs": [
-        "app.Coordinator"
-      ],
-      "participants": [],
-      "supportingRefs": [],
-      "files": [
-        "internal/app/coordinator.go"
-      ],
-      "digest": "c60a1ac47e048e204962affe864cfca68f46b0b6e7ebc65a496b793016515921"
+      "digest": "8d5dd46a7b26a8e5df0b2830586899084ba5745c6e8a715bb6bd636f1878b8d7"
     },
     {
       "kind": "rule",
@@ -2197,7 +2410,7 @@
       "files": [
         "internal/session/sub_workspaces.go"
       ],
-      "digest": "b35519794a4956e5e306cac593ebae82226c3c8fc5b7864f92ebebbc09e6f3f7"
+      "digest": "5dfb165070da0ff098b6c7ba4122f3b5b4583abc7f031398610ba1a6d7d776bb"
     },
     {
       "kind": "rule",
@@ -2221,7 +2434,103 @@
         "main.go",
         "main_test.go"
       ],
-      "digest": "e46b853e7c2572eb07fd11c755be3da3ce7df4c4d1705aec86149bc0d8de81bc"
+      "digest": "a9023718b79ca90964895a625939836dbc400946fdfc559034a703ffadbd05e0"
+    },
+    {
+      "kind": "rule",
+      "id": "13",
+      "refs": [
+        "session.Manager.RegisterConversation"
+      ],
+      "directRefs": [
+        "session.Manager.RegisterConversation"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/conversation.go"
+      ],
+      "digest": "dfea3650138a9f16ec577f5a87ae8e92593aaa2d83699a6c318ca9773183225c"
+    },
+    {
+      "kind": "rule",
+      "id": "14",
+      "refs": [
+        "session.Manager.ResolveDashboardCaller"
+      ],
+      "directRefs": [
+        "session.Manager.ResolveDashboardCaller"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/conversation.go"
+      ],
+      "digest": "ad99fd032e306125b61f9dacbe7c2299862e0b01589084a907411f3a6548ed2d"
+    },
+    {
+      "kind": "rule",
+      "id": "15",
+      "refs": [
+        "api.OperationRunner"
+      ],
+      "directRefs": [
+        "api.OperationRunner"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go"
+      ],
+      "digest": "36381bed9994566ba9be78af643ca67e853569d31bd18ca6e0ab2a1011ee2503"
+    },
+    {
+      "kind": "rule",
+      "id": "16",
+      "refs": [
+        "session.Manager.deliveryAvailableLocked"
+      ],
+      "directRefs": [
+        "session.Manager.deliveryAvailableLocked"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/manager.go"
+      ],
+      "digest": "aed0f17b800fe1a88409496caa57b7e283df52343e94fdb3d9e605943706affd"
+    },
+    {
+      "kind": "rule",
+      "id": "17",
+      "refs": [
+        "session.Manager.DeleteCardIfUnreferenced"
+      ],
+      "directRefs": [
+        "session.Manager.DeleteCardIfUnreferenced"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/card_references.go"
+      ],
+      "digest": "818d57194d79abb0ed5c6ffd9760cc0dba3470e07487936e0f587d1a65166912"
+    },
+    {
+      "kind": "rule",
+      "id": "18",
+      "refs": [
+        "session.MessageStore.RecordReply"
+      ],
+      "directRefs": [
+        "session.MessageStore.RecordReply"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/messaging.go"
+      ],
+      "digest": "37c678fc88bf57531651ad9402e540cc5e87ebbc7687f1fd449607347a1c2940"
     },
     {
       "kind": "rule",
@@ -2338,7 +2647,7 @@
       "files": [
         "internal/session/lifecycle.go"
       ],
-      "digest": "8b7355107ffd2f67e8fba8e6e831fefc3c56e2c55f090b7c0582744b73a9d896"
+      "digest": "22b987e0475bac0ecf8d6ab474bc187892fca716ba1423ea35c46f410ede69a9"
     },
     {
       "kind": "rule",
@@ -2419,12 +2728,12 @@
       "kind": "task",
       "id": "Add a new agent CLI",
       "refs": [
-        "driver.ClaudeCodeDriver",
+        "driver.AgentDriver",
         "driver.GenericCLIDriver",
         "driver.NewBuiltinRegistry"
       ],
       "directRefs": [
-        "driver.ClaudeCodeDriver",
+        "driver.AgentDriver",
         "driver.GenericCLIDriver",
         "driver.NewBuiltinRegistry"
       ],
@@ -2434,7 +2743,7 @@
         "internal/driver/driver.go",
         "internal/driver/registry.go"
       ],
-      "digest": "84b86ab1211e50c5f548b2bcd8ea2d1b073e10b4ecce699a0d3a126c9d43d24c"
+      "digest": "b81d882944aad87e43f9e9568d675e8d17e81fcebf6bddc4d5378430022a2e1a"
     },
     {
       "kind": "task",
@@ -2457,25 +2766,28 @@
     },
     {
       "kind": "task",
-      "id": "Add a session-level action (Phase 1 linking)",
+      "id": "Add a session operation for TUI and MCP",
       "refs": [
-        "app.Coordinator.handleWorkspaceCommandResult",
-        "app.Coordinator.launchTerminal",
-        "app.sessionActions"
+        "api.OperationRunner",
+        "api.Service",
+        "app.sessionActions",
+        "mcp.addLifecycleTools"
       ],
       "directRefs": [
-        "app.Coordinator.handleWorkspaceCommandResult",
-        "app.Coordinator.launchTerminal",
-        "app.sessionActions"
+        "api.OperationRunner",
+        "api.Service",
+        "app.sessionActions",
+        "mcp.addLifecycleTools"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/app/callbacks.go",
-        "internal/app/coordinator.go",
-        "internal/app/session_actions.go"
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/app/session_actions.go",
+        "internal/mcp/server.go"
       ],
-      "digest": "57a4936fe1d8415327d2bb147bfe244661ad5d9c32740749eb6dd88551e59219"
+      "digest": "70e2ba715992fb0f349adf7192e36791ab21747f031c799ec3d97b293332566e"
     },
     {
       "kind": "task",
@@ -2579,6 +2891,55 @@
     },
     {
       "kind": "task",
+      "id": "Change native conversation registration or resume",
+      "refs": [
+        "driver.ClaudeCodeDriver.SetSession",
+        "session.Manager.RegisterConversation",
+        "session.validateConversationChoice",
+        "views.ConversationChoiceView"
+      ],
+      "directRefs": [
+        "driver.ClaudeCodeDriver.SetSession",
+        "session.Manager.RegisterConversation",
+        "session.validateConversationChoice",
+        "views.ConversationChoiceView"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/session/conversation.go",
+        "internal/session/lifecycle.go",
+        "internal/ui/views/conversation_choice.go"
+      ],
+      "digest": "9375208bc37c9aba298ca7050e21f23a0ee30174d0858e4d3b36ecfbafd52ea8"
+    },
+    {
+      "kind": "task",
+      "id": "Change prompt delivery or explicit report kinds",
+      "refs": [
+        "api.Service.SendMessage",
+        "driver.GenericCLIDriver.SubmitPrompt",
+        "session.Manager.SubmitMessage",
+        "session.MessageStore.RecordReply"
+      ],
+      "directRefs": [
+        "api.Service.SendMessage",
+        "driver.GenericCLIDriver.SubmitPrompt",
+        "session.Manager.SubmitMessage",
+        "session.MessageStore.RecordReply"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/driver/driver.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "7d22de5f9b3129a2d075459822737c1730259fcaf305063795eafdc3edbb03b2"
+    },
+    {
+      "kind": "task",
       "id": "Change refresh behaviour",
       "refs": [
         "app.refresher",
@@ -2595,6 +2956,28 @@
         "internal/config/storage.go"
       ],
       "digest": "777e71cbaa69aef790a0f246d6b6a85878c01a7a78544570144aedeac2abae39"
+    },
+    {
+      "kind": "task",
+      "id": "Change retry, cancellation or restart behavior",
+      "refs": [
+        "api.OperationRunner",
+        "api.SafeRejection",
+        "session.MessageStore.Recover"
+      ],
+      "directRefs": [
+        "api.OperationRunner",
+        "api.SafeRejection",
+        "session.MessageStore.Recover"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/errors.go",
+        "internal/api/operations.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "b8735bf507c65a41239dab9e4da2960d37926b9c750f418f2ab6ff9c8221d087"
     },
     {
       "kind": "task",
@@ -2620,6 +3003,52 @@
     },
     {
       "kind": "task",
+      "id": "Change session names or activation snapshots",
+      "refs": [
+        "api.Service.CreateSession",
+        "api.inspectionFromSnapshot",
+        "session.Manager.snapshotLocked"
+      ],
+      "directRefs": [
+        "api.Service.CreateSession",
+        "api.inspectionFromSnapshot",
+        "session.Manager.snapshotLocked"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "3634617eb6c7ec608fc9ad8ca5a392342a0c8081c8d4376ab609b33cd794603e"
+    },
+    {
+      "kind": "task",
+      "id": "Change startup delay or workspace trust",
+      "refs": [
+        "driver.updateTrust",
+        "session.Manager.RemoveDetailed",
+        "session.Manager.deliveryAvailableLocked",
+        "session.Manager.startStartupLocked"
+      ],
+      "directRefs": [
+        "driver.updateTrust",
+        "session.Manager.RemoveDetailed",
+        "session.Manager.deliveryAvailableLocked",
+        "session.Manager.startStartupLocked"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/driver/trust.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "f77eabbc54feb0bc6be80363e5169674c39a006666a07d53cf5ccacf7b00bce9"
+    },
+    {
+      "kind": "task",
       "id": "Change sub workspace copying or collision handling",
       "refs": [
         "session.Manager.prepareSubWorkspaces",
@@ -2636,7 +3065,7 @@
       "files": [
         "internal/session/sub_workspaces.go"
       ],
-      "digest": "ab815e82feedb90ae8a0220e15b652c58af8098ca06ead76c33422e906a59310"
+      "digest": "811ff985a960889c4561b35ac65e657a177c4058aef54f4677cbd6142ebf0471"
     },
     {
       "kind": "task",
@@ -2657,7 +3086,7 @@
         "internal/config/builtins.go",
         "main.go"
       ],
-      "digest": "aa590cafc3de308f091a49bc80a99f08ae4d25f09d7c44ff6697d308c01ae338"
+      "digest": "117b04ee7df1f9934e2fd5964af6753e2fd0cdadb1db5a2111f2bff3be6b2fe4"
     },
     {
       "kind": "task",
@@ -2698,23 +3127,22 @@
       "kind": "task",
       "id": "Change what gets written into a session's workspace",
       "refs": [
-        "driver.GenericCLIDriver.SetAgentsMD",
-        "session.Manager.prepareSubWorkspaces",
-        "session.Manager.syncDriverFiles"
+        "driver.GenericCLIDriver.SetSkills",
+        "driver.syncInstructionFile",
+        "session.Manager.prepareSubWorkspaces"
       ],
       "directRefs": [
-        "driver.GenericCLIDriver.SetAgentsMD",
-        "session.Manager.prepareSubWorkspaces",
-        "session.Manager.syncDriverFiles"
+        "driver.GenericCLIDriver.SetSkills",
+        "driver.syncInstructionFile",
+        "session.Manager.prepareSubWorkspaces"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
         "internal/driver/driver.go",
-        "internal/session/lifecycle.go",
         "internal/session/sub_workspaces.go"
       ],
-      "digest": "a4ccf26004ce2f5984d1e8ca29fc9356ed807920de283492e18d2e3de2b4678a"
+      "digest": "aca64329399f16b61cda342e067bb6781007075bf1451f1cde6cbee63cdd21b5"
     },
     {
       "kind": "task",
@@ -2766,5 +3194,5 @@
       "digest": "5dba625e983465423e8c2f3de67b9f68ed98aa3951277334ead2259450baf16e"
     }
   ],
-  "digest": "e96f1725c41832766edd9851a8cb3d50f801c1d027464d55667fd00a97e0f204"
+  "digest": "0d610fe67d7c7a8e3194d8e7958c5359c9ef16deb63d88acf044d8c1051e78d6"
 }

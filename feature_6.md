@@ -76,5 +76,6 @@ obstacle to early orchestrator messages. Startup now prepares the actual workspa
 trust in the selected CLI configuration before spawn and delays activation
 publication for ten seconds after spawn. This pause is a pragmatic policy rather
 than a readiness guarantee. Registration instructions are supplied through the
-Kankuro puppet skill, with legacy injected instruction blocks removed during normal
-synchronization. This fix alone does not complete Feature 6 workflow validation.
+Kankuro puppet skill. Instruction synchronization does not inject registration
+guidance or perform legacy block cleanup. This fix alone does not complete Feature 6
+workflow validation.

@@ -863,8 +863,8 @@ After successful spawn, publication and human attachment are immediate. The fixe
 ten-second admission delay for MCP delivery is not a readiness guarantee. Registration
 is independent of the timer. An exit after publication leaves a terminated session for
 inspection and relaunch. Registration guidance is supplied by the deployed
-`kankuro-puppet` skill when Kankuro MCP is selected. Normal instruction synchronization
-removes legacy Kankuro registration blocks.
+`kankuro-puppet` skill when Kankuro MCP is selected. Instruction synchronization
+does not inject registration guidance or strip previously written registration blocks.
 
 Deleting a temporary session first removes its exact saved working-directory trust
 from both Codex and Claude, including grants from earlier card switches. Claude cleanup

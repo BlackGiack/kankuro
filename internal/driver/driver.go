@@ -253,11 +253,10 @@ func syncInstructionFile(
 	if len(mcps) > 0 {
 		content = appendMCPInstruction(content, mcps)
 	}
-	content = removeConversationInstructionBlock(content)
 
 	if content == "" {
 		if mode != InstructionReplace {
-			return false, removeConversationInstructionBlockFromFile(finalWD, filename)
+			return false, nil
 		}
 		return false, writeInstructionFile(finalWD, filename, "", false)
 	}
@@ -266,42 +265,6 @@ func syncInstructionFile(
 		return false, writeErr
 	}
 	return true, nil
-}
-
-func removeConversationInstructionBlockFromFile(dir, filename string) error {
-	path := filepath.Join(dir, filename)
-	existing, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("read %s: %w", filename, err)
-	}
-	cleaned := removeConversationInstructionBlock(string(existing))
-	if cleaned == string(existing) {
-		return nil
-	}
-	//nolint:gosec // This is the workspace's existing managed instruction file.
-	if writeErr := os.WriteFile(path, []byte(cleaned), 0o600); writeErr != nil {
-		return fmt.Errorf("write %s: %w", filename, writeErr)
-	}
-	return nil
-}
-
-const conversationInstructionStart = "<!-- KANKURO CONVERSATION INSTRUCTIONS START -->"
-const conversationInstructionEnd = "<!-- KANKURO CONVERSATION INSTRUCTIONS END -->"
-
-func removeConversationInstructionBlock(content string) string {
-	start := strings.Index(content, conversationInstructionStart)
-	if start >= 0 {
-		end := strings.Index(content[start:], conversationInstructionEnd)
-		if end >= 0 {
-			before := content[:start]
-			after := content[start+end+len(conversationInstructionEnd):]
-			content = before + after
-		}
-	}
-	return content
 }
 
 func resolveAgentsMDContent(card config.IDCard) (string, error) {
@@ -346,17 +309,13 @@ func writeInstructionFile(dir, filename, content string, appendIfExist bool) err
 	}
 
 	// Append mode is used when a temporary copy started from a workspace with
-	// its own instruction file. Replace the managed block in that copy first,
-	// so repeated launches cannot accumulate duplicate Kankuro instructions.
+	// its own instruction file. Preserve its content when adding card instructions.
 	existing, err := os.ReadFile(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("read %s: %w", filename, err)
 	}
 	if len(existing) > 0 {
-		base := removeConversationInstructionBlock(string(existing))
-		if base != "" {
-			content = strings.TrimRight(base, "\n") + "\n\n" + strings.TrimLeft(content, "\n")
-		}
+		content = strings.TrimRight(string(existing), "\n") + "\n\n" + strings.TrimLeft(content, "\n")
 	}
 	// G703: Path traversal via taint analysis.
 	//nolint:gosec // Target is the workspace's managed instruction file, selected by the configured driver.

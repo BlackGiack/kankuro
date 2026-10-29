@@ -1,18 +1,20 @@
 # KANKURO appedia
 
 An interactive map of this codebase: packages, class diagrams, the real code,
-33 sequence-diagram flows, the rules the code relies on, and where to start for
+39 sequence-diagram flows, the rules the code relies on, and where to start for
 common changes.
 
-This snapshot covers the root executable and public module path, startup injection
-of the embedded MCP-CLI skill, card editor controls (including Ctrl+X to clear
-the focused Sub Workspaces field), and preserved sub workspace copies with
-explicit ownership and rollback.
+This snapshot covers the current working tree on `feat/claude-resume` at
+`5c6c0f7`, including the staged removal of legacy registration-block cleanup
+(2026-10-29). It includes the local MCP control plane, shared application service,
+native conversation bindings, explicit progress/completion replies, named sessions,
+workspace trust, immediate human attachment and the separate MCP startup gate.
 
-It also covers independent IDE (`o`) and terminal (`t`) commands, launch selection
-guards, the shared workspace launcher, startup-error banners, and Settings editing
-and layout. Both commands use the selected session's actual working directory,
-including temporary copies; the terminal command defaults to empty.
+The existing human UI, settings, workspace selection, copy ownership, refresh,
+preview and external IDE/terminal flows are retained. Package roles and new flows
+reuse the reviewed appediff where applicable; change-only and removed-code steps
+were converted to current-state descriptions. The appediff remains a separate
+historical comparison under `tmp/appediff/`.
 
 **Open `index.html` in a browser.** No server needed. Without network access
 the page still works; it falls back to system fonts.
@@ -27,7 +29,7 @@ renderer assets, and accepted baseline metadata are generated.
 ## Rebuild after the code changes
 
 This refresh used the installed create-appedia skill at
-`.agents/skills/create-appedia`, with Node 20, Go 1.26.1 and Graphviz. That skill
+`.agents/skills/create-appedia`, with Node 20, Go 1.27.3 and Graphviz. That skill
 directory is ignored by git; another checkout needs the same skill installed,
 or `appedia_skill_dir` set to its actual location. The older bundled scripts under
 `kankuro_skills/create-appedia` do not include this refresh pipeline.
@@ -37,7 +39,7 @@ From the repository root, use the same extraction settings:
 ```bash
 appedia_skill_dir=.agents/skills/create-appedia
 node "$appedia_skill_dir/scripts/appedia.mjs" --action prepare --repo . --lang go \
-  --exclude kankuro_skills/create-appedia,kankuro_skills/create-appediff,tmp,appedia
+  --exclude kankuro_skills/create-appedia,kankuro_skills/create-appediff,tmp,appedia,.agents,.kankuro
 ```
 
 Review `.maintenance/pending/impact.md`, update `data/content.js`, and mark every
@@ -67,3 +69,18 @@ node "$appedia_skill_dir/scripts/smoke.mjs" --site appedia --jsdom /tmp/appedia-
 
 How it was made and how to make one for another project:
 the installed skill's `SKILL.md` and `references/content-guide.md`.
+
+## Verification
+
+The staged code cleanup already passed focused driver regressions, full tests,
+race tests, build, vet and lint; evidence is in
+`.kankuro/remove-legacy-cleanup-verification/`. This documentation refresh does
+not repeat unchanged source tests. The finalization command above rebuilds and
+checks every appedia route before recording the new working-tree baseline.
+Browser captures are retained under `tmp/appedia-refresh/verification/`.
+Finalization passed on 2026-10-29: the build and exhaustive route smoke test
+succeeded, the accepted baseline includes the staged driver cleanup, and all
+12 light/dark browser captures were inspected. Runtime credentials and local
+verification artifacts are excluded from the source inventory.
+Live CLI workflows were not rerun for this refresh; Claude validation is ongoing
+in the user's other environment.

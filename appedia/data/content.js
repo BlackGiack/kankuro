@@ -1,7 +1,7 @@
 window.APPEDIA_CONTENT = {
   "app": "KANKURO",
   "title": "Kankuro Appedia",
-  "tagline": "A terminal stage where AI agents are the puppets",
+  "tagline": "A human dashboard and local MCP control plane for agent sessions",
   "language": "go",
   "rulesSource": "project.md §6",
   "tasksSource": "project.md §10",
@@ -33,6 +33,18 @@ window.APPEDIA_CONTENT = {
     "process": [
       "External application",
       "Configured IDE or terminal"
+    ],
+    "orchestrator": [
+      "Orchestrator",
+      "an ordinary CLI session"
+    ],
+    "agent": [
+      "Recipient agent",
+      "reports through MCP"
+    ],
+    "trust": [
+      "CLI user config",
+      "Codex TOML / Claude JSON"
     ]
   },
   "flowKinds": {
@@ -49,232 +61,221 @@ window.APPEDIA_CONTENT = {
       "comes back through Bubble Tea's Update"
     ]
   },
-  "snapshot": "Working tree on top of 3bdb260, including independent terminal commands and shared workspace launching, 2026-10-15.",
-  "pitch": "KANKURO is a terminal UI written in Go that orchestrates AI coding-agent CLIs: Claude Code today, any CLI through a generic driver. You describe an agent once as an ID card, launch as many sessions of it as you like, and switch between them from one dashboard.",
-  "pitch2": "It is a Bubble Tea program. One goroutine runs Update and View; anything slow (disk, processes) runs in a command on another goroutine and comes back as a message. Each agent runs in its own pseudo-terminal and its record is saved as JSON, so the list survives a restart.",
+  "snapshot": "Working tree on feat/claude-resume at 5c6c0f7, including staged removal of legacy registration-block cleanup, 2026-10-29.",
+  "pitch": "Kankuro runs coding-agent CLIs in separate PTYs and lets humans and authenticated orchestrator sessions operate the same sessions. Cards select projects, models, skills, personas and MCP servers; orchestrators can create named sessions, switch cards, and exchange explicit reports.",
+  "pitch2": "Bubble Tea owns human interaction; a loopback MCP endpoint adapts tools to a shared application service. One session manager owns processes, activation identity, native conversation bindings, startup timers and message history. Factory workflow policy stays in user instructions.",
   "concepts": [
     [
       "ID card",
-      "A saved agent template: driver, model, main and optional sub workspaces, capabilities, instructions, environment and appearance.",
+      "Saved project-scoped agent template and optional Dashboard Control permission.",
       "config.IDCard"
     ],
     [
       "Session",
-      "A running or stopped instance of a card: a process in a PTY, its scrollback, a JSON record.",
+      "Persistent workspace identity and user name across successive CLI activations.",
       "session.Session"
     ],
     [
-      "Driver",
-      "How to talk to one CLI: which files to write, how to spawn and kill it.",
-      "driver.AgentDriver"
+      "Activation",
+      "One process generation, credential and startup gate.",
+      "session.Snapshot"
     ],
     [
-      "Registries",
-      "Workspaces, skills, personas and puppets discovered from source directories; MCP servers entered by hand.",
-      "config.Repository"
+      "Shared service",
+      "Application operations used by human UI and local MCP.",
+      "api.Service"
     ],
     [
-      "Coordinator",
-      "The one object that routes every message between the screens and the rest.",
-      "app.Coordinator"
+      "Conversation binding",
+      "Saved native conversation for one card in one session.",
+      "session.ConversationBinding"
     ],
     [
-      "Status",
-      "running, waiting (looks like it wants input) or terminated.",
-      "session.Status"
-    ],
-    [
-      "Sub workspace",
-      "A selected registry entry copied into the session workspace’s tmp folder; managed edits persist across activations.",
-      "session.subWorkspaceManifest"
-    ],
-    [
-      "Workspace command",
-      "An independently configured IDE or terminal command started in the selected session’s actual working directory.",
-      "session.LaunchWorkspaceCommand"
+      "Message and reply",
+      "Marked process input plus explicit correlated MCP reports.",
+      "session.MessageRecord"
     ]
   ],
   "path": [
     [
-      "The package map: the coordinator sits between the screens and the processes.",
-      "pkg-app"
+      "See the shared service between UI, local MCP and process manager.",
+      "map"
     ],
     [
-      "Zoom into the coordinator type to see what it owns.",
-      "type-app.Coordinator"
-    ],
-    [
-      "Watch a launch go from keypress to running process.",
+      "Trace a fresh session from preparation through publication.",
       "flow-launch"
     ],
     [
-      "Trace optional workspace copies and their ownership manifest.",
-      "flow-sub-copy"
+      "Separate immediate human attachment from the message startup gate.",
+      "flow-readiness"
     ],
     [
-      "Watch the 2-second tick keep the screen fresh without blocking.",
-      "flow-tick"
+      "Follow registration and native conversation resume.",
+      "flow-registration"
     ],
     [
-      "Read rules 1 and 2: goroutines and navigation, the easiest to break.",
+      "Trace explicit messages and progress/completion reports.",
+      "flow-send"
+    ],
+    [
+      "Read invariants and entry points for future changes.",
       "rules"
     ]
   ],
   "map": {
-    "viewBox": [
-      0,
-      0,
-      1000,
-      690
-    ],
-    "bands": [
-      {
-        "label": "ENTRY",
-        "y": 16,
-        "h": 70
-      },
-      {
-        "label": "UI LOOP",
-        "y": 100,
-        "h": 84
-      },
-      {
-        "label": "SCREENS · PROCESSES",
-        "y": 198,
-        "h": 200
-      },
-      {
-        "label": "DATA · ART",
-        "y": 412,
-        "h": 148
-      },
-      {
-        "label": "TEST-ONLY",
-        "y": 604,
-        "h": 76
-      }
-    ],
-    "nodes": {
-      "tea": [
-        190,
-        142
-      ],
-      "app": [
-        500,
-        142
-      ],
-      "views": [
-        150,
-        250
-      ],
-      "messages": [
-        360,
-        250
-      ],
-      "session": [
-        660,
-        250
-      ],
-      "components": [
-        150,
-        350
-      ],
-      "component": [
-        330,
-        350
-      ],
-      "styles": [
-        480,
-        350
-      ],
-      "driver": [
-        660,
-        350
-      ],
-      "pty": [
-        870,
-        350
-      ],
-      "ascii": [
-        130,
-        470
-      ],
-      "characters": [
-        300,
-        470
-      ],
-      "config": [
-        480,
-        470
-      ],
-      "fsutil": [
-        670,
-        470
-      ],
-      "disk": [
-        870,
-        470
-      ],
-      "root": [
-        500,
-        51
-      ],
-      "uitest": [
-        330,
-        642
-      ],
-      "testenv": [
-        640,
-        642
-      ]
-    },
-    "external": {
-      "tea": {
-        "label": "Bubble Tea",
-        "sub": "UI loop library"
-      },
-      "pty": {
-        "label": "Agent CLI",
-        "sub": "in a PTY"
-      },
-      "disk": {
-        "label": "~/.config/kankuro",
-        "sub": "YAML + JSON"
-      }
-    },
     "extraEdges": [
       [
-        "root",
-        "tea"
+        "mcp",
+        "api",
+        "MCP tools"
       ],
       [
-        "tea",
-        "app"
+        "app",
+        "api",
+        "TUI commands"
+      ],
+      [
+        "session",
+        "pty",
+        "spawn / input"
       ],
       [
         "driver",
-        "pty"
-      ],
-      [
-        "fsutil",
-        "disk"
-      ],
-      [
-        "testenv",
-        "session"
-      ],
+        "disk",
+        "MCP config / trust"
+      ]
+    ],
+    "flowEdges": [
       [
         "root",
-        "config",
-        "inject skill bytes"
+        "mcp",
+        "start endpoint"
+      ],
+      [
+        "mcp",
+        "api",
+        "authenticated operations"
+      ],
+      [
+        "app",
+        "api",
+        "human actions"
+      ],
+      [
+        "api",
+        "session",
+        "shared lifecycle"
+      ],
+      [
+        "session",
+        "driver",
+        "spawn / submit"
+      ],
+      [
+        "driver",
+        "pty",
+        "PTY input"
+      ],
+      [
+        "session",
+        "disk",
+        "records / reports"
       ]
-    ]
+    ],
+    "viewBox": [
+      0,
+      0,
+      1200,
+      880
+    ],
+    "nodes": {
+      "root": [
+        580,
+        80
+      ],
+      "testenv": [
+        1040,
+        80
+      ],
+      "app": [
+        350,
+        220
+      ],
+      "mcp": [
+        810,
+        220
+      ],
+      "api": [
+        810,
+        360
+      ],
+      "views": [
+        120,
+        360
+      ],
+      "messages": [
+        580,
+        500
+      ],
+      "session": [
+        810,
+        500
+      ],
+      "components": [
+        120,
+        500
+      ],
+      "driver": [
+        1040,
+        640
+      ],
+      "config": [
+        580,
+        640
+      ],
+      "fsutil": [
+        810,
+        780
+      ],
+      "ascii": [
+        120,
+        780
+      ],
+      "characters": [
+        350,
+        780
+      ],
+      "component": [
+        120,
+        640
+      ],
+      "styles": [
+        350,
+        640
+      ],
+      "uitest": [
+        1040,
+        780
+      ],
+      "tea": [
+        120,
+        220
+      ],
+      "pty": [
+        1040,
+        500
+      ],
+      "disk": [
+        580,
+        780
+      ]
+    }
   },
   "packages": {
     "app": {
       "label": "internal/app",
       "sub": "the coordinator",
-      "role": "Coordinates screens, navigation, settings and error banners. Captures IDE and terminal command settings before handing blocking launches to sessionActions, which has no coordinator pointer.",
+      "role": "Coordinates Bubble Tea views and captures immutable command inputs. Session actions delegate domain operations to api.Service; conversation-choice callbacks open an explicit new/resume picker.",
       "files": {
         "coordinator.go": "the Coordinator struct, Update, message routing",
         "navigation.go": "navigateTo (rule 2), initViews, resizeAll, broadcasts",
@@ -288,16 +289,9 @@ window.APPEDIA_CONTENT = {
         "app.go": "tea.Model wrapper"
       },
       "notes": [
-        "refresher and sessionActions hold no *Coordinator: a closure they build cannot touch coordinator state (rule 1 by construction).",
-        "The error banner clears on the next keypress, never on navigation (rule 4)."
+        "Bubble Tea command closures run off the UI goroutine. Native-conversation choices are validated again by the session manager."
       ],
-      "rules": [
-        "1",
-        "2",
-        "3",
-        "4",
-        "8"
-      ],
+      "rules": [],
       "key": [
         "Coordinator",
         "refresher",
@@ -307,20 +301,16 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "app.Coordinator.launchTerminal",
-          "app.Coordinator.handleWorkspaceCommandResult",
-          "app.sessionActions.launchWorkspaceCommand"
-        ],
-        "files": [
-          "internal/app/terminal_launch_test.go",
-          "internal/app/command_race_internal_test.go"
+          "app.sessionActions.launch",
+          "app.sessionActions.relaunchWithChoice",
+          "app.sessionActions.switchAgentWithChoice"
         ]
       }
     },
     "views": {
       "label": "ui/views",
       "sub": "full screens",
-      "role": "Owns full-screen interaction and layout. The dashboard gates IDE/terminal actions on Sessions focus and selection; Settings edits independent command inputs and fits their saved text.",
+      "role": "Renders dashboard, card forms, switch picker and the new native-conversation picker. Humans explicitly choose a saved conversation or a new one when bindings exist.",
       "files": {
         "dashboard.go": "three panes, keys, search, footer",
         "card_editor.go": "card fields, one key switch, focused sub workspace clearing, source shortcuts, skills filter",
@@ -336,83 +326,39 @@ window.APPEDIA_CONTENT = {
         "source_type.go": "per-registry labels"
       },
       "notes": [
-        "A view that receives data implements messages.DataReceiver and guards every field with if msg.X != nil (rule 3).",
-        "Workspace and sub workspace fields open the existing source manager with Ctrl+E. Sub selections are provisional until picker confirmation; registry refreshes retain checked missing IDs.",
-        "Ctrl+X clears all selected IDs only while Sub Workspaces is focused in the form. Open modals own their keys. The focused row reserves space for ctrl+x=clear; Enter saves and Esc cancels. Existing workspace copies are retained."
+        "Dashboard Control is a per-card opt-in; the selected MCP list determines whether it can take effect.",
+        "Existing session workspace identity survives card switches."
       ],
-      "rules": [
-        "2",
-        "3",
-        "5",
-        "9",
-        "10"
-      ],
+      "rules": [],
       "key": [
         "Dashboard",
         "CardEditor",
-        "MCPForm",
-        "SourceManager",
-        "SettingsView",
-        "AgentSwitchView",
-        "SessionLauncher"
-      ],
-      "sources": {
-        "refs": [
-          "views.editorKeyIdentity",
-          "views.focusTargetTable",
-          "views.NewCardEditor",
-          "views.CardEditor.SetCard",
-          "views.CardEditor.Reset",
-          "views.CardEditor.fieldBlocks",
-          "views.workspaceItem",
-          "views.workspaceItem.Title",
-          "views.NewSettingsView",
-          "views.DashboardCallbacks",
-          "views.Dashboard.handleLaunchSession",
-          "views.Dashboard.footerText",
-          "views.SettingsView.TerminalInput"
-        ],
-        "files": [
-          "internal/ui/views/card_editor.go",
-          "internal/ui/views/workspace_picker_modal.go",
-          "internal/ui/views/settings_test.go",
-          "internal/ui/views/dashboard_test.go",
-          "internal/ui/views/dashboard_layout_test.go"
-        ]
-      }
+        "ConversationChoiceView",
+        "AgentSwitchView"
+      ]
     },
     "messages": {
       "label": "ui/messages",
       "sub": "every tea.Msg",
-      "role": "Defines messages crossing the UI loop. TerminalLaunchedMsg carries external terminal launch completion or startup failure alongside the existing IDE completion message.",
+      "role": "Defines typed messages crossing the Bubble Tea loop, including conversation-choice requests/results and MCP endpoint failures.",
       "files": {
         "messages.go": "all message types, DataReceiver, PreviewReceiver"
       },
       "notes": [
         "DataLoadedMsg is always a full snapshot; partial updates get their own type."
       ],
-      "rules": [
-        "3"
-      ],
+      "rules": [],
       "key": [
         "DataLoadedMsg",
         "PreviewDataMsg",
         "SessionsRefreshedMsg",
         "DataReceiver"
-      ],
-      "sources": {
-        "refs": [
-          "messages.TerminalLaunchedMsg"
-        ],
-        "files": [
-          "internal/ui/messages/messages.go"
-        ]
-      }
+      ]
     },
     "session": {
       "label": "internal/session",
-      "sub": "process lifecycle",
-      "role": "Owns agent session lifecycle, snapshots and workspace paths. Also supplies shared external workspace-command execution, with the existing IDELauncher retained as a compatibility wrapper.",
+      "sub": "activations and messaging",
+      "role": "Owns PTYs, activation generations, saved workspace identity, conversation bindings, startup timers and explicit message history. It is shared by both frontends and enforces lifecycle reservations.",
       "files": {
         "manager.go": "Manager, Session, Snapshot",
         "lifecycle.go": "Launch, Relaunch, SwitchAgent, Kill, Remove, Shutdown",
@@ -423,45 +369,45 @@ window.APPEDIA_CONTENT = {
         "workspace.go": "temporary workspace copies",
         "ide_launcher.go": "Compatible IDE API and command parser",
         "sub_workspaces.go": "source resolution, ownership manifest, copy staging/publication, rollback",
-        "workspace_launcher.go": "Shared path resolution, placeholder replacement, direct process spawn and asynchronous reaping"
+        "workspace_launcher.go": "Shared path resolution, placeholder replacement, direct process spawn and asynchronous reaping",
+        "conversation.go": "activation credentials and native conversation reports",
+        "messaging.go": "intent, reports, retention and delivery admission",
+        "card_references.go": "pending card reference and deletion guard",
+        "startup.go": "startup policy and unpublished-process teardown"
       },
       "notes": [
-        "Every activation bumps a generation counter so goroutines of an older run stop touching the session.",
-        "Relaunch and SwitchAgent reserve the session first (activating); Remove refuses while it is set.",
-        "Sub workspace preparation holds one manager mutex across decisions and publication. Existing managed copies and deselected folders persist; independent app instances are outside this guarantee."
+        "A Kankuro session persists across card changes; each process activation has a fresh credential and generation.",
+        "Human attachment is immediate after spawn; only MCP message admission waits ten seconds.",
+        "Temporary-workspace deletion removes exact Codex/Claude trust grants before deleting the record; cleanup failure retains the session for retry."
       ],
       "rules": [
         "8",
-        "11"
+        "11",
+        "13",
+        "16",
+        "17",
+        "18"
       ],
       "key": [
         "Manager",
         "Session",
         "Snapshot",
-        "AttachHandle",
-        "IDELauncher"
+        "MessageStore",
+        "MessageAdmission"
       ],
       "sources": {
         "refs": [
-          "session.subWorkspaceSource",
-          "session.subWorkspaceCopy",
-          "session.subWorkspaceManifest",
-          "session.subWorkspaceTransaction",
-          "session.IDELauncher",
-          "session.LaunchWorkspaceCommand"
-        ],
-        "files": [
-          "internal/session/sub_workspaces.go",
-          "internal/session/workspace_test.go",
-          "internal/session/workspace_launcher.go",
-          "internal/session/ide_launcher_test.go"
+          "session.Manager.startSession",
+          "session.Manager.SwitchAgentWithChoiceContext",
+          "session.Manager.deliveryAvailableLocked",
+          "session.MessageStore"
         ]
       }
     },
     "components": {
       "label": "ui/components",
       "sub": "reusable pieces",
-      "role": "Building blocks the views compose: lists, the card renderer, the preview, modals, text fitting.",
+      "role": "Renders reusable TUI lists, previews, art and modals. Session phase/delivery hints and responsive preview metadata make activation state visible; narrow previews omit art when necessary.",
       "files": {
         "card_list.go": "ID-card rendering, pills, ClipBlock",
         "session_list.go": "sessions pane list",
@@ -479,10 +425,7 @@ window.APPEDIA_CONTENT = {
         "Fit by display width, never bytes. Clip art, never wrap it (rule 9).",
         "Selected-only mode changes visible items, not the full item collection or selection map. Normalize the cursor after registry and selection changes."
       ],
-      "rules": [
-        "9",
-        "10"
-      ],
+      "rules": [],
       "key": [
         "CardList",
         "SessionList",
@@ -518,32 +461,36 @@ window.APPEDIA_CONTENT = {
     },
     "driver": {
       "label": "internal/driver",
-      "sub": "one per CLI",
-      "role": "One AgentDriver per CLI: which files to write into a workspace, how to spawn the CLI in a PTY, how to send it keys and how to kill it.",
+      "sub": "CLI adapters and trust",
+      "role": "Constructs a fresh driver per activation and owns process input serialization. Codex and Claude specialize resume/trust behavior; generic drivers support arbitrary executable commands.",
       "files": {
         "driver.go": "GenericCLIDriver, ClaudeCodeDriver, Spawn, Kill, file sync, IsPromptLike",
         "registry.go": "name → constructor",
-        "factory.go": "construction helpers"
+        "factory.go": "construction helpers",
+        "trust.go": "exact workspace trust preparation and removal",
+        "mcp_config.go": "atomic selected-server config and credential-matched cleanup"
       },
       "notes": [
-        "Kill signals the whole process group: SIGTERM, up to 2 s grace, then SIGKILL for anything left. A descendant that starts its own session escapes.",
-        "Built-in skill deployment reads injected bytes from config. Missing content is reported as an error; no source file is loaded at runtime."
+        "Codex sends text, waits 500 ms, then writes Enter. Submitted bytes do not prove processing.",
+        "Trust edits preserve configuration structurally, with atomic writes and a process-local update lock."
       ],
-      "rules": [],
+      "rules": [
+        "12",
+        "13",
+        "16"
+      ],
       "key": [
         "AgentDriver",
         "GenericCLIDriver",
-        "ClaudeCodeDriver",
-        "MapRegistry"
+        "CodexCLIDriver",
+        "ClaudeCodeDriver"
       ],
       "sources": {
         "refs": [
-          "driver.deploySkill",
-          "driver.writeBuiltinSkill"
-        ],
-        "files": [
-          "internal/driver/driver.go",
-          "internal/driver/driver_test.go"
+          "driver.CodexCLIDriver.SetSession",
+          "driver.ClaudeCodeDriver.SetSession",
+          "driver.GenericCLIDriver.SubmitPrompt",
+          "driver.RemoveWorkspaceTrust"
         ]
       }
     },
@@ -582,7 +529,7 @@ window.APPEDIA_CONTENT = {
     "config": {
       "label": "internal/config",
       "sub": "YAML repository",
-      "role": "Owns YAML-backed registries and settings with locked atomic writes. AppSettings gains an optional terminal_command string; absent fields retain defaults without a migration.",
+      "role": "Persists cards, registries and application settings as YAML. Adds per-card Dashboard Control permission and built-in Kankuro MCP / puppet-skill metadata; activation credentials stay runtime-only.",
       "files": {
         "repository.go": "FileRepository, interfaces, settings",
         "storage.go": "WriteAtomic, Fingerprint",
@@ -602,14 +549,9 @@ window.APPEDIA_CONTENT = {
         "errors.go": "SyncFailedError"
       },
       "notes": [
-        "Cards reference workspaces and capabilities by ID, never by path.",
-        "MCP-CLI bytes are supplied by main, protected by a separate RWMutex, and cloned on injection and lookup. Metadata listing does not require content injection."
+        "Cards select Kankuro MCP and opt into Dashboard Control separately. The permission is captured at activation."
       ],
-      "rules": [
-        "6",
-        "7",
-        "12"
-      ],
+      "rules": [],
       "key": [
         "FileRepository",
         "Repository",
@@ -641,17 +583,14 @@ window.APPEDIA_CONTENT = {
     "root": {
       "label": "kankuro",
       "sub": "root main.go",
-      "role": "The root executable embeds the canonical MCP-CLI skill, injects its bytes into config, wires the repository/drivers/session manager/UI, and owns application shutdown.",
+      "role": "Embeds both built-in skills, opens the repository, creates one session manager and operation runner, starts authenticated loopback MCP, then runs Bubble Tea. Owns ordered shutdown and endpoint-failure reporting.",
       "files": {
         "main.go": "embed, config injection, flags, wiring, signals, shutdown"
       },
       "notes": [
-        "Main injects built-in content before creating the driver registry; config never imports the executable package.",
-        "Every normal exit after the TUI run calls Manager.Shutdown. stdout/stderr logging must respect whether the TUI owns the terminal."
+        "The endpoint starts before agents can launch. On exit the operation runner stops, sessions terminate, then the MCP endpoint closes."
       ],
-      "rules": [
-        "12"
-      ],
+      "rules": [],
       "key": [],
       "sources": {
         "refs": [
@@ -680,17 +619,14 @@ window.APPEDIA_CONTENT = {
       "notes": [
         "Shape tests check fit; position tests check that elements stay put. A list-like component needs both."
       ],
-      "rules": [
-        "9",
-        "10"
-      ],
+      "rules": [],
       "key": []
     },
     "testenv": {
       "label": "internal/testenv",
       "sub": "TestMain sandbox",
       "test": true,
-      "role": "Runs a package's tests in a private TMPDIR and KANKURO_TMP_DIR and fails the package if anything is left behind.",
+      "role": "Isolates tests in private temporary/workspace/home directories so lifecycle and trust tests avoid real user configuration; checks temporary workspace leaks.",
       "files": {
         "testenv.go": "Run(m, name)"
       },
@@ -709,9 +645,7 @@ window.APPEDIA_CONTENT = {
       "notes": [
         "That last fact is what rule 1 is about."
       ],
-      "rules": [
-        "1"
-      ],
+      "rules": [],
       "key": []
     },
     "pty": {
@@ -733,39 +667,97 @@ window.APPEDIA_CONTENT = {
       "notes": [],
       "rules": [],
       "key": []
+    },
+    "api": {
+      "label": "internal/api",
+      "sub": "shared application service",
+      "role": "Resolves cards and capabilities for both TUI and MCP. Owns operation admission, request deduplication and safe response DTOs; the session manager still owns all processes.",
+      "key": [
+        "Service",
+        "OperationRunner",
+        "OperationResult",
+        "SessionInspection"
+      ],
+      "files": {
+        "service.go": "shared lifecycle, discovery and inspection",
+        "operations.go": "durable journal and bounded workers",
+        "messaging.go": "send, report and bounded reply reads"
+      },
+      "rules": [
+        "14",
+        "15",
+        "17"
+      ]
+    },
+    "mcp": {
+      "label": "internal/mcp",
+      "sub": "authenticated local endpoint",
+      "role": "Adapts Streamable HTTP MCP tools to the shared service. Validates loopback host, origin, request size and bearer identity; owns the endpoint lifetime, not agent processes.",
+      "key": [
+        "Runtime"
+      ],
+      "files": {
+        "server.go": "registration, discovery, lifecycle and message tools"
+      },
+      "rules": [
+        "14",
+        "15"
+      ]
     }
   },
   "flowGroups": [
     {
-      "name": "Start & stop",
+      "name": "Architecture and entry points",
       "flows": [
         "startup",
+        "launch",
+        "control",
+        "skills"
+      ]
+    },
+    {
+      "name": "Conversation and activation identity",
+      "flows": [
+        "registration",
+        "resume",
+        "readiness",
+        "trust",
+        "workspace",
+        "mcp-config"
+      ]
+    },
+    {
+      "name": "Orchestrator communication",
+      "flows": [
+        "send",
+        "reports",
+        "operations"
+      ]
+    },
+    {
+      "name": "Safety, recovery and human use",
+      "flows": [
+        "card-delete",
+        "stop-delete",
+        "recovery",
         "quit",
+        "dashboard",
+        "watch"
+      ]
+    },
+    {
+      "name": "Start & stop",
+      "flows": [
         "resize"
       ]
     },
     {
       "name": "Sessions",
       "flows": [
-        "launch",
         "attach",
-        "relaunch",
-        "switch",
-        "kill",
-        "remove",
-        "watch",
         "ide",
         "terminal",
-        "workspace-command-errors",
-        "failed-activation"
-      ]
-    },
-    {
-      "name": "Workspace preparation",
-      "flows": [
-        "sub-copy",
-        "copy-rollback",
-        "builtin-skill"
+        "workspace-command-errors"
       ]
     },
     {
@@ -786,8 +778,7 @@ window.APPEDIA_CONTENT = {
         "sub-clear",
         "picker-refresh",
         "workspace-sources",
-        "savecard",
-        "deletecard"
+        "savecard"
       ]
     },
     {
@@ -802,21 +793,15 @@ window.APPEDIA_CONTENT = {
   ],
   "flows": {
     "startup": {
-      "title": "Startup",
-      "summary": "The root command injects the embedded skill before opening config, loading sessions and starting Bubble Tea.",
+      "title": "Boot the local control plane",
+      "summary": "The same Kankuro process now serves the TUI and authenticated MCP tools.",
       "participants": [
         [
           "main",
-          "root.main",
-          "main.go"
+          "root.run"
         ],
         [
-          "content",
-          "config.SetBuiltinMCPCLISkillContent",
-          "Skill bytes"
-        ],
-        [
-          "repo",
+          "cfg",
           "config.FileRepository"
         ],
         [
@@ -824,263 +809,162 @@ window.APPEDIA_CONTENT = {
           "session.Manager"
         ],
         [
-          "coord",
+          "svc",
+          "api.Service"
+        ],
+        [
+          "runner",
+          "api.OperationRunner"
+        ],
+        [
+          "http",
+          "mcp.Runtime"
+        ],
+        [
+          "ui",
           "app.Coordinator"
-        ],
-        [
-          "ref",
-          "app.refresher"
-        ],
-        [
-          "tea",
-          "tea"
-        ],
-        [
-          "disk",
-          "disk"
         ]
       ],
       "steps": [
         [
           "main",
-          "content",
+          "main",
           "call",
-          "Inject skill",
-          "Main owns the go:embed bytes; config stores a clone under its content mutex before any agent can deploy a skill.",
-          "config.SetBuiltinMCPCLISkillContent"
+          "Embed and inject both skills",
+          "mcp-cli explains access; kankuro-puppet explains registration and explicit reports.",
+          "root.main"
         ],
         [
           "main",
-          "main",
-          "self",
-          "Register drivers",
-          "Register the Claude driver; unknown command names use the generic driver.",
-          "driver.NewBuiltinRegistry"
-        ],
-        [
-          "main",
-          "main",
+          "cfg",
           "call",
-          "run(registry)",
-          "Parse flags, configure optional debug logging and initialize the application.",
-          "root.run"
-        ],
-        [
-          "main",
-          "repo",
-          "call",
-          "Open config",
-          "Opens the YAML repository and creates missing files.",
+          "Open YAML repository",
+          "",
           "config.NewFileRepository"
         ],
         [
           "main",
-          "repo",
-          "call",
-          "Sync skills",
-          "Rescans the skill source directories into skills.yaml.",
-          "config.FileRepository.SyncSkillsFromSources"
-        ],
-        [
-          "main",
           "mgr",
           "call",
-          "NewManager(dir, repo)",
-          "Builds the session registry.",
+          "Load sessions and message history",
+          "Processes restore as terminated; unfinished message delivery becomes uncertain.",
           "session.NewManager"
         ],
         [
-          "mgr",
-          "disk",
+          "main",
+          "svc",
+          "call",
+          "Create shared API service",
+          "",
+          "api.New"
+        ],
+        [
+          "main",
+          "runner",
+          "call",
+          "Load journal and start bounded workers",
+          "Four workers; interrupted operations are never replayed automatically.",
+          "api.NewOperationRunner"
+        ],
+        [
+          "main",
+          "http",
           "io",
-          "Load session records",
-          "Every loaded session is marked terminated: a process cannot survive a restart. Corrupt files are skipped and reported once.",
-          "session.loadSessions"
+          "Bind authenticated loopback MCP",
+          "Host/origin checks and request limits wrap Streamable HTTP.",
+          "mcp.Start"
         ],
         [
           "main",
-          "coord",
+          "mgr",
           "call",
-          "app.New → coordinator",
-          "Builds every view with its callbacks.",
-          "app.NewCoordinator"
+          "Set endpoint before any agent launches",
+          "",
+          "session.Manager.SetMCPEndpoint"
         ],
         [
           "main",
-          "tea",
+          "ui",
           "call",
-          "NewProgram.Run()",
-          "Bubble Tea takes the terminal. From here on, everything goes through Update and View.",
+          "Build coordinator and run Bubble Tea",
+          "TUI actions use a service backed by the same manager.",
           "root.run"
-        ],
-        [
-          "tea",
-          "coord",
-          "call",
-          "Init()",
-          "Returns a batch of commands.",
-          "app.Coordinator.Init"
-        ],
-        [
-          "tea",
-          "ref",
-          "cmd",
-          "Read registries",
-          "Each runs on its own goroutine: read every registry, rescan puppet sources, report session-load errors.",
-          "app.refresher.fullSeeded"
-        ],
-        [
-          "ref",
-          "coord",
-          "msg",
-          "Config snapshot",
-          "Applied on the UI goroutine: the baseline is stored and the data broadcast to every view.",
-          "app.Coordinator.handleConfigFingerprint"
-        ],
-        [
-          "tea",
-          "coord",
-          "msg",
-          "Tick every 2s",
-          "Starts the refresh cadence (see the tick flow).",
-          "app.tick"
         ]
       ],
       "sources": {
-        "refs": [
-          "root.main",
-          "root.logDir",
-          "config.GetBuiltinSkillContent"
-        ],
-        "files": [
-          "main.go",
-          "main_test.go",
-          "go.mod",
-          "README.md",
-          "kankuro_skills/mcp-cli/SKILL.md"
-        ]
+        "refs": []
       }
     },
     "quit": {
-      "title": "Quit",
-      "summary": "Every exit path ends in Shutdown, which kills running agents before KANKURO exits.",
+      "title": "Quit and stop the control plane",
+      "summary": "All managed agent processes stop when Kankuro exits.",
       "participants": [
         [
-          "user",
-          "user"
-        ],
-        [
-          "dash",
-          "views.Dashboard"
-        ],
-        [
-          "tea",
-          "tea"
+          "ui",
+          "app.Coordinator"
         ],
         [
           "main",
-          "root.run",
-          "main.go"
+          "root.run"
+        ],
+        [
+          "r",
+          "api.OperationRunner"
         ],
         [
           "mgr",
           "session.Manager"
         ],
         [
-          "drv",
-          "driver.GenericCLIDriver"
-        ],
-        [
-          "pty",
-          "pty"
-        ],
-        [
-          "disk",
-          "disk"
+          "http",
+          "mcp.Runtime"
         ]
       ],
       "steps": [
         [
-          "user",
-          "dash",
-          "key",
-          "q or Ctrl+C",
-          "Closing the terminal window sends SIGHUP, which main turns into p.Quit(). SIGTERM becomes a quit inside Bubble Tea.",
-          "views.Dashboard.handleKey"
-        ],
-        [
-          "dash",
-          "tea",
-          "return",
-          "tea.Quit",
-          "",
-          "views.Dashboard.handleKey"
-        ],
-        [
-          "tea",
+          "ui",
           "main",
           "return",
-          "Run() returns",
-          "Whatever it returned, the shutdown below runs.",
+          "Bubble Tea exits",
+          "Signals and ordinary quit converge on the same cleanup.",
           "root.run"
         ],
         [
           "main",
-          "mgr",
+          "r",
           "call",
-          "RunningCount() → one stderr line",
-          "Only when sessions are running. stderr is safe now: the TUI is gone.",
-          "root.stopSessions"
+          "Stop admission, cancel and join workers",
+          "",
+          "api.OperationRunner.Shutdown"
         ],
         [
           "main",
           "mgr",
           "call",
-          "Shutdown()",
-          "Sets closed: Launch, Relaunch and SwitchAgent now return ErrManagerClosed.",
+          "Cancel startup timers and stop all processes",
+          "Wait activations and watcher/teardown work; no persistent daemon is added.",
           "session.Manager.Shutdown"
         ],
         [
-          "mgr",
-          "drv",
-          "go",
-          "Kill(id) for each live session, in parallel",
-          "The wait is about one grace period in total, not one per session.",
-          "session.Manager.Kill"
+          "main",
+          "http",
+          "call",
+          "Gracefully close endpoint after manager shutdown",
+          "The endpoint exists while agents finish teardown.",
+          "root.shutdownMCP"
         ],
         [
-          "drv",
-          "pty",
-          "io",
-          "SIGTERM to the process group",
-          "The agent gets a chance to save its state.",
-          "driver.GenericCLIDriver.Kill"
-        ],
-        [
-          "drv",
-          "pty",
-          "io",
-          "after ≤ 2 s: SIGKILL if the group is alive",
-          "Also reaches children that ignore SIGTERM and SIGHUP.",
-          "driver.groupAlive"
-        ],
-        [
-          "mgr",
-          "disk",
-          "io",
-          "records saved as terminated",
-          "",
-          "session.Manager.persistSessionLockedErr"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "self",
-          "wait activations · close stop · wait watchers",
-          "A launch caught mid-spawn kills its own process; watchers exit without a final write.",
-          "session.Manager.Shutdown"
+          "http",
+          "main",
+          "return",
+          "Propagate unexpected endpoint failures",
+          "A watcher also sends MCPServerFailedMsg to the UI.",
+          "mcp.Runtime.Failures"
         ]
-      ]
+      ],
+      "sources": {
+        "refs": []
+      }
     },
     "resize": {
       "title": "Resize & too-small terminal",
@@ -1181,28 +1065,20 @@ window.APPEDIA_CONTENT = {
       }
     },
     "launch": {
-      "title": "Launch a session",
-      "summary": "Enter on a card: prepare the launcher screen on the UI goroutine, then resolve, copy, write files, spawn and save on a command goroutine.",
+      "title": "Launch: one workspace, one fresh PTY",
+      "summary": "The TUI and MCP both prepare the chosen workspace, synchronize capabilities and spawn a fresh process through the shared manager.",
       "participants": [
         [
           "user",
           "user"
         ],
         [
-          "dash",
-          "views.Dashboard"
-        ],
-        [
-          "coord",
-          "app.Coordinator"
-        ],
-        [
-          "tea",
-          "tea"
-        ],
-        [
           "act",
           "app.sessionActions"
+        ],
+        [
+          "svc",
+          "api.Service"
         ],
         [
           "mgr",
@@ -1215,126 +1091,84 @@ window.APPEDIA_CONTENT = {
         [
           "pty",
           "pty"
-        ],
-        [
-          "disk",
-          "disk"
         ]
       ],
       "steps": [
         [
           "user",
-          "dash",
-          "key",
-          "Enter on a card",
-          "",
-          "views.Dashboard.handleEnter"
-        ],
-        [
-          "dash",
-          "coord",
-          "call",
-          "launchCard: prepare view and commands",
-          "On the UI goroutine, prepare SessionLauncher and return launch/navigation commands; navigation itself happens in a message handler.",
-          "app.Coordinator.launchCard"
-        ],
-        [
-          "tea",
-          "coord",
-          "msg",
-          "NavigateMsg → SessionLauncher",
-          "Navigation happens in a message handler.",
-          "app.Coordinator.navigateTo"
-        ],
-        [
-          "tea",
           "act",
           "cmd",
-          "launch(card)",
-          "Blocking work from here on, on a command goroutine. sessionActions has no coordinator pointer (rule 1).",
+          "Launch from card",
+          "Blocking work runs inside a tea.Cmd.",
           "app.sessionActions.launch"
         ],
         [
           "act",
-          "act",
-          "self",
-          "resolveCapabilities(card)",
-          "Reads the skill, persona and MCP registries once; a failed read aborts the launch instead of starting an agent with nothing.",
-          "app.sessionActions.resolveCapabilities"
+          "svc",
+          "call",
+          "Launch(card)",
+          "Shared capability resolution and pending card reservation.",
+          "api.Service.Launch"
         ],
         [
-          "act",
+          "svc",
           "mgr",
           "call",
-          "Launch(card, skills, personas, mcps)",
-          "",
-          "session.Manager.Launch"
+          "Allocate new session / activation",
+          "No driver or PTY is reused by command name.",
+          "session.Manager.LaunchWithIDContext"
         ],
         [
           "mgr",
-          "disk",
+          "mgr",
           "io",
-          "prepareWorkspace: copy to tmp/<id>/",
-          "Only when the card asks for a temporary workspace.",
+          "Prepare main and sub workspaces",
+          "New sessions use the selected card; temporary copies are session-local.",
           "session.Manager.prepareWorkspace"
         ],
         [
           "mgr",
-          "disk",
+          "drv",
           "io",
-          "prepareSubWorkspaces()",
-          "Runs before driver files and spawn in both workspace modes. Existing managed copies retain edits; preparation failures prevent activation.",
-          "session.Manager.prepareSubWorkspaces"
+          "Sync files, skills and selected MCP config",
+          "No registration block is injected; the puppet skill supplies guidance.",
+          "session.Manager.syncDriverFiles"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "io",
+          "Prepare rotating activation credential",
+          "",
+          "session.Manager.prepareActivationMCPConfig"
         ],
         [
           "mgr",
           "drv",
           "call",
-          "syncDriverFiles",
-          "Writes AGENTS.md or CLAUDE.md, skills, personas and .kankuro/mcp-servers.json into the workspace.",
-          "session.Manager.syncDriverFiles"
+          "Prepare exact workspace trust",
+          "Generic hook is a no-op; Codex/Claude update their own configuration.",
+          "session.Manager.startSession"
         ],
         [
           "drv",
           "pty",
           "io",
-          "Spawn: pty.Start, own session",
-          "The card's env is merged over the parent's.",
+          "Spawn fresh process and PTY",
+          "Model and native resume arguments remain driver-owned.",
           "driver.GenericCLIDriver.Spawn"
         ],
         [
           "mgr",
           "mgr",
           "self",
-          "activateSessionLocked + trackOutput + watch",
-          "Bumps the generation counter and starts the per-activation goroutines.",
-          "session.Manager.activateSessionLocked"
-        ],
-        [
-          "mgr",
-          "disk",
-          "io",
-          "saveSession (atomic)",
-          "A failure here is ErrPersistFailed: started, just not saved (rule 8).",
-          "session.saveSession"
-        ],
-        [
-          "act",
-          "coord",
-          "msg",
-          "SessionLaunchCompletedMsg",
-          "The launcher shows the result; from there you can name the session or attach. A refresh follows.",
-          "app.Coordinator.handleSessionMessages"
+          "Publish immediately; start timer and watchers",
+          "Humans can attach now; incoming MCP prompts remain gated.",
+          "session.Manager.startSession"
         ]
       ],
       "sources": {
-        "refs": [
-          "session.Manager.startSession",
-          "session.Manager.cleanupNewTemporaryWorkspace"
-        ],
-        "files": [
-          "internal/session/lifecycle.go"
-        ]
+        "refs": []
       }
     },
     "attach": {
@@ -1453,455 +1287,21 @@ window.APPEDIA_CONTENT = {
         ]
       ]
     },
-    "relaunch": {
-      "title": "Relaunch a session",
-      "summary": "Enter on a terminated session restarts it in the same workspace, then attaches.",
-      "participants": [
-        [
-          "user",
-          "user"
-        ],
-        [
-          "dash",
-          "views.Dashboard"
-        ],
-        [
-          "tea",
-          "tea"
-        ],
-        [
-          "act",
-          "app.sessionActions"
-        ],
-        [
-          "mgr",
-          "session.Manager"
-        ],
-        [
-          "drv",
-          "driver.GenericCLIDriver"
-        ],
-        [
-          "coord",
-          "app.Coordinator"
-        ],
-        [
-          "disk",
-          "files"
-        ]
-      ],
-      "steps": [
-        [
-          "user",
-          "dash",
-          "key",
-          "Enter on a terminated session",
-          "",
-          "views.Dashboard.handleSessionEnter"
-        ],
-        [
-          "dash",
-          "tea",
-          "return",
-          "OnRelaunch(id) command",
-          "The callback is the sessionActions method itself: no coordinator state involved.",
-          "app.sessionActions.relaunch"
-        ],
-        [
-          "tea",
-          "act",
-          "cmd",
-          "relaunch(id)",
-          "",
-          "app.sessionActions.relaunch"
-        ],
-        [
-          "act",
-          "act",
-          "self",
-          "resolveCard(session.CardID)",
-          "A failed read of id_cards.yaml is reported as such, not as \"card not found\".",
-          "app.sessionActions.resolveCard"
-        ],
-        [
-          "act",
-          "mgr",
-          "call",
-          "Relaunch(id, card, …)",
-          "",
-          "session.Manager.Relaunch"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "self",
-          "reserveForActivation",
-          "Must be terminated and not already starting; marks it activating so a second relaunch, a switch or a remove fails fast.",
-          "session.Manager.reserveForActivation"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "call",
-          "startSession in the same workspace",
-          "Reuse the main session workspace; preparation, driver sync and spawn happen before activation.",
-          "session.Manager.startSession"
-        ],
-        [
-          "mgr",
-          "disk",
-          "io",
-          "prepareSubWorkspaces()",
-          "Preserve existing managed edits, add absent selected copies, and retain deselected folders.",
-          "session.Manager.prepareSubWorkspaces"
-        ],
-        [
-          "act",
-          "coord",
-          "msg",
-          "SessionAttachRequestedMsg",
-          "Carries a Warning when only the record failed to save.",
-          "app.Coordinator.handleSessionMessages"
-        ],
-        [
-          "coord",
-          "coord",
-          "self",
-          "navigate to dashboard, attachSession",
-          "",
-          "app.Coordinator.attachSession"
-        ]
-      ]
-    },
-    "switch": {
-      "title": "Switch agent",
-      "summary": "Restart a terminated session with a different card, in the same workspace.",
-      "participants": [
-        [
-          "user",
-          "user"
-        ],
-        [
-          "dash",
-          "views.Dashboard"
-        ],
-        [
-          "coord",
-          "app.Coordinator"
-        ],
-        [
-          "sw",
-          "views.AgentSwitchView"
-        ],
-        [
-          "tea",
-          "tea"
-        ],
-        [
-          "act",
-          "app.sessionActions"
-        ],
-        [
-          "mgr",
-          "session.Manager"
-        ],
-        [
-          "disk",
-          "files"
-        ]
-      ],
-      "steps": [
-        [
-          "user",
-          "dash",
-          "key",
-          "s on a terminated session",
-          "",
-          "views.Dashboard.handleSwitch"
-        ],
-        [
-          "dash",
-          "coord",
-          "msg",
-          "AgentSwitchRequestedMsg",
-          "",
-          "app.Coordinator.handleSessionMessages"
-        ],
-        [
-          "coord",
-          "sw",
-          "call",
-          "SetSession, navigateTo(AgentSwitch)",
-          "",
-          "views.AgentSwitchView.SetSession"
-        ],
-        [
-          "user",
-          "sw",
-          "key",
-          "pick a card, Enter",
-          "",
-          "views.AgentSwitchView.handleKey"
-        ],
-        [
-          "sw",
-          "tea",
-          "return",
-          "OnSwitch → switchAgent command",
-          "The switch must not run inside Update: it writes files and spawns a process.",
-          "app.sessionActions.switchAgent"
-        ],
-        [
-          "tea",
-          "act",
-          "cmd",
-          "switchAgent(id, cardID)",
-          "",
-          "app.sessionActions.switchAgent"
-        ],
-        [
-          "act",
-          "mgr",
-          "call",
-          "SwitchAgent(id, card, …)",
-          "Reserve the terminated session, prepare sub copies, replace instructions and spawn in the existing workspace.",
-          "session.Manager.SwitchAgent"
-        ],
-        [
-          "mgr",
-          "disk",
-          "io",
-          "prepareSubWorkspaces()",
-          "Preserve existing managed edits, add absent selected copies, and retain deselected folders.",
-          "session.Manager.prepareSubWorkspaces"
-        ],
-        [
-          "act",
-          "coord",
-          "msg",
-          "AgentSwitchedMsg",
-          "",
-          "app.Coordinator.handleAgentSwitched"
-        ],
-        [
-          "coord",
-          "coord",
-          "self",
-          "refresh + SessionAttachRequestedMsg",
-          "The attach handler navigates; a persist warning travels with it (rules 4 and 8).",
-          "app.Coordinator.handleAgentSwitched"
-        ]
-      ]
-    },
-    "kill": {
-      "title": "Kill a session",
-      "summary": "x on a running session: SIGTERM, grace, SIGKILL, then mark it terminated.",
-      "participants": [
-        [
-          "user",
-          "user"
-        ],
-        [
-          "dash",
-          "views.Dashboard"
-        ],
-        [
-          "tea",
-          "tea"
-        ],
-        [
-          "mgr",
-          "session.Manager"
-        ],
-        [
-          "drv",
-          "driver.GenericCLIDriver"
-        ],
-        [
-          "pty",
-          "pty"
-        ],
-        [
-          "coord",
-          "app.Coordinator"
-        ]
-      ],
-      "steps": [
-        [
-          "user",
-          "dash",
-          "key",
-          "x on a running session",
-          "Only offered for running or waiting sessions.",
-          "views.Dashboard.handleKill"
-        ],
-        [
-          "dash",
-          "tea",
-          "return",
-          "OnKill(id) command",
-          "",
-          "app.Coordinator.dashboardCallbacks"
-        ],
-        [
-          "tea",
-          "mgr",
-          "cmd",
-          "Kill(id)",
-          "Captures the driver and generation under the lock, then kills without holding it.",
-          "session.Manager.Kill"
-        ],
-        [
-          "mgr",
-          "drv",
-          "call",
-          "Kill()",
-          "",
-          "driver.GenericCLIDriver.Kill"
-        ],
-        [
-          "drv",
-          "pty",
-          "io",
-          "SIGTERM group → ≤ 2 s → SIGKILL group",
-          "",
-          "driver.signalGroup"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "self",
-          "same activation? → terminated + persist",
-          "If the session was removed or relaunched meanwhile, it is left alone, so a removed record is never re-created.",
-          "session.Manager.Kill"
-        ],
-        [
-          "mgr",
-          "coord",
-          "msg",
-          "DataRefreshRequestedMsg (or ErrorMsg)",
-          "",
-          "app.Coordinator.handleSpecialMessages"
-        ]
-      ]
-    },
-    "remove": {
-      "title": "Remove a session",
-      "summary": "Remove a terminated session; temporary workspace copies are removed, original-workspace files remain.",
-      "participants": [
-        [
-          "user",
-          "user"
-        ],
-        [
-          "dash",
-          "views.Dashboard"
-        ],
-        [
-          "modal",
-          "components.Modal"
-        ],
-        [
-          "tea",
-          "tea"
-        ],
-        [
-          "mgr",
-          "session.Manager"
-        ],
-        [
-          "disk",
-          "disk"
-        ],
-        [
-          "coord",
-          "app.Coordinator"
-        ]
-      ],
-      "steps": [
-        [
-          "user",
-          "dash",
-          "key",
-          "Backspace or Delete on a terminated session",
-          "",
-          "views.Dashboard.handleDeleteSession"
-        ],
-        [
-          "dash",
-          "modal",
-          "call",
-          "open the confirm modal",
-          "",
-          "components.ModalState.Open"
-        ],
-        [
-          "user",
-          "dash",
-          "key",
-          "Enter or y",
-          "",
-          "views.Dashboard.confirmDelete"
-        ],
-        [
-          "dash",
-          "tea",
-          "return",
-          "OnRemove(id) command",
-          "",
-          "app.Coordinator.dashboardCallbacks"
-        ],
-        [
-          "tea",
-          "mgr",
-          "cmd",
-          "Remove(id)",
-          "Refuses a running session, or one being started.",
-          "session.Manager.Remove"
-        ],
-        [
-          "mgr",
-          "disk",
-          "io",
-          "Delete record and temporary root",
-          "A temporary session loses its enclosing workspace, including sub copies. Original-workspace sub copies and manifest remain.",
-          "session.Manager.Remove"
-        ],
-        [
-          "mgr",
-          "coord",
-          "msg",
-          "DataRefreshRequestedMsg",
-          "",
-          "app.Coordinator.handleSpecialMessages"
-        ]
-      ]
-    },
     "watch": {
-      "title": "Status & output tracking",
-      "summary": "Two goroutines per activation: one copies output into scrollback, one polls the status every 2 s.",
+      "title": "Observe process exit and invalidate message waits",
+      "summary": "Output remains human-facing; explicit MCP reports remain separate.",
       "participants": [
-        [
-          "pty",
-          "pty"
-        ],
         [
           "drv",
           "driver.GenericCLIDriver"
         ],
         [
-          "track",
-          "session.Manager",
-          "Manager · trackOutput"
+          "mgr",
+          "session.Manager"
         ],
         [
-          "watch",
-          "session.Manager",
-          "Manager · watch"
-        ],
-        [
-          "sub",
-          "app.previewSub"
+          "store",
+          "session.MessageStore"
         ],
         [
           "disk",
@@ -1910,62 +1310,61 @@ window.APPEDIA_CONTENT = {
       ],
       "steps": [
         [
-          "pty",
           "drv",
-          "io",
-          "output bytes",
-          "",
-          "driver.GenericCLIDriver.streamOutput"
-        ],
-        [
-          "drv",
-          "track",
+          "mgr",
           "chan",
-          "Output channel",
-          "",
+          "Track PTY output into bounded scrollback",
+          "Output heuristics only describe running/waiting; they do not complete a task.",
           "session.Manager.trackOutput"
         ],
         [
-          "track",
-          "track",
-          "self",
-          "append scrollback (≤ 256 KiB), last line",
-          "Stops at once if the generation changed: it belongs to an older run.",
-          "session.appendScrollback"
-        ],
-        [
-          "track",
-          "sub",
-          "chan",
-          "broadcast to subscribers",
-          "Non-blocking: a slow subscriber drops chunks instead of stalling the agent.",
-          "session.broadcast"
-        ],
-        [
-          "watch",
-          "drv",
-          "call",
-          "every 2 s: GetStatus()",
-          "",
+          "mgr",
+          "mgr",
+          "go",
+          "Watch process generation and registration timeout",
+          "Old-generation watchers stop affecting replacement activations.",
           "session.Manager.watch"
         ],
         [
-          "watch",
-          "watch",
+          "mgr",
+          "mgr",
           "self",
-          "IsPromptLike → waiting or running",
-          "Waiting means the last line looks like a prompt and no word arrived recently.",
-          "driver.IsPromptLike"
+          "Invalidate queued message reservations on exit",
+          "",
+          "session.Manager.cancelPendingMessageAdmissionsLocked"
         ],
         [
-          "watch",
+          "mgr",
+          "mgr",
+          "self",
+          "Revoke token and cancel startup timer",
+          "",
+          "session.Manager.revokeSessionActivationLocked"
+        ],
+        [
+          "mgr",
+          "store",
+          "chan",
+          "Wake reply waiters",
+          "Readers see terminated/replaced recipient rather than waiting for a completion inference.",
+          "session.MessageStore.Wake"
+        ],
+        [
+          "mgr",
           "disk",
           "io",
-          "terminated → persist, close subscribers",
-          "Also stops when Shutdown closes the stop channel.",
-          "session.Manager.watch"
+          "Persist terminated record and bindings",
+          "",
+          "session.Manager.persistSessionLockedErr"
         ]
-      ]
+      ],
+      "sources": {
+        "refs": [
+          "session.updateSessionOutputState",
+          "session.Session.snapshot",
+          "session.Manager.RegisterConversation"
+        ]
+      }
     },
     "ide": {
       "title": "Open in IDE",
@@ -2584,90 +1983,6 @@ window.APPEDIA_CONTENT = {
           "internal/config/validation.go"
         ]
       }
-    },
-    "deletecard": {
-      "title": "Delete an ID card",
-      "summary": "A card a session still points at cannot be deleted.",
-      "participants": [
-        [
-          "user",
-          "user"
-        ],
-        [
-          "dash",
-          "views.Dashboard"
-        ],
-        [
-          "tea",
-          "tea"
-        ],
-        [
-          "act",
-          "app.sessionActions"
-        ],
-        [
-          "mgr",
-          "session.Manager"
-        ],
-        [
-          "repo",
-          "config.FileRepository"
-        ],
-        [
-          "coord",
-          "app.Coordinator"
-        ]
-      ],
-      "steps": [
-        [
-          "user",
-          "dash",
-          "key",
-          "Backspace on a card, confirm",
-          "",
-          "views.Dashboard.handleDeleteCard"
-        ],
-        [
-          "dash",
-          "tea",
-          "return",
-          "OnDeleteCard → deleteCard command",
-          "",
-          "app.sessionActions.deleteCard"
-        ],
-        [
-          "tea",
-          "act",
-          "cmd",
-          "deleteCard(cardID)",
-          "",
-          "app.sessionActions.deleteCard"
-        ],
-        [
-          "act",
-          "mgr",
-          "call",
-          "List(): who references it?",
-          "config cannot see sessions, so the guard lives here.",
-          "session.Manager.List"
-        ],
-        [
-          "act",
-          "repo",
-          "call",
-          "DeleteIDCard(id)",
-          "Only if no session references the card.",
-          "config.FileRepository.DeleteIDCard"
-        ],
-        [
-          "act",
-          "coord",
-          "msg",
-          "DataRefreshRequestedMsg or ErrorMsg",
-          "",
-          "app.Coordinator.handleSpecialMessages"
-        ]
-      ]
     },
     "source": {
       "title": "Add a source directory",
@@ -3374,338 +2689,6 @@ window.APPEDIA_CONTENT = {
         ]
       ]
     },
-    "sub-copy": {
-      "title": "Copy or reuse sub workspaces",
-      "summary": "One mutex protects source resolution, ownership decisions, copy publication and the manifest commit; private helpers own each stage.",
-      "participants": [
-        [
-          "mgr",
-          "session.Manager"
-        ],
-        [
-          "repo",
-          "config.FileRepository"
-        ],
-        [
-          "disk",
-          "files"
-        ],
-        [
-          "atomic",
-          "fsutil.WriteFileAtomic"
-        ]
-      ],
-      "steps": [
-        [
-          "mgr",
-          "mgr",
-          "self",
-          "Guard + lock",
-          "An empty selection is a no-op; the manager mutex spans all helper calls.",
-          "session.Manager.prepareSubWorkspaces"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "call",
-          "canonicalDirectory()",
-          "Resolve the main working directory once; source aliases are resolved separately.",
-          "session.canonicalDirectory"
-        ],
-        [
-          "mgr",
-          "repo",
-          "call",
-          "ListWorkspaces()",
-          "resolveSubWorkspaceSources reads the registry, resolves each selected ID and preserves registered basenames.",
-          "config.FileRepository.ListWorkspaces"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "call",
-          "Check containment",
-          "Reject a source containing the staging/destination parent.",
-          "session.ensureDestinationOutsideSource"
-        ],
-        [
-          "mgr",
-          "disk",
-          "io",
-          "loadSubWorkspaceManifest()",
-          "Check metadata links, schema version and safe destination keys.",
-          "session.loadSubWorkspaceManifest"
-        ],
-        [
-          "mgr",
-          "disk",
-          "io",
-          "Prepare tmp directory",
-          "Reject a symlink and ensure a real directory.",
-          "session.prepareSubWorkspaceDirectory"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "call",
-          "Clone manifest entries",
-          "Retain ownership records for deselected copies.",
-          "session.copySubWorkspaceManifest"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "call",
-          "shouldCopySubWorkspace()",
-          "Reuse only a matching managed directory; an occupied unrelated destination is an error.",
-          "session.shouldCopySubWorkspace"
-        ],
-        [
-          "mgr",
-          "disk",
-          "io",
-          "Copy into stage, publish",
-          "Copy source contents into a real staging directory, recheck destination absence and rename.",
-          "session.copyAndPublishSubWorkspace"
-        ],
-        [
-          "mgr",
-          "atomic",
-          "call",
-          "Persist ownership manifest",
-          "Write updated entries atomically with mode 0600; preparation still holds the mutex.",
-          "session.persistSubWorkspaceManifest"
-        ]
-      ],
-      "sources": {
-        "refs": [
-          "session.safeSubWorkspaceName",
-          "session.rejectSymlink",
-          "session.resolveSubWorkspaceSources"
-        ],
-        "files": []
-      }
-    },
-    "copy-rollback": {
-      "title": "Roll back a failed copy batch",
-      "summary": "The transaction object tracks only staging paths and new destinations owned by this preparation.",
-      "participants": [
-        [
-          "mgr",
-          "session.Manager"
-        ],
-        [
-          "tx",
-          "session.subWorkspaceTransaction"
-        ],
-        [
-          "disk",
-          "files"
-        ]
-      ],
-      "steps": [
-        [
-          "mgr",
-          "disk",
-          "io",
-          "Copy/publish missing source",
-          "Successful publication moves its path from staged to published bookkeeping.",
-          "session.copyAndPublishSubWorkspace"
-        ],
-        [
-          "mgr",
-          "disk",
-          "io",
-          "Persist may fail",
-          "A preparation error occurs before driver synchronization and spawn.",
-          "session.persistSubWorkspaceManifest"
-        ],
-        [
-          "mgr",
-          "tx",
-          "call",
-          "rollback(cause)",
-          "The orchestrator owns error routing and invokes transaction cleanup.",
-          "session.subWorkspaceTransaction.rollback"
-        ],
-        [
-          "tx",
-          "disk",
-          "io",
-          "Remove tracked stages",
-          "Earlier managed copies and unrelated siblings are outside this transaction.",
-          "session.subWorkspaceTransaction.rollback"
-        ],
-        [
-          "tx",
-          "disk",
-          "io",
-          "Remove new destinations",
-          "Reclaim only destinations published by this preparation.",
-          "session.subWorkspaceTransaction.rollback"
-        ],
-        [
-          "tx",
-          "mgr",
-          "return",
-          "Join cause + cleanup errors",
-          "Cleanup failures remain visible alongside the triggering error.",
-          "session.subWorkspaceTransaction.rollback"
-        ],
-        [
-          "mgr",
-          "disk",
-          "io",
-          "Clean a new temporary root",
-          "startSession removes a failed new temporary workspace; retained and original workspaces survive.",
-          "session.Manager.cleanupNewTemporaryWorkspace"
-        ]
-      ]
-    },
-    "failed-activation": {
-      "title": "Clean a failed temporary activation",
-      "summary": "A failed new activation has no record that could later reclaim its copy.",
-      "participants": [
-        [
-          "act",
-          "app.sessionActions"
-        ],
-        [
-          "mgr",
-          "session.Manager"
-        ],
-        [
-          "drv",
-          "driver.GenericCLIDriver"
-        ],
-        [
-          "disk",
-          "files"
-        ],
-        [
-          "coord",
-          "app.Coordinator"
-        ]
-      ],
-      "steps": [
-        [
-          "act",
-          "mgr",
-          "cmd",
-          "startSession: prepare then sync and spawn",
-          "Blocking filesystem and process work runs outside the UI loop.",
-          "session.Manager.startSession"
-        ],
-        [
-          "mgr",
-          "drv",
-          "call",
-          "syncDriverFiles / Spawn may fail",
-          "Error before activation; no live session was registered.",
-          "session.Manager.syncDriverFiles"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "call",
-          "cleanupNewTemporaryWorkspace(error)",
-          "Only isNew && UseTmpWorkspace triggers root removal.",
-          "session.Manager.cleanupNewTemporaryWorkspace"
-        ],
-        [
-          "mgr",
-          "disk",
-          "io",
-          "RemoveAll(session root); join errors",
-          "Do not remove existing relaunch or agent-switch workspaces.",
-          "session.Manager.cleanupNewTemporaryWorkspace"
-        ],
-        [
-          "act",
-          "coord",
-          "msg",
-          "Report launch error",
-          "Existing launcher error handling displays the failure.",
-          "app.Coordinator.handleSessionMessages"
-        ]
-      ]
-    },
-    "builtin-skill": {
-      "title": "Deploy the bundled MCP-CLI skill",
-      "summary": "Main embeds and injects the content once; a driver writes the selected built-in skill into a session workspace.",
-      "participants": [
-        [
-          "mgr",
-          "session.Manager"
-        ],
-        [
-          "drv",
-          "driver.GenericCLIDriver"
-        ],
-        [
-          "content",
-          "config.GetBuiltinSkillContent",
-          "Config content"
-        ],
-        [
-          "disk",
-          "files"
-        ]
-      ],
-      "steps": [
-        [
-          "mgr",
-          "drv",
-          "call",
-          "SetSkills(selected skills)",
-          "Driver synchronization happens after workspace preparation.",
-          "driver.GenericCLIDriver.SetSkills"
-        ],
-        [
-          "drv",
-          "drv",
-          "self",
-          "deploySkill: built-in entry",
-          "Metadata marks this skill Builtin; a normal source directory is not required.",
-          "driver.deploySkill"
-        ],
-        [
-          "drv",
-          "drv",
-          "self",
-          "writeBuiltinSkill()",
-          "Deployment uses the injected content lookup.",
-          "driver.writeBuiltinSkill"
-        ],
-        [
-          "drv",
-          "content",
-          "call",
-          "GetBuiltinSkillContent(name)",
-          "Return a clone under RLock; missing or unknown content returns false and is reported as an error.",
-          "config.GetBuiltinSkillContent"
-        ],
-        [
-          "drv",
-          "disk",
-          "io",
-          "Write skills/mcp-cli/SKILL.md",
-          "Use the driver’s agent folder: .agents or .claude. Existing deployment directories retain their existing content.",
-          "driver.writeBuiltinSkill"
-        ]
-      ],
-      "sources": {
-        "refs": [
-          "config.SetBuiltinMCPCLISkillContent",
-          "root.main"
-        ],
-        "files": [
-          "main.go",
-          "main_test.go",
-          "kankuro_skills/mcp-cli/SKILL.md"
-        ]
-      }
-    },
     "sub-clear": {
       "title": "Clear all sub workspace selections",
       "summary": "Ctrl+X clears the unsaved selection only on the focused Sub Workspaces field; Enter saves and Esc cancels without deleting existing copies.",
@@ -4089,6 +3072,1317 @@ window.APPEDIA_CONTENT = {
           "internal/ui/views/settings_test.go"
         ]
       }
+    },
+    "readiness": {
+      "title": "Immediate attachment, delayed MCP delivery",
+      "summary": "Successful spawn is visible immediately; ten seconds gate only incoming orchestrator prompts.",
+      "participants": [
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "ui",
+          "app.Coordinator"
+        ],
+        [
+          "drv",
+          "driver.GenericCLIDriver"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ]
+      ],
+      "steps": [
+        [
+          "mgr",
+          "mgr",
+          "self",
+          "Install process, identity and generation",
+          "",
+          "session.Manager.activateSessionLocked"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "go",
+          "Start activation-owned timer",
+          "Deadline is anchored to spawn and tied to generation, activation and process.",
+          "session.Manager.startStartupLocked"
+        ],
+        [
+          "ui",
+          "mgr",
+          "call",
+          "Attach while phase is starting",
+          "Human observation does not pause orchestration.",
+          "session.Manager.Attach"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "self",
+          "Validate generation and finish startup",
+          "The timer itself validates identity; lifecycle teardown cancels it separately.",
+          "session.Manager.startStartupLocked"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "Inspect a consistent snapshot",
+          "ProcessStarted, phase and delivery availability are separate facts.",
+          "session.Manager.snapshotLocked"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "self",
+          "Compute message eligibility",
+          "Live process, current authority, MCP selected, no conflicting lifecycle, startup finished.",
+          "session.Manager.deliveryAvailableLocked"
+        ],
+        [
+          "svc",
+          "svc",
+          "return",
+          "Use one inspection conversion",
+          "Operation outcomes are historical; get_session is current.",
+          "api.inspectionFromSnapshot"
+        ]
+      ],
+      "sources": {
+        "refs": []
+      }
+    },
+    "registration": {
+      "title": "Register a native CLI conversation",
+      "summary": "The agent reports its real native ID and meaningful name through its deployed MCP credential.",
+      "participants": [
+        [
+          "agent",
+          "agent"
+        ],
+        [
+          "http",
+          "mcp.Runtime"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "disk",
+          "disk"
+        ]
+      ],
+      "steps": [
+        [
+          "agent",
+          "http",
+          "io",
+          "register_conversation(id, name)",
+          "The built-in puppet skill explains how to discover the actual native ID and report it.",
+          "mcp.Start"
+        ],
+        [
+          "http",
+          "http",
+          "self",
+          "Validate bearer, origin and host",
+          "",
+          "mcp.authorize"
+        ],
+        [
+          "http",
+          "svc",
+          "call",
+          "RegisterConversation(token, id, name)",
+          "",
+          "api.Service.RegisterConversation"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "Authenticate current activation",
+          "Derive card/session/driver from the credential, never caller-supplied IDs.",
+          "session.Manager.RegisterConversation"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "self",
+          "Stage early report or commit binding",
+          "Conflicting and stale reports cannot replace another activation.",
+          "session.Manager.registerConversationLocked"
+        ],
+        [
+          "mgr",
+          "disk",
+          "io",
+          "Persist native binding in session JSON",
+          "Registered/saved and registered/unsaved are distinct outcomes.",
+          "session.Manager.persistSessionLockedErr"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "session.Manager.activationAuthorityLocked",
+          "session.Manager.validateReportedConversationLocked",
+          "session.addConversationBinding",
+          "session.Manager.publishActivationLocked"
+        ]
+      }
+    },
+    "resume": {
+      "title": "Choose native conversation on relaunch/switch",
+      "summary": "A session retains its workspace while a human or orchestrator chooses a saved native conversation for the selected card, or starts a new one.",
+      "participants": [
+        [
+          "user",
+          "user"
+        ],
+        [
+          "ui",
+          "app.Coordinator"
+        ],
+        [
+          "pick",
+          "views.ConversationChoiceView"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "drv",
+          "driver.AgentDriver"
+        ]
+      ],
+      "steps": [
+        [
+          "user",
+          "ui",
+          "key",
+          "Request relaunch or switch",
+          "",
+          "app.Coordinator.requestRelaunch"
+        ],
+        [
+          "ui",
+          "svc",
+          "call",
+          "Load bindings for destination card",
+          "",
+          "api.Service.Conversations"
+        ],
+        [
+          "ui",
+          "pick",
+          "msg",
+          "Pick saved conversation or New",
+          "Even one binding requires an explicit choice.",
+          "views.ConversationChoiceView.SetContext"
+        ],
+        [
+          "pick",
+          "ui",
+          "return",
+          "Return explicit choice",
+          "",
+          "app.Coordinator.conversationChoiceCallbacks"
+        ],
+        [
+          "ui",
+          "svc",
+          "cmd",
+          "RelaunchWithChoice / SwitchAgentWithChoice",
+          "Do not substitute the destination card workspace for the saved one.",
+          "api.Service.SwitchAgentWithChoice"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "Reserve activation and validate binding",
+          "Choice belongs to this Kankuro session, destination card and driver.",
+          "session.Manager.reserveForActivation"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "io",
+          "Validate saved directory exists",
+          "Missing workspaces fail with restoration guidance; never recreate an empty replacement.",
+          "session.validateSessionWorkspace"
+        ],
+        [
+          "mgr",
+          "drv",
+          "call",
+          "Build native resume args",
+          "Generic --session; Codex resume; Claude --resume.",
+          "driver.GenericCLIDriver.SetSession"
+        ],
+        [
+          "mgr",
+          "drv",
+          "call",
+          "Codex resume <id>",
+          "",
+          "driver.CodexCLIDriver.SetSession"
+        ],
+        [
+          "mgr",
+          "drv",
+          "call",
+          "Claude --resume <id>",
+          "",
+          "driver.ClaudeCodeDriver.SetSession"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "self",
+          "Publish fresh activation in same workspace",
+          "Relaunch preserves deployment; explicit switch reapplies selected card configuration.",
+          "session.Manager.SwitchAgentWithChoiceContext"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "app.Coordinator.requestSwitch",
+          "app.Coordinator.handleConversationChoiceRequested",
+          "views.ConversationChoiceView.RefreshContext",
+          "views.ConversationChoiceView.SelectedBinding",
+          "views.ConversationChoiceView.Update",
+          "session.validateConversationChoice"
+        ]
+      }
+    },
+    "control": {
+      "title": "Authenticated discovery and session control",
+      "summary": "An ordinary orchestrator session opts into dashboard control and manages other sessions.",
+      "participants": [
+        [
+          "o",
+          "orchestrator"
+        ],
+        [
+          "http",
+          "mcp.Runtime"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "disk",
+          "disk"
+        ]
+      ],
+      "steps": [
+        [
+          "o",
+          "http",
+          "io",
+          "List cards and sessions",
+          "",
+          "mcp.addDiscoveryTools"
+        ],
+        [
+          "http",
+          "svc",
+          "call",
+          "ResolveCaller from deployed credential",
+          "Permission is captured per activation and preserved on relaunch.",
+          "api.Service.ResolveCaller"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "Validate published live Dashboard Control",
+          "",
+          "session.Manager.ResolveDashboardCaller"
+        ],
+        [
+          "svc",
+          "svc",
+          "return",
+          "Return safe paths and current activation data",
+          "Listings exclude the caller; no output, environment or credentials are returned.",
+          "api.Service.GetSession"
+        ],
+        [
+          "o",
+          "http",
+          "io",
+          "create_session(card, optional name, UUID)",
+          "",
+          "mcp.addLifecycleTools"
+        ],
+        [
+          "http",
+          "svc",
+          "call",
+          "Create named session",
+          "Name enters the first record and request fingerprint; omission keeps card default.",
+          "api.Service.CreateSession"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "Launch selected existing project card",
+          "Orchestrator writes feature/plan files itself using exposed paths.",
+          "api.Service.launchReservedSession"
+        ]
+      ],
+      "sources": {
+        "refs": []
+      }
+    },
+    "operations": {
+      "title": "Retries, cancellation and crash recovery",
+      "summary": "Lifecycle mutations are durable requests executed by a bounded worker pool.",
+      "participants": [
+        [
+          "o",
+          "orchestrator"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "r",
+          "api.OperationRunner"
+        ],
+        [
+          "disk",
+          "disk"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ]
+      ],
+      "steps": [
+        [
+          "o",
+          "svc",
+          "call",
+          "Submit lifecycle action with stable UUID",
+          "",
+          "api.Service.CreateSession"
+        ],
+        [
+          "svc",
+          "r",
+          "call",
+          "Replay or admit matching request",
+          "Changed arguments conflict; prior outcomes remain historical.",
+          "api.OperationRunner.Replay"
+        ],
+        [
+          "r",
+          "disk",
+          "io",
+          "Persist intent before queueing",
+          "Four workers, 32 queued requests, five-minute operation deadline.",
+          "api.OperationRunner.accept"
+        ],
+        [
+          "r",
+          "mgr",
+          "cmd",
+          "Revalidate authority, execute effect",
+          "HTTP disconnect ends waiting, not the admitted task.",
+          "api.OperationRunner.execute"
+        ],
+        [
+          "r",
+          "disk",
+          "io",
+          "Persist outcome and safe partial effects",
+          "A final-write failure returns observed target IDs with a durability warning.",
+          "api.OperationRunner.finishLocked"
+        ],
+        [
+          "o",
+          "r",
+          "call",
+          "Poll / cancel operation",
+          "A cancellation after an irreversible effect may arrive too late.",
+          "api.OperationRunner.Cancel"
+        ],
+        [
+          "r",
+          "r",
+          "self",
+          "On restart mark unfinished interrupted",
+          "Inspect current sessions; do not repeat unknown effects.",
+          "api.OperationRunner.loadRecord"
+        ]
+      ],
+      "sources": {
+        "refs": []
+      }
+    },
+    "send": {
+      "title": "Deliver one explicit orchestrator message",
+      "summary": "The sender chooses a recipient activation; Kankuro injects a marked single-line prompt.",
+      "participants": [
+        [
+          "o",
+          "orchestrator"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "r",
+          "api.OperationRunner"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "store",
+          "session.MessageStore"
+        ],
+        [
+          "drv",
+          "driver.CodexCLIDriver"
+        ],
+        [
+          "agent",
+          "agent"
+        ]
+      ],
+      "steps": [
+        [
+          "o",
+          "svc",
+          "io",
+          "Send pinned prompt",
+          "Single-line UTF-8, at most 2 KiB; complex instructions live in agent-created files.",
+          "api.Service.SendMessage"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "Reserve activations",
+          "Reject starting/stale/non-MCP targets before any prompt admission.",
+          "session.Manager.ReserveMessageAdmission"
+        ],
+        [
+          "svc",
+          "r",
+          "call",
+          "Admit operation",
+          "A full queue cannot leave an accepted message intent behind.",
+          "api.OperationRunner.SubmitWithAdmission"
+        ],
+        [
+          "r",
+          "store",
+          "io",
+          "Persist intent",
+          "",
+          "session.MessageStore.CreateIntentWithAdmission"
+        ],
+        [
+          "mgr",
+          "store",
+          "call",
+          "Wait FIFO turn",
+          "",
+          "session.MessageStore.WaitTurn"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "self",
+          "Validate activation",
+          "",
+          "session.Manager.beginMessageSubmission"
+        ],
+        [
+          "mgr",
+          "drv",
+          "io",
+          "Text, pause, Enter",
+          "Codex uses a cancellable 500 ms pause; input shares the human write gate.",
+          "driver.CodexCLIDriver.SubmitPrompt"
+        ],
+        [
+          "drv",
+          "agent",
+          "io",
+          "Recipient PTY input",
+          "Already-typed human text is not cleared; no simultaneous-composition guarantee.",
+          "driver.GenericCLIDriver.submitPrompt"
+        ],
+        [
+          "mgr",
+          "store",
+          "io",
+          "Save delivery state",
+          "Submission is byte evidence, not proof of processing or completion.",
+          "session.MessageStore.UpdateDelivery"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "session.Manager.PublishMessageAdmission",
+          "session.Manager.SubmitMessage",
+          "driver.ValidatePrompt",
+          "driver.GenericCLIDriver.submitPromptBytes",
+          "driver.writePromptPhases",
+          "driver.classifySubmission"
+        ]
+      }
+    },
+    "reports": {
+      "title": "Explicit progress, questions and completion",
+      "summary": "The recipient reports over MCP; the orchestrator reads bounded correlated replies.",
+      "participants": [
+        [
+          "agent",
+          "agent"
+        ],
+        [
+          "http",
+          "mcp.Runtime"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "store",
+          "session.MessageStore"
+        ],
+        [
+          "o",
+          "orchestrator"
+        ]
+      ],
+      "steps": [
+        [
+          "agent",
+          "http",
+          "io",
+          "report_reply(message, kind, text, UUID)",
+          "Kinds: progress, completed, question, blocked.",
+          "mcp.addMessagingTools"
+        ],
+        [
+          "http",
+          "svc",
+          "call",
+          "ReportReply with stable request identity",
+          "",
+          "api.Service.ReportReply"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "Derive actual recipient identity",
+          "Recipient needs Kankuro MCP, but not Dashboard Control.",
+          "session.Manager.ReportMessage"
+        ],
+        [
+          "mgr",
+          "store",
+          "io",
+          "Persist idempotent correlated report",
+          "Exact recipient activation must match; maximum 16 KiB and 128 reports/message.",
+          "session.MessageStore.RecordReply"
+        ],
+        [
+          "o",
+          "svc",
+          "io",
+          "get_replies(cursor, filter, bounded wait)",
+          "At most 10 seconds; empty replies do not mean completion.",
+          "api.Service.GetReplies"
+        ],
+        [
+          "svc",
+          "store",
+          "call",
+          "Return bounded page and next cursor",
+          "Eviction/deletion gaps may repeat IDs; deduplicate by reply ID.",
+          "session.MessageStore.GetReplies"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "Revalidate caller and recipient during waits",
+          "Termination, revocation and deletion wake waiters.",
+          "session.Manager.MessageRecipientLive"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "session.MessageStore.createIntent",
+          "session.MessageStore.evictLocked",
+          "session.MessageStore.Recover",
+          "api.Service.GetMessage"
+        ]
+      }
+    },
+    "trust": {
+      "title": "Prepare and remove exact workspace trust",
+      "summary": "CLI trust configuration is prepared before spawn and cleaned when a temporary workspace is deleted.",
+      "participants": [
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "drv",
+          "driver.AgentDriver"
+        ],
+        [
+          "trust",
+          "trust"
+        ],
+        [
+          "disk",
+          "disk"
+        ]
+      ],
+      "steps": [
+        [
+          "mgr",
+          "drv",
+          "call",
+          "PrepareWorkspace(actual WorkingDir)",
+          "Use the temporary copy, never substitute the source workspace.",
+          "session.Manager.startSession"
+        ],
+        [
+          "drv",
+          "trust",
+          "io",
+          "Codex projects[path].trust_level = trusted",
+          "~/.codex/config.toml; preserve other table values.",
+          "driver.CodexCLIDriver.PrepareWorkspace"
+        ],
+        [
+          "drv",
+          "trust",
+          "io",
+          "Claude projects[path].hasTrustDialogAccepted",
+          "Final implementation uses ~/.claude.json, not the earlier settings-array proposal.",
+          "driver.ClaudeCodeDriver.PrepareWorkspace"
+        ],
+        [
+          "drv",
+          "trust",
+          "io",
+          "Atomic config replacement",
+          "Process-local lock; unrelated JSON values survive through RawMessage.",
+          "driver.atomicTrustWrite"
+        ],
+        [
+          "mgr",
+          "drv",
+          "call",
+          "Remove exact grant from both configs",
+          "Needed after card switches and after restoring a terminated session.",
+          "driver.RemoveWorkspaceTrust"
+        ],
+        [
+          "drv",
+          "trust",
+          "io",
+          "Remove only own trust key/path",
+          "Missing files/entries are no-ops; malformed config is preserved and reported.",
+          "driver.updateTrust"
+        ],
+        [
+          "mgr",
+          "disk",
+          "io",
+          "Delete temporary workspace after trust cleanup",
+          "On cleanup failure retain session for user repair and retry.",
+          "session.Manager.RemoveDetailed"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "driver.updateCodexTrust",
+          "driver.updateClaudeTrust",
+          "driver.trustJSONObject",
+          "driver.GenericCLIDriver.PrepareWorkspace"
+        ]
+      }
+    },
+    "card-delete": {
+      "title": "Protect cards during concurrent activation",
+      "summary": "Card deletion now shares the activation admission lock across TUI and MCP services.",
+      "participants": [
+        [
+          "ui",
+          "app.sessionActions"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "cfg",
+          "config.FileRepository"
+        ]
+      ],
+      "steps": [
+        [
+          "ui",
+          "svc",
+          "call",
+          "DeleteCard(cardID)",
+          "The shared manager serializes card deletion with activation admission.",
+          "api.Service.DeleteCard"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "Reserve current card before preparation",
+          "Existence validation and pending reference admission share the manager lock.",
+          "session.Manager.ReserveCardReference"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "self",
+          "Reject pending and durable references",
+          "Includes stopped sessions and saved native bindings.",
+          "session.Manager.DeleteCardIfUnreferenced"
+        ],
+        [
+          "mgr",
+          "cfg",
+          "io",
+          "Delete unreferenced card under admission lock",
+          "",
+          "config.FileRepository.DeleteIDCard"
+        ],
+        [
+          "svc",
+          "mgr",
+          "return",
+          "Release pending reference after publish/rollback",
+          "Separate api.Service objects still coordinate through one manager.",
+          "api.Service.reserveCardReference"
+        ]
+      ],
+      "sources": {
+        "refs": []
+      }
+    },
+    "stop-delete": {
+      "title": "Stop and delete with truthful effects",
+      "summary": "Waiting still means a live process; stop before switching or deleting.",
+      "participants": [
+        [
+          "o",
+          "orchestrator"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "drv",
+          "driver.GenericCLIDriver"
+        ],
+        [
+          "store",
+          "session.MessageStore"
+        ],
+        [
+          "disk",
+          "disk"
+        ]
+      ],
+      "steps": [
+        [
+          "o",
+          "svc",
+          "call",
+          "StopSession(UUID, target)",
+          "",
+          "api.Service.StopSession"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "KillDetailed reserves teardown",
+          "Pending messages are invalidated; in-flight input drains before teardown.",
+          "session.Manager.killDetailed"
+        ],
+        [
+          "mgr",
+          "drv",
+          "io",
+          "Terminate process group",
+          "",
+          "driver.GenericCLIDriver.Kill"
+        ],
+        [
+          "mgr",
+          "disk",
+          "io",
+          "Revoke token and persist terminated record",
+          "",
+          "session.Manager.revokeSessionActivationLocked"
+        ],
+        [
+          "o",
+          "svc",
+          "call",
+          "DeleteSession(UUID, target)",
+          "",
+          "api.Service.DeleteSession"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "RemoveDetailed only for idle terminated session",
+          "Trust cleanup failure retains record/workspace for retry.",
+          "session.Manager.RemoveDetailed"
+        ],
+        [
+          "mgr",
+          "store",
+          "io",
+          "Remove recipient message content",
+          "Compact send receipts prevent old requests from resubmitting evicted/deleted content.",
+          "session.MessageStore.DeleteRecipient"
+        ]
+      ],
+      "sources": {
+        "refs": []
+      }
+    },
+    "recovery": {
+      "title": "Recover bindings and reports after restart",
+      "summary": "Saved sessions survive, but live processes and activation credentials do not.",
+      "participants": [
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "disk",
+          "disk"
+        ],
+        [
+          "store",
+          "session.MessageStore"
+        ],
+        [
+          "runner",
+          "api.OperationRunner"
+        ]
+      ],
+      "steps": [
+        [
+          "mgr",
+          "disk",
+          "io",
+          "Load session JSON",
+          "",
+          "session.loadSessions"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "self",
+          "Restore terminated session and saved bindings",
+          "Saved workspace, grant and conversation maps survive; runtime identity does not.",
+          "session.Data.restore"
+        ],
+        [
+          "mgr",
+          "store",
+          "call",
+          "Load bounded message history",
+          "",
+          "session.NewMessageStore"
+        ],
+        [
+          "store",
+          "store",
+          "self",
+          "Recover unfinished sends as uncertain",
+          "Drop history for deleted recipients; never replay input automatically.",
+          "session.MessageStore.Recover"
+        ],
+        [
+          "runner",
+          "disk",
+          "io",
+          "Load durable mutation journal",
+          "",
+          "api.OperationRunner.load"
+        ],
+        [
+          "runner",
+          "runner",
+          "self",
+          "Mark nonterminal entries interrupted",
+          "",
+          "api.OperationRunner.loadRecord"
+        ]
+      ],
+      "sources": {
+        "refs": []
+      }
+    },
+    "dashboard": {
+      "title": "Understand sessions on the existing dashboard",
+      "summary": "The dashboard gains conversation choice, control opt-in and clearer bounded metadata.",
+      "participants": [
+        [
+          "user",
+          "user"
+        ],
+        [
+          "editor",
+          "views.CardEditor"
+        ],
+        [
+          "list",
+          "components.SessionListItem"
+        ],
+        [
+          "preview",
+          "components.SessionPreview"
+        ],
+        [
+          "dash",
+          "views.Dashboard"
+        ]
+      ],
+      "steps": [
+        [
+          "user",
+          "editor",
+          "key",
+          "Toggle Dashboard Control",
+          "Requires Kankuro MCP selection to become effective.",
+          "views.CardEditor.renderDashboardControlLine"
+        ],
+        [
+          "list",
+          "list",
+          "self",
+          "Show starting / delivery state in session list",
+          "",
+          "components.SessionListItem.Description"
+        ],
+        [
+          "preview",
+          "preview",
+          "self",
+          "Reserve text width beside complete puppet art",
+          "Long paths fit by cell width; omit art when too narrow.",
+          "components.SessionPreview.renderPreview"
+        ],
+        [
+          "preview",
+          "preview",
+          "self",
+          "Wrap centered empty preview text",
+          "Avoid double border-width deduction and broken words.",
+          "components.SessionPreview.renderPlaceholder"
+        ],
+        [
+          "dash",
+          "dash",
+          "self",
+          "Keep pane alignment across sizes and selection",
+          "",
+          "views.Dashboard.View"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "components.renderPreviewField",
+          "components.renderedBlockWidth",
+          "components.wrapPreviewWords",
+          "components.SessionList.refreshItems",
+          "components.cardDelegate.Render",
+          "views.Dashboard.renderPreviewPane"
+        ]
+      }
+    },
+    "workspace": {
+      "title": "Keep main and sub-workspace identity",
+      "summary": "Temporary copies are prepared for new sessions; relaunch never replaces a saved working directory.",
+      "participants": [
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "disk",
+          "disk"
+        ]
+      ],
+      "steps": [
+        [
+          "svc",
+          "mgr",
+          "call",
+          "Resolve the selected project card",
+          "",
+          "api.Service.resolveCard"
+        ],
+        [
+          "mgr",
+          "disk",
+          "io",
+          "Copy main workspace with cancellation",
+          "Only a new temporary session gets a new main copy.",
+          "session.Manager.copyWorkspace"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "self",
+          "Serialize sub-workspace preparation",
+          "The manifest owns copied destinations; existing managed work is retained.",
+          "session.Manager.prepareSubWorkspaces"
+        ],
+        [
+          "mgr",
+          "disk",
+          "io",
+          "Stage and publish selected sub-workspace",
+          "Cancel or fail preparation with rollback of this transaction.",
+          "session.copyAndPublishSubWorkspace"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "self",
+          "Capture deployed source/destination descriptors",
+          "Descriptors survive relaunch; legacy inspection reads existing manifest without preparation.",
+          "session.ReadSubWorkspaceDescriptors"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "Return actual paths to orchestrator",
+          "Extra feature/plan/artifact files are written by agents themselves.",
+          "api.Service.GetSession"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "session.preparedSubWorkspaceDescriptors",
+          "session.Manager.cleanupNewTemporaryWorkspace",
+          "session.Manager.resolveWorkspacePath",
+          "session.Manager.RelaunchWithChoiceContext"
+        ]
+      }
+    },
+    "mcp-config": {
+      "title": "Deploy MCP credentials in the workspace",
+      "summary": "Each activation rotates its token and writes the selected servers to one workspace-local config.",
+      "participants": [
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "drv",
+          "driver.GenericCLIDriver"
+        ],
+        [
+          "disk",
+          "disk"
+        ]
+      ],
+      "steps": [
+        [
+          "mgr",
+          "mgr",
+          "self",
+          "Create pending activation credential",
+          "",
+          "session.Manager.prepareActivationMCPConfig"
+        ],
+        [
+          "mgr",
+          "drv",
+          "io",
+          "Serialize complete selected MCP configuration",
+          "Built-in Kankuro receives current endpoint and bearer; credentials are not copied into operation journals.",
+          "driver.GenericCLIDriver.SelectMCPs"
+        ],
+        [
+          "drv",
+          "disk",
+          "io",
+          "Atomically replace .kankuro/mcp-servers.json",
+          "Separate temporary workspaces isolate credentials.",
+          "driver.writeWorkspaceMCPConfig"
+        ],
+        [
+          "mgr",
+          "drv",
+          "io",
+          "On relaunch refresh only Kankuro entry",
+          "Preserve ordinary MCP entries and workspace metadata.",
+          "driver.RefreshKankuroMCP"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "self",
+          "Revoke credential when activation ends",
+          "",
+          "session.Manager.revokeAuthorityLocked"
+        ],
+        [
+          "mgr",
+          "disk",
+          "io",
+          "Remove entry only when credential matches",
+          "Stopping an older shared-workspace activation must not remove the newer token.",
+          "driver.RemoveKankuroMCPIfAuthorizationMatches"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "driver.MCPConfigPath",
+          "session.syncActivationMCPConfig",
+          "session.activationEnv"
+        ]
+      }
+    },
+    "skills": {
+      "title": "Use the built-in puppet skill for registration",
+      "summary": "Selecting Kankuro MCP deploys access and puppet-protocol skills; registration guidance lives in the skill.",
+      "participants": [
+        [
+          "main",
+          "root.main"
+        ],
+        [
+          "cfg",
+          "config.FileRepository"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "drv",
+          "driver.GenericCLIDriver"
+        ],
+        [
+          "disk",
+          "disk"
+        ]
+      ],
+      "steps": [
+        [
+          "main",
+          "cfg",
+          "call",
+          "Inject both embedded skill byte arrays",
+          "",
+          "config.SetBuiltinKankuroPuppetSkillContent"
+        ],
+        [
+          "svc",
+          "svc",
+          "self",
+          "Ensure access and puppet skills are selected",
+          "Automatically append only the missing built-in skills.",
+          "api.appendKankuroAccessSkill"
+        ],
+        [
+          "svc",
+          "drv",
+          "io",
+          "Deploy selected skills in driver folder",
+          "",
+          "driver.GenericCLIDriver.SetSkills"
+        ],
+        [
+          "drv",
+          "disk",
+          "io",
+          "Resolve embedded content and write skill",
+          "The root owns go:embed; config owns synchronized cloned bytes.",
+          "driver.writeBuiltinSkill"
+        ],
+        [
+          "drv",
+          "disk",
+          "io",
+          "Synchronize configured instructions",
+          "Preserve configured card/persona behavior; no registration block injection or legacy stripping.",
+          "driver.syncInstructionFile"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "config.BuiltinSkills",
+          "config.BuiltinMCPs",
+          "config.GetBuiltinSkillContent",
+          "driver.writeInstructionFile"
+        ]
+      }
     }
   },
   "rules": [
@@ -4194,7 +4488,7 @@ window.APPEDIA_CONTENT = {
       "check": "Callers use errors.Is(err, session.ErrPersistFailed).",
       "flows": [
         "launch",
-        "relaunch"
+        "resume"
       ]
     },
     {
@@ -4215,14 +4509,13 @@ window.APPEDIA_CONTENT = {
     },
     {
       "n": "11",
-      "title": "Keep sub workspace ownership and rollback under one preparation mutex",
+      "title": "Keep sub-workspace ownership and publication serialized",
       "ref": "session.Manager.prepareSubWorkspaces",
-      "why": "Two activations can share an original workspace. Splitting helpers must preserve serialization and rollback only paths created by the current preparation; existing edits and unrelated files must survive.",
+      "why": "Sub-workspace manifest decisions and copy publication share the manager preparation gate. Existing managed copies retain work; concurrent preparations must not publish conflicting destinations.",
       "check": "Review the mutex scope and transaction bookkeeping; run workspace/collision/failure tests and go test -race ./....",
       "flows": [
-        "sub-copy",
-        "copy-rollback",
-        "failed-activation"
+        "workspace",
+        "launch"
       ],
       "sources": {
         "refs": [
@@ -4236,13 +4529,13 @@ window.APPEDIA_CONTENT = {
     },
     {
       "n": "12",
-      "title": "Main supplies built-in bytes; config owns a protected copy",
+      "title": "Main supplies built-in skill bytes; config owns protected copies",
       "ref": "config.SetBuiltinMCPCLISkillContent",
-      "why": "Config cannot import the root executable package. Startup injection breaks that dependency; cloning input/output prevents callers from modifying shared skill data. Tests that replace process-wide content must restore it and run sequentially.",
+      "why": "main embeds mcp-cli and kankuro-puppet content; config clones bytes on injection and lookup under separate mutexes. Drivers deploy built-in content by stable identity.",
       "check": "TestBuiltinSkillContentOwnershipAndMissingValues, TestBuiltinSkillContentConcurrentReads and TestEmbeddedMCPCLISkillDeploysThroughConfig.",
       "flows": [
         "startup",
-        "builtin-skill"
+        "skills"
       ],
       "sources": {
         "refs": [
@@ -4254,26 +4547,98 @@ window.APPEDIA_CONTENT = {
           "main_test.go"
         ]
       }
+    },
+    {
+      "n": "13",
+      "title": "Bindings belong to a session/card; credentials belong to an activation",
+      "ref": "session.Manager.RegisterConversation",
+      "why": "A report authenticated with an old activation must not change the native conversation for a replacement. Bindings persist; runtime credentials do not. Registration confirmation and persistence are separate outcomes.",
+      "check": "conversation_test.go and MCP registration tests exercise early reports, stale tokens, conflicts and persistence failures.",
+      "flows": [
+        "registration",
+        "resume",
+        "recovery"
+      ]
+    },
+    {
+      "n": "14",
+      "title": "Dashboard access comes from deployed activation permission",
+      "ref": "session.Manager.ResolveDashboardCaller",
+      "why": "Caller-supplied session IDs are not identity. Dashboard Control requires a live published credential and selected Kankuro MCP; recipients can report without controller permission.",
+      "check": "service and MCP tests cover omitted permission, revoked credentials and scoped discovery/control.",
+      "flows": [
+        "control",
+        "registration",
+        "reports"
+      ]
+    },
+    {
+      "n": "15",
+      "title": "Retries must not repeat process or input effects",
+      "ref": "api.OperationRunner",
+      "why": "Persist intent before execution, deduplicate by caller/request/fingerprint, and retain compact send receipts. Restart marks uncertain effects interrupted rather than executing them again.",
+      "check": "OperationRunner tests plus messaging admission/persistence/ordering regressions.",
+      "flows": [
+        "operations",
+        "send",
+        "recovery"
+      ]
+    },
+    {
+      "n": "16",
+      "title": "Published process is distinct from message availability",
+      "ref": "session.Manager.deliveryAvailableLocked",
+      "why": "Humans attach immediately after spawn. A ten-second activation-owned timer gates MCP messages; old timers must not enable a replacement activation. Waiting and silence never mean task completion.",
+      "check": "startup lifecycle tests use an injected clock and cover early registration, replacement, exit and shutdown.",
+      "flows": [
+        "readiness",
+        "watch",
+        "send"
+      ]
+    },
+    {
+      "n": "17",
+      "title": "Delete cards only under the shared reference guard",
+      "ref": "session.Manager.DeleteCardIfUnreferenced",
+      "why": "A card can be referenced by a pending launch/switch before it appears in session listings. Serialize existence checks, pending references and deletion across TUI/MCP service instances.",
+      "check": "Pending-card cross-service create/switch and deletion-first regression tests.",
+      "flows": [
+        "card-delete",
+        "launch"
+      ]
+    },
+    {
+      "n": "18",
+      "title": "Explicit reports carry user-defined workflow meaning",
+      "ref": "session.MessageStore.RecordReply",
+      "why": "Progress, completed, question and blocked are reports correlated to a message and recipient activation. They do not cause automatic stages, and submitted PTY bytes do not prove processing.",
+      "check": "MessageStore and API/MCP messaging tests cover identity, deduplication, bounds and cursor gaps.",
+      "flows": [
+        "send",
+        "reports"
+      ]
     }
   ],
   "tasks": [
     {
       "q": "Add a new agent CLI",
-      "a": "Embed GenericCLIDriver and override only what differs (agent folder, instruction file, model flag); register it in driver/registry.go.",
+      "a": "Embed GenericCLIDriver and override workspace trust preparation, native resume arguments or coordinated prompt submission where the CLI differs. Register a constructor; each activation gets a new driver.",
       "refs": [
+        "driver.AgentDriver",
         "driver.GenericCLIDriver",
-        "driver.ClaudeCodeDriver",
         "driver.NewBuiltinRegistry"
-      ]
+      ],
+      "flow": "trust"
     },
     {
       "q": "Change what gets written into a session's workspace",
-      "a": "Driver methods own instructions, skills, personas and MCP files. Manager.prepareSubWorkspaces owns additional copied workspaces and their manifest; keep these responsibilities separate.",
+      "a": "Driver synchronization owns instructions, skills, personas and workspace MCP config; registration guidance is deployed through the puppet skill. No legacy registration-text rewriting remains. The manager owns main/sub-workspace preparation.",
       "refs": [
-        "driver.GenericCLIDriver.SetAgentsMD",
-        "session.Manager.syncDriverFiles",
+        "driver.syncInstructionFile",
+        "driver.GenericCLIDriver.SetSkills",
         "session.Manager.prepareSubWorkspaces"
-      ]
+      ],
+      "flow": "skills"
     },
     {
       "q": "Change session lifecycle or status detection",
@@ -4382,14 +4747,15 @@ window.APPEDIA_CONTENT = {
       "flow": "tick"
     },
     {
-      "q": "Add a session-level action (Phase 1 linking)",
-      "a": "A method on sessionActions returning a tea.Cmd that takes coordinator state by value; a message and a handler in coordinator.go; the trigger in callbacks.go. The terminal action demonstrates by-value settings and shared completion-error handling.",
+      "q": "Add a session operation for TUI and MCP",
+      "a": "Put shared rules in api.Service and the session manager. Add an MCP adapter and a TUI command adapter; reuse permission, operation journaling and partial-success semantics.",
       "refs": [
-        "app.sessionActions",
-        "app.Coordinator.launchTerminal",
-        "app.Coordinator.handleWorkspaceCommandResult"
+        "api.Service",
+        "api.OperationRunner",
+        "mcp.addLifecycleTools",
+        "app.sessionActions"
       ],
-      "flow": "terminal"
+      "flow": "control"
     },
     {
       "q": "Change the preview subscription",
@@ -4426,7 +4792,7 @@ window.APPEDIA_CONTENT = {
         "session.shouldCopySubWorkspace",
         "session.subWorkspaceTransaction.rollback"
       ],
-      "flow": "sub-copy"
+      "flow": "workspace"
     },
     {
       "q": "Change workspace picking or the selected Skills view",
@@ -4456,7 +4822,60 @@ window.APPEDIA_CONTENT = {
         "config.SetBuiltinMCPCLISkillContent",
         "config.GetBuiltinSkillContent"
       ],
-      "flow": "builtin-skill"
+      "flow": "skills"
+    },
+    {
+      "q": "Change session names or activation snapshots",
+      "a": "CreateSession accepts an optional name before first persistence. Keep one inspectionFromSnapshot conversion for operation outcomes and current get_session; outcomes are historical snapshots.",
+      "refs": [
+        "api.Service.CreateSession",
+        "api.inspectionFromSnapshot",
+        "session.Manager.snapshotLocked"
+      ],
+      "flow": "control"
+    },
+    {
+      "q": "Change native conversation registration or resume",
+      "a": "Registration identity is derived from an activation credential; native bindings remain session/card-local. Driver SetSession methods build native arguments; the conversation picker handles explicit new/resume choices.",
+      "refs": [
+        "session.Manager.RegisterConversation",
+        "session.validateConversationChoice",
+        "views.ConversationChoiceView",
+        "driver.ClaudeCodeDriver.SetSession"
+      ],
+      "flow": "resume"
+    },
+    {
+      "q": "Change prompt delivery or explicit report kinds",
+      "a": "Follow API admission, durable message intent, manager final activation checks and driver input serialization. Keep report kinds and puppet skill documentation consistent; progress never implies completion.",
+      "refs": [
+        "api.Service.SendMessage",
+        "session.Manager.SubmitMessage",
+        "driver.GenericCLIDriver.SubmitPrompt",
+        "session.MessageStore.RecordReply"
+      ],
+      "flow": "send"
+    },
+    {
+      "q": "Change startup delay or workspace trust",
+      "a": "Trust configuration runs before spawn; process publication and human access are immediate. Only MCP delivery waits on the activation timer. Remove exact temporary trust grants from both CLI configs on deletion.",
+      "refs": [
+        "session.Manager.startStartupLocked",
+        "session.Manager.deliveryAvailableLocked",
+        "driver.updateTrust",
+        "session.Manager.RemoveDetailed"
+      ],
+      "flow": "readiness"
+    },
+    {
+      "q": "Change retry, cancellation or restart behavior",
+      "a": "Use the existing bounded OperationRunner and durable journal. Keep accepted intent, observed effects, warnings and interrupted recovery distinct; never replay an uncertain send automatically.",
+      "refs": [
+        "api.OperationRunner",
+        "session.MessageStore.Recover",
+        "api.SafeRejection"
+      ],
+      "flow": "operations"
     }
   ],
   "storage": {
@@ -4513,6 +4932,18 @@ window.APPEDIA_CONTENT = {
       [
         "tmp/<id>/",
         "temp workspace copies"
+      ],
+      [
+        "operations/<caller>-<request>.json",
+        "durable lifecycle request and outcome"
+      ],
+      [
+        "messaging/history.json",
+        "bounded messages, reports and compact dedup receipts"
+      ],
+      [
+        "<WorkingDir>/.kankuro/mcp-servers.json",
+        "selected MCP servers and current activation credential"
       ]
     ],
     "facts": [
@@ -4526,7 +4957,11 @@ window.APPEDIA_CONTENT = {
       "With temporary mode off, sub copies and metadata are written to the original workspace. Destination conflicts abort activation; separate running application instances are not serialized by one manager mutex.",
       "o and t work only with Sessions focused and a selected session. Both use session.WorkingDir, including temporary copies; live and terminated sessions qualify.",
       "TerminalCommand (terminal_command) defaults empty: users choose an emulator command that opens a separate window. Both commands substitute $PATH; quote \"$PATH\" for spaces. Commands execute directly with the workspace as Dir and no implicit shell expansion.",
-      "External application completion means process startup, not eventual exit. No command is inferred; launch failures use the normal error banner without navigation."
+      "External application completion means process startup, not eventual exit. No command is inferred; launch failures use the normal error banner without navigation.",
+      "Codex trust is stored under ~/.codex/config.toml projects[path].trust_level; Claude trust uses ~/.claude.json projects[path].hasTrustDialogAccepted. Exact temporary-path trust is removed on deletion; a config cleanup failure retains the session for repair/retry.",
+      "Temporary workspaces isolate MCP configs. Sessions sharing an original workspace intentionally accept last-writer server/credential identity. Older cleanup removes only its matching credential.",
+      "Message history is bounded by 64 MiB or 10,000 whole messages per dashboard. Reports are capped at 16 KiB and 128/message; reply pages cap at 100 reports/256 KiB, with at most ten-second waits. Compact send receipts outlive content eviction.",
+      "Startup phase is runtime-only. Sessions restore terminated; bindings and reports persist; unfinished operation effects are interrupted and message submissions become uncertain."
     ]
   },
   "gates": [
@@ -4549,11 +4984,13 @@ window.APPEDIA_CONTENT = {
   "testfacts": [
     "Test the coordinator by driving it: NewCoordinator, Update(msg), then inspect View(), CurrentView(), Views(). Go through Update, not a callback, or you skip the write-back where rule 2 breaks.",
     "Make sure each new test can fail: remove the fix, watch it fail, put it back.",
-    "Session-launching tests use newTestManager; testenv.Run fails the package if anything is left in its private temp root (about 3 s per package).",
+    "Session-launching tests use newTestManager; testenv.Run fails the package if anything is left in its private temp/home root (about 3 s per package).",
     "Shape tests check that a render fits its box; position tests check that elements stay put as the content changes.",
     "Built-in content tests inject explicit fixtures and restore the previous value with t.Cleanup; do not run content-replacing tests in parallel. The root integration test deploys the real embedded bytes through config and the generic driver.",
     "Terminal launch integration records a helper process’s real working directory and arguments. Substituting OriginalDir for WorkingDir must make TestTerminalLaunchThroughDashboard fail; shared-launcher tests cover repeated quoted placeholders and commands without one.",
-    "Terminal action routing covers running, waiting and terminated selections, search, empty selections and nil callbacks. Settings tests cover independent buffers, save/cancel, display sanitization and bounded layout; the coordinator race harness includes terminal launch."
+    "Terminal action routing covers running, waiting and terminated selections, search, empty selections and nil callbacks. Settings tests cover independent buffers, save/cancel, display sanitization and bounded layout; the coordinator race harness includes terminal launch.",
+    "Trust and lifecycle tests isolate HOME; do not run native agent experiments against live factory workspaces. Claude runtime validation is taking place in the user’s separate environment.",
+    "The latest cleanup removal passed focused driver regressions, build, vet, full normal/race suites and lint (0 issues). Evidence: .kankuro/remove-legacy-cleanup-verification/. Those source checks are not native CLI compatibility tests."
   ],
   "glossary": [
     [
@@ -4598,7 +5035,7 @@ window.APPEDIA_CONTENT = {
     ],
     [
       "mcp-cli",
-      "The one built-in skill, embedded in the binary; it teaches agents to use .kankuro/mcp-servers.json."
+      "Built-in skill explaining access to the selected workspace MCP configuration; kankuro-puppet separately explains native registration and explicit reports."
     ],
     [
       "Shape test / position test",
@@ -4623,6 +5060,30 @@ window.APPEDIA_CONTENT = {
     [
       "Workspace command",
       "IDECommand or TerminalCommand executed directly in the session’s WorkingDir, with $PATH substituted before quote-aware parsing."
+    ],
+    [
+      "Activation",
+      "One live process generation in a Kankuro session, with runtime identity, credential, deployed permission and startup timer."
+    ],
+    [
+      "Conversation binding",
+      "Native CLI conversation ID, name and driver saved per card within one Kankuro session."
+    ],
+    [
+      "Dashboard Control",
+      "Opt-in deployed permission for an activation to discover and control other sessions."
+    ],
+    [
+      "Message delivery availability",
+      "Kankuro can admit a prompt for this activation; this does not prove CLI readiness or task completion."
+    ],
+    [
+      "Progress reply",
+      "Explicit correlated information about ongoing work; it has no completion or transition effect."
+    ],
+    [
+      "Operation journal",
+      "Durable request identity, arguments fingerprint and observed outcome for retry/recovery."
     ]
   ]
 };
