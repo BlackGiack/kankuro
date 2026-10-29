@@ -1,55 +1,33 @@
 package session
 
 import (
-	"context"
-	"errors"
 	"time"
+
+	"github.com/BlackGiack/kankuro/internal/driver"
 )
 
-// startupDelay is a pragmatic pause, not a CLI readiness guarantee. It also
-// adds latency for workspaces that were already trusted.
+// startupDelay gates MCP message admission; it does not establish CLI readiness.
 const startupDelay = 10 * time.Second
 
-func waitForStartup(ctx context.Context, shutdown, done <-chan struct{}, output <-chan []byte) ([]byte, error) {
-	return waitForStartupDuration(ctx, shutdown, done, output, startupDelay)
-}
-
-func waitForStartupDuration(
-	ctx context.Context,
-	shutdown, done <-chan struct{},
-	output <-chan []byte,
-	delay time.Duration,
-) ([]byte, error) {
-	timer := time.NewTimer(delay)
-	defer timer.Stop()
-	var scrollback []byte
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-shutdown:
-			return nil, ErrManagerClosed
-		case <-done:
-			return nil, errors.New("agent process exited during startup")
-		case chunk, ok := <-output:
-			if !ok {
-				output = nil
-				continue
-			}
-			scrollback = appendScrollback(scrollback, chunk)
-		case <-timer.C:
-			// Prefer a pending termination over publication if both became ready.
+// teardownUnpublished drains while Kill runs, then joins the drain even if the
+// driver does not close its output channel after teardown.
+func teardownUnpublished(d driver.AgentDriver, output <-chan []byte) error {
+	stop, drained := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(drained)
+		for {
 			select {
-			case <-done:
-				return nil, errors.New("agent process exited during startup")
-			default:
+			case _, ok := <-output:
+				if !ok {
+					return
+				}
+			case <-stop:
+				return
 			}
-			return scrollback, nil
 		}
-	}
-}
-
-func drainStartupOutput(output <-chan []byte) {
-	for range output {
-	}
+	}()
+	err := d.Kill()
+	close(stop)
+	<-drained
+	return err
 }

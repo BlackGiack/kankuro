@@ -86,6 +86,9 @@ type Session struct {
 	// It is what makes that guard exclusive: the unlocked middle of an
 	// activation (workspace sync, Spawn) is long, and Status stays
 	// Terminated throughout it.
+	starting          bool
+	startupCancel     chan struct{}
+	startupDeadline   time.Time
 	activating        bool
 	stopping          bool
 	deleting          bool
@@ -130,6 +133,9 @@ type Snapshot struct {
 	LastOutput                    string
 	Status                        Status
 	LifecycleActivity             string
+	Phase                         string
+	ProcessStarted                bool
+	MessageDeliveryAvailable      bool
 	Pinged                        bool
 	ExitCode                      int
 	Conversations                 map[string][]ConversationBinding
@@ -211,7 +217,9 @@ type Manager struct {
 	// and remove its tmp copy before the app exits.
 	stop              chan struct{}
 	shutdownStart     chan struct{}
-	startupWait       func(context.Context, <-chan struct{}, <-chan struct{}, <-chan []byte) ([]byte, error)
+	startupDelay      time.Duration
+	startupClock      StartupClock
+	startupTimers     sync.WaitGroup
 	stopOnce          sync.Once
 	watchers          sync.WaitGroup
 	activations       sync.WaitGroup
@@ -236,16 +244,30 @@ func WithWorkspaceCopier(copier WorkspaceCopier) Option {
 	return func(manager *Manager) { manager.workspaceCopier = copier }
 }
 
-// WithStartupWait overrides the post-spawn wait, primarily for deterministic tests.
-func WithStartupWait(wait func(context.Context, <-chan struct{}, <-chan struct{}, <-chan []byte) ([]byte, error)) Option {
-	return func(m *Manager) { m.startupWait = wait }
+// StartupTimer and StartupClock permit deterministic startup transition tests.
+type StartupTimer interface {
+	C() <-chan time.Time
+	Stop() bool
 }
+type StartupClock interface {
+	Now() time.Time
+	NewTimer(time.Duration) StartupTimer
+}
+type realStartupClock struct{}
+type realStartupTimer struct{ *time.Timer }
 
-// WithStartupDelay sets the startup pause; zero is useful for tests.
+func (realStartupClock) Now() time.Time { return time.Now() }
+func (realStartupClock) NewTimer(d time.Duration) StartupTimer {
+	return realStartupTimer{time.NewTimer(d)}
+}
+func (t realStartupTimer) C() <-chan time.Time { return t.Timer.C }
+
+// WithStartupClock overrides the runtime clock for startup admission.
+func WithStartupClock(clock StartupClock) Option { return func(m *Manager) { m.startupClock = clock } }
+
+// WithStartupDelay sets the admission delay; zero is useful for tests.
 func WithStartupDelay(delay time.Duration) Option {
-	return WithStartupWait(func(ctx context.Context, shutdown, done <-chan struct{}, output <-chan []byte) ([]byte, error) {
-		return waitForStartupDuration(ctx, shutdown, done, output, delay)
-	})
+	return func(m *Manager) { m.startupDelay = delay }
 }
 
 // WithDriverRegistry sets a custom driver registry.
@@ -280,7 +302,8 @@ func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager
 		logger:            slog.New(slog.DiscardHandler),
 		stop:              make(chan struct{}),
 		shutdownStart:     make(chan struct{}),
-		startupWait:       waitForStartup,
+		startupDelay:      startupDelay,
+		startupClock:      realStartupClock{},
 		authorities:       make(map[string]*activationAuthority),
 		messageAdmissions: make(map[*MessageAdmission]struct{}),
 	}
@@ -339,7 +362,7 @@ func (m *Manager) GetSession(id string) (Snapshot, bool) {
 	if !ok {
 		return Snapshot{}, false
 	}
-	return s.snapshot(), true
+	return m.snapshotLocked(s), true
 }
 
 // PendingLineLen reports the buffered partial-line size. Used by tests to
@@ -382,9 +405,100 @@ func (m *Manager) List() []Snapshot {
 	defer m.mu.RUnlock()
 	out := make([]Snapshot, 0, len(m.sessions))
 	for _, s := range m.sessions {
-		out = append(out, s.snapshot())
+		out = append(out, m.snapshotLocked(s))
 	}
 	return out
+}
+
+func (m *Manager) snapshotLocked(s *Session) Snapshot {
+	snap := s.snapshot()
+	live := s.Driver != nil && s.Done != nil && s.Status != StatusTerminated
+	if live {
+		select {
+		case <-s.Done:
+			live = false
+		default:
+		}
+	}
+	snap.ProcessStarted = live
+	snap.Phase = "terminated"
+	if live {
+		snap.Phase = "active"
+		if s.starting {
+			snap.Phase = "starting"
+		}
+	}
+	snap.MessageDeliveryAvailable = m.deliveryAvailableLocked(s)
+	return snap
+}
+
+func (m *Manager) deliveryAvailableLocked(s *Session) bool {
+	if m.closed || s == nil || s.starting || s.activating || s.stopping || s.deleting || s.Status == StatusTerminated || s.Driver == nil ||
+		s.Done == nil ||
+		s.ActivationID == "" ||
+		!s.KankuroMCPEnabled {
+		return false
+	}
+	authority := m.authorities[s.ActivationToken]
+	if authority == nil || authority.revoked || !authority.published || authority.sessionID != s.ID ||
+		authority.activationID != s.ActivationID {
+		return false
+	}
+	select {
+	case <-s.Done:
+		return false
+	default:
+		return true
+	}
+}
+
+func (m *Manager) cancelStartupLocked(s *Session) {
+	if s.startupCancel != nil {
+		close(s.startupCancel)
+		s.startupCancel = nil
+	}
+	s.starting = false
+}
+
+func (m *Manager) startStartupLocked(s *Session, deadline time.Time) {
+	m.cancelStartupLocked(s)
+	if m.startupDelay <= 0 {
+		return
+	}
+	s.starting = true
+	s.startupDeadline = deadline
+	cancel := make(chan struct{})
+	s.startupCancel = cancel
+	generation, activation, done := s.generation, s.ActivationID, s.Done
+	m.startupTimers.Go(func() {
+		delay := max(deadline.Sub(m.startupClock.Now()), 0)
+		timer := m.startupClock.NewTimer(delay)
+		defer timer.Stop()
+		select {
+		case <-cancel:
+			return
+		case <-m.shutdownStart:
+			return
+		case <-done:
+			return
+		case <-timer.C():
+		}
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		if !m.closed && m.sessions[s.ID] == s && s.generation == generation && s.ActivationID == activation && s.startupCancel == cancel &&
+			!s.stopping &&
+			!s.deleting &&
+			!s.activating &&
+			s.Driver != nil {
+			select {
+			case <-done:
+				return
+			default:
+			}
+			s.starting = false
+			s.startupCancel = nil
+		}
+	})
 }
 
 // snapshot builds a value Snapshot from a Session. Callers must hold m.mu

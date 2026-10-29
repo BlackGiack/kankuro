@@ -132,3 +132,45 @@ func TestMessageStoreRecoversInterruptedSubmissionAndCursorGap(t *testing.T) {
 		t.Fatalf("gap recovery page = %#v, %v", resumed, err)
 	}
 }
+
+func TestProgressRepliesPersistBeforeCompletion(t *testing.T) {
+	root := t.TempDir()
+	store, err := session.NewMessageStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	message := session.MessageRecord{
+		ID:                    uuid.NewString(),
+		DashboardID:           "dash",
+		SenderSessionID:       "sender",
+		RecipientSessionID:    "recipient",
+		RecipientActivationID: "activation",
+		Text:                  "work",
+	}
+	if _, err = store.CreateIntent(message, uuid.NewString(), session.SendFingerprint("recipient", "activation", "work")); err != nil {
+		t.Fatal(err)
+	}
+	request := uuid.NewString()
+	first, err := store.RecordReply("recipient", "activation", request, message.ID, "progress", "tests running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	retry, err := store.RecordReply("recipient", "activation", request, message.ID, "progress", "tests running")
+	if err != nil || first.ID != retry.ID {
+		t.Fatalf("retry: %+v %v", retry, err)
+	}
+	if _, err = store.RecordReply("recipient", "activation", request, message.ID, "completed", "tests running"); err == nil {
+		t.Fatal("changed kind accepted")
+	}
+	if _, err = store.RecordReply("recipient", "activation", uuid.NewString(), message.ID, "completed", "done"); err != nil {
+		t.Fatal(err)
+	}
+	store, err = session.NewMessageStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := store.GetReplies("dash", message.ID, "", 0)
+	if err != nil || len(page.Items) != 2 || page.Items[0].Kind != "progress" || page.Items[1].Kind != "completed" {
+		t.Fatalf("reports: %+v %v", page, err)
+	}
+}

@@ -82,6 +82,9 @@ type SessionInspection struct {
 	ActiveConversationID          string                                   `json:"active_conversation_id,omitempty"`
 	ActivationID                  string                                   `json:"activation_id"`
 	KankuroMCPEnabled             bool                                     `json:"kankuro_mcp_enabled"`
+	Phase                         string                                   `json:"phase"`
+	ProcessStarted                bool                                     `json:"process_started"`
+	MessageDeliveryAvailable      bool                                     `json:"message_delivery_available"`
 	Registration                  session.RegistrationState                `json:"registration"`
 	RegistrationPersistence       session.RegistrationPersistence          `json:"registration_persistence"`
 }
@@ -415,28 +418,7 @@ func (s *Service) GetSession(token, id string) (SessionInspection, error) {
 	if !ok {
 		return SessionInspection{}, errors.New("session not found")
 	}
-	subWorkspaces := item.SubWorkspaces
-	metadataAvailable := item.SubWorkspaceMetadataAvailable
-	if !metadataAvailable {
-		subWorkspaces, metadataAvailable = session.ReadSubWorkspaceDescriptors(item.WorkingDir)
-	}
-	if subWorkspaces == nil {
-		subWorkspaces = []session.SubWorkspaceDescriptor{}
-	}
-	conversations := item.Conversations
-	if conversations == nil {
-		conversations = map[string][]session.ConversationBinding{}
-	}
-	return SessionInspection{
-		ID: item.ID, Name: item.Name, CardID: item.CardID,
-		Status: item.Status, Activity: item.LifecycleActivity,
-		WorkingDir: item.WorkingDir, OriginalDir: item.OriginalDir,
-		UseTmpWorkspace: item.UseTmpWorkspace, Conversations: conversations,
-		SubWorkspaces: subWorkspaces, SubWorkspaceMetadataAvailable: metadataAvailable,
-		ActiveConversationID: item.ActiveConversationID, Registration: item.Registration,
-		ActivationID: item.ActivationID, KankuroMCPEnabled: item.KankuroMCPEnabled,
-		RegistrationPersistence: item.RegistrationPersistence,
-	}, nil
+	return inspectionFromSnapshot(item), nil
 }
 
 func (s *Service) resolveCard(cardID string) (cardBundle, error) {
@@ -524,4 +506,31 @@ func idSet(ids []string) map[string]struct{} {
 		set[id] = struct{}{}
 	}
 	return set
+}
+
+// inspectionFromSnapshot converts a single coherent manager snapshot.
+func inspectionFromSnapshot(item session.Snapshot) SessionInspection {
+	subWorkspaces := item.SubWorkspaces
+	metadataAvailable := item.SubWorkspaceMetadataAvailable
+	if !metadataAvailable {
+		subWorkspaces, metadataAvailable = session.ReadSubWorkspaceDescriptors(item.WorkingDir)
+	}
+	if subWorkspaces == nil {
+		subWorkspaces = []session.SubWorkspaceDescriptor{}
+	}
+	conversations := item.Conversations
+	if conversations == nil {
+		conversations = map[string][]session.ConversationBinding{}
+	}
+	return SessionInspection{
+		ID: item.ID, Name: item.Name, CardID: item.CardID,
+		Status: item.Status, Activity: item.LifecycleActivity,
+		WorkingDir: item.WorkingDir, OriginalDir: item.OriginalDir,
+		UseTmpWorkspace: item.UseTmpWorkspace, Conversations: conversations,
+		SubWorkspaces: subWorkspaces, SubWorkspaceMetadataAvailable: metadataAvailable,
+		ActiveConversationID: item.ActiveConversationID, Registration: item.Registration,
+		ActivationID: item.ActivationID, KankuroMCPEnabled: item.KankuroMCPEnabled,
+		Phase: item.Phase, ProcessStarted: item.ProcessStarted, MessageDeliveryAvailable: item.MessageDeliveryAvailable,
+		RegistrationPersistence: item.RegistrationPersistence,
+	}
 }

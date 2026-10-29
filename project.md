@@ -244,17 +244,26 @@ Partial writes are uncertain and may leave input-buffer residue. The
 `kankuro-puppet` skill is deployed alongside `mcp-cli` whenever Kankuro MCP is
 selected; its first instruction is native conversation discovery and registration.
 
+MCP creation optionally accepts a session name. Omission uses the card name; a
+supplied name is trimmed and an empty result uses the session ID. Raw optional names
+are part of request identity, so changing them on retry conflicts. Names persist across
+relaunches and switches. Explicit `progress` replies are informational and may precede
+completion; they do not advance a workflow.
+
 ### CLI startup
 
 New PTYs start at 80×24 until attachment supplies a different size. Before
-spawn, Codex and Claude prepare trust for the actual working directory. All
-drivers then wait ten seconds after spawn before publishing the activation.
-Startup output is retained in bounded scrollback; no output is interpreted as a
-readiness signal and no confirmation keys are sent. Cancellation, process exit,
-or manager shutdown aborts startup and kills the unpublished process. The fixed
-pause is a pragmatic policy, not a readiness guarantee. Native conversation
-registration can be staged during startup but does not make the activation
-eligible for delivery before publication.
+spawn, Codex and Claude prepare trust for the actual working directory. Successful
+spawn is published immediately, so a human can attach and see bounded startup output.
+A manager-owned ten-second timer gates MCP message delivery, not attachment or
+registration. The pause is an admission policy, not evidence of CLI readiness.
+Inspection reports `phase` (`starting`, `active`, or `terminated`), `process_started`,
+and `message_delivery_available`. The latter also requires a live current activation,
+Kankuro MCP, and no lifecycle operation. A send revalidates this state and its pinned
+activation; retry a starting rejection with the same request ID after inspection.
+Operation results retain their historical snapshot; `get_session` reads current state.
+Restored sessions are terminated, while relaunch starts a fresh timer. Shutdown
+cancels and joins timer tasks, and normal output tracking owns published output.
 
 ### A session's life
 
@@ -839,13 +848,12 @@ Updates use a restrictive sibling temporary file and atomic rename, retaining an
 existing file's permissions. A process-local lock serializes Kankuro updates, but
 other processes are not covered by that lock.
 
-After a successful spawn, activation publication and MCP delivery wait ten seconds.
-This fixed pause is a pragmatic initial policy, adds latency even to trusted
-workspaces, and is not a readiness guarantee. Startup output is retained for the
-session; cancellation, shutdown, or process exit aborts the activation. Registration
-guidance is supplied by the deployed `kankuro-puppet` skill when Kankuro MCP is
-selected, rather than injected into the workspace instruction file. Normal
-instruction synchronization removes legacy Kankuro registration blocks.
+After successful spawn, publication and human attachment are immediate. The fixed
+ten-second admission delay for MCP delivery is not a readiness guarantee. Registration
+is independent of the timer. An exit after publication leaves a terminated session for
+inspection and relaunch. Registration guidance is supplied by the deployed
+`kankuro-puppet` skill when Kankuro MCP is selected. Normal instruction synchronization
+removes legacy Kankuro registration blocks.
 
 Deleting a temporary session first removes its exact saved working-directory trust
 from both Codex and Claude, including grants from earlier card switches. If either

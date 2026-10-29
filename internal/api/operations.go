@@ -146,7 +146,8 @@ type ConversationRequest struct {
 }
 
 type createArguments struct {
-	CardID string `json:"card_id"`
+	CardID string  `json:"card_id"`
+	Name   *string `json:"name,omitempty"`
 }
 type conversationArguments struct {
 	Conversation *ConversationRequest `json:"conversation,omitempty"`
@@ -161,7 +162,7 @@ type operationWarningError struct{ message string }
 
 func (e operationWarningError) Error() string { return e.message }
 
-func (s *Service) CreateSession(ctx context.Context, token, requestID, cardID string) (OperationResult, error) {
+func (s *Service) CreateSession(ctx context.Context, token, requestID, cardID string, name ...*string) (OperationResult, error) {
 	if s.operations == nil {
 		return OperationResult{}, errors.New("operation runner unavailable")
 	}
@@ -173,6 +174,10 @@ func (s *Service) CreateSession(ctx context.Context, token, requestID, cardID st
 		return OperationResult{}, reject("invalid_request", "card_id is required")
 	}
 	args := createArguments{CardID: cardID}
+	if len(name) > 0 && name[0] != nil {
+		suppliedName := *name[0]
+		args.Name = &suppliedName
+	}
 	if replay, found, replayErr := s.replayMutation(ctx, token, requestID, createSessionOperation, "", args); replayErr != nil {
 		return OperationResult{}, replayErr
 	} else if found {
@@ -185,7 +190,7 @@ func (s *Service) CreateSession(ctx context.Context, token, requestID, cardID st
 		return OperationResult{}, classifyCardLoadError(loadErr)
 	}
 	apply := func(operationCtx context.Context, operation Operation) (json.RawMessage, error) {
-		sid, launchErr := s.launchReservedSession(operationCtx, cardID, operation.TargetSession)
+		sid, launchErr := s.launchReservedSession(operationCtx, cardID, operation.TargetSession, args.Name)
 		if launchErr != nil && !errors.Is(launchErr, session.ErrPersistFailed) {
 			return nil, launchErr
 		}
@@ -209,7 +214,7 @@ func (s *Service) CreateSession(ctx context.Context, token, requestID, cardID st
 	return operationResult(operation), err
 }
 
-func (s *Service) launchReservedSession(ctx context.Context, cardID, sessionID string) (string, error) {
+func (s *Service) launchReservedSession(ctx context.Context, cardID, sessionID string, name *string) (string, error) {
 	release, err := s.reserveCardReference(cardID)
 	if err != nil {
 		return "", err
@@ -221,7 +226,7 @@ func (s *Service) launchReservedSession(ctx context.Context, cardID, sessionID s
 		return "", err
 	}
 	return s.sessions.LaunchWithIDContext(
-		ctx, sessionID, bundle.Card, bundle.Skills, bundle.Personas, bundle.MCPs,
+		ctx, sessionID, bundle.Card, bundle.Skills, bundle.Personas, bundle.MCPs, name,
 	)
 }
 
@@ -451,23 +456,7 @@ func (s *Service) inspectSession(sessionID string) (SessionInspection, error) {
 	if !ok {
 		return SessionInspection{}, errors.New("session not found after lifecycle operation")
 	}
-	subWorkspaces := item.SubWorkspaces
-	metadataAvailable := item.SubWorkspaceMetadataAvailable
-	if !metadataAvailable {
-		subWorkspaces, metadataAvailable = session.ReadSubWorkspaceDescriptors(item.WorkingDir)
-	}
-	if subWorkspaces == nil {
-		subWorkspaces = []session.SubWorkspaceDescriptor{}
-	}
-	conversations := item.Conversations
-	if conversations == nil {
-		conversations = map[string][]session.ConversationBinding{}
-	}
-	return SessionInspection{ID: item.ID, Name: item.Name, CardID: item.CardID, Status: item.Status, Activity: item.LifecycleActivity,
-		WorkingDir: item.WorkingDir, OriginalDir: item.OriginalDir, UseTmpWorkspace: item.UseTmpWorkspace,
-		Conversations: conversations, SubWorkspaces: subWorkspaces, SubWorkspaceMetadataAvailable: metadataAvailable,
-		ActiveConversationID: item.ActiveConversationID,
-		Registration:         item.Registration, RegistrationPersistence: item.RegistrationPersistence}, nil
+	return inspectionFromSnapshot(item), nil
 }
 
 // NewOperationRunner loads the durable idempotency journal and starts workers.

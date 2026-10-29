@@ -293,6 +293,26 @@ func TestOperationRunnerCreatesOnceAndReplaysRequest(t *testing.T) {
 	if concurrentReplay.ID != first.ID || concurrentReplay.TargetSession != first.TargetSession {
 		t.Fatalf("concurrent duplicate created a second operation: %#v vs %#v", first, concurrentReplay)
 	}
+	name := "  仕事  "
+	namedRequest := uuid.NewString()
+	named, namedErr := service.CreateSession(context.Background(), token, namedRequest, targetCard.ID, &name)
+	if namedErr != nil || named.State != OperationSucceeded || named.Result == nil ||
+		named.Result.Inspection == nil || named.Result.Inspection.Name != "仕事" {
+		t.Fatalf("named creation = %#v, %v", named, namedErr)
+	}
+	namedReplay, namedErr := service.CreateSession(context.Background(), token, namedRequest, targetCard.ID, &name)
+	if namedErr != nil || namedReplay.TargetSession != named.TargetSession {
+		t.Fatalf("named replay = %#v, %v", namedReplay, namedErr)
+	}
+	changedName := "仕事"
+	if _, namedErr = service.CreateSession(context.Background(), token, namedRequest, targetCard.ID, &changedName); namedErr == nil {
+		t.Fatal("changed raw name accepted")
+	}
+	if _, namedErr = service.CreateSession(context.Background(), token, namedRequest, targetCard.ID); namedErr == nil {
+		t.Fatal("omitted name accepted for named retry")
+	}
+	scope.setSession(named.TargetSession, "other-dashboard")
+
 	second, err := service.CreateSession(context.Background(), token, requestID, targetCard.ID)
 	if err != nil {
 		t.Fatalf("replay create: %v", err)

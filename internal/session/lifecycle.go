@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -120,6 +121,7 @@ func (m *Manager) LaunchWithIDContext(
 	skills []config.Skill,
 	personas []config.Persona,
 	mcps []config.MCPServer,
+	name ...*string,
 ) (string, error) {
 	if _, err := uuid.Parse(sid); err != nil {
 		return "", fmt.Errorf("invalid preallocated session ID: %w", err)
@@ -149,7 +151,7 @@ func (m *Manager) LaunchWithIDContext(
 		m.mu.Unlock()
 		m.activations.Done()
 	}()
-	return sid, m.startSession(ctx, sid, card, skills, personas, mcps, true, "", "", nil, "")
+	return sid, m.startSession(ctx, sid, card, skills, personas, mcps, true, "", "", nil, "", name)
 }
 
 // activationSnapshot holds the session fields Relaunch/SwitchAgent need while
@@ -337,6 +339,7 @@ func (m *Manager) RelaunchWithChoiceContext(
 		snap.OriginalDir,
 		snap.InstructionOwnership,
 		conversationID,
+		nil,
 	)
 	// ErrPersistFailed means the activation did happen (and already cleared
 	// the reservation); any other error means it did not.
@@ -469,11 +472,7 @@ func (m *Manager) SwitchAgentWithChoiceContext(
 		return errSpawn
 	}
 
-	startupOutput, waitErr := m.startupWait(ctx, m.shutdownStart, h.Done, h.Output)
-	if waitErr != nil {
-		go drainStartupOutput(h.Output)
-		return errors.Join(waitErr, d.Kill())
-	}
+	deadline := m.startupClock.Now().Add(m.startupDelay)
 
 	now := time.Now().UTC()
 	pid := 0
@@ -484,8 +483,7 @@ func (m *Manager) SwitchAgentWithChoiceContext(
 	m.mu.Lock()
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		m.mu.Unlock()
-		go drainStartupOutput(h.Output)
-		return errors.Join(ctxErr, d.Kill())
+		return errors.Join(ctxErr, teardownUnpublished(d, h.Output))
 	}
 	if m.closed {
 		// Shutdown started during the unlocked spawn. The process is already
@@ -493,28 +491,22 @@ func (m *Manager) SwitchAgentWithChoiceContext(
 		// lock (Kill can block on teardown). The deferred releaseActivation
 		// runs after this return.
 		m.mu.Unlock()
-		go drainStartupOutput(h.Output)
-		_ = d.Kill()
-		return ErrManagerClosed
+		return errors.Join(ErrManagerClosed, teardownUnpublished(d, h.Output))
 	}
 	s, ok := m.sessions[id]
 	if !ok {
 		m.mu.Unlock()
-		go drainStartupOutput(h.Output)
-		return errors.Join(fmt.Errorf("%w: %s", ErrSessionNotFound, id), d.Kill())
+		return errors.Join(fmt.Errorf("%w: %s", ErrSessionNotFound, id), teardownUnpublished(d, h.Output))
 	}
 	select {
 	case <-h.Done:
 		m.mu.Unlock()
-		go drainStartupOutput(h.Output)
-		return errors.Join(errors.New("agent process exited during startup"), d.Kill())
+		return errors.Join(errors.New("agent process exited during startup"), teardownUnpublished(d, h.Output))
 	default:
 	}
 	defer m.mu.Unlock()
 
 	m.activateSessionLocked(s, card, d, h, pid, now)
-	s.Scrollback = appendScrollback(s.Scrollback, startupOutput)
-	updateSessionOutputState(s, startupOutput, now)
 	s.InstructionOwnership = updateInstructionOwnership(snap.InstructionOwnership, instructionFile, instructionsManaged)
 	s.InstructionsManaged = instructionsManaged
 	s.KankuroMCPEnabled = token != ""
@@ -522,6 +514,7 @@ func (m *Manager) SwitchAgentWithChoiceContext(
 	s.SubWorkspaces = subWorkspaces
 	s.SubWorkspaceMetadataAvailable = subWorkspaceMetadataAvailable
 	m.publishActivationLocked(token, s)
+	m.startStartupLocked(s, deadline)
 	if token == "" {
 		s.ExpectedConversationID = conversationID
 	}
@@ -598,6 +591,7 @@ func (m *Manager) startSession(
 	originalOverride string,
 	previousInstructionOwnership map[string]bool,
 	conversationID string,
+	name []*string,
 ) (returnErr error) {
 	var wd, finalWD string
 	if isNew {
@@ -682,11 +676,7 @@ func (m *Manager) startSession(
 		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errSpawn)
 	}
 
-	startupOutput, waitErr := m.startupWait(ctx, m.shutdownStart, h.Done, h.Output)
-	if waitErr != nil {
-		go drainStartupOutput(h.Output)
-		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(waitErr, d.Kill()))
-	}
+	deadline := m.startupClock.Now().Add(m.startupDelay)
 
 	now := time.Now().UTC()
 	pid := 0
@@ -697,21 +687,23 @@ func (m *Manager) startSession(
 	m.mu.Lock()
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		m.mu.Unlock()
-		go drainStartupOutput(h.Output)
-		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ctxErr, d.Kill()))
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ctxErr, teardownUnpublished(d, h.Output)))
 	}
 	if m.closed {
 		// Shutdown started during the unlocked spawn; see SwitchAgent. A new
 		// session has no record, so nothing would ever point at its tmp copy.
 		m.mu.Unlock()
-		go drainStartupOutput(h.Output)
-		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ErrManagerClosed, d.Kill()))
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ErrManagerClosed, teardownUnpublished(d, h.Output)))
 	}
 	select {
 	case <-h.Done:
 		m.mu.Unlock()
-		go drainStartupOutput(h.Output)
-		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(errors.New("agent process exited during startup"), d.Kill()))
+		return m.cleanupNewTemporaryWorkspace(
+			sid,
+			card,
+			isNew,
+			errors.Join(errors.New("agent process exited during startup"), teardownUnpublished(d, h.Output)),
+		)
 	default:
 	}
 	defer m.mu.Unlock()
@@ -721,6 +713,13 @@ func (m *Manager) startSession(
 		s = &Session{
 			ID:          sid,
 			Subscribers: make(map[chan []byte]struct{}),
+		}
+		s.Name = card.Name
+		if len(name) > 0 && name[0] != nil {
+			s.Name = strings.TrimSpace(*name[0])
+			if s.Name == "" {
+				s.Name = sid
+			}
 		}
 		m.sessions[sid] = s
 	}
@@ -735,6 +734,7 @@ func (m *Manager) startSession(
 		s.SubWorkspaceMetadataAvailable = subWorkspaceMetadataAvailable
 	}
 	m.publishActivationLocked(token, s)
+	m.startStartupLocked(s, deadline)
 	if token == "" {
 		s.ExpectedConversationID = conversationID
 	}
@@ -752,8 +752,6 @@ func (m *Manager) startSession(
 		s.PendingAttachHeader = fmt.Appendf(nil, "\r\n--- Relaunched at %s ---\r\n\r\n",
 			now.Format(time.RFC3339))
 	}
-	s.Scrollback = appendScrollback(s.Scrollback, startupOutput)
-	updateSessionOutputState(s, startupOutput, now)
 	gen := s.generation
 
 	go m.trackOutput(sid, gen, h.Output)
@@ -828,9 +826,6 @@ func (m *Manager) activateSessionLocked(
 	s.generation++
 	s.activating = false
 	s.CardID = card.ID
-	if s.Name == "" {
-		s.Name = card.Name
-	}
 	s.PID = pid
 	s.StartedAt = now
 	s.LastWordAt = now
@@ -898,6 +893,8 @@ func (m *Manager) killDetailed(id string, duringShutdown bool) (StopResult, erro
 	var d driver.AgentDriver
 	var gen uint64
 	var submissionsDone chan struct{}
+	var wasStarting bool
+	var startupDeadline time.Time
 	if ok {
 		if s.activating || s.stopping || s.deleting {
 			m.mu.Unlock()
@@ -915,6 +912,8 @@ func (m *Manager) killDetailed(id string, duringShutdown bool) (StopResult, erro
 			return StopResult{ProcessTerminated: true, SessionRecordPersisted: persistErr == nil}, persistErr
 		}
 		s.stopping = true
+		wasStarting, startupDeadline = s.starting, s.startupDeadline
+		m.cancelStartupLocked(s)
 		m.cancelPendingMessageAdmissionsLocked(s)
 		if s.activeSubmissions > 0 {
 			submissionsDone = s.submissionsDone
@@ -950,6 +949,9 @@ func (m *Manager) killDetailed(id string, duringShutdown bool) (StopResult, erro
 	}
 	s.stopping = false
 	if !processTerminated {
+		if wasStarting && !m.closed {
+			m.startStartupLocked(s, startupDeadline)
+		}
 		return StopResult{}, errors.Join(killErr, errors.New("session process remains active"))
 	}
 	s.Status = StatusTerminated
@@ -1161,6 +1163,7 @@ func (m *Manager) Shutdown() int {
 
 	m.stops.Wait()
 	m.activations.Wait()
+	m.startupTimers.Wait()
 
 	m.stopOnce.Do(func() { close(m.stop) })
 	m.watchers.Wait()

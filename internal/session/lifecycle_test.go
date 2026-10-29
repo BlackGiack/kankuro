@@ -255,7 +255,8 @@ func TestLaunchWrapsErrPersistFailedButSessionStaysUsable(t *testing.T) {
 	}
 	defer os.Chmod(sessionsDir, 0o700)
 
-	sm := newTestManager(t, repo.Dir(), repo)
+	clock := &testStartupClock{timer: &testStartupTimer{ready: make(chan time.Time, 1)}, entered: make(chan struct{})}
+	sm := newTestManager(t, repo.Dir(), repo, session.WithStartupClock(clock), session.WithStartupDelay(10*time.Second))
 	card := config.IDCard{
 		ID:          "card-persist-fail",
 		Name:        "persist-fail",
@@ -271,11 +272,14 @@ func TestLaunchWrapsErrPersistFailedButSessionStaysUsable(t *testing.T) {
 		_ = os.Chmod(sessionsDir, 0o700)
 		_ = sm.Kill(sid)
 	}()
-	time.Sleep(100 * time.Millisecond)
+	<-clock.entered
 
 	s, ok := sm.GetSession(sid)
 	if !ok {
 		t.Fatalf("expected session to exist despite the persist failure")
+	}
+	if s.Phase != "starting" || !s.ProcessStarted {
+		t.Fatalf("persist warning lost startup process: %+v", s)
 	}
 	if s.Status == session.StatusTerminated {
 		t.Fatalf("expected the process to still be running, got %s", s.Status)
@@ -286,6 +290,7 @@ func TestLaunchWrapsErrPersistFailedButSessionStaysUsable(t *testing.T) {
 		t.Fatalf("expected attach to succeed despite the persist failure: %v", errAttach)
 	}
 	handle.Close()
+	clock.timer.ready <- time.Unix(110, 0)
 }
 
 func TestSessionSwitchAgent(t *testing.T) {

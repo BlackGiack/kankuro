@@ -33,7 +33,7 @@ type discoveryService interface {
 	ListCards(string) ([]api.CardDiscovery, error)
 	ListSessions(string) ([]api.SessionDiscovery, error)
 	GetSession(string, string) (api.SessionInspection, error)
-	CreateSession(context.Context, string, string, string) (api.OperationResult, error)
+	CreateSession(context.Context, string, string, string, ...*string) (api.OperationResult, error)
 	StopSession(context.Context, string, string, string) (api.OperationResult, error)
 	RelaunchSession(context.Context, string, string, string, *api.ConversationRequest) (api.OperationResult, error)
 	SwitchSessionCard(context.Context, string, string, string, string, *api.ConversationRequest) (api.OperationResult, error)
@@ -61,8 +61,9 @@ type sessionInput struct {
 }
 
 type createSessionInput struct {
-	RequestID string `json:"request_id" jsonschema:"caller-generated UUID, stable across retries"`
-	CardID    string `json:"card_id"`
+	RequestID string  `json:"request_id"     jsonschema:"caller-generated UUID, stable across retries"`
+	CardID    string  `json:"card_id"`
+	Name      *string `json:"name,omitempty"`
 }
 
 type targetSessionInput struct {
@@ -99,7 +100,7 @@ type messageInput struct {
 type reportReplyInput struct {
 	RequestID string `json:"request_id" jsonschema:"caller-generated UUID, stable across retries"`
 	MessageID string `json:"message_id"`
-	Kind      string `json:"kind"       jsonschema:"completed, question, or blocked"`
+	Kind      string `json:"kind"       jsonschema:"completed, question, blocked, or progress"`
 	Text      string `json:"text"       jsonschema:"explicit report text, up to 16 KiB"`
 }
 type repliesInput struct {
@@ -252,11 +253,11 @@ func addLifecycleTools(server *sdk.Server, service discoveryService) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name: "create_session",
 		Description: "Create a session from an existing card. Returns after completion or ten seconds " +
-			"with an operation ID to poll. Retries with the same request UUID are deduplicated.",
+			"with an operation ID to poll. The optional name is part of retry identity. The result is a historical snapshot; get_session returns current delivery availability.",
 	}, func(
 		ctx context.Context, _ *sdk.CallToolRequest, input createSessionInput,
 	) (*sdk.CallToolResult, lifecycleToolResponse, error) {
-		result, err := service.CreateSession(ctx, callerToken(ctx), input.RequestID, input.CardID)
+		result, err := service.CreateSession(ctx, callerToken(ctx), input.RequestID, input.CardID, input.Name)
 		return lifecycleResponse(result, err)
 	})
 	sdk.AddTool(server, &sdk.Tool{
@@ -326,7 +327,7 @@ func addMessagingTools(server *sdk.Server, service messagingService) {
 		server,
 		&sdk.Tool{
 			Name:        "send_message",
-			Description: "Send a short single-line prompt to a pinned live session activation. A successful submission means the marked prompt and Enter were written, not that the CLI processed it. Retries with the same request UUID are deduplicated.",
+			Description: "Send a short single-line prompt to a pinned live session activation. Inspect the current activation and delivery availability first. A starting rejection can be retried with the same request UUID. Submission means the prompt and Enter were written, not that the CLI processed it.",
 		},
 		func(ctx context.Context, _ *sdk.CallToolRequest, input sendMessageInput) (*sdk.CallToolResult, lifecycleToolResponse, error) {
 			result, err := service.SendMessage(ctx, callerToken(ctx), input.RequestID, input.SessionID, input.ActivationID, input.Text)
@@ -348,7 +349,7 @@ func addMessagingTools(server *sdk.Server, service messagingService) {
 		server,
 		&sdk.Tool{
 			Name:        "report_reply",
-			Description: "Persist an explicit completed, question, or blocked report for a message assigned to this activation. Use a stable request UUID for retries.",
+			Description: "Persist an explicit completed, question, blocked, or progress report for a message assigned to this activation. Progress is informational and does not complete a workflow. Use a stable request UUID for retries.",
 		},
 		func(ctx context.Context, _ *sdk.CallToolRequest, input reportReplyInput) (*sdk.CallToolResult, any, error) {
 			result, err := service.ReportReply(callerToken(ctx), input.RequestID, input.MessageID, input.Kind, input.Text)

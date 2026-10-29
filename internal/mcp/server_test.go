@@ -55,7 +55,7 @@ func (*discoveryRegistrar) ListSessions(string) ([]api.SessionDiscovery, error) 
 func (*discoveryRegistrar) GetSession(string, string) (api.SessionInspection, error) {
 	return api.SessionInspection{}, nil
 }
-func (r *discoveryRegistrar) CreateSession(_ context.Context, _ string, requestID, _ string) (api.OperationResult, error) {
+func (r *discoveryRegistrar) CreateSession(_ context.Context, _ string, requestID, _ string, _ ...*string) (api.OperationResult, error) {
 	r.mutationCalls++
 	r.lastRequestID = requestID
 	if requestID == "bad-request" {
@@ -552,6 +552,13 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 		t.Fatal(invalidWaitErr)
 	}
 	assertMCPErrorCode(t, invalidWait, "invalid_request")
+	progress, progressErr := targetClientSession.CallTool(ctx, &sdk.CallToolParams{
+		Name: "report_reply", Arguments: map[string]any{"request_id": uuid.NewString(), "message_id": messageID,
+			"kind": "progress", "text": "tests running"},
+	})
+	if progressErr != nil || progress == nil || progress.IsError {
+		t.Fatalf("progress report failed: %#v, %v", progress, progressErr)
+	}
 	reportRequestID := uuid.NewString()
 	firstReport, firstReportErr := targetClientSession.CallTool(ctx, &sdk.CallToolParams{
 		Name: "report_reply", Arguments: map[string]any{"request_id": reportRequestID, "message_id": messageID,
@@ -568,6 +575,10 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 		t.Fatal(changedReportErr)
 	}
 	assertMCPErrorCode(t, changedReport, "request_id_conflict")
+	page, pageErr := manager.Messages().GetReplies(api.DefaultDashboardID, messageID, "", 0)
+	if pageErr != nil || len(page.Items) != 2 || page.Items[0].Kind != "progress" || page.Items[1].Kind != "completed" {
+		t.Fatalf("correlated reports = %#v, %v", page, pageErr)
+	}
 	deniedLifecycle, deniedLifecycleErr := targetClientSession.CallTool(ctx, &sdk.CallToolParams{
 		Name: "create_session", Arguments: map[string]any{"request_id": uuid.NewString(), "card_id": secondCard.ID},
 	})

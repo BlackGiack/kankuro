@@ -419,8 +419,8 @@ func (s *MessageStore) RecordReply(recipientID, activationID, requestID, message
 	if len([]byte(text)) > messageReportLimitBytes {
 		return MessageReply{}, messagingError("invalid_request", "report text exceeds 16 KiB", nil)
 	}
-	if kind != "completed" && kind != "question" && kind != "blocked" {
-		return MessageReply{}, messagingError("invalid_request", "kind must be completed, question, or blocked", nil)
+	if kind != "completed" && kind != "question" && kind != "blocked" && kind != "progress" {
+		return MessageReply{}, messagingError("invalid_request", "kind must be completed, question, blocked, or progress", nil)
 	}
 	fingerprint := SendFingerprint(messageID, kind, text)
 	s.mu.Lock()
@@ -842,6 +842,12 @@ func (m *Manager) ReserveMessageAdmission(token, recipientID, recipientActivatio
 	if recipient.ActivationID != recipientActivationID || !recipient.KankuroMCPEnabled {
 		return nil, messagingError("stale_activation", "recipient activation is stale or does not have Kankuro MCP selected", nil)
 	}
+	if recipient.starting {
+		return nil, messagingError("starting", "recipient is starting; inspect the activation and retry with the same request ID", nil)
+	}
+	if !m.deliveryAvailableLocked(recipient) {
+		return nil, messagingError("lifecycle_conflict", "recipient session is not available for messages", nil)
+	}
 	if recipient.Driver == nil {
 		return nil, messagingError("lifecycle_conflict", "recipient driver is unavailable", nil)
 	}
@@ -910,7 +916,7 @@ func (m *Manager) PublishMessageAdmission(admission *MessageAdmission, publish f
 	if admission.invalidated || admission.released || admission.published || admission.publishing || m.closed ||
 		m.sessions[admission.senderID] != admission.sender || m.sessions[admission.recipientID] != admission.recipient ||
 		admission.sender.stopping || admission.sender.deleting || admission.sender.Status == StatusTerminated ||
-		admission.recipient.stopping || admission.recipient.deleting || admission.recipient.Status == StatusTerminated ||
+		!m.deliveryAvailableLocked(admission.recipient) ||
 		admission.sender.ActivationID != admission.senderActivationID || admission.recipient.ActivationID != admission.recipientActivationID {
 		m.mu.Unlock()
 		return messagingError("lifecycle_conflict", "message admission was canceled before intent publication", nil)
@@ -945,7 +951,7 @@ func (m *Manager) beginMessageSubmission(admission *MessageAdmission, token, rec
 	sender, recipient := admission.sender, admission.recipient
 	if m.closed || sender == nil || recipient == nil || sender.stopping || sender.deleting || recipient.stopping ||
 		recipient.deleting || sender.Status == StatusTerminated || recipient.Status == StatusTerminated ||
-		m.sessions[sender.ID] != sender || m.sessions[recipientID] != recipient ||
+		m.sessions[sender.ID] != sender || m.sessions[recipientID] != recipient || !m.deliveryAvailableLocked(recipient) ||
 		sender.ActivationID != admission.senderActivationID || recipient.ActivationID != activationID || !sender.DashboardControl {
 		return nil, false
 	}
