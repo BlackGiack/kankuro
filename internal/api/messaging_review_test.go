@@ -452,7 +452,7 @@ func TestDeleteSessionReportsTrustCleanupWarningAndAllowsRetry(t *testing.T) {
 	if err := h.manager.Kill(id); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(home, ".claude", "settings.json")
+	path := filepath.Join(home, ".claude.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}

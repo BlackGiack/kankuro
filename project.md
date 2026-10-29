@@ -839,8 +839,8 @@ skill and places its current endpoint/credential in the workspace MCP config.
 Before spawning a new, relaunched, or switched session, the selected driver prepares
 trust for the session's actual working directory, including a temporary copy. Codex
 updates `~/.codex/config.toml` under `projects.<absolute path>.trust_level` to
-`trusted`; Claude updates the `trustedDirectories` array in
-`~/.claude/settings.json`. Generic drivers make no trust change. These are
+`trusted`; Claude sets `projects[<actual absolute working directory>].hasTrustDialogAccepted`
+to `true` in `~/.claude.json`. Generic drivers make no trust change. These are
 persistent user-level trust grants for exactly that directory. Configuration is
 parsed and preserved structurally; TOML comments and formatting may change. Invalid
 configuration and write failures abort startup without truncating the original.
@@ -856,7 +856,8 @@ inspection and relaunch. Registration guidance is supplied by the deployed
 removes legacy Kankuro registration blocks.
 
 Deleting a temporary session first removes its exact saved working-directory trust
-from both Codex and Claude, including grants from earlier card switches. If either
+from both Codex and Claude, including grants from earlier card switches. Claude cleanup
+removes only the trust flag and preserves the project’s other metadata. If either
 configuration cannot be updated, deletion stops and the session remains available
 to retry after fixing the configuration; one CLI's cleanup may already have
 succeeded. Failed new temporary activations also attempt trust cleanup and report

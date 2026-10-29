@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 
@@ -28,7 +27,7 @@ func (d *CodexCLIDriver) PrepareWorkspace(ctx context.Context, workingDir string
 	return updateTrust(ctx, workingDir, ".codex/config.toml", true, false)
 }
 func (d *ClaudeCodeDriver) PrepareWorkspace(ctx context.Context, workingDir string) error {
-	return updateTrust(ctx, workingDir, ".claude/settings.json", false, false)
+	return updateTrust(ctx, workingDir, ".claude.json", false, false)
 }
 
 // RemoveWorkspaceTrust removes the exact workspace grant from both supported
@@ -39,7 +38,7 @@ func RemoveWorkspaceTrust(ctx context.Context, workingDir string) error {
 	}
 	return errors.Join(
 		updateTrust(ctx, workingDir, ".codex/config.toml", true, true),
-		updateTrust(ctx, workingDir, ".claude/settings.json", false, true),
+		updateTrust(ctx, workingDir, ".claude.json", false, true),
 	)
 }
 
@@ -71,7 +70,7 @@ func updateTrust(ctx context.Context, workingDir, configPath string, codex, remo
 		return nil
 	}
 	if !codex && err == nil && len(data) == 0 {
-		return fmt.Errorf("update trust configuration %s: settings must be a valid JSON object", path)
+		return fmt.Errorf("update trust configuration %s: configuration must be a valid JSON object", path)
 	}
 	var result []byte
 	if codex {
@@ -151,44 +150,74 @@ func updateCodexTrust(data []byte, workspace string, remove bool) ([]byte, error
 	return toml.Marshal(cfg)
 }
 
-//nolint:gocognit // Validate and preserve the complete configuration while updating one entry.
+// updateClaudeTrust modifies only the exact project's trust flag. RawMessage
+// preserves unrelated JSON values, including numbers outside float64 precision.
+//
+//nolint:gocognit // Preserve and validate each nested object without changing unrelated values.
 func updateClaudeTrust(data []byte, workspace string, remove bool) ([]byte, error) {
 	cfg := make(map[string]json.RawMessage)
 	if len(data) > 0 {
-		if err := json.Unmarshal(data, &cfg); err != nil || cfg == nil {
-			return nil, errors.New("settings must be a valid JSON object")
+		var err error
+		cfg, err = trustJSONObject(data, "configuration")
+		if err != nil {
+			return nil, err
 		}
 	}
-	var dirs []string
-	if raw, exists := cfg["trustedDirectories"]; exists {
-		var values []json.RawMessage
-		if string(raw) == "null" || json.Unmarshal(raw, &values) != nil {
-			return nil, errors.New("trustedDirectories must be an array of strings")
+	projects := make(map[string]json.RawMessage)
+	if raw, exists := cfg["projects"]; exists {
+		var err error
+		projects, err = trustJSONObject(raw, "projects")
+		if err != nil {
+			return nil, err
 		}
-		for _, value := range values {
-			var dir string
-			if string(value) == "null" || json.Unmarshal(value, &dir) != nil {
-				return nil, errors.New("trustedDirectories must be an array of strings")
-			}
-			dirs = append(dirs, dir)
+	} else if remove {
+		return nil, nil
+	}
+	project := make(map[string]json.RawMessage)
+	if raw, exists := projects[workspace]; exists {
+		var err error
+		project, err = trustJSONObject(raw, "workspace project")
+		if err != nil {
+			return nil, err
 		}
+	} else if remove {
+		return nil, nil
+	}
+	if raw, exists := project["hasTrustDialogAccepted"]; exists {
+		flag := strings.TrimSpace(string(raw))
+		if flag != "true" && flag != "false" {
+			return nil, errors.New("hasTrustDialogAccepted must be a boolean")
+		}
+		if !remove && flag == "true" {
+			return nil, nil
+		}
+	} else if remove {
+		return nil, nil
 	}
 	if remove {
-		if !slices.Contains(dirs, workspace) {
-			return nil, nil
-		}
-		dirs = slices.DeleteFunc(dirs, func(dir string) bool { return dir == workspace })
-		if dirs == nil {
-			dirs = []string{}
-		}
+		delete(project, "hasTrustDialogAccepted")
 	} else {
-		if slices.Contains(dirs, workspace) {
-			return nil, nil
-		}
-		dirs = append(dirs, workspace)
+		project["hasTrustDialogAccepted"] = json.RawMessage("true")
 	}
-	cfg["trustedDirectories"], _ = json.Marshal(dirs)
+	encodedProject, err := json.Marshal(project)
+	if err != nil {
+		return nil, err
+	}
+	projects[workspace] = encodedProject
+	encodedProjects, err := json.Marshal(projects)
+	if err != nil {
+		return nil, err
+	}
+	cfg["projects"] = encodedProjects
 	return json.MarshalIndent(cfg, "", "  ")
+}
+
+func trustJSONObject(data []byte, name string) (map[string]json.RawMessage, error) {
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(data, &object); err != nil || object == nil {
+		return nil, fmt.Errorf("%s must be a valid JSON object", name)
+	}
+	return object, nil
 }
 
 func atomicTrustWrite(path string, data []byte) (err error) {
