@@ -315,8 +315,9 @@ cancels and joins timer tasks, and normal output tracking owns published output.
    capability-registry reads or reliance on edited card selections.
    If the destination card has saved conversations, the TUI requires
    an explicit choice of a compatible saved ID or “New conversation”; first use and
-    cards without bindings start new directly. Drivers pass resume arguments without
-    shell interpolation (generic: `--session <id>`; Codex: `resume <id>`). Each
+   cards without bindings start new directly. Drivers pass conversation arguments
+   without shell interpolation (generic: `--session <id>`; Codex: `resume <id>`;
+   Claude: `--resume <id>`). Each
    activation bumps a generation counter and rotates its credential so old goroutines
    and reports cannot mutate the new activation.
 5. **Remove**: deletes the record and, for a temporary workspace, the copy.
@@ -440,6 +441,16 @@ shared non-temporary workspaces intentionally share that file.
   matrix, inspected 80×24/120×40 PNGs, recordings, sanitized MCP results, and test-tool
   limitations. Final shutdown exited 0 and left no isolated test processes.
   Feature 4 command outcomes are in `/tmp/kankuro-feature4-native/artifacts/`.
+- Claude conversation arguments are `--resume <id>`, as requested for this
+  integration. The [Claude CLI reference](https://code.claude.com/docs/en/cli-reference)
+  describes `--resume` as assigning a conversation UUID and `--resume` as
+  loading a saved conversation. Kankuro's automated checks verify argv construction
+  without requiring Claude, but cannot establish whether this requested flag restores
+  transcript history. In a Claude-enabled environment, register a native ID, stop the
+  session, relaunch with that saved binding, inspect argv for the exact
+  `--resume <id>`, and confirm Claude recalls a distinctive fact from the earlier
+  conversation. Record any rejection or missing history; argv alone is not proof of
+  functional resume. Also check a fresh launch has no conversation arguments.
 - The debug log (`--debug`) goes to `os.UserCacheDir()/kankuro/kankuro.log`. Without
   `--debug`, the session package's logger discards output — **never write to stdout or
   stderr from app code**; it corrupts the TUI.

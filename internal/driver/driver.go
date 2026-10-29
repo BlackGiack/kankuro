@@ -166,7 +166,7 @@ func (d *GenericCLIDriver) SetAgentsMD(
 	return syncInstructionFile(workspaceRoot, d.GetInstructionFileName(), d.GetAgentFolder(), card, personas, mcps, mode)
 }
 
-// ClaudeCodeDriver specializes the GenericCLIDriver to write CLAUDE.md instead of AGENTS.md.
+// ClaudeCodeDriver specializes native session arguments and writes CLAUDE.md instead of AGENTS.md.
 type ClaudeCodeDriver struct {
 	*GenericCLIDriver
 }
@@ -178,6 +178,14 @@ func NewClaudeCodeDriver() *ClaudeCodeDriver {
 
 func (d *ClaudeCodeDriver) GetAgentFolder() string         { return ".claude" }
 func (d *ClaudeCodeDriver) GetInstructionFileName() string { return "CLAUDE.md" }
+
+// SetSession passes a saved conversation ID to Claude Code's session-id option.
+func (d *ClaudeCodeDriver) SetSession(conversationID string) []string {
+	if conversationID == "" {
+		return nil
+	}
+	return []string{"--resume", conversationID}
+}
 
 // SetAgentsMD syncs the Claude instruction file and reports its managed ownership.
 func (d *ClaudeCodeDriver) SetAgentsMD(

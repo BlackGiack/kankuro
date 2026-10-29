@@ -224,20 +224,32 @@ func TestSetSessionArguments(t *testing.T) {
 	for _, test := range []struct {
 		name   string
 		driver driver.AgentDriver
+		want   []string
 	}{
-		{name: "generic", driver: driver.NewGenericCLIDriver()},
-		{name: "claude inherits generic", driver: driver.NewClaudeCodeDriver()},
+		{name: "generic", driver: driver.NewGenericCLIDriver(), want: []string{"--session", "native id; not shell syntax"}},
+		{name: "claude", driver: driver.NewClaudeCodeDriver(), want: []string{"--resume", "native id; not shell syntax"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if got := test.driver.SetSession(""); len(got) != 0 {
 				t.Fatalf("new-conversation args = %#v", got)
 			}
 			got := test.driver.SetSession("native id; not shell syntax")
-			want := []string{"--session", "native id; not shell syntax"}
-			if !slices.Equal(got, want) {
-				t.Fatalf("resume args = %#v, want %#v", got, want)
+			if !slices.Equal(got, test.want) {
+				t.Fatalf("resume args = %#v, want %#v", got, test.want)
 			}
 		})
+	}
+}
+
+func TestClaudeSetSessionArgumentsFromBuiltinRegistry(t *testing.T) {
+	d := driver.NewBuiltinRegistry().Get("claude")
+	if _, ok := d.(*driver.ClaudeCodeDriver); !ok {
+		t.Fatalf("built-in Claude driver type = %T", d)
+	}
+	for _, id := range []string{"6cbf35c6-7e9d-4cb5-aefc-0ad55096ed8d", "opaque id; retained exactly"} {
+		if got, want := d.SetSession(id), []string{"--resume", id}; !slices.Equal(got, want) {
+			t.Errorf("Claude args for %q = %#v, want %#v", id, got, want)
+		}
 	}
 }
 
