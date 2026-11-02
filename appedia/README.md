@@ -5,8 +5,8 @@ An interactive map of this codebase: packages, class diagrams, the real code,
 common changes.
 
 This snapshot covers the current working tree on `feat/claude-resume` at
-`5c6c0f7`, including the staged removal of legacy registration-block cleanup
-(2026-10-29). It includes the local MCP control plane, shared application service,
+`34cdb18`, including the Claude delayed-Enter submission override (2026-11-02).
+It includes the local MCP control plane, shared application service,
 native conversation bindings, explicit progress/completion replies, named sessions,
 workspace trust, immediate human attachment and the separate MCP startup gate.
 
@@ -84,3 +84,9 @@ succeeded, the accepted baseline includes the staged driver cleanup, and all
 verification artifacts are excluded from the source inventory.
 Live CLI workflows were not rerun for this refresh; Claude validation is ongoing
 in the user's other environment.
+
+Claude and Codex now use the same cancellable 500 ms pause between prompt text
+and Enter. The appedia delivery flow and driver entry points cover both overrides.
+Source verification for this update is retained under
+`.kankuro/claude-submission-verification/`; appedia refresh evidence is under
+`tmp/claude-appedia-refresh/`.

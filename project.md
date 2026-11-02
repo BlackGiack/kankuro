@@ -240,7 +240,10 @@ means bytes including Enter were written, not that the CLI processed them. Sends
 are FIFO per recipient activation. Stop/replacement waits for an in-progress write
 without holding the manager mutex across PTY I/O. Serialization does not clear or
 reserve the human's prompt, so already-typed text can mix with an injected prompt.
-Partial writes are uncertain and may leave input-buffer residue. The
+Partial writes are uncertain and may leave input-buffer residue. Codex and Claude
+both use the same cancellable 500 ms text/Enter separation; other drivers retain
+the generic single-write behavior. The user validated the Claude workaround in
+their other environment; local automated checks cover the shared submission path. The
 `kankuro-puppet` skill is deployed alongside `mcp-cli` whenever Kankuro MCP is
 selected; its first instruction is native conversation discovery and registration.
 
@@ -419,7 +422,7 @@ shared non-temporary workspaces intentionally share that file.
   temporary workspace. Both were registered with `mcp-cli` (`saved`), and Kankuro's
   A→B→A switch selected the exact first ID and spawned `codex resume <A-ID>` while
   retaining a file created on B. Feature 5 end-to-end acceptance subsequently
-  passed with Codex CLI 0.164.0 and OpenCode 2.1.4. Codex prompt submission writes
+  passed with Codex CLI 0.164.0 and OpenCode 2.1.4. Codex and Claude prompt submission writes
   text, waits 500 ms cancellably under the input gate, then writes Enter separately
   after checking cancellation. OpenCode uses generic prompt-plus-Enter submission.
   Repeated attached and detached sends produced real assistant responses and

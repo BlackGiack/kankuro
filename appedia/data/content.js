@@ -61,7 +61,7 @@ window.APPEDIA_CONTENT = {
       "comes back through Bubble Tea's Update"
     ]
   },
-  "snapshot": "Working tree on feat/claude-resume at 5c6c0f7, including staged removal of legacy registration-block cleanup, 2026-10-29.",
+  "snapshot": "Working tree on feat/claude-resume at 34cdb18, including the Claude delayed-Enter submission override, 2026-11-02.",
   "pitch": "Kankuro runs coding-agent CLIs in separate PTYs and lets humans and authenticated orchestrator sessions operate the same sessions. Cards select projects, models, skills, personas and MCP servers; orchestrators can create named sessions, switch cards, and exchange explicit reports.",
   "pitch2": "Bubble Tea owns human interaction; a loopback MCP endpoint adapts tools to a shared application service. One session manager owns processes, activation identity, native conversation bindings, startup timers and message history. Factory workflow policy stays in user instructions.",
   "concepts": [
@@ -462,7 +462,7 @@ window.APPEDIA_CONTENT = {
     "driver": {
       "label": "internal/driver",
       "sub": "CLI adapters and trust",
-      "role": "Constructs a fresh driver per activation and owns process input serialization. Codex and Claude specialize resume/trust behavior; generic drivers support arbitrary executable commands.",
+      "role": "Constructs a fresh driver per activation and owns process input serialization. Codex and Claude specialize resume, trust and delayed-Enter prompt submission; generic drivers support arbitrary executable commands.",
       "files": {
         "driver.go": "GenericCLIDriver, ClaudeCodeDriver, Spawn, Kill, file sync, IsPromptLike",
         "registry.go": "name → constructor",
@@ -471,7 +471,7 @@ window.APPEDIA_CONTENT = {
         "mcp_config.go": "atomic selected-server config and credential-matched cleanup"
       },
       "notes": [
-        "Codex sends text, waits 500 ms, then writes Enter. Submitted bytes do not prove processing.",
+        "Codex and Claude send text, wait 500 ms, then write Enter. Submitted bytes do not prove processing.",
         "Trust edits preserve configuration structurally, with atomic writes and a process-local update lock."
       ],
       "rules": [
@@ -490,7 +490,9 @@ window.APPEDIA_CONTENT = {
           "driver.CodexCLIDriver.SetSession",
           "driver.ClaudeCodeDriver.SetSession",
           "driver.GenericCLIDriver.SubmitPrompt",
-          "driver.RemoveWorkspaceTrust"
+          "driver.RemoveWorkspaceTrust",
+          "driver.ClaudeCodeDriver.SubmitPrompt",
+          "driver.CodexCLIDriver.SubmitPrompt"
         ]
       }
     },
@@ -3570,7 +3572,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "drv",
-          "driver.CodexCLIDriver"
+          "driver.AgentDriver"
         ],
         [
           "agent",
@@ -3631,8 +3633,8 @@ window.APPEDIA_CONTENT = {
           "drv",
           "io",
           "Text, pause, Enter",
-          "Codex uses a cancellable 500 ms pause; input shares the human write gate.",
-          "driver.CodexCLIDriver.SubmitPrompt"
+          "Codex and Claude overrides use the same cancellable 500 ms pause; input shares the human write gate.",
+          "driver.GenericCLIDriver.submitPrompt"
         ],
         [
           "drv",
@@ -3658,7 +3660,9 @@ window.APPEDIA_CONTENT = {
           "driver.ValidatePrompt",
           "driver.GenericCLIDriver.submitPromptBytes",
           "driver.writePromptPhases",
-          "driver.classifySubmission"
+          "driver.classifySubmission",
+          "driver.CodexCLIDriver.SubmitPrompt",
+          "driver.ClaudeCodeDriver.SubmitPrompt"
         ]
       }
     },
@@ -4847,12 +4851,14 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Change prompt delivery or explicit report kinds",
-      "a": "Follow API admission, durable message intent, manager final activation checks and driver input serialization. Keep report kinds and puppet skill documentation consistent; progress never implies completion.",
+      "a": "Follow API admission, durable message intent, manager final activation checks and driver input serialization. Keep report kinds and puppet skill documentation consistent; progress never implies completion. Codex and Claude share text/pause/Enter submission; keep cancellation and human-input serialization intact.",
       "refs": [
         "api.Service.SendMessage",
         "session.Manager.SubmitMessage",
         "driver.GenericCLIDriver.SubmitPrompt",
-        "session.MessageStore.RecordReply"
+        "session.MessageStore.RecordReply",
+        "driver.ClaudeCodeDriver.SubmitPrompt",
+        "driver.CodexCLIDriver.SubmitPrompt"
       ],
       "flow": "send"
     },
@@ -4990,7 +4996,8 @@ window.APPEDIA_CONTENT = {
     "Terminal launch integration records a helper process’s real working directory and arguments. Substituting OriginalDir for WorkingDir must make TestTerminalLaunchThroughDashboard fail; shared-launcher tests cover repeated quoted placeholders and commands without one.",
     "Terminal action routing covers running, waiting and terminated selections, search, empty selections and nil callbacks. Settings tests cover independent buffers, save/cancel, display sanitization and bounded layout; the coordinator race harness includes terminal launch.",
     "Trust and lifecycle tests isolate HOME; do not run native agent experiments against live factory workspaces. Claude runtime validation is taking place in the user’s separate environment.",
-    "The latest cleanup removal passed focused driver regressions, build, vet, full normal/race suites and lint (0 issues). Evidence: .kankuro/remove-legacy-cleanup-verification/. Those source checks are not native CLI compatibility tests."
+    "The latest cleanup removal passed focused driver regressions, build, vet, full normal/race suites and lint (0 issues). Evidence: .kankuro/remove-legacy-cleanup-verification/. Those source checks are not native CLI compatibility tests.",
+    "Claude now shares Codex’s 500 ms text/Enter separation. The registry-dispatched cancellation regression covers both overrides. The user reports this workaround succeeded on their Claude environment; no local real-Claude run is claimed for this refresh."
   ],
   "glossary": [
     [

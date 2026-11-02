@@ -15,7 +15,7 @@
     "go": "go version go1.27.3 linux/amd64"
   },
   "git": {
-    "commit": "5c6c0f750678658f00d2fd949a61195b71b391ae",
+    "commit": "34cdb189bb22c0128e3816968f72f3f9631dc1d2",
     "dirty": true
   },
   "files": {
@@ -59,7 +59,7 @@
     "feature_4.md": "9fcc63ba69e4b00caced3ef1d64e701c8fbced62a8db719166125fb14333c2db",
     "feature_5.md": "6b15ec289879e23bdec40cfb89204929f987c4821c2787835aa3d13241161036",
     "feature_6.md": "efae688c1a35e5d6b511a2b42470cef4a9b28719dda5153764a8811e2b7a7ba6",
-    "feature_7.md": "bee6d05c05a7f3c95bad9501cd974b9235b25d4ffd57b27a48effad0330baa3b",
+    "feature_7.md": "c8ace355bb26af658a0d6f1b31e9ec00bd58d8046f85e1eed237de025fbbbbd1",
     "feature.md": "73bf6c63e398581ddd66ec1e564c6822b0e9edae4ff2736fdd000d49ec3b1f9d",
     "go.mod": "2eeb60db433373f68707dc1a18ba5a3e8a63d666696684ca6a545e5c6d2bdc95",
     "go.sum": "4eef80a92f9da602860ef6751ac694bcfb202071eff9fd832300e932963ddf82",
@@ -137,7 +137,7 @@
     "internal/config/workspaces_test.go": "9448b5dcdc53c48206c4fda54415ae6a3618a3f50123991a997dc5f24dd0df7c",
     "internal/config/workspaces.go": "974202d48e70ff855ab0548fec999d991a9468696e9174116d5a52f68904c114",
     "internal/driver/driver_test.go": "12ca8b78d453de56d9c077e62ed0254bd58bce91f2dbee428c4915f6642d62d2",
-    "internal/driver/driver.go": "cde694f561121f0b651fb0b6e6a1ac3f7f0ac0552556a5d10505188c08dc8ce0",
+    "internal/driver/driver.go": "6e236421708eeba43cb08ca51f044e5d25931e332586e90e1b520b815d1c2248",
     "internal/driver/env_internal_test.go": "c9733f74dab00182a04ee9b4cf92cbe5a08de595bd3ed6f4413fd975910c9c6b",
     "internal/driver/export_test.go": "749ab1226b9aa9642c80105aef2b1972be9695f48644944dc59a4e05aabaa069",
     "internal/driver/factory_test.go": "2790ad44a8b84f055845d10f131be40408d4af70c47192f484bcf4d58114c5f8",
@@ -145,7 +145,7 @@
     "internal/driver/kill_test.go": "08f4255f44103c84a035efcb5665f69c799ea0a7b08aa9c0969a47703e7481d9",
     "internal/driver/mcp_config_test.go": "0effa1b96244107a518c17d778f309447c632cd638faac39765c10394125122c",
     "internal/driver/mcp_config.go": "1e708914b9afff065facc2189ff8265d2732439ee20464fe298c306814f35104",
-    "internal/driver/messaging_review_test.go": "8ecdb3781ae9c6fa96652d2f7eb26f0f8d318b3b340476ea740bca2d2d153bfc",
+    "internal/driver/messaging_review_test.go": "402dd348d48ca2e41c15e2e54b403816437e4e147cfd0b2c22329927118b675e",
     "internal/driver/registry.go": "20dc30fb74fc358158791ed9b7ed8d9f8bc8e7116812b2808314f6f5e1e64d9d",
     "internal/driver/trust_test.go": "c3c5f502e8c165b4b78aeea83d59d1301a13bd91b3dd1233565c1709f8f9c3f2",
     "internal/driver/trust.go": "1078518462730c5c13e88f4dfba6af689aaf2827a77cc01e0dce08c9d3058043",
@@ -262,16 +262,16 @@
     "kankuro_specs.md": "a46e028ac91ea0fb444311c9337763bd99f29dba11228592a26f7690c2a99005",
     "main_test.go": "49a1a6d0a7c7dd1b0ca0f8944439c083cea9edbac00df077271a4482a8dbb8c5",
     "main.go": "f308cd851c13ab7cb9365893a75ea2e57a222b2148b0b81da1001c681a23da0c",
-    "project.md": "0f87fc939b8c8285a1c22f1de2a875b687fba1c91204de70e40bbf192411a4b7",
+    "project.md": "5db4cedbbc49d75e57b099169745061fad1b699ccc9c185f25f4c08bbe0cf017",
     "README.md": "11b42f411a91f07696dd4f68336285e1999e253f7b52dd25d80b68d7de6f38d8",
     "review.md": "8fac6770fbe71fe9986554b65008d7dd5a6e8402173502d166f9a5a6333430e2",
     "roadmap.md": "2aa979743c799e21ff1471bab90a9ff8483ebb89b9fbe8dca9badf44a3473627",
     "startup_impl_plan.md": "8e66a624afd1f0794d4564852ba3767fb5da1d822e0aa002b53b4c4bf58030c4"
   },
-  "contentDigest": "87807e43bda4add306261ea1e522d0eb78e03fb2b8b5d8b8675809559935fee7",
+  "contentDigest": "95f646b6827a08bcaf60cbcf719796a0c8fdf52eab2c2494114d99e3c78b3511",
   "models": {
     "code": "baseline-model.json",
     "infra": null
   },
-  "acceptedAt": "2026-10-29T23:22:59.431Z"
+  "acceptedAt": "2026-11-02T23:24:35.352Z"
 }

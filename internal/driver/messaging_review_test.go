@@ -65,7 +65,14 @@ func TestSubmitPromptCanceledBeforeOrWhileWaitingWritesNoBytes(t *testing.T) {
 	}
 }
 
-func TestCodexPromptCanceledBetweenTextAndEnterIsUncertain(t *testing.T) {
+func TestSpecializedPromptCanceledBetweenTextAndEnterIsUncertain(t *testing.T) {
+	for _, name := range []string{"codex", "claude"} {
+		t.Run(name, func(t *testing.T) { checkPromptCancellationBetweenTextAndEnter(t, name) })
+	}
+}
+
+func checkPromptCancellationBetweenTextAndEnter(t *testing.T, name string) {
+	t.Helper()
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -73,8 +80,15 @@ func TestCodexPromptCanceledBetweenTextAndEnterIsUncertain(t *testing.T) {
 	defer reader.Close()
 	defer writer.Close()
 
-	d := NewGenericCLIDriver()
-	d.pty = writer
+	d := NewBuiltinRegistry().Get(name)
+	switch typed := d.(type) {
+	case *CodexCLIDriver:
+		typed.pty = writer
+	case *ClaudeCodeDriver:
+		typed.pty = writer
+	default:
+		t.Fatalf("unexpected driver type %T", d)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	result := make(chan struct {
@@ -82,7 +96,7 @@ func TestCodexPromptCanceledBetweenTextAndEnterIsUncertain(t *testing.T) {
 		err      error
 	}, 1)
 	go func() {
-		evidence, submitErr := d.submitPrompt(ctx, "message", "sender", "prompt text", 250*time.Millisecond)
+		evidence, submitErr := d.SubmitPrompt(ctx, "message", "sender", "prompt text")
 		result <- struct {
 			evidence SubmissionEvidence
 			err      error
@@ -111,7 +125,7 @@ func TestCodexPromptCanceledBetweenTextAndEnterIsUncertain(t *testing.T) {
 	}
 	var trailing [1]byte
 	if trailingCount, readErr := reader.Read(trailing[:]); trailingCount != 0 || !isTimeout(readErr) {
-		t.Fatalf("canceled Codex submission wrote Enter: count=%d err=%v", trailingCount, readErr)
+		t.Fatalf("canceled submission wrote Enter: count=%d err=%v", trailingCount, readErr)
 	}
 }
 

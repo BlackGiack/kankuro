@@ -43,7 +43,7 @@ const (
 	// killPollInterval is how often Kill re-checks that the group is empty
 	// once the leader has exited.
 	killPollInterval = 20 * time.Millisecond
-	codexEnterPause  = 500 * time.Millisecond
+	promptEnterPause = 500 * time.Millisecond
 )
 
 const (
@@ -187,6 +187,14 @@ func (d *ClaudeCodeDriver) SetSession(conversationID string) []string {
 	return []string{"--resume", conversationID}
 }
 
+// SubmitPrompt lets Claude consume the prompt text before receiving Enter.
+func (d *ClaudeCodeDriver) SubmitPrompt(
+	ctx context.Context,
+	messageID, senderSessionID, text string,
+) (SubmissionEvidence, error) {
+	return d.GenericCLIDriver.submitPrompt(ctx, messageID, senderSessionID, text, promptEnterPause)
+}
+
 // SetAgentsMD syncs the Claude instruction file and reports its managed ownership.
 func (d *ClaudeCodeDriver) SetAgentsMD(
 	card config.IDCard,
@@ -231,7 +239,7 @@ func (d *CodexCLIDriver) SubmitPrompt(
 	ctx context.Context,
 	messageID, senderSessionID, text string,
 ) (SubmissionEvidence, error) {
-	return d.GenericCLIDriver.submitPrompt(ctx, messageID, senderSessionID, text, codexEnterPause)
+	return d.GenericCLIDriver.submitPrompt(ctx, messageID, senderSessionID, text, promptEnterPause)
 }
 
 func syncInstructionFile(

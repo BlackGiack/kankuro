@@ -1029,7 +1029,8 @@
         "api.OperationRunner.SubmitWithAdmission",
         "api.Service",
         "api.Service.SendMessage",
-        "driver.CodexCLIDriver",
+        "driver.AgentDriver",
+        "driver.ClaudeCodeDriver.SubmitPrompt",
         "driver.CodexCLIDriver.SubmitPrompt",
         "driver.GenericCLIDriver.submitPrompt",
         "driver.GenericCLIDriver.submitPromptBytes",
@@ -1049,7 +1050,6 @@
       "directRefs": [
         "api.OperationRunner.SubmitWithAdmission",
         "api.Service.SendMessage",
-        "driver.CodexCLIDriver.SubmitPrompt",
         "driver.GenericCLIDriver.submitPrompt",
         "session.Manager.ReserveMessageAdmission",
         "session.Manager.beginMessageSubmission",
@@ -1060,11 +1060,13 @@
       "participants": [
         "api.OperationRunner",
         "api.Service",
-        "driver.CodexCLIDriver",
+        "driver.AgentDriver",
         "session.Manager",
         "session.MessageStore"
       ],
       "supportingRefs": [
+        "driver.ClaudeCodeDriver.SubmitPrompt",
+        "driver.CodexCLIDriver.SubmitPrompt",
         "driver.GenericCLIDriver.submitPromptBytes",
         "driver.ValidatePrompt",
         "driver.classifySubmission",
@@ -1080,7 +1082,7 @@
         "internal/session/manager.go",
         "internal/session/messaging.go"
       ],
-      "digest": "cf340b0cd73b9744b2aae1763d6328721595c8938fad72ddc77d67fd9a35c62f"
+      "digest": "ea3c1cfba9011718316e1b4925d205b136ec17c6965fc79efd01714aa30ee634"
     },
     {
       "kind": "flow",
@@ -2082,8 +2084,10 @@
         "driver.AgentDriver",
         "driver.ClaudeCodeDriver",
         "driver.ClaudeCodeDriver.SetSession",
+        "driver.ClaudeCodeDriver.SubmitPrompt",
         "driver.CodexCLIDriver",
         "driver.CodexCLIDriver.SetSession",
+        "driver.CodexCLIDriver.SubmitPrompt",
         "driver.GenericCLIDriver",
         "driver.GenericCLIDriver.SubmitPrompt",
         "driver.RemoveWorkspaceTrust"
@@ -2098,7 +2102,9 @@
       "participants": [],
       "supportingRefs": [
         "driver.ClaudeCodeDriver.SetSession",
+        "driver.ClaudeCodeDriver.SubmitPrompt",
         "driver.CodexCLIDriver.SetSession",
+        "driver.CodexCLIDriver.SubmitPrompt",
         "driver.GenericCLIDriver.SubmitPrompt",
         "driver.RemoveWorkspaceTrust"
       ],
@@ -2109,7 +2115,7 @@
         "internal/driver/registry.go",
         "internal/driver/trust.go"
       ],
-      "digest": "a5986c3977115191c904efc4352c4f6b292cbaeb22107df60b088c259c067b6a"
+      "digest": "f56b717e9c535dc5d693c63d86e616b3dc1fccb8bf5545d9e9b74771a0bffbb5"
     },
     {
       "kind": "package",
@@ -2919,12 +2925,16 @@
       "id": "Change prompt delivery or explicit report kinds",
       "refs": [
         "api.Service.SendMessage",
+        "driver.ClaudeCodeDriver.SubmitPrompt",
+        "driver.CodexCLIDriver.SubmitPrompt",
         "driver.GenericCLIDriver.SubmitPrompt",
         "session.Manager.SubmitMessage",
         "session.MessageStore.RecordReply"
       ],
       "directRefs": [
         "api.Service.SendMessage",
+        "driver.ClaudeCodeDriver.SubmitPrompt",
+        "driver.CodexCLIDriver.SubmitPrompt",
         "driver.GenericCLIDriver.SubmitPrompt",
         "session.Manager.SubmitMessage",
         "session.MessageStore.RecordReply"
@@ -2936,7 +2946,7 @@
         "internal/driver/driver.go",
         "internal/session/messaging.go"
       ],
-      "digest": "7d22de5f9b3129a2d075459822737c1730259fcaf305063795eafdc3edbb03b2"
+      "digest": "1354368ea33fa2d8f10179a657d56486dde1d56d2ba37dcbb9ebf8b4447da1cf"
     },
     {
       "kind": "task",
@@ -3194,5 +3204,5 @@
       "digest": "5dba625e983465423e8c2f3de67b9f68ed98aa3951277334ead2259450baf16e"
     }
   ],
-  "digest": "0d610fe67d7c7a8e3194d8e7958c5359c9ef16deb63d88acf044d8c1051e78d6"
+  "digest": "f901ea1265ae264a9be9bcc7581ed017eff72352d226efb0180ad86b9046ee79"
 }
