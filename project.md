@@ -3,9 +3,35 @@
 Read this first. It covers what the project does, how it is built, where everything
 lives, the rules the code relies on, and which files to open for a given kind of task.
 `kankuro_specs.md` describes what the product should do; this file describes how the
-code actually does it. Last updated: 2026-10-25 (Feature 5 independently accepted
-at `b95b853`; fixture cleanup and repeated/full checks verified; Feature 6 may
-proceed. See `feature_5.md`).
+code actually does it. Feature 5 was independently accepted at `b95b853` and
+Feature 6 is accepted per the user. Feature 7's second-review implementation is
+ready for review; evidence and limits are in `feature_7_handoff.md`. Startup holds an exclusive config-root
+lock, initializes a fresh dashboard layout, and refuses legacy layouts until an
+offline migration is performed. With Kankuro stopped, run
+`go run ./cmd/migrate-dashboards -config-dir <path>` for a dry run, add `-apply`
+to migrate or resume publication, or `-rollback` to restore before first use.
+Migration retains a backup and journal in the config root; interrupted work must
+be resumed or rolled back before startup. Runtime layout validation lives in
+`internal/layout` and does not need completed migration backups or staging. The
+offline command and `internal/dashboardmigration` can be retired together after
+all supported old roots have been migrated; retain `internal/layout` and its lock
+and first-use fence. The runtime reads only schema-2 cards and sessions with
+explicit dashboard membership. The only UI constructor starts on the dashboard
+list, and UI and MCP share the same scoped service;
+dashboard and card deletion use durable manifests/tombstones and retryable cleanup.
+Deleting a dashboard deletes all cards it owns globally, including shared cards,
+after confirmation of references from other dashboards. See `feature_7.md` and
+`impl_plan.md` for invariants and remaining verification.
+
+Dashboard membership is persisted before an activation is published. The session
+manager serializes admission and reference checks, then the repository performs
+short metadata writes; do not hold the repository lock while entering manager
+admission. A deletion manifest closes admission before cancelling and draining
+pending activations. Each cleanup effect is checkpointed, and `r` on the list
+retries incomplete work, including after restart. Card tombstones retain identity
+without executable settings, so a surviving foreign session can be stopped,
+attached while running, or switched to another card but cannot relaunch the deleted
+card. Do not reuse deleted dashboard or card IDs.
 
 ---
 
@@ -188,8 +214,10 @@ depend on the coordinator or own session/process state. It exposes
 `stop_session`, `relaunch_session`, `switch_session_card`, `delete_session`,
 `get_operation`, and `cancel_operation`. Discovery/control requires a published,
 live activation with a deployed Dashboard Control grant. Listings exclude the
-caller; DTOs omit secrets and terminal output. Scope currently resolves to the
-single default dashboard. Lifecycle mutations require UUID request IDs and use
+caller; DTOs omit secrets and terminal output. Scope derives from the authenticated
+session's immutable dashboard ID, independently of the human selection. Exclusive
+cards belong to one dashboard; shared cards remain owned and editable only there.
+Lifecycle mutations require UUID request IDs and use
 the durable journal/worker runner in `api/operations.go`: four workers, 32 queued
 operations, a five-minute deadline including queue time, and a ten-second tool
 wait before polling. Caller activation credentials are not persisted. Startup
@@ -327,6 +355,14 @@ cancels and joins timer tasks, and normal output tracking owns published output.
 
 ### Dashboard keys
 
+The dashboard list opens first: `Enter` opens a dashboard, `n` creates one,
+`e` edits its name and description, `Delete` starts deletion confirmation,
+and `r` retries an incomplete deletion. In a dashboard, `Esc` returns to the list.
+Dashboard deletion stops and removes its sessions and owned cards, including
+shared cards; foreign references require a separate confirmation and survive as
+historical references. Deleting a card follows the same owner/confirmation rule.
+Stopped sessions with deleted cards can switch to an available card.
+
 Three panes: ID cards (left), the preview of the selected session (centre), sessions
 (right). `Tab`/`Shift+Tab`/arrows switch pane; `/` searches.
 
@@ -349,8 +385,8 @@ details are vertically scrollable with `PgUp`/`PgDn` when they do not fit beside
 list; this keeps the footer and activation controls visible at the minimum terminal size.
 
 The footer is context-sensitive: `[Nav]`, the focused pane's group (`[Card]` or `[Session]`)
-and `[Global]`. When that is wider than the terminal it drops the navigation group, then
-shrinks `[Global]` to `q=Quit`, then clips (`dashboard.go` `footerText`).
+and `[Global]`. At narrower widths it keeps dashboard navigation visible while
+shortening the other groups (`dashboard.go` `footerText`).
 
 **Minimum terminal size: 80×24** (`views.MinTerminalWidth` / `MinTerminalHeight`). Below it
 `Coordinator.View()` shows a centred "Terminal too small" notice in exactly the terminal's

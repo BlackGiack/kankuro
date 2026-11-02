@@ -67,7 +67,7 @@ func TestActivationPublishedBeforeStartupDelay(t *testing.T) {
 		session.WithStartupDelay(10*time.Second),
 	)
 	id := uuid.NewString()
-	_, err := manager.LaunchWithIDContext(
+	_, err := testLaunchWithIDContext(manager,
 		context.Background(),
 		id,
 		config.IDCard{ID: "a", Name: "a", Driver: "cat", WorkspaceID: workspaceID, UseTmpWorkspace: true},
@@ -83,7 +83,7 @@ func TestActivationPublishedBeforeStartupDelay(t *testing.T) {
 	if !ok || !snap.UseTmpWorkspace || !snap.ProcessStarted || snap.Phase != "starting" || snap.MessageDeliveryAvailable {
 		t.Fatalf("unexpected startup snapshot: %+v", snap)
 	}
-	if handle, attachErr := manager.Attach(id); attachErr != nil {
+	if handle, attachErr := testAttach(manager, id); attachErr != nil {
 		t.Fatal(attachErr)
 	} else {
 		handle.Close()
@@ -125,7 +125,7 @@ func TestCreationNameIsSavedAtPublication(t *testing.T) {
 	} {
 		t.Run(tc.label, func(t *testing.T) {
 			id := uuid.NewString()
-			if _, err := manager.LaunchWithIDContext(context.Background(), id, card, nil, nil, nil, tc.name); err != nil {
+			if _, err := testLaunchWithIDContext(manager, context.Background(), id, card, nil, nil, nil, tc.name); err != nil {
 				t.Fatal(err)
 			}
 			want := tc.want

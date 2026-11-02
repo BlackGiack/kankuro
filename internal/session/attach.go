@@ -2,6 +2,7 @@ package session
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/BlackGiack/kankuro/internal/driver"
@@ -21,10 +22,21 @@ func (w driverInputWriter) Write(p []byte) (int, error) {
 	return w.driver.SendInputBytes(p)
 }
 
-// Attach returns an attach handle with scrollback replay and live output stream.
-func (m *Manager) Attach(id string) (*AttachHandle, error) {
+// AttachChecked validates scope under the manager lock before subscribing.
+// The callback must not call the manager.
+func (m *Manager) AttachChecked(id string, check func([]Snapshot) error) (*AttachHandle, error) {
+	if check == nil {
+		return nil, errors.New("attach scope check is required")
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.closed {
+		return nil, ErrManagerClosed
+	}
+	if err := check(m.listLocked()); err != nil {
+		return nil, err
+	}
 	s, ok := m.sessions[id]
 	if !ok {
 		return nil, fmt.Errorf("session not found: %s", id)

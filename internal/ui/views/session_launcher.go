@@ -16,8 +16,7 @@ import (
 
 // SessionLauncherCallbacks defines callbacks for session launcher actions.
 type SessionLauncherCallbacks struct {
-	OnSetName func(sessionID, name string) error
-	OnAttach  func(sessionID string) tea.Cmd
+	OnSetNameAsync func(sessionID, name string) tea.Cmd
 }
 
 // SessionLauncher is a simple form for launching a new session.
@@ -33,6 +32,7 @@ type SessionLauncher struct {
 	launchErr  error
 	sessionID  string
 	err        error
+	naming     bool
 }
 
 // NewSessionLauncher creates a new session launcher.
@@ -67,6 +67,7 @@ func (l *SessionLauncher) Reset() {
 	l.launchErr = nil
 	l.sessionID = ""
 	l.err = nil
+	l.naming = false
 }
 
 // Init initializes the component.
@@ -213,25 +214,20 @@ func (l *SessionLauncher) Input() *textinput.Model {
 }
 
 func (l *SessionLauncher) handleNameSubmit() tea.Cmd {
+	if l.naming {
+		return nil
+	}
 	name := strings.TrimSpace(l.input.Value())
 	if name == "" {
 		name = l.sessionID
 	}
 
-	var cmds []tea.Cmd
-
-	if l.callbacks.OnSetName != nil {
-		if err := l.callbacks.OnSetName(l.sessionID, name); err != nil {
-			l.err = err
-			return nil
-		}
+	if l.callbacks.OnSetNameAsync == nil {
+		return nil
 	}
-
-	if l.callbacks.OnAttach != nil {
-		cmds = append(cmds, l.callbacks.OnAttach(l.sessionID))
-	}
-
-	cmds = append(cmds, func() tea.Msg { return messages.NavigateBackMsg{} })
-
-	return tea.Batch(cmds...)
+	l.naming = true
+	return l.callbacks.OnSetNameAsync(l.sessionID, name)
 }
+
+// SetNameResult releases the pending form and displays a rename failure.
+func (l *SessionLauncher) SetNameResult(err error) { l.naming = false; l.err = err }

@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
@@ -16,13 +15,14 @@ import (
 // truncated one-element list. Before the fix, saveStringSource discarded the
 // list-read error and happily wrote `[newPath]` over whatever was on disk.
 func TestSaveSkillSourceAbortsOnMalformedRegistry(t *testing.T) {
-	repo, err := config.NewFileRepository(t.TempDir())
+	repo, err := newCurrentRepository(t.TempDir())
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 	sm := newTestManager(t, repo.Dir(), repo)
-	coord := app.NewCoordinator(repo, sm)
+	coord := newScopedCoordinator(repo, sm)
 	coord.Init()
+	openDefaultDashboard(coord)
 
 	sourcesPath := filepath.Join(repo.Dir(), config.SkillsSourcesFilename)
 	original, err := os.ReadFile(sourcesPath)
@@ -66,13 +66,14 @@ func TestSaveSkillSourceAbortsOnMalformedRegistry(t *testing.T) {
 // UpdateSkillSources called with a delete-by-index mutator instead of an
 // append/edit one).
 func TestDeleteSourceAbortsOnMalformedRegistry(t *testing.T) {
-	repo, err := config.NewFileRepository(t.TempDir())
+	repo, err := newCurrentRepository(t.TempDir())
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 	sm := newTestManager(t, repo.Dir(), repo)
-	coord := app.NewCoordinator(repo, sm)
+	coord := newScopedCoordinator(repo, sm)
 	coord.Init()
+	openDefaultDashboard(coord)
 
 	if saveErr := repo.SaveSkillSources([]string{"/one", "/two"}); saveErr != nil {
 		t.Fatalf("seed sources: %v", saveErr)
@@ -112,13 +113,14 @@ func TestDeleteSourceAbortsOnMalformedRegistry(t *testing.T) {
 // code path from the string-source save above (it goes through
 // UpdateWorkspaceSources, not UpdateSkillSources).
 func TestSaveWorkspaceSourceAbortsOnMalformedRegistry(t *testing.T) {
-	repo, err := config.NewFileRepository(t.TempDir())
+	repo, err := newCurrentRepository(t.TempDir())
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 	sm := newTestManager(t, repo.Dir(), repo)
-	coord := app.NewCoordinator(repo, sm)
+	coord := newScopedCoordinator(repo, sm)
 	coord.Init()
+	openDefaultDashboard(coord)
 
 	sourcesPath := filepath.Join(repo.Dir(), config.WorkspaceSourcesFilename)
 	malformed := []byte("this: is: not: valid: yaml: [")
@@ -152,13 +154,14 @@ func TestSaveWorkspaceSourceAbortsOnMalformedRegistry(t *testing.T) {
 // TestDeleteWorkspaceSourceAbortsOnMalformedRegistry is the delete-path
 // counterpart for workspaces.
 func TestDeleteWorkspaceSourceAbortsOnMalformedRegistry(t *testing.T) {
-	repo, err := config.NewFileRepository(t.TempDir())
+	repo, err := newCurrentRepository(t.TempDir())
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 	sm := newTestManager(t, repo.Dir(), repo)
-	coord := app.NewCoordinator(repo, sm)
+	coord := newScopedCoordinator(repo, sm)
 	coord.Init()
+	openDefaultDashboard(coord)
 
 	if saveErr := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: t.TempDir()}}); saveErr != nil {
 		t.Fatalf("seed workspace source: %v", saveErr)
@@ -198,13 +201,14 @@ func TestDeleteWorkspaceSourceAbortsOnMalformedRegistry(t *testing.T) {
 // non-empty, repository-assigned ID, and editing that source afterwards must
 // not change its ID.
 func TestWorkspaceSourceIDAssignedAndPreservedOnEdit(t *testing.T) {
-	repo, err := config.NewFileRepository(t.TempDir())
+	repo, err := newCurrentRepository(t.TempDir())
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 	sm := newTestManager(t, repo.Dir(), repo)
-	coord := app.NewCoordinator(repo, sm)
+	coord := newScopedCoordinator(repo, sm)
 	coord.Init()
+	openDefaultDashboard(coord)
 
 	callbacks := coord.SourceManagerCallbacks(views.SourceTypeWorkspaces)
 

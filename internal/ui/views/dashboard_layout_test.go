@@ -583,6 +583,21 @@ func TestDashboardFooterShowsFocusedPaneKeys(t *testing.T) {
 	}
 }
 
+func TestScopedDashboardFooterKeepsBackNavigationAtMinimumWidth(t *testing.T) {
+	for _, pane := range []views.Pane{views.PaneCards, views.PaneSessions} {
+		d := newDashboard(t, views.MinTerminalWidth, 30, dashboardData{sessions: 1, cards: 1})
+		d.SetDashboardScope("dashboard", 1)
+		if pane == views.PaneSessions {
+			d.TogglePane()
+		}
+		lines := strings.Split(ansi.Strip(d.View()), "\n")
+		footer := lines[len(lines)-1]
+		if !strings.Contains(footer, "Esc=Dashboards") || !strings.Contains(footer, "q=Quit") {
+			t.Errorf("pane %v: missing navigation or quit in %q", pane, footer)
+		}
+	}
+}
+
 // TestDashboardSizeNeverNegative: below the minimum terminal size the
 // dashboard is not drawn (the coordinator shows a notice) but it is still
 // sized; its panes must not get a negative width, which would panic the

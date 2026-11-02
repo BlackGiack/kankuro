@@ -28,14 +28,14 @@ import (
 // previewSessionID on navigate-away) to make the scenario unreachable. Both
 // fixes matter independently - see debt_impl_plan_4.md step 2b, point 4.
 func TestPartialPreviewBroadcastDoesNotWipeCardEditor(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, errCreate := repo.CreateIDCard(config.IDCard{
+	card, errCreate := createCurrentCard(repo, config.IDCard{
 		Name:        "With Skills",
 		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
@@ -45,13 +45,13 @@ func TestPartialPreviewBroadcastDoesNotWipeCardEditor(t *testing.T) {
 		t.Fatalf("create card: %v", errCreate)
 	}
 
-	sessionID, errLaunch := sm.Launch(card, nil, nil, nil)
+	sessionID, errLaunch := launchCurrentSession(repo, sm, card)
 	if errLaunch != nil {
 		t.Fatalf("launch: %v", errLaunch)
 	}
 	defer func() { _ = sm.Kill(sessionID) }()
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coord.Update(coord.RefreshData()())
@@ -61,7 +61,7 @@ func TestPartialPreviewBroadcastDoesNotWipeCardEditor(t *testing.T) {
 		t.Fatal("expected *views.CardEditor for ViewCardEditor")
 	}
 	editor.SetCard(card)
-	coord.Update(messages.NavigateMsg{View: messages.ViewCardEditor})
+	coord.Update(messages.ScopedNavigateMsg{View: messages.ViewCardEditor, DashboardID: "default", Generation: 1})
 
 	if got := editor.Card().SkillIDs; len(got) != 1 || got[0] != config.BuiltinSkillMCPCLI {
 		t.Fatalf("card editor lost its skills before the broadcast even ran: %v", got)
@@ -90,7 +90,7 @@ func TestPartialPreviewBroadcastDoesNotWipeCardEditor(t *testing.T) {
 // with none. CardEditor.SetData now guards each field with `if != nil`, the
 // same contract Dashboard.SetData already honored.
 func TestTransientSkillsReadFailureDoesNotWipeCardEditor(t *testing.T) {
-	repo, errRepo := config.NewFileRepository(t.TempDir())
+	repo, errRepo := newCurrentRepository(t.TempDir())
 	if errRepo != nil {
 		t.Fatalf("new repo: %v", errRepo)
 	}
@@ -100,7 +100,7 @@ func TestTransientSkillsReadFailureDoesNotWipeCardEditor(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, errCreate := repo.CreateIDCard(config.IDCard{
+	card, errCreate := createCurrentCard(repo, config.IDCard{
 		Name:        "With Skills",
 		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
@@ -110,7 +110,7 @@ func TestTransientSkillsReadFailureDoesNotWipeCardEditor(t *testing.T) {
 		t.Fatalf("create card: %v", errCreate)
 	}
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coord.Update(coord.RefreshData()())
@@ -154,14 +154,14 @@ func TestTransientSkillsReadFailureDoesNotWipeCardEditor(t *testing.T) {
 // agent-switch analog of the card editor test above: AgentSwitchView.SetData
 // must not be reachable from a partial preview update either.
 func TestPartialPreviewBroadcastDoesNotEmptyAgentSwitchCardList(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, errCreate := repo.CreateIDCard(config.IDCard{
+	card, errCreate := createCurrentCard(repo, config.IDCard{
 		Name:        "Switch Target Card",
 		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
@@ -170,13 +170,13 @@ func TestPartialPreviewBroadcastDoesNotEmptyAgentSwitchCardList(t *testing.T) {
 		t.Fatalf("create card: %v", errCreate)
 	}
 
-	sessionID, errLaunch := sm.Launch(card, nil, nil, nil)
+	sessionID, errLaunch := launchCurrentSession(repo, sm, card)
 	if errLaunch != nil {
 		t.Fatalf("launch: %v", errLaunch)
 	}
 	defer func() { _ = sm.Kill(sessionID) }()
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coord.Update(coord.RefreshData()())
@@ -186,7 +186,9 @@ func TestPartialPreviewBroadcastDoesNotEmptyAgentSwitchCardList(t *testing.T) {
 	// (the string under test - it only appears if the card LIST is
 	// populated) would otherwise pass trivially via the header regardless
 	// of whether SetData actually populated the list.
-	coord.Update(messages.AgentSwitchRequestedMsg{SessionID: sessionID, SessionName: "Switch Session"})
+	coord.Update(
+		messages.AgentSwitchRequestedMsg{SessionID: sessionID, SessionName: "Switch Session", DashboardID: "default", Generation: 1},
+	)
 	if coord.CurrentView() != app.ViewAgentSwitch {
 		t.Fatalf("expected ViewAgentSwitch, got %v", coord.CurrentView())
 	}
@@ -218,7 +220,7 @@ func TestPartialPreviewBroadcastDoesNotEmptyAgentSwitchCardList(t *testing.T) {
 // that the agent-switch view keeps its card list across that failure instead
 // of emptying it until the next successful tick.
 func TestTransientCardsReadFailureDoesNotEmptyAgentSwitchCardList(t *testing.T) {
-	repo, errRepo := config.NewFileRepository(t.TempDir())
+	repo, errRepo := newCurrentRepository(t.TempDir())
 	if errRepo != nil {
 		t.Fatalf("new repo: %v", errRepo)
 	}
@@ -228,7 +230,7 @@ func TestTransientCardsReadFailureDoesNotEmptyAgentSwitchCardList(t *testing.T) 
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, errCreate := repo.CreateIDCard(config.IDCard{
+	card, errCreate := createCurrentCard(repo, config.IDCard{
 		Name:        "Switch Target Card",
 		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
@@ -237,13 +239,13 @@ func TestTransientCardsReadFailureDoesNotEmptyAgentSwitchCardList(t *testing.T) 
 		t.Fatalf("create card: %v", errCreate)
 	}
 
-	sessionID, errLaunch := sm.Launch(card, nil, nil, nil)
+	sessionID, errLaunch := launchCurrentSession(repo, sm, card)
 	if errLaunch != nil {
 		t.Fatalf("launch: %v", errLaunch)
 	}
 	defer func() { _ = sm.Kill(sessionID) }()
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coord.Update(coord.RefreshData()())
@@ -252,7 +254,9 @@ func TestTransientCardsReadFailureDoesNotEmptyAgentSwitchCardList(t *testing.T) 
 	// comment on the sibling preview-trigger test above for why: the
 	// header always echoes SessionName, which would make an assertion on
 	// card.Name pass trivially regardless of the card list's real content.
-	coord.Update(messages.AgentSwitchRequestedMsg{SessionID: sessionID, SessionName: "Switch Session"})
+	coord.Update(
+		messages.AgentSwitchRequestedMsg{SessionID: sessionID, SessionName: "Switch Session", DashboardID: "default", Generation: 1},
+	)
 	if coord.CurrentView() != app.ViewAgentSwitch {
 		t.Fatalf("expected ViewAgentSwitch, got %v", coord.CurrentView())
 	}
@@ -299,26 +303,26 @@ func TestTransientCardsReadFailureDoesNotEmptyAgentSwitchCardList(t *testing.T) 
 // producer (the SessionOutputMsg branch) and clearing previewSessionID in
 // navigateTo.
 func TestWaitForOutputNilChannelIsSafe(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, _ := repo.CreateIDCard(config.IDCard{
+	card, _ := createCurrentCard(repo, config.IDCard{
 		Name:        "Preview Target",
 		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
 	})
 
-	sessionID, errLaunch := sm.Launch(card, nil, nil, nil)
+	sessionID, errLaunch := launchCurrentSession(repo, sm, card)
 	if errLaunch != nil {
 		t.Fatalf("launch: %v", errLaunch)
 	}
 	defer func() { _ = sm.Kill(sessionID) }()
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coord.Update(coord.RefreshData()())

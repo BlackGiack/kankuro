@@ -49,7 +49,7 @@ func TestActivationRejectsUnavailableSavedWorkspace(t *testing.T) {
 			})
 			manager := newTestManager(t, repo.Dir(), repo, session.WithDriverRegistry(registry))
 			card := config.IDCard{ID: "a", Name: "A", Driver: "cat", WorkspaceID: workspaceID, UseTmpWorkspace: test.useTmp}
-			id, err := manager.Launch(card, nil, nil, nil)
+			id, err := testLaunch(manager, card, nil, nil, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -69,10 +69,10 @@ func TestActivationRejectsUnavailableSavedWorkspace(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			activate := func() error { return manager.Relaunch(id, card) }
+			activate := func() error { return testRelaunch(manager, id, card) }
 			if test.operation == "switch" {
 				card.ID = "b"
-				activate = func() error { return manager.SwitchAgent(id, card, nil, nil, nil) }
+				activate = func() error { return testSwitchAgent(manager, id, card, nil, nil, nil) }
 			}
 			if err := activate(); err == nil || !strings.Contains(err.Error(), before.WorkingDir) {
 				t.Fatalf("expected workspace error with saved path, got %v", err)

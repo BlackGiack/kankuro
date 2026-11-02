@@ -27,6 +27,7 @@ const (
 	FocusFaceStyle
 	FocusPuppet
 	FocusUseTmp
+	FocusShared
 	FocusDashboardControl
 	FocusAgentsMD
 	FocusSkills
@@ -81,6 +82,7 @@ func focusTargetTable() []focusTarget {
 		{focus: FocusFaceStyle, inputIdx: faceStyleInputIdx, placeholder: "Face style..."},
 		{focus: FocusPuppet, inputIdx: notAnInput},
 		{focus: FocusUseTmp, inputIdx: notAnInput},
+		{focus: FocusShared, inputIdx: notAnInput},
 		{focus: FocusDashboardControl, inputIdx: notAnInput},
 		{focus: FocusAgentsMD, inputIdx: notAnInput},
 		{focus: FocusSkills, inputIdx: notAnInput},
@@ -96,6 +98,11 @@ func focusTargetTable() []focusTarget {
 }
 
 // CardEditorCallbacks defines callbacks for card editor actions.
+const (
+	uncheckedMark = "[ ]"
+	checkedMark   = "[x]"
+)
+
 type CardEditorCallbacks struct {
 	OnSave              func(card config.IDCard) tea.Cmd
 	OnCancel            func() tea.Cmd
@@ -130,6 +137,10 @@ type CardEditor struct {
 	subWorkspaceIDs  []string
 	useTmpWorkspace  bool
 	dashboardControl bool
+	sharingEnabled   bool
+	readOnly         bool
+	shared           bool
+	dashboardID      string
 	agentsMD         AgentsMDState
 
 	// scrollOffset is the first form line shown when the form is taller than
@@ -275,6 +286,7 @@ func (e *CardEditor) SetCard(card config.IDCard) {
 	}
 	e.useTmpWorkspace = card.UseTmpWorkspace
 	e.dashboardControl = card.DashboardControl
+	e.shared = card.Shared
 	e.subWorkspaceIDs = slices.Clone(card.SubWorkspaceIDs)
 	e.skillList.SetSelectedOnly(false)
 	e.agentsMD.Content = card.AgentsMD
@@ -289,6 +301,22 @@ func (e *CardEditor) SetCard(card config.IDCard) {
 	e.setFocus(0)
 }
 
+// SetDashboardContext enables shared-card controls and optionally makes a
+// consumer's view read-only. Call it after Reset or SetCard.
+func (e *CardEditor) SetDashboardContext(dashboardID string, readOnly bool) {
+	e.dashboardID = dashboardID
+	e.sharingEnabled = dashboardID != ""
+	e.readOnly = readOnly
+	if readOnly {
+		e.workspacePicker.Close()
+		e.puppetSelector.Close()
+		e.agentsMDEditor.Close()
+	}
+	if !e.isFocusVisible(e.focusIndex) {
+		e.setFocus(FocusName)
+	}
+}
+
 // Reset clears the form for creating a new card.
 func (e *CardEditor) Reset() {
 	for i := range e.inputs {
@@ -296,10 +324,12 @@ func (e *CardEditor) Reset() {
 		e.inputs[i].Blur()
 	}
 	e.loaded = config.IDCard{}
+	e.sharingEnabled, e.readOnly, e.dashboardID = false, false, ""
 	e.workspaceID = ""
 	e.subWorkspaceIDs = nil
 	e.useTmpWorkspace = false
 	e.dashboardControl = false
+	e.shared = false
 	e.skillList.SetSelectedOnly(false)
 	e.puppet = "kankuro"
 	e.agentsMD = AgentsMDState{}
@@ -373,6 +403,9 @@ func (e *CardEditor) Card() config.IDCard {
 	card.Puppet = e.puppet
 	card.UseTmpWorkspace = e.useTmpWorkspace
 	card.DashboardControl = e.dashboardControl
+	if e.sharingEnabled {
+		card.Shared = e.shared
+	}
 	card.SubWorkspaceIDs = slices.Clone(e.subWorkspaceIDs)
 	card.AgentsMD = e.agentsMD.Content
 	card.AgentsMDPath = e.agentsMD.Path
@@ -397,6 +430,23 @@ func (e *CardEditor) Init() tea.Cmd {
 
 // Update handles messages.
 func (e *CardEditor) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+	if e.readOnly {
+		if key, ok := msg.(tea.KeyPressMsg); ok {
+			switch key.Code {
+			case tea.KeyEsc:
+				if e.callbacks.OnCancel != nil {
+					return e, e.callbacks.OnCancel()
+				}
+			case tea.KeyTab:
+				e.CycleFocus(1)
+			case tea.KeyUp:
+				e.handleNav(false)
+			case tea.KeyDown:
+				e.handleNav(true)
+			}
+		}
+		return e, nil
+	}
 	// Handle data refresh messages
 	if msg, ok := msg.(messages.MCPDeletedMsg); ok {
 		// Remove the deleted MCP from selection
@@ -552,6 +602,11 @@ func (e *CardEditor) handleSpace() bool {
 		return true
 	case FocusUseTmp:
 		e.useTmpWorkspace = !e.useTmpWorkspace
+		return true
+	case FocusShared:
+		if e.sharingEnabled {
+			e.shared = !e.shared
+		}
 		return true
 	case FocusDashboardControl:
 		e.dashboardControl = !e.dashboardControl
@@ -941,8 +996,21 @@ func (e *CardEditor) fieldBlocks() []formBlock {
 	if e.loaded.ID != "" {
 		title = "Edit ID Card"
 	}
+	if e.readOnly {
+		title = "ID Card (read-only)"
+	}
+	if e.sharingEnabled {
+		owner := e.loaded.DashboardID
+		if owner == "" {
+			owner = e.dashboardID
+		}
+		title += "\nOwner: " + components.DisplayText(owner)
+		if e.shared {
+			title += "\nShared card edits affect every dashboard."
+		}
+	}
 
-	return []formBlock{
+	blocks := []formBlock{
 		blockOf(FocusName, styles.TitleStyle.Render(title)+"\n\n"+"Name: "+e.inputs[nameInputIdx].View()+"\n"),
 		blockOf(FocusDriver, "Driver: "+e.inputs[driverInputIdx].View()+"\n"),
 		blockOf(FocusModel, "Model: "+e.inputs[modelInputIdx].View()+"\n"),
@@ -951,9 +1019,26 @@ func (e *CardEditor) fieldBlocks() []formBlock {
 		blockOf(FocusFaceStyle, "Face Style: "+e.inputs[faceStyleInputIdx].View()+"\n"),
 		blockOf(FocusPuppet, e.renderPuppetLine()+"\n"),
 		blockOf(FocusUseTmp, e.renderTmpWorkspaceLine()+"\n\n"),
+	}
+	if e.sharingEnabled {
+		blocks = append(blocks, blockOf(FocusShared, e.renderSharedLine()+"\n"))
+	}
+	return append(blocks,
 		blockOf(FocusDashboardControl, e.renderDashboardControlLine()+"\n"),
 		blockOf(FocusAgentsMD, "AGENTS.md:\n"+e.renderAgentsMDRow()+"\n\n"),
+	)
+}
+
+func (e *CardEditor) renderSharedLine() string {
+	mark := uncheckedMark
+	if e.shared {
+		mark = checkedMark
 	}
+	line := "Shared: " + mark + " (available across dashboards)"
+	if e.focusIndex == FocusShared {
+		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(focusMarker + line)
+	}
+	return line
 }
 
 // listBlock is a capability list followed by the blank rows that separate it
@@ -1129,9 +1214,9 @@ func (e *CardEditor) renderWorkspaceLine() string {
 }
 
 func (e *CardEditor) renderTmpWorkspaceLine() string {
-	mark := "[ ]"
+	mark := uncheckedMark
 	if e.useTmpWorkspace {
-		mark = "[x]"
+		mark = checkedMark
 	}
 	line := "Use Tmp Workspace: " + mark
 	if e.focusIndex == FocusUseTmp {
@@ -1142,9 +1227,9 @@ func (e *CardEditor) renderTmpWorkspaceLine() string {
 }
 
 func (e *CardEditor) renderDashboardControlLine() string {
-	mark := "[ ]"
+	mark := uncheckedMark
 	if e.dashboardControl {
-		mark = "[x]"
+		mark = checkedMark
 	}
 	line := "Dashboard Control: " + mark + " (linked-dashboard session access; requires Kankuro MCP)"
 	if e.focusIndex == FocusDashboardControl {
@@ -1322,6 +1407,9 @@ func (e *CardEditor) visibleFocusOrder() []int {
 	targets := focusTargetTable()
 	order := make([]int, 0, len(targets))
 	for _, t := range targets {
+		if t.focus == FocusShared && !e.sharingEnabled {
+			continue
+		}
 		if t.visible == nil || t.visible(e.settings) {
 			order = append(order, t.focus)
 		}

@@ -24,7 +24,7 @@ func TestRelaunchRefreshesOnlyKankuroMCPAfterRestart(t *testing.T) {
 				UseTmpWorkspace: useTmp, AgentsMD: "initial role",
 			}
 			selected := append(config.BuiltinMCPs(), config.MCPServer{ID: "ordinary", Name: "ordinary", Command: "initial"})
-			id, err := manager.Launch(card, nil, nil, selected)
+			id, err := testLaunch(manager, card, nil, nil, selected)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -50,7 +50,7 @@ func TestRelaunchRefreshesOnlyKankuroMCPAfterRestart(t *testing.T) {
 			card.AgentsMDPath = filepath.Join(t.TempDir(), "missing-instructions")
 			// A malformed deployed config must fail without replacing it or starting a process.
 			writeTestFile(t, configPath, "malformed config")
-			if err := restored.Relaunch(id, card); err == nil {
+			if err := testRelaunch(restored, id, card); err == nil {
 				t.Fatal("expected invalid deployed MCP config to block relaunch")
 			}
 			failed, found := restored.GetSession(id)
@@ -60,7 +60,7 @@ func TestRelaunchRefreshesOnlyKankuroMCPAfterRestart(t *testing.T) {
 			assertFileContent(t, configPath, "malformed config")
 			assertFileContent(t, instructionPath, "manual instructions")
 			writeTestFile(t, configPath, deployed)
-			if err := restored.Relaunch(id, card); err != nil {
+			if err := testRelaunch(restored, id, card); err != nil {
 				t.Fatal(err)
 			}
 			assertFileContent(t, instructionPath, "manual instructions")

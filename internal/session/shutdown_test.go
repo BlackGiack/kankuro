@@ -20,7 +20,7 @@ func TestShutdownJoinsStopAlreadyInProgress(t *testing.T) {
 	h := newGateHarness(t, false, func(_ int, d *gateDriver) {
 		d.killEntered, d.killGate = entered, gate
 	})
-	sessionID, err := h.sm.Launch(h.card, nil, nil, nil)
+	sessionID, err := testLaunch(h.sm, h.card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -74,7 +74,7 @@ func persistedStatus(t *testing.T, configDir, sid string) string {
 // directory it deleted does not come back.
 func TestShutdownStopsWatchersBeforeTheyPersist(t *testing.T) {
 	h := newGateHarness(t, false, nil)
-	if _, err := h.sm.Launch(h.card, nil, nil, nil); err != nil {
+	if _, err := testLaunch(h.sm, h.card, nil, nil, nil); err != nil {
 		t.Fatalf("launch: %v", err)
 	}
 
@@ -105,13 +105,13 @@ func TestActivationAfterShutdownIsRefused(t *testing.T) {
 
 	h.sm.Shutdown()
 
-	if _, err := h.sm.Launch(h.card, nil, nil, nil); !errors.Is(err, session.ErrManagerClosed) {
+	if _, err := testLaunch(h.sm, h.card, nil, nil, nil); !errors.Is(err, session.ErrManagerClosed) {
 		t.Fatalf("Launch: want ErrManagerClosed, got %v", err)
 	}
-	if err := h.sm.Relaunch(sid, h.card); !errors.Is(err, session.ErrManagerClosed) {
+	if err := testRelaunch(h.sm, sid, h.card); !errors.Is(err, session.ErrManagerClosed) {
 		t.Fatalf("Relaunch: want ErrManagerClosed, got %v", err)
 	}
-	if err := h.sm.SwitchAgent(sid, h.card, nil, nil, nil); !errors.Is(err, session.ErrManagerClosed) {
+	if err := testSwitchAgent(h.sm, sid, h.card, nil, nil, nil); !errors.Is(err, session.ErrManagerClosed) {
 		t.Fatalf("SwitchAgent: want ErrManagerClosed, got %v", err)
 	}
 	if got := h.spawns.Load(); got != spawnsBefore {
@@ -171,7 +171,7 @@ func TestShutdownDuringSpawnKillsTheNewProcess(t *testing.T) {
 	sid := h.launchTerminated(t)
 
 	result := make(chan error, 1)
-	go func() { result <- h.sm.Relaunch(sid, h.card) }()
+	go func() { result <- testRelaunch(h.sm, sid, h.card) }()
 	waitSignal(t, entered, "Relaunch to enter Spawn")
 
 	returned := shutdownAsync(h.sm)
@@ -208,7 +208,7 @@ func TestShutdownDuringTmpLaunchRemovesTheCopy(t *testing.T) {
 
 	result := make(chan error, 1)
 	go func() {
-		_, err := h.sm.Launch(h.card, nil, nil, nil)
+		_, err := testLaunch(h.sm, h.card, nil, nil, nil)
 		result <- err
 	}()
 	waitSignal(t, entered, "Launch to enter Spawn")
@@ -257,7 +257,7 @@ func TestShutdownWaitsForTemporaryWorkspacePreparation(t *testing.T) {
 		WorkspaceID: workspaces[0].ID, UseTmpWorkspace: true}
 	launchResult := make(chan error, 1)
 	go func() {
-		_, launchErr := manager.Launch(card, nil, nil, nil)
+		_, launchErr := testLaunch(manager, card, nil, nil, nil)
 		launchResult <- launchErr
 	}()
 	waitSignal(t, copyEntered, "temporary workspace copy")
@@ -276,7 +276,7 @@ func TestShutdownWaitsForTemporaryWorkspacePreparation(t *testing.T) {
 
 func TestShutdownIsIdempotent(t *testing.T) {
 	h := newGateHarness(t, false, nil)
-	if _, err := h.sm.Launch(h.card, nil, nil, nil); err != nil {
+	if _, err := testLaunch(h.sm, h.card, nil, nil, nil); err != nil {
 		t.Fatalf("launch: %v", err)
 	}
 
@@ -305,7 +305,7 @@ func TestShutdownKillsSessionsInParallel(t *testing.T) {
 
 	var sids []string
 	for range 2 {
-		sid, err := h.sm.Launch(h.card, nil, nil, nil)
+		sid, err := testLaunch(h.sm, h.card, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("launch: %v", err)
 		}

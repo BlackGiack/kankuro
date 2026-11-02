@@ -77,6 +77,22 @@ func TestCoordinatorDropsKeysWhenTooSmall(t *testing.T) {
 	}
 }
 
+func TestDashboardListDropsKeysWhenTooSmall(t *testing.T) {
+	repo, err := newCurrentRepository(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	coord := newScopedCoordinator(repo, newTestManager(t, repo.Dir(), repo))
+	coord.Update(tea.WindowSizeMsg{Width: 40, Height: 10})
+	before := coord.CurrentView()
+	uitest.AssertExactRect(t, coord.View(), 40, 10, "dashboard list")
+	for _, key := range []tea.KeyPressMsg{{Code: 0, Text: "n"}, {Code: tea.KeyEnter}, {Code: tea.KeyTab}} {
+		if _, cmd := coord.Update(key); cmd != nil || coord.CurrentView() != before {
+			t.Fatalf("key %v was accepted while the dashboard list was too small", key)
+		}
+	}
+}
+
 func TestCoordinatorTooSmallStillQuits(t *testing.T) {
 	for _, key := range []tea.KeyPressMsg{{Code: 0, Text: "q"}, {Code: 'c', Mod: tea.ModCtrl}} {
 		coord := newSizedCoordinator(t, 40, 10)

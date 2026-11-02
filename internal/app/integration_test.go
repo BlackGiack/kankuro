@@ -3,6 +3,8 @@ package app_test
 import (
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -10,19 +12,19 @@ import (
 )
 
 func TestFullSessionLaunchFlow(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 
-	_, _ = repo.CreateIDCard(config.IDCard{
+	_, _ = createCurrentCard(repo, config.IDCard{
 		Name:   "Test Card",
 		Driver: "echo",
 		Model:  "test",
 	})
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	msg := coord.RefreshData()()
 	coord.Update(msg)
 
@@ -30,20 +32,20 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 		t.Errorf("Expected ViewDashboard, got %v", coord.CurrentView())
 	}
 
-	if len(coord.Views()) != 11 {
-		t.Errorf("Expected 11 views, got %d", len(coord.Views()))
+	if len(coord.Views()) != 12 {
+		t.Errorf("Expected 12 views, got %d", len(coord.Views()))
 	}
 }
 
 func TestCardCRUDFlow(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 
 	editor := coord.Views()[app.ViewCardEditor]
@@ -62,7 +64,7 @@ func TestCardCRUDFlow(t *testing.T) {
 		t.Errorf("Expected card name %s, got %s", testCard.Name, card.Name)
 	}
 
-	saved, err := repo.CreateIDCard(testCard)
+	saved, err := createCurrentCard(repo, testCard)
 	if err != nil {
 		t.Fatalf("CreateIDCard failed: %v", err)
 	}
@@ -78,10 +80,10 @@ func TestCardCRUDFlow(t *testing.T) {
 }
 
 func TestSourceManagementFlow(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 
 	coord.NavigateTo(app.ViewSourceManagerSkills)
@@ -104,24 +106,24 @@ func TestSourceManagementFlow(t *testing.T) {
 }
 
 func TestSessionManagementFlow(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, _ := repo.CreateIDCard(config.IDCard{
+	card, _ := createCurrentCard(repo, config.IDCard{
 		Name:        "Test",
 		Driver:      "echo",
 		Model:       "test",
 		WorkspaceID: workspaces[0].ID,
 	})
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 
-	sessionID, err := sm.Launch(card, nil, nil, nil)
+	sessionID, err := launchCurrentSession(repo, sm, card)
 	if err != nil {
 		t.Fatalf("Launch failed: %v", err)
 	}
@@ -137,10 +139,10 @@ func TestSessionManagementFlow(t *testing.T) {
 }
 
 func TestNavigationFlow(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 
 	viewsList := []app.ViewType{
@@ -163,10 +165,10 @@ func TestNavigationFlow(t *testing.T) {
 }
 
 func TestPreviousViewRestoration(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 
 	// 1. Dashboard -> Source Manager -> Back to Dashboard
@@ -204,25 +206,24 @@ func TestPreviousViewRestoration(t *testing.T) {
 }
 
 func TestSessionActionsFlow(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, _ := repo.CreateIDCard(config.IDCard{
+	card, _ := createCurrentCard(repo, config.IDCard{
 		Name:        "Test Card",
-		Driver:      "echo",
-		Model:       "test",
+		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
 	})
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 
 	// Launch a session
-	sessionID, err := sm.Launch(card, nil, nil, nil)
+	sessionID, err := launchCurrentSession(repo, sm, card)
 	if err != nil {
 		t.Fatalf("Launch failed: %v", err)
 	}
@@ -253,10 +254,9 @@ func TestSessionActionsFlow(t *testing.T) {
 	}
 
 	// Terminated session -> Switch Agent
-	newCard, err := repo.CreateIDCard(config.IDCard{
+	newCard, err := createCurrentCard(repo, config.IDCard{
 		Name:        "New Agent",
-		Driver:      "echo",
-		Model:       "test",
+		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
 	})
 	if err != nil {
@@ -272,7 +272,11 @@ func TestSessionActionsFlow(t *testing.T) {
 	if switchCmd == nil {
 		t.Fatal("Expected cmd for switch")
 	}
-	coord.Update(switchCmd())
+	result := switchCmd()
+	if switched, ok := result.(messages.AgentSwitchedMsg); !ok || switched.Err != nil {
+		t.Fatalf("switch result: %#v", result)
+	}
+	coord.Update(result)
 
 	// Verify session now uses new card
 	sess, ok := sm.GetSession(sessionID)
@@ -301,10 +305,10 @@ func TestSessionActionsFlow(t *testing.T) {
 }
 
 func TestSourceSyncSideEffects(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 
 	callbacks := coord.SourceManagerCallbacks(views.SourceTypeSkills)
@@ -328,10 +332,10 @@ func TestSourceSyncSideEffects(t *testing.T) {
 }
 
 func TestCoordinatorErrorHandling(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 
 	coord.Update(messages.ErrorMsg{Err: errTest})
@@ -348,21 +352,21 @@ func TestCoordinatorErrorHandling(t *testing.T) {
 }
 
 func TestCoordinatorDataPropagation(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	_, _ = repo.CreateIDCard(config.IDCard{
+	_, _ = createCurrentCard(repo, config.IDCard{
 		Name:        "Test",
 		Driver:      "claude",
 		Model:       "opus",
 		WorkspaceID: workspaces[0].ID,
 	})
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 
 	msg := coord.RefreshData()()
@@ -375,21 +379,21 @@ func TestCoordinatorDataPropagation(t *testing.T) {
 }
 
 func TestSessionLauncherBehavior(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, _ := repo.CreateIDCard(config.IDCard{
+	card, _ := createCurrentCard(repo, config.IDCard{
 		Name:        "Test Card",
 		Driver:      "echo",
 		Model:       "test",
 		WorkspaceID: workspaces[0].ID,
 	})
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 
 	// Navigate to session launcher
@@ -398,7 +402,7 @@ func TestSessionLauncherBehavior(t *testing.T) {
 	launcher.SetName("Test Session")
 
 	// Simulate async launch completion
-	sessionID, err := sm.Launch(card, nil, nil, nil)
+	sessionID, err := launchCurrentSession(repo, sm, card)
 	if err != nil {
 		t.Fatalf("Launch failed: %v", err)
 	}
@@ -419,10 +423,15 @@ func TestSessionLauncherBehavior(t *testing.T) {
 	}
 
 	// Simulate name submission
-	err = sm.SetName(sessionID, "Test Session")
-	if err != nil {
-		t.Fatalf("SetName failed: %v", err)
+	_, nameCmd := launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if nameCmd == nil {
+		t.Fatal("name submission returned no command")
 	}
+	nameResult, ok := nameCmd().(messages.ScopedSessionNamedMsg)
+	if !ok || nameResult.Err != nil {
+		t.Fatalf("name submission: %#v", nameResult)
+	}
+	coord.Update(nameResult)
 
 	// Verify session was created with correct name
 	sessions := sm.List()

@@ -148,14 +148,14 @@ func TestOlderSharedWorkspaceCleanupPreservesNewerSelection(t *testing.T) {
 				t.Fatal(err)
 			}
 			olderCard := config.IDCard{ID: "older", Name: "older", Driver: "kill-gate", WorkspaceID: workspaces[0].ID}
-			olderID, err := manager.Launch(olderCard, nil, nil, config.BuiltinMCPs())
+			olderID, err := testLaunch(manager, olderCard, nil, nil, config.BuiltinMCPs())
 			if err != nil {
 				t.Fatalf("launch older activation: %v", err)
 			}
 			olderToken := tokenFromConfig(t, driver.MCPConfigPath(workspace))
 
 			newerCard := config.IDCard{ID: "newer", Name: "newer", Driver: "cat", WorkspaceID: workspaces[0].ID}
-			newerID, err := manager.Launch(newerCard, nil, nil, test.newServers)
+			newerID, err := testLaunch(manager, newerCard, nil, nil, test.newServers)
 			if err != nil {
 				t.Fatalf("launch newer activation: %v", err)
 			}
@@ -269,7 +269,7 @@ func TestFailedOlderActivationCannotCleanupNewerWorkspaceConfig(t *testing.T) {
 	olderCard := config.IDCard{ID: "older", Name: "older", Driver: "spawn-fail", WorkspaceID: workspaces[0].ID}
 	olderResult := make(chan error, 1)
 	go func() {
-		_, launchErr := manager.Launch(olderCard, nil, nil, config.BuiltinMCPs())
+		_, launchErr := testLaunch(manager, olderCard, nil, nil, config.BuiltinMCPs())
 		olderResult <- launchErr
 	}()
 	select {
@@ -278,7 +278,7 @@ func TestFailedOlderActivationCannotCleanupNewerWorkspaceConfig(t *testing.T) {
 		t.Fatal("older activation did not reach its blocked spawn")
 	}
 	newerCard := config.IDCard{ID: "newer", Name: "newer", Driver: "cat", WorkspaceID: workspaces[0].ID}
-	newerID, err := manager.Launch(newerCard, nil, nil, config.BuiltinMCPs())
+	newerID, err := testLaunch(manager, newerCard, nil, nil, config.BuiltinMCPs())
 	if err != nil {
 		t.Fatalf("launch newer activation: %v", err)
 	}
@@ -350,7 +350,7 @@ func TestCancellationAfterMCPConfigBeforeSpawnRevokesAndUnpublishes(t *testing.T
 	defer cancelActivation()
 	launchResult := make(chan error, 1)
 	go func() {
-		_, launchErr := manager.LaunchWithIDContext(
+		_, launchErr := testLaunchWithIDContext(manager,
 			activationContext, sessionID, card, nil, nil, config.BuiltinMCPs(),
 		)
 		launchResult <- launchErr
@@ -388,7 +388,7 @@ func TestCancellationAfterMCPConfigBeforeSpawnRevokesAndUnpublishes(t *testing.T
 	if _, statErr := os.Stat(filepath.Join(tmpRoot, sessionID)); !os.IsNotExist(statErr) {
 		t.Fatalf("cancelled activation left its temporary workspace: %v", statErr)
 	}
-	if _, retryErr := manager.LaunchWithIDContext(
+	if _, retryErr := testLaunchWithIDContext(manager,
 		context.Background(), sessionID, card, nil, nil, config.BuiltinMCPs(),
 	); retryErr != nil {
 		t.Fatalf("activation reservation was not released: %v", retryErr)

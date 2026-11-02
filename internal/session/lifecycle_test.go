@@ -95,7 +95,7 @@ func TestSessionLaunchAndKill(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestKillIsIdempotent(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -194,7 +194,7 @@ func TestKillPersistsTerminatedDespiteDriverError(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -264,7 +264,7 @@ func TestLaunchWrapsErrPersistFailedButSessionStaysUsable(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if !errors.Is(err, session.ErrPersistFailed) {
 		t.Fatalf("expected ErrPersistFailed, got: %v", err)
 	}
@@ -285,7 +285,7 @@ func TestLaunchWrapsErrPersistFailedButSessionStaysUsable(t *testing.T) {
 		t.Fatalf("expected the process to still be running, got %s", s.Status)
 	}
 
-	handle, errAttach := sm.Attach(sid)
+	handle, errAttach := testAttach(sm, sid)
 	if errAttach != nil {
 		t.Fatalf("expected attach to succeed despite the persist failure: %v", errAttach)
 	}
@@ -307,7 +307,7 @@ func TestSessionSwitchAgent(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card1, nil, nil, nil)
+	sid, err := testLaunch(sm, card1, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -328,7 +328,7 @@ func TestSessionSwitchAgent(t *testing.T) {
 		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
 	}
-	if errSwitch := sm.SwitchAgent(sid, card2, nil, nil, nil); errSwitch != nil {
+	if errSwitch := testSwitchAgent(sm, sid, card2, nil, nil, nil); errSwitch != nil {
 		t.Fatalf("switch: %v", errSwitch)
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -368,14 +368,14 @@ func TestSessionSwitchAgentPreservesCustomName(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card1, nil, nil, nil)
+	sid, err := testLaunch(sm, card1, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
 	time.Sleep(100 * time.Millisecond)
 
 	customName := "My Project Session"
-	if errSet := sm.SetName(sid, customName); errSet != nil {
+	if errSet := testSetName(sm, sid, customName); errSet != nil {
 		t.Fatalf("set name: %v", errSet)
 	}
 
@@ -390,7 +390,7 @@ func TestSessionSwitchAgentPreservesCustomName(t *testing.T) {
 		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
 	}
-	if errSwitch := sm.SwitchAgent(sid, card2, nil, nil, nil); errSwitch != nil {
+	if errSwitch := testSwitchAgent(sm, sid, card2, nil, nil, nil); errSwitch != nil {
 		t.Fatalf("switch: %v", errSwitch)
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -428,7 +428,7 @@ func TestSetNamePropagatesPersistFailure(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -445,7 +445,7 @@ func TestSetNamePropagatesPersistFailure(t *testing.T) {
 	}
 	defer os.Chmod(sessionsDir, 0o700)
 
-	if errSet := sm.SetName(sid, "new-name"); errSet == nil {
+	if errSet := testSetName(sm, sid, "new-name"); errSet == nil {
 		t.Fatalf("expected SetName to surface the persist failure")
 	}
 }
@@ -469,7 +469,7 @@ func TestRemoveIsBenignForMissingSessionFile(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -508,7 +508,7 @@ func TestRemoveOnlyDeletesTerminatedSessions(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -678,7 +678,7 @@ func newGateHarness(t *testing.T, useTmp bool, setup func(n int, d *gateDriver))
 // launchTerminated launches a session and leaves it Terminated.
 func (h *gateHarness) launchTerminated(t *testing.T) string {
 	t.Helper()
-	sid, err := h.sm.Launch(h.card, nil, nil, nil)
+	sid, err := testLaunch(h.sm, h.card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -725,10 +725,10 @@ func TestConcurrentRelaunchStartsOnce(t *testing.T) {
 	sid := h.launchTerminated(t)
 
 	first := make(chan error, 1)
-	go func() { first <- h.sm.Relaunch(sid, h.card) }()
+	go func() { first <- testRelaunch(h.sm, sid, h.card) }()
 	waitSignal(t, entered, "first Relaunch to enter Spawn")
 
-	if err := h.sm.Relaunch(sid, h.card); err == nil {
+	if err := testRelaunch(h.sm, sid, h.card); err == nil {
 		t.Fatal("second Relaunch during an in-flight Relaunch must be rejected")
 	}
 
@@ -753,10 +753,10 @@ func TestSwitchAgentDuringRelaunchRejected(t *testing.T) {
 	sid := h.launchTerminated(t)
 
 	first := make(chan error, 1)
-	go func() { first <- h.sm.Relaunch(sid, h.card) }()
+	go func() { first <- testRelaunch(h.sm, sid, h.card) }()
 	waitSignal(t, entered, "Relaunch to enter Spawn")
 
-	if err := h.sm.SwitchAgent(sid, h.card, nil, nil, nil); err == nil {
+	if err := testSwitchAgent(h.sm, sid, h.card, nil, nil, nil); err == nil {
 		t.Fatal("SwitchAgent during an in-flight Relaunch must be rejected")
 	}
 
@@ -781,10 +781,10 @@ func TestFailedRelaunchReleasesReservation(t *testing.T) {
 	})
 	sid := h.launchTerminated(t)
 
-	if err := h.sm.Relaunch(sid, h.card); !errors.Is(err, errSpawn) {
+	if err := testRelaunch(h.sm, sid, h.card); !errors.Is(err, errSpawn) {
 		t.Fatalf("expected spawn error, got %v", err)
 	}
-	if err := h.sm.Relaunch(sid, h.card); err != nil {
+	if err := testRelaunch(h.sm, sid, h.card); err != nil {
 		t.Fatalf("Relaunch after a failed one must succeed, got %v", err)
 	}
 	_ = h.sm.Kill(sid)
@@ -801,10 +801,10 @@ func TestFailedSwitchAgentReleasesReservation(t *testing.T) {
 	})
 	sid := h.launchTerminated(t)
 
-	if err := h.sm.SwitchAgent(sid, h.card, nil, nil, nil); !errors.Is(err, errSpawn) {
+	if err := testSwitchAgent(h.sm, sid, h.card, nil, nil, nil); !errors.Is(err, errSpawn) {
 		t.Fatalf("expected spawn error, got %v", err)
 	}
-	if err := h.sm.SwitchAgent(sid, h.card, nil, nil, nil); err != nil {
+	if err := testSwitchAgent(h.sm, sid, h.card, nil, nil, nil); err != nil {
 		t.Fatalf("SwitchAgent after a failed one must succeed, got %v", err)
 	}
 	_ = h.sm.Kill(sid)
@@ -823,7 +823,7 @@ func TestRemoveDuringRelaunchRejected(t *testing.T) {
 	}
 
 	first := make(chan error, 1)
-	go func() { first <- h.sm.Relaunch(sid, h.card) }()
+	go func() { first <- testRelaunch(h.sm, sid, h.card) }()
 	waitSignal(t, entered, "Relaunch to enter Spawn")
 
 	if err := h.sm.Remove(sid); err == nil {
@@ -853,7 +853,7 @@ func TestKillAfterRemoveDoesNotResurrectRecord(t *testing.T) {
 			d.killEntered, d.killGate = entered, gate
 		}
 	})
-	sid, err := h.sm.Launch(h.card, nil, nil, nil)
+	sid, err := testLaunch(h.sm, h.card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -891,7 +891,7 @@ func TestKillDuringRelaunchDoesNotTerminateNewActivation(t *testing.T) {
 			d.killEntered, d.killGate = entered, gate
 		}
 	})
-	sid, err := h.sm.Launch(h.card, nil, nil, nil)
+	sid, err := testLaunch(h.sm, h.card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -902,7 +902,7 @@ func TestKillDuringRelaunchDoesNotTerminateNewActivation(t *testing.T) {
 
 	// The old process exits, then the user relaunches before Kill returns.
 	h.sm.SetStatusForTest(sid, session.StatusTerminated)
-	if errRelaunch := h.sm.Relaunch(sid, h.card); errRelaunch == nil {
+	if errRelaunch := testRelaunch(h.sm, sid, h.card); errRelaunch == nil {
 		t.Fatal("relaunch during reserved stop unexpectedly succeeded")
 	}
 
@@ -910,7 +910,7 @@ func TestKillDuringRelaunchDoesNotTerminateNewActivation(t *testing.T) {
 	if errKill := waitErr(t, killed, "Kill"); errKill != nil {
 		t.Fatalf("kill: %v", errKill)
 	}
-	if errRelaunch := h.sm.Relaunch(sid, h.card); errRelaunch != nil {
+	if errRelaunch := testRelaunch(h.sm, sid, h.card); errRelaunch != nil {
 		t.Fatalf("relaunch after stop: %v", errRelaunch)
 	}
 

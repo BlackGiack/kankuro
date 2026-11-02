@@ -19,7 +19,7 @@ func TestSnapshotCoversPersistedFields(t *testing.T) {
 	// counterpart on Snapshot, with the reason why. Keep this list explicit
 	// and short: anything not listed here must exist on both Session and
 	// Snapshot.
-	fieldsExcludedFromSnapshot := map[string]string{}
+	fieldsExcludedFromSnapshot := map[string]string{"SchemaVersion": "disk format metadata, not session state"}
 
 	dataType := reflect.TypeFor[session.Data]()
 	sessionType := reflect.TypeFor[session.Session]()
@@ -58,7 +58,7 @@ func TestSessionRoundTripSurvivesPersistence(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}

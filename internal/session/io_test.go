@@ -22,13 +22,13 @@ func TestSessionPendingLineCapped(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
 	defer sm.Kill(sid)
 
-	handle, errAttach := sm.Attach(sid)
+	handle, errAttach := testAttach(sm, sid)
 	if errAttach != nil {
 		t.Fatalf("attach: %v", errAttach)
 	}

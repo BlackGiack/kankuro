@@ -20,6 +20,7 @@ const (
 	ViewSessionLauncher
 	ViewAgentSwitch
 	ViewConversationChoice
+	ViewDashboardList
 )
 
 // ModalType represents modal overlays.
@@ -55,6 +56,82 @@ type SessionOutputMsg struct {
 // (c.views, c.preview, ...) from the wrong goroutine.
 type DataRefreshRequestedMsg struct{}
 
+// DashboardDeletionPreparedMsg carries a human-only deletion confirmation.
+type DashboardDeletionPreparedMsg struct {
+	DashboardID                 string
+	Token                       string
+	Summary                     []string
+	RequiresForeignConfirmation bool
+	Err                         error
+}
+
+// DashboardDeletionStatusMsg reports recoverable per-item cascade outcomes.
+type DashboardDeletionStatusMsg struct {
+	DashboardID string
+	Summary     []string
+	Err         error
+}
+
+// CardDeletionPreparedMsg carries a revision-bound card deletion impact.
+type CardDeletionPreparedMsg struct {
+	DashboardID                 string
+	Generation                  uint64
+	CardID                      string
+	Token                       string
+	Summary                     []string
+	RequiresForeignConfirmation bool
+	Err                         error
+}
+
+// DashboardOpenRequestedMsg asks the coordinator to open a captured identity.
+type DashboardOpenRequestedMsg struct {
+	Dashboard  config.Dashboard
+	Generation uint64
+}
+
+// DashboardListRequestedMsg returns to the dashboard list without stopping sessions.
+type DashboardListRequestedMsg struct {
+	DashboardID string
+	Generation  uint64
+}
+
+// DashboardListLoadedMsg carries a refreshed human dashboard inventory.
+type DashboardListLoadedMsg struct {
+	Dashboards []config.Dashboard
+	Err        error
+	RequestID  uint64
+}
+
+// DashboardMutationFinishedMsg reports a save or cascade completion.
+type DashboardMutationFinishedMsg struct {
+	Err        error
+	Generation uint64
+}
+
+// ScopedActionFinishedMsg carries a result bound to the originating view.
+type ScopedActionFinishedMsg struct {
+	DashboardID string
+	Generation  uint64
+	Err         error
+}
+
+// ScopedAttachReadyMsg carries an authorized attachment subscription.
+type ScopedAttachReadyMsg struct {
+	DashboardID string
+	Generation  uint64
+	SessionID   string
+	Handle      *session.AttachHandle
+	Err         error
+}
+
+// ScopedSessionNamedMsg reports a session rename before optional attachment.
+type ScopedSessionNamedMsg struct {
+	DashboardID string
+	Generation  uint64
+	SessionID   string
+	Err         error
+}
+
 // PuppetsSyncedMsg signals that a background puppet-source sync has finished.
 // Like DataRefreshRequestedMsg, it defers the actual refreshData() call to
 // Update instead of running it inside the async closure that performed the
@@ -67,27 +144,35 @@ type PuppetsSyncedMsg struct{}
 // should still be attached to, but something about the operation - usually
 // that its state could not be saved - deserves the user's attention.
 type SessionAttachRequestedMsg struct {
-	SessionID string
-	Warning   error
+	SessionID   string
+	Warning     error
+	DashboardID string
+	Generation  uint64
 }
 
 // SessionLaunchCompletedMsg signals that a session launch has completed.
 type SessionLaunchCompletedMsg struct {
-	SessionID string
-	Err       error
+	SessionID   string
+	Err         error
+	DashboardID string
+	Generation  uint64
 }
 
 // AgentSwitchRequestedMsg signals user wants to switch agent for a session.
 type AgentSwitchRequestedMsg struct {
 	SessionID   string
 	SessionName string
+	DashboardID string
+	Generation  uint64
 }
 
 type ConversationChoiceRequestedMsg struct {
-	SessionID  string
-	CardID     string
-	Driver     string
-	ReturnView ViewType
+	SessionID   string
+	CardID      string
+	Driver      string
+	ReturnView  ViewType
+	DashboardID string
+	Generation  uint64
 }
 
 type ConversationChoiceSelectedMsg struct {
@@ -108,20 +193,10 @@ type MCPDeletedMsg struct {
 
 // AttachFinishedMsg signals that an attach session has finished.
 type AttachFinishedMsg struct {
-	SessionID string
-	Err       error
-}
-
-// IDELaunchedMsg signals that a requested IDE launch has completed (or
-// failed). Spawning the editor process happens inside a tea.Cmd, off the UI
-// goroutine - see sessionActions.launchIDE.
-type IDELaunchedMsg struct {
-	Err error
-}
-
-// TerminalLaunchedMsg reports completion of a terminal launch request.
-type TerminalLaunchedMsg struct {
-	Err error
+	SessionID   string
+	Err         error
+	DashboardID string
+	Generation  uint64
 }
 
 // AgentSwitchedMsg signals that an agent-switch request has completed (or
@@ -131,13 +206,17 @@ type TerminalLaunchedMsg struct {
 // PTY process happens inside a tea.Cmd, off the UI goroutine - see
 // sessionActions.switchAgent.
 type AgentSwitchedMsg struct {
-	SessionID string
-	Err       error
+	SessionID   string
+	Err         error
+	DashboardID string
+	Generation  uint64
 }
 
-// NavigateMsg signals view change request.
-type NavigateMsg struct {
-	View ViewType
+// ScopedNavigateMsg is ignored after the originating dashboard view changes.
+type ScopedNavigateMsg struct {
+	View        ViewType
+	DashboardID string
+	Generation  uint64
 }
 
 // NavigateBackMsg signals the user wants to return to the previous view.
@@ -145,20 +224,26 @@ type NavigateBackMsg struct{}
 
 // CardSavedMsg signals that an ID card has been saved.
 type CardSavedMsg struct {
-	Card config.IDCard
-	Err  error
+	Card        config.IDCard
+	Err         error
+	DashboardID string
+	Generation  uint64
 }
 
 // MCPSavedMsg signals that an MCP server has been saved.
 type MCPSavedMsg struct {
-	MCP config.MCPServer
-	Err error
+	MCP         config.MCPServer
+	Err         error
+	DashboardID string
+	Generation  uint64
 }
 
 // SettingsSavedMsg signals that application settings have been saved.
 type SettingsSavedMsg struct {
-	Settings config.AppSettings
-	Err      error
+	Settings    config.AppSettings
+	Err         error
+	DashboardID string
+	Generation  uint64
 }
 
 // ErrorMsg signals an error occurred.
@@ -179,13 +264,15 @@ type MCPServerFailedMsg struct{ Err error }
 // updates use PreviewDataMsg instead - see debt_impl_plan_4.md step 2b for why
 // mixing the two in one message type caused silent data loss.
 type DataLoadedMsg struct {
-	Cards      []config.IDCard
-	Sessions   []session.Snapshot
-	Skills     []config.Skill
-	Personas   []config.Persona
-	MCPs       []config.MCPServer
-	Workspaces []config.Workspace
-	Puppets    []config.Puppet
+	DashboardID string
+	Generation  uint64
+	Cards       []config.IDCard
+	Sessions    []session.Snapshot
+	Skills      []config.Skill
+	Personas    []config.Persona
+	MCPs        []config.MCPServer
+	Workspaces  []config.Workspace
+	Puppets     []config.Puppet
 
 	// PreviewSessionID/PreviewScrollback carry the current preview's
 	// scrollback alongside a full refresh. The coordinator forwards these to
@@ -216,6 +303,10 @@ type DataReceiver interface {
 // disk - see debt_impl_plan_5.md review finding 1. This message is instead
 // routed only to the dashboard, the sole consumer of Sessions.
 type SessionsRefreshedMsg struct {
+	DashboardID       string
+	Generation        uint64
+	Err               error
+	Cards             []config.IDCard
 	Sessions          []session.Snapshot
 	PreviewSessionID  string
 	PreviewScrollback []byte

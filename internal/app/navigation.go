@@ -69,8 +69,12 @@ func (c *Coordinator) navigateTo(vt ViewType) tea.Cmd {
 }
 
 func (c *Coordinator) resizeAll() {
-	for _, view := range c.views {
-		view.SetSize(c.width, c.height-views.CoordinatorRows)
+	for viewType, view := range c.views {
+		height := c.height - views.CoordinatorRows
+		if viewType == ViewDashboardList {
+			height = c.height
+		}
+		view.SetSize(c.width, height)
 	}
 }
 
@@ -144,6 +148,8 @@ func convertViewType(vt messages.ViewType) ViewType {
 		return ViewAgentSwitch
 	case messages.ViewConversationChoice:
 		return ViewConversationChoice
+	case messages.ViewDashboardList:
+		return ViewDashboardList
 	default:
 		return ViewDashboard
 	}

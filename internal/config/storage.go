@@ -63,6 +63,9 @@ type FileStamp struct {
 // filenames - see debt_impl_plan_5.md step 1.
 func registryFiles() []string {
 	return []string{
+		DashboardsFilename,
+		CardTombstonesFilename,
+		DashboardTombstonesFilename,
 		IDCardsFilename,
 		SkillsFilename,
 		PersonasFilename,

@@ -13,7 +13,8 @@ const (
 )
 
 // CoordinatorRows is how many terminal rows the coordinator keeps back before
-// sizing a view (views are sized to terminal rows - CoordinatorRows). It is the
+// sizing content views. The dashboard selector receives the full terminal height.
+// Other views are sized to terminal rows - CoordinatorRows. It is the
 // one definition: app.resizeAll subtracts it and the dashboard adds it back to
 // fill the terminal exactly, so the two cannot disagree.
 const CoordinatorRows = 4

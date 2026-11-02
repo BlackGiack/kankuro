@@ -42,6 +42,7 @@ func TestInputIndexConstantsMatchTargets(t *testing.T) {
 
 func TestVisibleFocusOrder(t *testing.T) {
 	e := NewCardEditor(CardEditorCallbacks{})
+	e.SetDashboardContext("dashboard", false)
 
 	e.settings = config.AppSettings{ShowPersonasInCardEditor: true, ShowMCPsInCardEditor: true}
 	full := e.visibleFocusOrder()

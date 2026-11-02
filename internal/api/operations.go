@@ -71,6 +71,7 @@ type Operation struct {
 // OperationResult is the safe transport view; journal identity and fingerprints stay private.
 type OperationResult struct {
 	ID                    string            `json:"operation_id"`
+	DashboardID           string            `json:"dashboard_id"`
 	RequestID             string            `json:"request_id"`
 	Kind                  string            `json:"kind"`
 	State                 OperationState    `json:"state"`
@@ -107,7 +108,7 @@ func operationResult(operation Operation) OperationResult {
 		}
 	}
 	return OperationResult{
-		ID: operation.ID, RequestID: operation.RequestID, Kind: operation.Kind,
+		ID: operation.ID, DashboardID: operation.DashboardID, RequestID: operation.RequestID, Kind: operation.Kind,
 		State: operation.State, CancellationRequested: operation.CancellationRequested,
 		TargetSession: operation.TargetSession, Result: result,
 		ErrorCode: operation.ErrorCode, ErrorMessage: operation.ErrorMessage, Warning: operation.Warning,
@@ -190,12 +191,9 @@ func (s *Service) CreateSession(ctx context.Context, token, requestID, cardID st
 		return OperationResult{}, classifyCardLoadError(loadErr)
 	}
 	apply := func(operationCtx context.Context, operation Operation) (json.RawMessage, error) {
-		sid, launchErr := s.launchReservedSession(operationCtx, cardID, operation.TargetSession, args.Name)
+		sid, launchErr := s.launchDashboardWithID(operationCtx, operation.DashboardID, cardID, operation.TargetSession, args.Name)
 		if launchErr != nil && !errors.Is(launchErr, session.ErrPersistFailed) {
 			return nil, launchErr
-		}
-		if assigner, ok := s.scope.(dashboardSessionAssigner); ok {
-			assigner.AssignSession(caller.SessionID, sid, cardID)
 		}
 		inspection, inspectErr := s.inspectSession(sid)
 		if inspectErr != nil {
@@ -212,22 +210,6 @@ func (s *Service) CreateSession(ctx context.Context, token, requestID, cardID st
 	}
 	operation, err := s.operations.Submit(ctx, token, requestID, createSessionOperation, "", args, apply)
 	return operationResult(operation), err
-}
-
-func (s *Service) launchReservedSession(ctx context.Context, cardID, sessionID string, name *string) (string, error) {
-	release, err := s.reserveCardReference(cardID)
-	if err != nil {
-		return "", err
-	}
-	defer release()
-
-	bundle, err := s.resolveCard(cardID)
-	if err != nil {
-		return "", err
-	}
-	return s.sessions.LaunchWithIDContext(
-		ctx, sessionID, bundle.Card, bundle.Skills, bundle.Personas, bundle.MCPs, name,
-	)
 }
 
 func (s *Service) StopSession(ctx context.Context, token, requestID, sessionID string) (OperationResult, error) {
@@ -251,7 +233,11 @@ func (s *Service) RelaunchSession(
 	token, requestID, sessionID string,
 	conversation *ConversationRequest,
 ) (OperationResult, error) {
-	if _, err := conversationChoice(conversation); err != nil {
+	caller, err := s.ResolveCaller(token)
+	if err != nil {
+		return OperationResult{}, err
+	}
+	if _, errAt265 := conversationChoice(conversation); errAt265 != nil {
 		return OperationResult{}, reject("invalid_request", "conversation choice is invalid")
 	}
 	args := conversationArguments{Conversation: conversation}
@@ -260,15 +246,7 @@ func (s *Service) RelaunchSession(
 		if parseErr != nil {
 			return lifecycleEffects{}, parseErr
 		}
-		snapshot, found := s.sessions.GetSession(sessionID)
-		if !found {
-			return lifecycleEffects{}, errors.New("session not found")
-		}
-		card, loadErr := s.loadCard(snapshot.CardID)
-		if loadErr != nil {
-			return lifecycleEffects{}, loadErr
-		}
-		activationErr := s.sessions.RelaunchWithChoiceContext(operationCtx, sessionID, card, choice)
+		activationErr := s.RelaunchInDashboard(operationCtx, caller.DashboardID, sessionID, choice)
 		if activationErr != nil && !errors.Is(activationErr, session.ErrPersistFailed) {
 			return lifecycleEffects{}, activationErr
 		}
@@ -314,22 +292,11 @@ func (s *Service) SwitchSessionCard(
 		return OperationResult{}, classifyCardLoadError(loadErr)
 	}
 	apply := func(operationCtx context.Context) (lifecycleEffects, error) {
-		release, reserveErr := s.reserveCardReference(cardID)
-		if reserveErr != nil {
-			return lifecycleEffects{}, reserveErr
-		}
-		defer release()
 		choice, parseErr := conversationChoice(conversation)
 		if parseErr != nil {
 			return lifecycleEffects{}, parseErr
 		}
-		bundle, resolveErr := s.resolveCard(cardID)
-		if resolveErr != nil {
-			return lifecycleEffects{}, resolveErr
-		}
-		activationErr := s.sessions.SwitchAgentWithChoiceContext(
-			operationCtx, sessionID, bundle.Card, bundle.Skills, bundle.Personas, bundle.MCPs, choice,
-		)
+		activationErr := s.SwitchInDashboard(operationCtx, caller.DashboardID, sessionID, cardID, choice)
 		if activationErr != nil && !errors.Is(activationErr, session.ErrPersistFailed) {
 			return lifecycleEffects{}, activationErr
 		}
@@ -456,7 +423,7 @@ func (s *Service) inspectSession(sessionID string) (SessionInspection, error) {
 	if !ok {
 		return SessionInspection{}, errors.New("session not found after lifecycle operation")
 	}
-	return inspectionFromSnapshot(item), nil
+	return s.inspectionFromScopedSnapshot(item)
 }
 
 // NewOperationRunner loads the durable idempotency journal and starts workers.

@@ -134,9 +134,7 @@ func (v *AgentSwitchView) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		if v.callbacks.OnCancel != nil {
 			return v.callbacks.OnCancel(), true
 		}
-		return func() tea.Msg {
-			return messages.NavigateMsg{View: messages.ViewDashboard}
-		}, true
+		return nil, true
 	case tea.KeyEnter:
 		if item := v.list.SelectedItem(); item != nil {
 			if si, ok := item.(switchCardItem); ok && v.callbacks.OnSwitch != nil {

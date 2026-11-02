@@ -14,7 +14,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/layout"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
@@ -40,13 +42,19 @@ func (r *countingRepo) ListSkillSources() ([]string, error) {
 
 func newCountingCoordinator(t *testing.T) (*Coordinator, *countingRepo, *config.FileRepository) {
 	t.Helper()
-	base, err := config.NewFileRepository(t.TempDir())
+	root := t.TempDir()
+	if err := layout.PrepareStartup(root); err != nil {
+		t.Fatal(err)
+	}
+	base, err := config.NewFileRepository(root)
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 	repo := &countingRepo{Repository: base}
 	sm := newTestManager(t, base.Dir(), base)
-	return NewCoordinator(repo, sm), repo, base
+	c := NewCoordinator(repo, sm, api.New(repo, sm))
+	c.Update(messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}})
+	return c, repo, base
 }
 
 // TestMaybeRefreshConfigSkipsUnchangedRegistry pins step 1: a second
@@ -138,6 +146,7 @@ func TestMutationRefreshDoesNotWaitForTick(t *testing.T) {
 	}
 
 	saved, err := base.CreateIDCard(config.IDCard{
+		DashboardID: "default",
 		Name:        "Mutation Card",
 		Driver:      "echo",
 		WorkspaceID: workspaces[0].ID,
@@ -146,7 +155,7 @@ func TestMutationRefreshDoesNotWaitForTick(t *testing.T) {
 		t.Fatalf("create card: %v", err)
 	}
 
-	_, cmd := c.Update(messages.CardSavedMsg{Card: saved})
+	_, cmd := c.Update(messages.CardSavedMsg{Card: saved, DashboardID: "default", Generation: c.viewGeneration})
 	if cmd == nil {
 		t.Fatal("expected CardSavedMsg to produce a follow-up cmd")
 	}
@@ -251,12 +260,17 @@ func TestUnchangedTickResultDoesNotClobberNewerBaseline(t *testing.T) {
 // registry must abort launchCard (no session created, an error surfaced via
 // SessionLaunchCompletedMsg) rather than launching capability-less.
 func TestLaunchCardAbortsOnRegistryReadError(t *testing.T) {
-	base, err := config.NewFileRepository(t.TempDir())
+	root := t.TempDir()
+	if err := layout.PrepareStartup(root); err != nil {
+		t.Fatal(err)
+	}
+	base, err := config.NewFileRepository(root)
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 	sm := newTestManager(t, base.Dir(), base)
-	c := NewCoordinator(base, sm)
+	c := NewCoordinator(base, sm, api.New(base, sm))
+	c.Update(messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}})
 
 	wd := t.TempDir()
 	if saveErr := base.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd}}); saveErr != nil {
@@ -273,6 +287,7 @@ func TestLaunchCardAbortsOnRegistryReadError(t *testing.T) {
 	}
 
 	card, err := base.CreateIDCard(config.IDCard{
+		DashboardID: "default",
 		Name:        "Launch Card",
 		Driver:      "echo",
 		WorkspaceID: workspaces[0].ID,

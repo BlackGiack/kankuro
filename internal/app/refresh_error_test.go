@@ -7,8 +7,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/layout"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
@@ -23,7 +25,20 @@ import (
 // Dashboard.SetData's `if msg.Cards != nil` guard means the previous cards
 // stay in place.
 func TestRefreshDataSurfacesErrorAndKeepsPreviousCards(t *testing.T) {
-	repo, errRepo := config.NewFileRepository(t.TempDir())
+	root := t.TempDir()
+	lock, errLock := layout.AcquireLock(root)
+	if errLock != nil {
+		t.Fatal(errLock)
+	}
+	t.Cleanup(func() {
+		if err := lock.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	if err := layout.PrepareStartup(root); err != nil {
+		t.Fatal(err)
+	}
+	repo, errRepo := config.NewFileRepository(root)
 	if errRepo != nil {
 		t.Fatalf("new repo: %v", errRepo)
 	}
@@ -37,14 +52,18 @@ func TestRefreshDataSurfacesErrorAndKeepsPreviousCards(t *testing.T) {
 		Name:        "Good Card",
 		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
+		DashboardID: "default",
 	})
 	if errCreate != nil {
 		t.Fatalf("create card: %v", errCreate)
 	}
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm, api.New(repo, sm))
 	coord.Init()
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	coord.Update(
+		messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}},
+	)
 
 	// First refresh: the card is loaded cleanly.
 	coord.Update(coord.RefreshData()())

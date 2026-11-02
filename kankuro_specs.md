@@ -114,6 +114,12 @@ type AgentDriver interface {
 
 ## 4. UI/UX Design
 
+* **Dashboard list:** `Enter` opens a dashboard; `n` creates one, `e` edits it,
+  `Delete` starts deletion confirmation, and `r` retries an incomplete deletion.
+  `Esc` in an open dashboard returns to this list. Cards have an owning dashboard
+  and can be shared; only their owner may edit or delete them. Deleting a dashboard
+  also deletes its owned shared cards globally after foreign-reference confirmation.
+
 * **Main Screen (Dashboard):** 
     * **Left:** A collection of "Agent Identity Cards" with assigned ASCII puppets.
     * **Center:** A a preview of the selected session.
@@ -151,10 +157,11 @@ type AgentDriver interface {
     * `Esc`: Return to the previous view.
 
 * **Agent Card Editor Interactions:**
-    * `Tab`: Cycle focus between fields (Name, Driver, Model, Workspace, Sub Workspaces, Face, Tmp, Dashboard Control, AgentsMD, Skills, Personas, MCPs).
+    * `Tab`: Cycle focus between fields (Name, Driver, Model, Workspace, Sub Workspaces, Face, Tmp, Shared, Dashboard Control, AgentsMD, Skills, Personas, MCPs).
       Persona and MCP sections are optional and disappear from focus order when disabled in Settings.
     * `Space` (on Workspace): Open the searchable workspace picker.
     * `Space` (on Dashboard Control): Toggle permission for this activation to discover and control other sessions in the linked dashboard. Kankuro MCP must also be selected on the card.
+    * `Space` (on Shared): Toggle availability to other dashboards, subject to existing references.
     * `Ctrl+X` (on Sub Workspaces): Clear all sub workspace selections in the form; Enter saves the change.
     * `Space` (on Lists): Toggle selection of the highlighted Skill, Persona, or MCP.
     * `ctrl+e` (on Lists): Open the specialized form to add a new Skill Source, Persona Source, or MCP Server.

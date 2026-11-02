@@ -22,13 +22,13 @@ func TestSessionAttachReplay(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
 	defer sm.Kill(sid)
 
-	handle1, errAttach1 := sm.Attach(sid)
+	handle1, errAttach1 := testAttach(sm, sid)
 	if errAttach1 != nil {
 		t.Fatalf("attach 1: %v", errAttach1)
 	}
@@ -38,7 +38,7 @@ func TestSessionAttachReplay(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	handle1.Close()
 
-	handle2, errAttach2 := sm.Attach(sid)
+	handle2, errAttach2 := testAttach(sm, sid)
 	if errAttach2 != nil {
 		t.Fatalf("attach 2: %v", errAttach2)
 	}
@@ -70,12 +70,12 @@ func TestAttachInputSurvivesConcurrentKill(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
 
-	handle, errAttach := sm.Attach(sid)
+	handle, errAttach := testAttach(sm, sid)
 	if errAttach != nil {
 		t.Fatalf("attach: %v", errAttach)
 	}
@@ -116,13 +116,13 @@ func TestSessionOutputBroadcasting(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
 	defer sm.Kill(sid)
 
-	handle, errAttach := sm.Attach(sid)
+	handle, errAttach := testAttach(sm, sid)
 	if errAttach != nil {
 		t.Fatalf("attach: %v", errAttach)
 	}

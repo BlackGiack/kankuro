@@ -13,6 +13,7 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/layout"
 	"github.com/BlackGiack/kankuro/internal/mcp"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/google/uuid"
@@ -328,10 +329,17 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	config.SetBuiltinKankuroPuppetSkillContent(puppetContent)
 	t.Cleanup(func() { config.SetBuiltinMCPCLISkillContent(nil); config.SetBuiltinKankuroPuppetSkillContent(nil) })
 	configDir := t.TempDir()
+	if setupErr := layout.PrepareStartup(configDir); setupErr != nil {
+		t.Fatal(setupErr)
+	}
 	t.Setenv("KANKURO_TMP_DIR", filepath.Join(configDir, "tmp"))
 	repository, setupErr := config.NewFileRepository(configDir)
 	if setupErr != nil {
 		t.Fatal(setupErr)
+	}
+	agentPath := filepath.Join(t.TempDir(), "test-agent")
+	if err := os.WriteFile(agentPath, []byte("#!/bin/sh\nexec cat\n"), 0o700); err != nil {
+		t.Fatal(err)
 	}
 	callerWorkspace, projectWorkspace, subWorkspace := t.TempDir(), t.TempDir(), t.TempDir()
 	if writeErr := os.WriteFile(filepath.Join(projectWorkspace, "project.txt"), []byte("project source"), 0o600); writeErr != nil {
@@ -377,14 +385,14 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	})
 	manager.SetMCPEndpoint(runtime.Endpoint())
 	callerCard, createCallerCardErr := repository.CreateIDCard(config.IDCard{
-		ID: "controller", Name: "controller", Driver: "cat", WorkspaceID: workspaceID(callerWorkspace),
+		ID: "controller", Name: "controller", Driver: "cat", WorkspaceID: workspaceID(callerWorkspace), DashboardID: "default",
 		DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro},
 	})
 	if createCallerCardErr != nil {
 		t.Fatal(createCallerCardErr)
 	}
 	firstCard, createFirstCardErr := repository.CreateIDCard(config.IDCard{
-		ID: "worker", Name: "worker", Driver: "cat", WorkspaceID: workspaceID(projectWorkspace),
+		ID: "worker", Name: "worker", Driver: agentPath, WorkspaceID: workspaceID(projectWorkspace), DashboardID: "default",
 		UseTmpWorkspace: true, SubWorkspaceIDs: []string{workspaceID(subWorkspace)},
 		MCPIDs: []string{config.BuiltinMCPKankuro},
 	})
@@ -392,13 +400,13 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 		t.Fatal(createFirstCardErr)
 	}
 	secondCard, createSecondCardErr := repository.CreateIDCard(config.IDCard{
-		ID: "reviewer", Name: "reviewer", Driver: "cat", WorkspaceID: workspaceID(projectWorkspace),
+		ID: "reviewer", Name: "reviewer", Driver: agentPath, WorkspaceID: workspaceID(projectWorkspace), DashboardID: "default",
 		MCPIDs: []string{config.BuiltinMCPKankuro},
 	})
 	if createSecondCardErr != nil {
 		t.Fatal(createSecondCardErr)
 	}
-	if _, launchErr := service.Launch(callerCard); launchErr != nil {
+	if _, launchErr := service.LaunchInDashboard(context.Background(), "default", callerCard.ID); launchErr != nil {
 		t.Fatalf("launch controller: %v", launchErr)
 	}
 	mcpConfig, readMCPConfigErr := os.ReadFile(filepath.Join(callerWorkspace, ".kankuro", "mcp-servers.json"))
@@ -659,7 +667,7 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	if selectedA.Operation.Result.Inspection.ActiveConversationID != "native-A" ||
 		len(selectedA.Operation.Result.Inspection.Conversations[firstCard.ID]) != 1 ||
 		len(selectedA.Operation.Result.Inspection.Conversations[secondCard.ID]) != 1 {
-		t.Fatalf("A/B/A binding selection result = %#v", selectedA.Operation.Result.Inspection)
+		t.Fatalf("A/B/A binding selection operation = %#v", selectedA.Operation)
 	}
 	if contents, readErr := os.ReadFile(handoffFile); readErr != nil || string(contents) != "caller-created handoff" {
 		t.Fatalf("workspace handoff after A/B/A = %q, %v", contents, readErr)

@@ -159,7 +159,7 @@ func TestConversationChoiceCancelDoesNotActivate(t *testing.T) {
 		OnSelect: func(_, _ string, _ session.ConversationChoice) tea.Cmd { selected++; return nil },
 		OnCancel: func(returnView messages.ViewType) tea.Cmd {
 			cancelled++
-			return func() tea.Msg { return messages.NavigateMsg{View: returnView} }
+			return func() tea.Msg { return messages.ScopedNavigateMsg{View: returnView} }
 		},
 	})
 	v.SetSize(80, 20)
@@ -170,7 +170,7 @@ func TestConversationChoiceCancelDoesNotActivate(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("cancel should return a navigation command")
 	}
-	if _, ok := cmd().(messages.NavigateMsg); !ok {
+	if _, ok := cmd().(messages.ScopedNavigateMsg); !ok {
 		t.Fatal("cancel command did not return a navigation message")
 	}
 	if selected != 0 || cancelled != 1 {

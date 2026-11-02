@@ -98,7 +98,7 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 		_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 		workspaces, _ := repo.ListWorkspaces()
 
-		card, errCreate := repo.CreateIDCard(config.IDCard{
+		card, errCreate := createCurrentCard(repo, config.IDCard{
 			Name:        "relaunch-warning",
 			Driver:      "cat",
 			WorkspaceID: workspaces[0].ID,
@@ -107,7 +107,7 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 			t.Fatalf("create card: %v", errCreate)
 		}
 
-		sessionID, errLaunch := sm.Launch(card, nil, nil, nil)
+		sessionID, errLaunch := launchCurrentSession(repo, sm, card)
 		if errLaunch != nil {
 			t.Fatalf("launch: %v", errLaunch)
 		}
@@ -119,7 +119,7 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 		restore := makeSessionsDirReadOnly(t, sessionsDir)
 		defer restore()
 
-		coord := app.NewCoordinator(repo, sm)
+		coord := newOpenedCoordinator(repo, sm)
 		coord.Init()
 
 		cmd := coord.DashboardCallbacks().OnRelaunch(sessionID)
@@ -138,7 +138,7 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 		_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 		workspaces, _ := repo.ListWorkspaces()
 
-		card, errCreate := repo.CreateIDCard(config.IDCard{
+		card, errCreate := createCurrentCard(repo, config.IDCard{
 			Name:        "switch-warning-a",
 			Driver:      "cat",
 			WorkspaceID: workspaces[0].ID,
@@ -146,7 +146,7 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 		if errCreate != nil {
 			t.Fatalf("create card: %v", errCreate)
 		}
-		card2, errCreate2 := repo.CreateIDCard(config.IDCard{
+		card2, errCreate2 := createCurrentCard(repo, config.IDCard{
 			Name:        "switch-warning-b",
 			Driver:      "cat",
 			WorkspaceID: workspaces[0].ID,
@@ -155,7 +155,7 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 			t.Fatalf("create card2: %v", errCreate2)
 		}
 
-		sessionID, errLaunch := sm.Launch(card, nil, nil, nil)
+		sessionID, errLaunch := launchCurrentSession(repo, sm, card)
 		if errLaunch != nil {
 			t.Fatalf("launch: %v", errLaunch)
 		}
@@ -167,7 +167,7 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 		restore := makeSessionsDirReadOnly(t, sessionsDir)
 		defer restore()
 
-		coord := app.NewCoordinator(repo, sm)
+		coord := newOpenedCoordinator(repo, sm)
 		coord.Init()
 
 		cmd := coord.AgentSwitchCallbacks().OnSwitch(sessionID, card2.ID, card2.Driver)
@@ -197,7 +197,7 @@ func TestAgentSwitchDoesNotClobberDashboardView(t *testing.T) {
 	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, errCreate := repo.CreateIDCard(config.IDCard{
+	card, errCreate := createCurrentCard(repo, config.IDCard{
 		Name:        "clobber-a",
 		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
@@ -205,7 +205,7 @@ func TestAgentSwitchDoesNotClobberDashboardView(t *testing.T) {
 	if errCreate != nil {
 		t.Fatalf("create card: %v", errCreate)
 	}
-	card2, errCreate2 := repo.CreateIDCard(config.IDCard{
+	card2, errCreate2 := createCurrentCard(repo, config.IDCard{
 		Name:        "clobber-b",
 		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
@@ -214,7 +214,7 @@ func TestAgentSwitchDoesNotClobberDashboardView(t *testing.T) {
 		t.Fatalf("create card2: %v", errCreate2)
 	}
 
-	sessionID, errLaunch := sm.Launch(card, nil, nil, nil)
+	sessionID, errLaunch := launchCurrentSession(repo, sm, card)
 	if errLaunch != nil {
 		t.Fatalf("launch: %v", errLaunch)
 	}
@@ -224,7 +224,7 @@ func TestAgentSwitchDoesNotClobberDashboardView(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	defer func() { _ = sm.Kill(sessionID) }()
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Init()
 
 	// Give every view a real size: AgentSwitchView's list needs a non-zero
@@ -235,7 +235,7 @@ func TestAgentSwitchDoesNotClobberDashboardView(t *testing.T) {
 	// navigating (or not at all) leaves AgentSwitchView's card list empty,
 	// SelectedItem() returns nil, OnSwitch never runs, and the test would
 	// pass for the wrong reason.
-	coord.Update(messages.AgentSwitchRequestedMsg{SessionID: sessionID, SessionName: card.Name})
+	coord.Update(messages.AgentSwitchRequestedMsg{SessionID: sessionID, SessionName: card.Name, DashboardID: "default", Generation: 1})
 	if coord.CurrentView() != app.ViewAgentSwitch {
 		t.Fatalf("expected to be on ViewAgentSwitch, got %v", coord.CurrentView())
 	}
@@ -279,7 +279,7 @@ func TestAgentSwitchDoesNotClobberDashboardView(t *testing.T) {
 		t.Fatalf("expected the switched session to be running, got status=%s", sess.Status)
 	}
 
-	coord.Update(messages.NavigateMsg{View: messages.ViewDashboard})
+	coord.Update(messages.ScopedNavigateMsg{View: messages.ViewDashboard, DashboardID: "default", Generation: 1})
 	if coord.CurrentView() != app.ViewDashboard {
 		t.Fatalf("expected to be back on ViewDashboard, got %v", coord.CurrentView())
 	}
@@ -293,7 +293,7 @@ func TestAgentSwitchDoesNotClobberDashboardView(t *testing.T) {
 
 func newPersistFailureFixture(t *testing.T) (config.Repository, *session.Manager, string) {
 	t.Helper()
-	repo, errRepo := config.NewFileRepository(t.TempDir())
+	repo, errRepo := newCurrentRepository(t.TempDir())
 	if errRepo != nil {
 		t.Fatalf("new repo: %v", errRepo)
 	}
@@ -335,7 +335,7 @@ func assertWarningSurvivesEveryOrder(t *testing.T, repo config.Repository, sm *s
 	tested := 0
 	permute(msgs, func(order []tea.Msg) {
 		tested++
-		coord := app.NewCoordinator(repo, sm)
+		coord := newOpenedCoordinator(repo, sm)
 		coord.Init()
 		for _, m := range order {
 			coord.Update(m)

@@ -47,12 +47,12 @@ func newMessagingHarness(t *testing.T) messagingHarness {
 		WorkspaceID: workspaceID, DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro}})
 	recipientCard := saveCard(t, repo.FileRepository, config.IDCard{ID: "review-recipient", Name: "review recipient", Driver: "cat",
 		WorkspaceID: workspaceID, MCPIDs: []string{config.BuiltinMCPKankuro}})
-	callerID, err := service.Launch(callerCard)
+	callerID, err := launchCardTest(service, callerCard)
 	if err != nil {
 		t.Fatal(err)
 	}
 	callerToken := readActivationToken(t, workspace)
-	recipientID, err := service.Launch(recipientCard)
+	recipientID, err := launchCardTest(service, recipientCard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,13 +114,13 @@ func TestSendMessageCannotRecreateHistoryAfterRecipientDeletion(t *testing.T) {
 	if err := h.manager.Kill(h.recipientID); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.service.RemoveSession(h.recipientID); err != nil {
+	if err := removeSessionTest(h.service, h.recipientID); err != nil {
 		t.Fatal(err)
 	}
 	requestID := uuid.NewString()
 	_, err := h.service.SendMessage(context.Background(), h.callerToken, requestID,
 		h.recipientID, h.inspection.ActivationID, "private instruction")
-	requireRejectedCode(t, err, "lifecycle_conflict")
+	requireRejectedCode(t, err, "not_found")
 	caller, err := h.service.ResolveCaller(h.callerToken)
 	if err != nil {
 		t.Fatal(err)
@@ -144,7 +144,7 @@ func TestReservedSendCannotPublishAfterRecipientDeletion(t *testing.T) {
 	if err = h.manager.Kill(h.recipientID); err != nil {
 		t.Fatal(err)
 	}
-	if err = h.service.RemoveSession(h.recipientID); err != nil {
+	if err = removeSessionTest(h.service, h.recipientID); err != nil {
 		t.Fatal(err)
 	}
 	caller, err := h.service.ResolveCaller(h.callerToken)
@@ -184,7 +184,7 @@ func TestQueuedMessageReservationsCannotDeadlockStopWorkersOrShutdown(t *testing
 	}
 	targets := []string{h.recipientID}
 	for len(targets) < operationWorkers {
-		id, launchErr := h.service.Launch(card)
+		id, launchErr := launchCardTest(h.service, card)
 		if launchErr != nil {
 			t.Fatal(launchErr)
 		}
@@ -386,7 +386,7 @@ func TestReplyWaitReturnsWhenRecipientHistoryWasDeleted(t *testing.T) {
 	if err := h.manager.Kill(h.recipientID); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.service.RemoveSession(h.recipientID); err != nil {
+	if err := removeSessionTest(h.service, h.recipientID); err != nil {
 		t.Fatal(err)
 	}
 	start := time.Now()
@@ -445,7 +445,7 @@ func TestDeleteSessionReportsTrustCleanupWarningAndAllowsRetry(t *testing.T) {
 			UseTmpWorkspace: true,
 		},
 	)
-	id, err := h.service.Launch(card)
+	id, err := launchCardTest(h.service, card)
 	if err != nil {
 		t.Fatal(err)
 	}

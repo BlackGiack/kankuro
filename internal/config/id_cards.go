@@ -4,12 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+// CardSchemaVersion is the membership-bearing ID-card format version.
+const CardSchemaVersion = 2
 
 // ListIDCards returns all ID cards sorted by name.
 func (r *FileRepository) ListIDCards() ([]IDCard, error) {
@@ -36,6 +39,9 @@ func (r *FileRepository) CreateIDCard(card IDCard) (IDCard, error) {
 
 	if card.ID == "" {
 		card.ID = uuid.NewString()
+	}
+	if err := r.checkCardNotTombstonedLocked(card.ID); err != nil {
+		return IDCard{}, err
 	}
 	now := time.Now().UTC()
 	card.CreatedAt = now
@@ -68,6 +74,9 @@ func (r *FileRepository) UpdateIDCard(card IDCard) (IDCard, error) {
 	if card.ID == "" {
 		return IDCard{}, errors.New("id is required")
 	}
+	if err := r.checkCardNotTombstonedLocked(card.ID); err != nil {
+		return IDCard{}, err
+	}
 	f, err := r.LoadIDCardsFile()
 	if err != nil {
 		return IDCard{}, err
@@ -78,6 +87,9 @@ func (r *FileRepository) UpdateIDCard(card IDCard) (IDCard, error) {
 	found := false
 	for _, existing := range f.IDCards {
 		if existing.ID == card.ID {
+			if existing.DashboardID != card.DashboardID {
+				return IDCard{}, errors.New("card dashboard ownership cannot be changed")
+			}
 			card.CreatedAt = existing.CreatedAt
 			found = true
 			break
@@ -101,29 +113,7 @@ func (r *FileRepository) UpdateIDCard(card IDCard) (IDCard, error) {
 	return card, nil
 }
 
-// DeleteIDCard removes one ID card by identifier.
-//
-// It does not check whether the card is referenced by a live session:
-// internal/config cannot see internal/session (that package imports this one,
-// so the reverse would be an import cycle). Callers that can see sessions
-// (internal/app's OnDeleteCard) must apply that guard before calling this.
-func (r *FileRepository) DeleteIDCard(id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	f, err := r.LoadIDCardsFile()
-	if err != nil {
-		return err
-	}
-	orig := len(f.IDCards)
-	f.IDCards = slices.DeleteFunc(f.IDCards, func(c IDCard) bool { return c.ID == id })
-	if len(f.IDCards) == orig {
-		return fmt.Errorf("id card not found: %s", id)
-	}
-	return r.WriteIDCardsFile(f)
-}
-
-// LoadIDCardsFile reads and normalizes the ID-card YAML payload.
+// LoadIDCardsFile reads and validates the current ID-card YAML payload.
 func (r *FileRepository) LoadIDCardsFile() (IDCardsFile, error) {
 	path := filepath.Join(r.dir, IDCardsFilename)
 	f := IDCardsFile{}
@@ -131,17 +121,36 @@ func (r *FileRepository) LoadIDCardsFile() (IDCardsFile, error) {
 		return IDCardsFile{}, err
 	}
 
-	if f.SchemaVersion == 0 {
-		f.SchemaVersion = SchemaVersion
+	if f.SchemaVersion != CardSchemaVersion {
+		return IDCardsFile{}, fmt.Errorf("unsupported card schema version: %d", f.SchemaVersion)
 	}
 	if f.IDCards == nil {
 		f.IDCards = []IDCard{}
 	}
+	if err := validateCardMembershipFormat(f); err != nil {
+		return IDCardsFile{}, err
+	}
 	return f, nil
 }
 
-// WriteIDCardsFile writes ID-card data using the current schema version.
+// WriteIDCardsFile validates and writes the current card schema.
 func (r *FileRepository) WriteIDCardsFile(f IDCardsFile) error {
-	f.SchemaVersion = SchemaVersion
+	if f.SchemaVersion != CardSchemaVersion {
+		return fmt.Errorf("unsupported card schema version: %d", f.SchemaVersion)
+	}
+	if err := validateCardMembershipFormat(f); err != nil {
+		return err
+	}
 	return r.WriteAtomic(filepath.Join(r.dir, IDCardsFilename), f)
+}
+
+func validateCardMembershipFormat(f IDCardsFile) error {
+	seen := make(map[string]bool, len(f.IDCards))
+	for _, card := range f.IDCards {
+		if card.ID == "" || strings.TrimSpace(card.DashboardID) == "" || seen[card.ID] {
+			return errors.New("card inventory has missing or duplicate identity or membership")
+		}
+		seen[card.ID] = true
+	}
+	return nil
 }

@@ -10,37 +10,39 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/app"
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
 func TestCoordinator_New(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newScopedCoordinator(repo, sm)
 
 	if coord == nil {
 		t.Fatal("NewCoordinator returned nil")
 	}
 
-	if coord.CurrentView() != app.ViewDashboard {
-		t.Errorf("Expected initial view ViewDashboard, got %v", coord.CurrentView())
+	if coord.CurrentView() != app.ViewDashboardList {
+		t.Errorf("Expected initial dashboard list, got %v", coord.CurrentView())
 	}
 
-	if len(coord.Views()) != 11 {
-		t.Errorf("Expected 11 views, got %d", len(coord.Views()))
+	if len(coord.Views()) != 12 {
+		t.Errorf("Expected 12 views, got %d", len(coord.Views()))
 	}
 }
 
 func TestCoordinator_Navigate(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newScopedCoordinator(repo, sm)
 	coord.Init()
 
-	coord.NavigateTo(app.ViewCardEditor)
+	openDefaultDashboard(coord)
+	coord.Update(messages.ScopedNavigateMsg{View: messages.ViewCardEditor, DashboardID: "default", Generation: 1})
 
 	if coord.CurrentView() != app.ViewCardEditor {
 		t.Errorf("Expected ViewCardEditor, got %v", coord.CurrentView())
@@ -51,10 +53,10 @@ func TestCoordinator_Navigate(t *testing.T) {
 }
 
 func TestCoordinator_ResizeAll(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newScopedCoordinator(repo, sm)
 	coord.Init()
 
 	// Since we can't directly set private width/height, we use Update with WindowSizeMsg
@@ -70,11 +72,11 @@ func TestCoordinator_ResizeAll(t *testing.T) {
 	}
 }
 
-func TestApp_BackwardsCompatibility(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+func TestApp_CurrentConstructor(t *testing.T) {
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
-	app, err := app.New(repo, sm)
+	app, err := app.New(repo, sm, api.New(repo, sm))
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
@@ -108,10 +110,10 @@ func TestApp_BackwardsCompatibility(t *testing.T) {
 // get cleaned up by the very first frame; this pins that Coordinator.Init()
 // alone (before any Update) emits the disable sequence.
 func TestInitDisablesKittyProtocolAtStartup(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newScopedCoordinator(repo, sm)
 	cmd := coord.Init()
 	if cmd == nil {
 		t.Fatal("expected Coordinator.Init to return a command")

@@ -30,12 +30,12 @@ func TestDataRoundTripCopiesEveryField(t *testing.T) {
 		// Status is deliberately excluded: restore() forces Terminated
 		// because a process cannot survive a restart, so it never round-trips.
 		assertFieldsMatch(t, dataType, reflect.ValueOf(src).Elem(), reflect.ValueOf(got).Elem(),
-			map[string]bool{"Status": true})
+			map[string]bool{"Status": true, "SchemaVersion": true})
 	})
 
 	t.Run("snapshot", func(t *testing.T) {
 		got := src.snapshot()
-		assertFieldsMatch(t, dataType, reflect.ValueOf(src).Elem(), reflect.ValueOf(&got).Elem(), nil)
+		assertFieldsMatch(t, dataType, reflect.ValueOf(src).Elem(), reflect.ValueOf(&got).Elem(), map[string]bool{"SchemaVersion": true})
 	})
 }
 
@@ -47,6 +47,9 @@ func fillNonZero(t *testing.T, dst reflect.Value, fieldsFrom reflect.Type) {
 	t.Helper()
 	i := 0
 	for field := range fieldsFrom.Fields() {
+		if field.Name == "SchemaVersion" { // Disk format metadata, not session state.
+			continue
+		}
 		i++
 		target := dst.FieldByName(field.Name)
 		if !target.IsValid() || !target.CanSet() {

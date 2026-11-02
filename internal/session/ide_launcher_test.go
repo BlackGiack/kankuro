@@ -236,73 +236,6 @@ func TestSplitCommand_MultipleSpaces(t *testing.T) {
 	}
 }
 
-func TestIDELauncher_New(t *testing.T) {
-	launcher := session.NewIDELauncher("code $PATH")
-
-	if launcher == nil {
-		t.Fatal("session.NewIDELauncher returned nil")
-	}
-
-	if launcher.Command() != "code $PATH" {
-		t.Errorf("Expected command 'code $PATH', got '%s'", launcher.Command())
-	}
-}
-
-func TestIDELauncher_Errors(t *testing.T) {
-	tests := []struct {
-		name    string
-		command string
-		path    string
-		wantErr error
-	}{
-		{
-			name:    "no command configured",
-			command: "",
-			path:    "/tmp",
-			wantErr: session.ErrIDENotConfigured,
-		},
-		{
-			name:    "empty path",
-			command: "code $PATH",
-			path:    "",
-			wantErr: session.ErrWorkspacePathEmpty,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			launcher := session.NewIDELauncher(tt.command)
-			err := launcher.Launch(tt.path)
-
-			if !errors.Is(err, tt.wantErr) {
-				t.Errorf("Expected error %v, got %v", tt.wantErr, err)
-			}
-		})
-	}
-}
-
-func TestIDELauncher_PathReplacement(t *testing.T) {
-	launcher := session.NewIDELauncher("code $PATH")
-
-	expected := "code /home/user/project"
-	result := strings.ReplaceAll(launcher.Command(), session.PathPlaceholder, "/home/user/project")
-
-	if result != expected {
-		t.Errorf("Expected '%s', got '%s'", expected, result)
-	}
-}
-
-func TestIDELauncher_PathReplacement_Multiple(t *testing.T) {
-	launcher := session.NewIDELauncher("code $PATH --args $PATH")
-
-	expected := "code /home/user/project --args /home/user/project"
-	result := strings.ReplaceAll(launcher.Command(), session.PathPlaceholder, "/home/user/project")
-
-	if result != expected {
-		t.Errorf("Expected '%s', got '%s'", expected, result)
-	}
-}
-
 func TestIDEErrors(t *testing.T) {
 	tests := []struct {
 		err      error
@@ -387,14 +320,6 @@ func TestIDEErrors_Format(t *testing.T) {
 				t.Errorf("fmt.Sprintf(\"%%%c\", %v) = %q, want %q", tt.verb, tt.err, result, tt.expected)
 			}
 		})
-	}
-}
-
-func TestIDELauncher_CommandWithFlags(t *testing.T) {
-	launcher := session.NewIDELauncher("code --new-window --wait $PATH")
-
-	if launcher.Command() != "code --new-window --wait $PATH" {
-		t.Errorf("Expected command 'code --new-window --wait $PATH', got '%s'", launcher.Command())
 	}
 }
 

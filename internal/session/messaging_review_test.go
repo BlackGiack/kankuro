@@ -244,22 +244,26 @@ func newReviewMessagingManager(t *testing.T) (*Manager, string, string, string, 
 	manager := NewManager(repository.Dir(), repository, WithStartupDelay(0))
 	manager.SetMCPEndpoint("http://127.0.0.1:12345/mcp")
 	t.Cleanup(func() { manager.Shutdown() })
-	callerCard, err := repository.CreateIDCard(config.IDCard{ID: "review-controller", Name: "controller", Driver: "cat",
-		WorkspaceID: workspaces[0].ID, DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro}})
+	callerCard, err := repository.CreateIDCard(
+		config.IDCard{DashboardID: "default", ID: "review-controller", Name: "controller", Driver: "cat",
+			WorkspaceID: workspaces[0].ID, DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro}},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	recipientCard, err := repository.CreateIDCard(config.IDCard{ID: "review-message-target", Name: "recipient", Driver: "cat",
-		WorkspaceID: workspaces[0].ID, MCPIDs: []string{config.BuiltinMCPKankuro}})
+	recipientCard, err := repository.CreateIDCard(
+		config.IDCard{DashboardID: "default", ID: "review-message-target", Name: "recipient", Driver: "cat",
+			WorkspaceID: workspaces[0].ID, MCPIDs: []string{config.BuiltinMCPKankuro}},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	callerID, err := manager.Launch(callerCard, nil, nil, config.BuiltinMCPs())
+	callerID, err := testLaunch(manager, callerCard, nil, nil, config.BuiltinMCPs())
 	if err != nil {
 		t.Fatal(err)
 	}
 	callerToken := readReviewActivationToken(t, filepath.Join(workspace, ".kankuro", "mcp-servers.json"))
-	recipientID, err := manager.Launch(recipientCard, nil, nil, config.BuiltinMCPs())
+	recipientID, err := testLaunch(manager, recipientCard, nil, nil, config.BuiltinMCPs())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -686,6 +686,39 @@ func (s *MessageStore) DeleteRecipient(sessionID string) error {
 	return nil
 }
 
+// DeleteDashboard removes retained messages in one scope while preserving send
+// receipts, so an evicted request can never be submitted again.
+func (s *MessageStore) DeleteDashboard(dashboardID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	old, err := cloneMessageData(s.data)
+	if err != nil {
+		return err
+	}
+	kept := s.data.Messages[:0]
+	removed := false
+	for _, message := range s.data.Messages {
+		if message.DashboardID == dashboardID {
+			removed = true
+			continue
+		}
+		kept = append(kept, message)
+	}
+	if !removed {
+		return nil
+	}
+	s.data.Messages = kept
+	s.data.DashboardGenerations[dashboardID]++
+	s.pruneReportsLocked()
+	if saveErr := s.saveLocked(); saveErr != nil {
+		s.data = old
+		return saveErr
+	}
+	s.pruneRuntimeDeliveryLocked()
+	s.signalLocked()
+	return nil
+}
+
 // Recover marks unfinished submissions uncertain and drops records for deleted recipients.
 func (s *MessageStore) Recover(sessions map[string]*Session) error {
 	s.mu.Lock()

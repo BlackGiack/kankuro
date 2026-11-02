@@ -8,19 +8,19 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/app"
-	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
 func newBannerCoordinator(t *testing.T) *app.Coordinator {
 	t.Helper()
-	repo, err := config.NewFileRepository(t.TempDir())
+	repo, err := newCurrentRepository(t.TempDir())
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 	sm := newTestManager(t, repo.Dir(), repo)
-	coord := app.NewCoordinator(repo, sm)
+	coord := newScopedCoordinator(repo, sm)
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	openDefaultDashboard(coord)
 	return coord
 }
 
@@ -43,7 +43,7 @@ func TestErrorSurvivesNavigationInEitherOrder(t *testing.T) {
 	t.Run("error then navigate", func(t *testing.T) {
 		coord := newBannerCoordinator(t)
 		coord.Update(messages.ErrorMsg{Err: bannerErr})
-		coord.Update(messages.NavigateMsg{View: messages.ViewSettings})
+		coord.Update(messages.ScopedNavigateMsg{View: messages.ViewSettings, DashboardID: "default", Generation: 1})
 		if coord.CurrentView() != app.ViewSettings {
 			t.Fatalf("expected navigation to have happened, got view %v", coord.CurrentView())
 		}
@@ -52,7 +52,7 @@ func TestErrorSurvivesNavigationInEitherOrder(t *testing.T) {
 
 	t.Run("navigate then error", func(t *testing.T) {
 		coord := newBannerCoordinator(t)
-		coord.Update(messages.NavigateMsg{View: messages.ViewSettings})
+		coord.Update(messages.ScopedNavigateMsg{View: messages.ViewSettings, DashboardID: "default", Generation: 1})
 		coord.Update(messages.ErrorMsg{Err: bannerErr})
 		if coord.CurrentView() != app.ViewSettings {
 			t.Fatalf("expected navigation to have happened, got view %v", coord.CurrentView())

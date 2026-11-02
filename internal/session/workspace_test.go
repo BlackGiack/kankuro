@@ -36,7 +36,7 @@ func TestSessionAgentsMD(t *testing.T) {
 		AgentsMD:        "# First Content",
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestSessionAgentsMD(t *testing.T) {
 
 	// Switch agent with different content -> should REPLACE
 	card.AgentsMD = "# Second Content"
-	if errSwitch := sm.SwitchAgent(sid, card, nil, nil, nil); errSwitch != nil {
+	if errSwitch := testSwitchAgent(sm, sid, card, nil, nil, nil); errSwitch != nil {
 		t.Fatalf("switch agent: %v", errSwitch)
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -98,7 +98,7 @@ func TestSessionAgentsMD(t *testing.T) {
 	})
 	ws2, _ := repo.GetWorkspaceByPath(wd2)
 	card.WorkspaceID = ws2.ID
-	sid2, errLaunch := sm.Launch(card, nil, nil, nil)
+	sid2, errLaunch := testLaunch(sm, card, nil, nil, nil)
 	if errLaunch != nil {
 		t.Fatalf("launch with path: %v", errLaunch)
 	}
@@ -143,7 +143,7 @@ func TestRelaunchPreservesAndEmptyCardSwitchReplacesPriorInstructions(t *testing
 		ID: "card-a", Name: "Card A", Driver: "cat", WorkspaceID: workspaces[0].ID,
 		AgentsMD: "ROLE_A_PRIVATE_INSTRUCTIONS",
 	}
-	sessionID, err := manager.Launch(cardA, nil, nil, config.BuiltinMCPs())
+	sessionID, err := testLaunch(manager, cardA, nil, nil, config.BuiltinMCPs())
 	if err != nil {
 		t.Fatalf("launch card A: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestRelaunchPreservesAndEmptyCardSwitchReplacesPriorInstructions(t *testing
 		t.Fatal(err)
 	}
 	cardA.AgentsMD = ""
-	if err := manager.Relaunch(sessionID, cardA); err != nil {
+	if err := testRelaunch(manager, sessionID, cardA); err != nil {
 		t.Fatalf("relaunch card A after clearing settings: %v", err)
 	}
 	assertFileContent(t, instructionPath, string(content))
@@ -165,14 +165,14 @@ func TestRelaunchPreservesAndEmptyCardSwitchReplacesPriorInstructions(t *testing
 		t.Fatal(err)
 	}
 	cardB := config.IDCard{ID: "card-b", Name: "Card B", Driver: "cat", WorkspaceID: workspaces[0].ID}
-	if err := manager.SwitchAgent(sessionID, cardB, nil, nil, nil); err != nil {
+	if err := testSwitchAgent(manager, sessionID, cardB, nil, nil, nil); err != nil {
 		t.Fatalf("switch to empty card B: %v", err)
 	}
 	assertEmptyInstructionFile(t, instructionPath, "empty card B switch")
 	if err := manager.Kill(sessionID); err != nil {
 		t.Fatal(err)
 	}
-	if err := manager.Relaunch(sessionID, cardB); err != nil {
+	if err := testRelaunch(manager, sessionID, cardB); err != nil {
 		t.Fatalf("relaunch cleared card B: %v", err)
 	}
 	assertEmptyInstructionFile(t, instructionPath, "relaunch after clearing card settings")
@@ -210,7 +210,7 @@ func TestEmptyCardRelaunchPreservesProjectInstructionsAcrossLoad(t *testing.T) {
 				ID: "empty-card", Name: "empty-card", Driver: "cat",
 				WorkspaceID: workspaces[0].ID, UseTmpWorkspace: useTmp,
 			}
-			sessionID, err := manager.Launch(card, nil, nil, nil)
+			sessionID, err := testLaunch(manager, card, nil, nil, nil)
 			if err != nil {
 				t.Fatalf("launch empty card: %v", err)
 			}
@@ -233,7 +233,7 @@ func TestEmptyCardRelaunchPreservesProjectInstructionsAcrossLoad(t *testing.T) {
 			if !found || loaded.InstructionsManaged {
 				t.Fatalf("instruction ownership baseline did not survive load: %#v", loaded)
 			}
-			if err := restored.Relaunch(sessionID, card); err != nil {
+			if err := testRelaunch(restored, sessionID, card); err != nil {
 				t.Fatalf("relaunch unchanged empty card: %v", err)
 			}
 			content, err = os.ReadFile(instructionPath)
@@ -268,7 +268,7 @@ func TestEmptyCardSwitchPreservesUnmanagedProjectInstructions(t *testing.T) {
 	}
 	manager := newTestManager(t, repo.Dir(), repo)
 	cardA := config.IDCard{ID: "empty-a", Name: "Empty A", Driver: "cat", WorkspaceID: workspaces[0].ID}
-	sessionID, err := manager.Launch(cardA, nil, nil, nil)
+	sessionID, err := testLaunch(manager, cardA, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch empty card A: %v", err)
 	}
@@ -277,7 +277,7 @@ func TestEmptyCardSwitchPreservesUnmanagedProjectInstructions(t *testing.T) {
 		t.Fatal(err)
 	}
 	cardB := config.IDCard{ID: "empty-b", Name: "Empty B", Driver: "cat", WorkspaceID: workspaces[0].ID}
-	err = manager.SwitchAgent(sessionID, cardB, nil, nil, nil)
+	err = testSwitchAgent(manager, sessionID, cardB, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("switch between empty cards: %v", err)
 	}
@@ -310,7 +310,7 @@ func TestFailedSwitchRestoresInstructionFile(t *testing.T) {
 	}
 	manager := newTestManager(t, repo.Dir(), repo)
 	cardA := config.IDCard{ID: "empty-a", Name: "Empty A", Driver: "cat", WorkspaceID: workspaces[0].ID}
-	sessionID, err := manager.Launch(cardA, nil, nil, nil)
+	sessionID, err := testLaunch(manager, cardA, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch empty card: %v", err)
 	}
@@ -321,14 +321,14 @@ func TestFailedSwitchRestoresInstructionFile(t *testing.T) {
 		ID: "failed-b", Name: "Failed B", Driver: "missing-kankuro-test-executable",
 		WorkspaceID: workspaces[0].ID, AgentsMD: "FAILED_CARD_ROLE",
 	}
-	if switchErr := manager.SwitchAgent(sessionID, failedCard, nil, nil, nil); switchErr == nil {
+	if switchErr := testSwitchAgent(manager, sessionID, failedCard, nil, nil, nil); switchErr == nil {
 		t.Fatal("expected switch spawn to fail")
 	}
 	content, err := os.ReadFile(filepath.Join(workspace, "AGENTS.md"))
 	if err != nil || !bytes.Equal(content, projectRules) {
 		t.Fatalf("failed switch did not restore project instructions: %q, %v", content, err)
 	}
-	if relaunchErr := manager.Relaunch(sessionID, cardA); relaunchErr != nil {
+	if relaunchErr := testRelaunch(manager, sessionID, cardA); relaunchErr != nil {
 		t.Fatalf("relaunch original card: %v", relaunchErr)
 	}
 	content, err = os.ReadFile(filepath.Join(workspace, "AGENTS.md"))
@@ -367,7 +367,7 @@ func TestDriverSwitchTracksInstructionFilesIndependently(t *testing.T) {
 		ID: "generic-a", Name: "Generic A", Driver: "cat", WorkspaceID: workspaces[0].ID,
 		AgentsMD: "GENERIC_ROLE",
 	}
-	sessionID, err := manager.Launch(cardA, nil, nil, nil)
+	sessionID, err := testLaunch(manager, cardA, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch generic card: %v", err)
 	}
@@ -375,7 +375,7 @@ func TestDriverSwitchTracksInstructionFilesIndependently(t *testing.T) {
 		t.Fatal(killErr)
 	}
 	cardB := config.IDCard{ID: "claude-b", Name: "Claude B", Driver: "claude", WorkspaceID: workspaces[0].ID}
-	if switchErr := manager.SwitchAgent(sessionID, cardB, nil, nil, nil); switchErr != nil {
+	if switchErr := testSwitchAgent(manager, sessionID, cardB, nil, nil, nil); switchErr != nil {
 		t.Fatalf("switch to Claude: %v", switchErr)
 	}
 	content, err := os.ReadFile(filepath.Join(workspace, "CLAUDE.md"))
@@ -422,7 +422,7 @@ func TestLaunchCopiesSubWorkspaceAndRetainsManagedEdits(t *testing.T) {
 		}
 	}
 	sm := newTestManager(t, repo.Dir(), repo)
-	sid, launchErr := sm.Launch(config.IDCard{
+	sid, launchErr := testLaunch(sm, config.IDCard{
 		ID: "sub-card", Name: "sub", Driver: "cat", WorkspaceID: mainID,
 		SubWorkspaceIDs: []string{subID},
 	}, nil, nil, nil)
@@ -451,7 +451,7 @@ func TestLaunchCopiesSubWorkspaceAndRetainsManagedEdits(t *testing.T) {
 	if killErr := sm.Kill(sid); killErr != nil {
 		t.Fatal(killErr)
 	}
-	relaunchErr := sm.Relaunch(sid, config.IDCard{
+	relaunchErr := testRelaunch(sm, sid, config.IDCard{
 		ID: "sub-card", Name: "sub", Driver: "cat", WorkspaceID: mainID,
 		SubWorkspaceIDs: []string{subID},
 	})
@@ -495,7 +495,7 @@ func TestFailedTemporaryLaunchRemovesSessionRoot(t *testing.T) {
 		{ID: "missing-cli", Name: "missing", Driver: filepath.Join(tmpRoot, "no-such-cli"), WorkspaceID: mainID, UseTmpWorkspace: true, SubWorkspaceIDs: []string{subID}},
 		{ID: "missing-source", Name: "source", Driver: "cat", WorkspaceID: mainID, UseTmpWorkspace: true, SubWorkspaceIDs: []string{"missing-workspace"}},
 	} {
-		sid, launchErr := sm.Launch(card, nil, nil, nil)
+		sid, launchErr := testLaunch(sm, card, nil, nil, nil)
 		if launchErr == nil {
 			t.Fatalf("Launch(%s) unexpectedly succeeded", card.ID)
 		}
@@ -520,7 +520,7 @@ func TestTemporaryLaunchSyncFailureRemovesSessionRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	sm := newTestManager(t, repo.Dir(), repo)
-	sid, launchErr := sm.Launch(config.IDCard{
+	sid, launchErr := testLaunch(sm, config.IDCard{
 		ID: "sync-failure", Name: "sync", Driver: "generic", WorkspaceID: workspaces[0].ID,
 		UseTmpWorkspace: true, AgentsMD: "instruction",
 	}, nil, nil, nil)
@@ -559,7 +559,7 @@ func TestSymlinkedSubWorkspaceCopiesContentsWithoutLinkingSource(t *testing.T) {
 	}
 	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{ID: "symlink-sub", Name: "symlink", Driver: "cat", WorkspaceID: mainID, SubWorkspaceIDs: []string{subID}}
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -579,7 +579,7 @@ func TestSymlinkedSubWorkspaceCopiesContentsWithoutLinkingSource(t *testing.T) {
 	if killErr := sm.Kill(sid); killErr != nil {
 		t.Fatal(killErr)
 	}
-	if relaunchErr := sm.Relaunch(sid, card); relaunchErr != nil {
+	if relaunchErr := testRelaunch(sm, sid, card); relaunchErr != nil {
 		t.Fatalf("relaunch managed symlink source: %v", relaunchErr)
 	}
 	if killErr := sm.Kill(sid); killErr != nil {
@@ -619,7 +619,7 @@ func TestSubWorkspaceContainmentResolvesSymlinkedAncestor(t *testing.T) {
 		ID: "contained", Name: "contained", Driver: "cat", WorkspaceID: mainID,
 		SubWorkspaceIDs: []string{parentID},
 	}
-	if _, launchErr := sm.Launch(card, nil, nil, nil); launchErr == nil {
+	if _, launchErr := testLaunch(sm, card, nil, nil, nil); launchErr == nil {
 		t.Fatal("expected sub workspace containing the destination to be rejected")
 	}
 }
@@ -651,7 +651,7 @@ func TestSessionClaudeAgentsMD(t *testing.T) {
 		AgentsMD:        "# Claude Content",
 	}
 
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -703,7 +703,7 @@ func TestSessionMCPs(t *testing.T) {
 		UseTmpWorkspace: true,
 	}
 
-	sid, err := sm.Launch(card, nil, nil, mcps)
+	sid, err := testLaunch(sm, card, nil, nil, mcps)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -746,7 +746,7 @@ func assertRelaunchPreservesWorkspace(t *testing.T, sm *session.Manager, sid str
 	card.AgentsMD = "# Must not be deployed by relaunch"
 	card.UseTmpWorkspace = false
 	card.WorkspaceID = "changed-workspace-id"
-	if err := sm.Relaunch(sid, card); err != nil {
+	if err := testRelaunch(sm, sid, card); err != nil {
 		t.Fatalf("relaunch: %v", err)
 	}
 	content, contentErr := os.ReadFile(manual)
@@ -762,7 +762,7 @@ func assertRelaunchPreservesWorkspace(t *testing.T, sm *session.Manager, sid str
 		t.Fatalf("kill after relaunch: %v", killErr)
 	}
 	card.AgentsMD = "same-card switch refresh"
-	if switchErr := sm.SwitchAgent(sid, card, nil, nil, nil); switchErr != nil {
+	if switchErr := testSwitchAgent(sm, sid, card, nil, nil, nil); switchErr != nil {
 		t.Fatalf("same-card switch: %v", switchErr)
 	}
 	assertFileContent(t, manual, "same-card switch refresh")
@@ -814,7 +814,7 @@ func TestRelaunchPreservesDeployedConfigurationAcrossRestart(t *testing.T) {
 				MCPIDs: []string{mcp.ID}, AgentsMD: "original instruction", SubWorkspaceIDs: []string{subID},
 			}
 			sm := newTestManager(t, repo.Dir(), repo)
-			sid, launchErr := sm.Launch(card, []config.Skill{skill}, []config.Persona{persona}, []config.MCPServer{mcp})
+			sid, launchErr := testLaunch(sm, card, []config.Skill{skill}, []config.Persona{persona}, []config.MCPServer{mcp})
 			if launchErr != nil {
 				t.Fatalf("launch: %v", launchErr)
 			}
@@ -854,7 +854,7 @@ func TestRelaunchPreservesDeployedConfigurationAcrossRestart(t *testing.T) {
 			card.AgentsMD = "edited card instruction"
 			card.SubWorkspaceIDs = []string{newSubID}
 			card.UseTmpWorkspace = !useTmp // relaunch must not adopt the edited ownership mode
-			if err := sm.Relaunch(sid, card); err != nil {
+			if err := testRelaunch(sm, sid, card); err != nil {
 				t.Fatalf("relaunch after manager restart: %v", err)
 			}
 			assertFileContent(t, personaPath, "user-edited persona")
@@ -915,7 +915,7 @@ func TestDashboardControlDeploymentAcrossRelaunchReloadAndSwitch(t *testing.T) {
 	secondCard := card
 	secondCard.ID, secondCard.Name = "second-controller", "second controller"
 	secondCard.DashboardControl = true
-	sessionID, err := manager.Launch(card, nil, nil, config.BuiltinMCPs())
+	sessionID, err := testLaunch(manager, card, nil, nil, config.BuiltinMCPs())
 	if err != nil {
 		t.Fatalf("launch opted-in card: %v", err)
 	}
@@ -928,7 +928,7 @@ func TestDashboardControlDeploymentAcrossRelaunchReloadAndSwitch(t *testing.T) {
 	if err := manager.Kill(sessionID); err != nil {
 		t.Fatal(err)
 	}
-	if err := manager.Relaunch(sessionID, card); err != nil {
+	if err := testRelaunch(manager, sessionID, card); err != nil {
 		t.Fatalf("relaunch after card grant edit: %v", err)
 	}
 	relaunchedToken := readRelaunchToken(t, configPath)
@@ -946,7 +946,7 @@ func TestDashboardControlDeploymentAcrossRelaunchReloadAndSwitch(t *testing.T) {
 	}
 	manager = newTestManager(t, repo.Dir(), repo)
 	manager.SetMCPEndpoint("http://127.0.0.1:43210/mcp")
-	if err := manager.Relaunch(sessionID, card); err != nil {
+	if err := testRelaunch(manager, sessionID, card); err != nil {
 		t.Fatalf("relaunch after persisted manager reload: %v", err)
 	}
 	reloadedToken := readRelaunchToken(t, configPath)
@@ -980,7 +980,7 @@ func TestDashboardControlDeploymentAcrossRelaunchReloadAndSwitch(t *testing.T) {
 	}
 	manager = newTestManager(t, repo.Dir(), repo)
 	manager.SetMCPEndpoint("http://127.0.0.1:43210/mcp")
-	if err := manager.Relaunch(sessionID, card); err != nil {
+	if err := testRelaunch(manager, sessionID, card); err != nil {
 		t.Fatalf("legacy relaunch: %v", err)
 	}
 	legacyToken := readRelaunchToken(t, configPath)
@@ -990,7 +990,7 @@ func TestDashboardControlDeploymentAcrossRelaunchReloadAndSwitch(t *testing.T) {
 	if err := manager.Kill(sessionID); err != nil {
 		t.Fatal(err)
 	}
-	if err := manager.SwitchAgent(sessionID, card, nil, nil, config.BuiltinMCPs()); err != nil {
+	if err := testSwitchAgent(manager, sessionID, card, nil, nil, config.BuiltinMCPs()); err != nil {
 		t.Fatalf("switch to same card with current opt-out: %v", err)
 	}
 	sameCardToken := readRelaunchToken(t, configPath)
@@ -1000,7 +1000,7 @@ func TestDashboardControlDeploymentAcrossRelaunchReloadAndSwitch(t *testing.T) {
 	if err := manager.Kill(sessionID); err != nil {
 		t.Fatal(err)
 	}
-	if err := manager.SwitchAgent(sessionID, secondCard, nil, nil, config.BuiltinMCPs()); err != nil {
+	if err := testSwitchAgent(manager, sessionID, secondCard, nil, nil, config.BuiltinMCPs()); err != nil {
 		t.Fatalf("switch to opted-in card: %v", err)
 	}
 	secondToken := readRelaunchToken(t, configPath)
