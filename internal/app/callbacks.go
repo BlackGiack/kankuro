@@ -12,61 +12,80 @@ import (
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
+func (c *Coordinator) navigationCommand(view messages.ViewType) tea.Cmd {
+	dashboardID, generation := c.activeDashboard, c.viewGeneration
+	return func() tea.Msg {
+		return messages.ScopedNavigateMsg{View: view, DashboardID: dashboardID, Generation: generation}
+	}
+}
+
 func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 	return views.DashboardCallbacks{
+		OnBack: func() tea.Cmd {
+			dashboardID, generation := c.activeDashboard, c.viewGeneration
+			return func() tea.Msg {
+				return messages.DashboardListRequestedMsg{DashboardID: dashboardID, Generation: generation}
+			}
+		},
 		OnEditCard: func(card config.IDCard) tea.Cmd {
 			editor, ok := c.views[ViewCardEditor].(*views.CardEditor)
 			if !ok {
 				return nil
 			}
 			editor.SetCard(card)
-			return func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewCardEditor}
-			}
+
+			c.editingCard = card
+			editor.SetDashboardContext(c.activeDashboard, card.DashboardID != c.activeDashboard)
+
+			return c.navigationCommand(messages.ViewCardEditor)
 		},
 
 		OnLaunchCard: c.launchCard,
 
 		OnAttach: func(sessionID string) tea.Cmd {
-			return c.attachSession(sessionID)
+			return c.requestAttach(sessionID)
 		},
 
 		OnRelaunch: c.requestRelaunch,
 
 		OnKill: func(sessionID string) (tea.Cmd, error) {
+			dashboardID, generation, service := c.activeDashboard, c.viewGeneration, c.actions.service
 			return func() tea.Msg {
-				err := c.session.Kill(sessionID)
-				if err != nil {
-					return messages.ErrorMsg{Err: err}
+				return messages.ScopedActionFinishedMsg{
+					DashboardID: dashboardID,
+					Generation:  generation,
+					Err:         service.StopInDashboard(dashboardID, sessionID),
 				}
-				return messages.DataRefreshRequestedMsg{}
 			}, nil
 		},
 
 		OnRemove: func(sessionID string) (tea.Cmd, error) {
+			dashboardID, generation, service := c.activeDashboard, c.viewGeneration, c.actions.service
 			return func() tea.Msg {
-				err := c.actions.service.RemoveSession(sessionID)
-				if err != nil {
-					return messages.ErrorMsg{Err: err}
+				return messages.ScopedActionFinishedMsg{
+					DashboardID: dashboardID,
+					Generation:  generation,
+					Err:         service.RemoveInDashboard(dashboardID, sessionID),
 				}
-				return messages.DataRefreshRequestedMsg{}
 			}, nil
 		},
 
 		OnDeleteCard: func(cardID string) (tea.Cmd, error) {
-			return c.actions.deleteCard(cardID), nil
+			return cardDeletionPreflightCommand(c.actions.service, c.activeDashboard, cardID, c.viewGeneration), nil
+		},
+		OnConfirmCardDeletion: func(cardID, token string, foreign bool) tea.Cmd {
+			return confirmCardDeletionCommand(c.actions.service, c.activeDashboard, cardID, token, c.viewGeneration, foreign)
+		},
+		OnRetryCardDeletion: func(cardID string) tea.Cmd {
+			return retryCardDeletionCommand(c.actions.service, c.activeDashboard, cardID, c.viewGeneration)
 		},
 
 		OnOpenMCP: func() tea.Cmd {
-			return func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewMCPForm}
-			}
+			return c.navigationCommand(messages.ViewMCPForm)
 		},
 
 		OnOpenWorkspaces: func() tea.Cmd {
-			return func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewSourceManagerWorkspaces}
-			}
+			return c.navigationCommand(messages.ViewSourceManagerWorkspaces)
 		},
 
 		OnOpenSettings: func() tea.Cmd {
@@ -74,9 +93,7 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 			if ok {
 				settingsView.SetSettings(c.settings)
 			}
-			return func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewSettings}
-			}
+			return c.navigationCommand(messages.ViewSettings)
 		},
 
 		OnOpenCardEditor: func() tea.Cmd {
@@ -85,9 +102,11 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 				return nil
 			}
 			editor.Reset()
-			return func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewCardEditor}
-			}
+
+			c.editingCard = config.IDCard{}
+			editor.SetDashboardContext(c.activeDashboard, false)
+
+			return c.navigationCommand(messages.ViewCardEditor)
 		},
 
 		OnLaunchIDE:      c.launchIDE,
@@ -105,11 +124,11 @@ func (c *Coordinator) launchCard(card config.IDCard) tea.Cmd {
 
 	// The view reset above is coordinator-goroutine work and has already
 	// happened; the blocking launch is sessionActions' closure.
+	launch := c.actions.launch(c.activeDashboard, c.viewGeneration, card.ID)
+
 	return tea.Batch(
-		c.actions.launch(card),
-		func() tea.Msg {
-			return messages.NavigateMsg{View: messages.ViewSessionLauncher}
-		},
+		launch,
+		c.navigationCommand(messages.ViewSessionLauncher),
 	)
 }
 
@@ -117,32 +136,31 @@ func (c *Coordinator) launchCard(card config.IDCard) tea.Cmd {
 // c.settings is coordinator-goroutine state (SettingsSavedMsg writes it), so
 // the closure sessionActions builds must receive it by value.
 func (c *Coordinator) launchIDE(sessionID string) tea.Cmd {
-	return c.actions.launchIDE(sessionID, c.settings.IDECommand)
+	return c.actions.launchIDE(c.activeDashboard, c.viewGeneration, sessionID, c.settings.IDECommand)
 }
 
 func (c *Coordinator) launchTerminal(sessionID string) tea.Cmd {
-	return c.actions.launchTerminal(sessionID, c.settings.TerminalCommand)
+	return c.actions.launchTerminal(c.activeDashboard, c.viewGeneration, sessionID, c.settings.TerminalCommand)
 }
 
 func (c *Coordinator) cardEditorCallbacks() views.CardEditorCallbacks {
 	return views.CardEditorCallbacks{
 		OnSave: func(card config.IDCard) tea.Cmd {
+			dashboardID, generation, expected, service := c.activeDashboard, c.viewGeneration, c.editingCard, c.actions.service
 			return func() tea.Msg {
 				var saved config.IDCard
 				var err error
 				if card.ID == "" {
-					saved, err = c.repo.CreateIDCard(card)
+					saved, err = service.CreateCardInDashboard(dashboardID, card)
 				} else {
-					saved, err = c.repo.UpdateIDCard(card)
+					saved, err = service.UpdateCardInDashboard(dashboardID, expected, card)
 				}
-				return messages.CardSavedMsg{Card: saved, Err: err}
+				return messages.CardSavedMsg{Card: saved, Err: err, DashboardID: dashboardID, Generation: generation}
 			}
 		},
 
 		OnCancel: func() tea.Cmd {
-			return func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewDashboard}
-			}
+			return c.navigationCommand(messages.ViewDashboard)
 		},
 
 		OnOpenSources: func(sourceType string) tea.Cmd {
@@ -156,27 +174,19 @@ func (c *Coordinator) cardEditorCallbacks() views.CardEditorCallbacks {
 				return nil
 			}
 
-			return func() tea.Msg {
-				return messages.NavigateMsg{View: vt}
-			}
+			return c.navigationCommand(vt)
 		},
 
 		OnOpenMCPForm: func() tea.Cmd {
-			return func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewMCPForm}
-			}
+			return c.navigationCommand(messages.ViewMCPForm)
 		},
 
 		OnOpenWorkspaces: func() tea.Cmd {
-			return func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewSourceManagerWorkspaces}
-			}
+			return c.navigationCommand(messages.ViewSourceManagerWorkspaces)
 		},
 
 		OnOpenPuppetSources: func() tea.Cmd {
-			return func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewSourceManagerPuppets}
-			}
+			return c.navigationCommand(messages.ViewSourceManagerPuppets)
 		},
 	}
 }
@@ -350,16 +360,16 @@ func errorCmd(err error) tea.Cmd {
 
 func (c *Coordinator) settingsCallbacks() views.SettingsCallbacks {
 	return views.SettingsCallbacks{
+		OnBack: func() tea.Cmd { return c.navigationCommand(messages.ViewDashboard) },
 		OnSave: func(settings config.AppSettings) tea.Cmd {
+			dashboardID, generation, repo := c.activeDashboard, c.viewGeneration, c.repo
 			return func() tea.Msg {
-				err := c.repo.SaveAppSettings(settings)
-				return messages.SettingsSavedMsg{Settings: settings, Err: err}
+				err := repo.SaveAppSettings(settings)
+				return messages.SettingsSavedMsg{Settings: settings, Err: err, DashboardID: dashboardID, Generation: generation}
 			}
 		},
 		OnOpenPuppetSources: func() tea.Cmd {
-			return func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewSourceManagerPuppets}
-			}
+			return c.navigationCommand(messages.ViewSourceManagerPuppets)
 		},
 	}
 }
@@ -367,9 +377,10 @@ func (c *Coordinator) settingsCallbacks() views.SettingsCallbacks {
 func (c *Coordinator) mcpCallbacks() views.MCPFormCallbacks {
 	return views.MCPFormCallbacks{
 		OnSave: func(mcp config.MCPServer) tea.Cmd {
+			dashboardID, generation, repo := c.activeDashboard, c.viewGeneration, c.repo
 			return func() tea.Msg {
-				saved, err := c.repo.UpsertMCP(mcp)
-				return messages.MCPSavedMsg{MCP: saved, Err: err}
+				saved, err := repo.UpsertMCP(mcp)
+				return messages.MCPSavedMsg{MCP: saved, Err: err, DashboardID: dashboardID, Generation: generation}
 			}
 		},
 
@@ -381,12 +392,12 @@ func (c *Coordinator) mcpCallbacks() views.MCPFormCallbacks {
 
 func (c *Coordinator) sessionLauncherCallbacks() views.SessionLauncherCallbacks {
 	return views.SessionLauncherCallbacks{
-		OnSetName: func(sessionID, name string) error {
-			return c.session.SetName(sessionID, name)
-		},
-
-		OnAttach: func(sessionID string) tea.Cmd {
-			return c.attachSession(sessionID)
+		OnSetNameAsync: func(sessionID, name string) tea.Cmd {
+			dashboardID, generation, service := c.activeDashboard, c.viewGeneration, c.actions.service
+			return func() tea.Msg {
+				return messages.ScopedSessionNamedMsg{DashboardID: dashboardID, Generation: generation, SessionID: sessionID,
+					Err: service.RenameInDashboard(dashboardID, sessionID, name)}
+			}
 		},
 	}
 }
@@ -406,9 +417,7 @@ func (c *Coordinator) agentSwitchCallbacks() views.AgentSwitchCallbacks {
 		// that handler's comment for the navigation hazard).
 		OnSwitch: c.requestSwitch,
 		OnCancel: func() tea.Cmd {
-			return func() tea.Msg {
-				return messages.NavigateMsg{View: messages.ViewDashboard}
-			}
+			return c.navigationCommand(messages.ViewDashboard)
 		},
 	}
 }
@@ -425,43 +434,51 @@ func (c *Coordinator) requestRelaunch(sessionID string) tea.Cmd {
 				}
 			}
 		}
+		dashboardID, generation := c.activeDashboard, c.viewGeneration
 		return func() tea.Msg {
 			return messages.ConversationChoiceRequestedMsg{
-				SessionID:  sessionID,
-				CardID:     snapshot.CardID,
-				Driver:     driverName,
-				ReturnView: messages.ViewDashboard,
+				SessionID:   sessionID,
+				CardID:      snapshot.CardID,
+				Driver:      driverName,
+				ReturnView:  messages.ViewDashboard,
+				DashboardID: dashboardID,
+				Generation:  generation,
 			}
 		}
 	}
-	return c.actions.relaunch(sessionID)
+
+	return c.actions.relaunch(c.activeDashboard, c.viewGeneration, sessionID, session.ConversationChoice{New: true})
 }
 
 func (c *Coordinator) requestSwitch(sessionID, cardID, driverName string) tea.Cmd {
 	snapshot, found := c.session.GetSession(sessionID)
 	if found && len(snapshot.Conversations[cardID]) > 0 {
+		dashboardID, generation := c.activeDashboard, c.viewGeneration
 		return func() tea.Msg {
 			return messages.ConversationChoiceRequestedMsg{
-				SessionID:  sessionID,
-				CardID:     cardID,
-				Driver:     driverName,
-				ReturnView: messages.ViewAgentSwitch,
+				SessionID:   sessionID,
+				CardID:      cardID,
+				Driver:      driverName,
+				ReturnView:  messages.ViewAgentSwitch,
+				DashboardID: dashboardID,
+				Generation:  generation,
 			}
 		}
 	}
-	return c.actions.switchAgent(sessionID, cardID)
+
+	return c.actions.switchAgent(c.activeDashboard, c.viewGeneration, sessionID, cardID, session.ConversationChoice{New: true})
 }
 
 func (c *Coordinator) conversationChoiceCallbacks() views.ConversationChoiceCallbacks {
 	return views.ConversationChoiceCallbacks{
 		OnSelect: func(sessionID, cardID string, choice session.ConversationChoice) tea.Cmd {
 			if cardID == "" {
-				return c.actions.relaunchWithChoice(sessionID, choice)
+				return c.actions.relaunch(c.activeDashboard, c.viewGeneration, sessionID, choice)
 			}
-			return c.actions.switchAgentWithChoice(sessionID, cardID, choice)
+			return c.actions.switchAgent(c.activeDashboard, c.viewGeneration, sessionID, cardID, choice)
 		},
 		OnCancel: func(returnView messages.ViewType) tea.Cmd {
-			return func() tea.Msg { return messages.NavigateMsg{View: returnView} }
+			return c.navigationCommand(returnView)
 		},
 	}
 }

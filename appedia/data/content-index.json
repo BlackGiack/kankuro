@@ -35,6 +35,38 @@
     },
     {
       "kind": "concept",
+      "id": "Dashboard",
+      "refs": [
+        "config.Dashboard"
+      ],
+      "directRefs": [
+        "config.Dashboard"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/config/dashboards.go"
+      ],
+      "digest": "39d1eeabd38cec12e5d3ffdfae5f79bf65bc0c9a072b560c277b0067ea1c6a4c"
+    },
+    {
+      "kind": "concept",
+      "id": "Deletion manifest",
+      "refs": [
+        "config.DashboardDeletion"
+      ],
+      "directRefs": [
+        "config.DashboardDeletion"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/config/dashboard_deletions.go"
+      ],
+      "digest": "b323d1037156a04e08c4fb91eafa441ff74d6f32cda597a4d6687a216f2a8cfd"
+    },
+    {
+      "kind": "concept",
       "id": "ID card",
       "refs": [
         "config.IDCard"
@@ -67,6 +99,22 @@
     },
     {
       "kind": "concept",
+      "id": "Scoped service",
+      "refs": [
+        "api.Service"
+      ],
+      "directRefs": [
+        "api.Service"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/service.go"
+      ],
+      "digest": "6b4f3d38d40a39dad168097be899a63b4ee4455a58b06e087ae4af6e84ca5943"
+    },
+    {
+      "kind": "concept",
       "id": "Session",
       "refs": [
         "session.Session"
@@ -82,113 +130,423 @@
       "digest": "41644812daa52f5224f36f2e29ac98c9e240943b18e0eeafa4106fd91572c98b"
     },
     {
-      "kind": "concept",
-      "id": "Shared service",
-      "refs": [
-        "api.Service"
-      ],
-      "directRefs": [
-        "api.Service"
-      ],
-      "participants": [],
-      "supportingRefs": [],
-      "files": [
-        "internal/api/service.go"
-      ],
-      "digest": "6b4f3d38d40a39dad168097be899a63b4ee4455a58b06e087ae4af6e84ca5943"
-    },
-    {
       "kind": "flow",
       "id": "attach",
       "refs": [
+        "api.Service",
+        "api.Service.AttachInDashboard",
         "app.Coordinator",
-        "app.Coordinator.attachSession",
         "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.requestAttach",
         "app.attachExec",
         "app.attachExec.Run",
         "app.attachExec.forwardInput",
         "app.attachExec.pumpInput",
         "app.attachExec.pumpOutput",
         "app.detectKittyDetach",
+        "app.scopedAttachCommand",
         "session.Manager",
-        "session.Manager.Attach",
-        "views.Dashboard",
-        "views.Dashboard.handleAttach"
+        "session.Manager.AttachChecked",
+        "session.driverInputWriter"
       ],
       "directRefs": [
-        "app.Coordinator.attachSession",
+        "api.Service.AttachInDashboard",
         "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.requestAttach",
         "app.attachExec.Run",
         "app.attachExec.forwardInput",
         "app.attachExec.pumpInput",
         "app.attachExec.pumpOutput",
         "app.detectKittyDetach",
-        "session.Manager.Attach",
-        "views.Dashboard.handleAttach"
+        "app.scopedAttachCommand",
+        "session.Manager.AttachChecked"
       ],
       "participants": [
+        "api.Service",
         "app.Coordinator",
         "app.attachExec",
-        "session.Manager",
-        "views.Dashboard"
+        "session.Manager"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "app.scopedAttachCommand",
+        "session.driverInputWriter"
+      ],
       "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
         "internal/app/attach.go",
         "internal/app/coordinator.go",
         "internal/session/attach.go",
-        "internal/session/manager.go",
-        "internal/ui/views/dashboard.go"
+        "internal/session/manager.go"
       ],
-      "digest": "235c3a6839a670bebedc570d9376347d8987615f0106a89f0923a7032e3e2248"
+      "digest": "d98d83720d798f777e61e6a60c04f31ac57c94c5bce4e201bd666c497fc1d8d9"
+    },
+    {
+      "kind": "flow",
+      "id": "caller-scope",
+      "refs": [
+        "api.DashboardData",
+        "api.New",
+        "api.Service",
+        "api.Service.GetSession",
+        "api.Service.ListSessions",
+        "api.Service.ResolveCaller",
+        "api.Service.authorizeExistingOperation",
+        "api.Service.deletedCardIDs",
+        "api.Service.inspectionFromScopedSnapshot",
+        "api.Service.listCardsForCaller",
+        "api.dashboardWriter",
+        "api.hasForeignCardReferences",
+        "api.inspectionFromSnapshot",
+        "api.membershipInventory",
+        "api.membershipInventory.activeDashboard",
+        "api.membershipInventory.allowsCard",
+        "api.membershipInventory.allowsSession",
+        "api.membershipInventory.hasTombstone",
+        "api.newMembershipInventory",
+        "api.persistedDashboardScope",
+        "api.persistedDashboardScope.AllowsCard",
+        "api.persistedDashboardScope.AllowsSession",
+        "api.persistedDashboardScope.DashboardForSession",
+        "api.persistedDashboardScope.SessionDashboard",
+        "api.persistedDashboardScope.inventory",
+        "api.persistedDashboardScope.validateScopeInventory",
+        "api.scopedCardWriter",
+        "api.sessionInDashboard",
+        "api.sessionUsesCard",
+        "mcp.Runtime",
+        "mcp.addDiscoveryTools",
+        "session.Manager",
+        "session.Manager.List",
+        "session.Manager.ResolveDashboardCaller",
+        "session.Manager.SetNameChecked",
+        "session.Manager.ShutdownStarted",
+        "session.Manager.listLocked",
+        "session.NewManager",
+        "session.Session.data",
+        "session.Session.snapshot"
+      ],
+      "directRefs": [
+        "api.Service.ListSessions",
+        "api.Service.ResolveCaller",
+        "api.persistedDashboardScope.AllowsCard",
+        "api.persistedDashboardScope.AllowsSession",
+        "api.persistedDashboardScope.DashboardForSession",
+        "mcp.addDiscoveryTools",
+        "session.Manager.ResolveDashboardCaller"
+      ],
+      "participants": [
+        "api.Service",
+        "api.persistedDashboardScope",
+        "mcp.Runtime",
+        "session.Manager"
+      ],
+      "supportingRefs": [
+        "api.DashboardData",
+        "api.New",
+        "api.Service.GetSession",
+        "api.Service.ListSessions",
+        "api.Service.ResolveCaller",
+        "api.Service.authorizeExistingOperation",
+        "api.Service.deletedCardIDs",
+        "api.Service.inspectionFromScopedSnapshot",
+        "api.Service.listCardsForCaller",
+        "api.dashboardWriter",
+        "api.hasForeignCardReferences",
+        "api.inspectionFromSnapshot",
+        "api.membershipInventory",
+        "api.membershipInventory.activeDashboard",
+        "api.membershipInventory.allowsCard",
+        "api.membershipInventory.allowsSession",
+        "api.membershipInventory.hasTombstone",
+        "api.newMembershipInventory",
+        "api.persistedDashboardScope",
+        "api.persistedDashboardScope.AllowsCard",
+        "api.persistedDashboardScope.AllowsSession",
+        "api.persistedDashboardScope.DashboardForSession",
+        "api.persistedDashboardScope.SessionDashboard",
+        "api.persistedDashboardScope.inventory",
+        "api.persistedDashboardScope.validateScopeInventory",
+        "api.scopedCardWriter",
+        "api.sessionInDashboard",
+        "api.sessionUsesCard",
+        "session.Manager.List",
+        "session.Manager.SetNameChecked",
+        "session.Manager.ShutdownStarted",
+        "session.Manager.listLocked",
+        "session.NewManager",
+        "session.Session.data",
+        "session.Session.snapshot"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/persisted_scope.go",
+        "internal/api/service.go",
+        "internal/mcp/server.go",
+        "internal/session/conversation.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "3b32f1b125b7c81a3205de8ba00f1d95f195673a47fcf02c2a79a34308ccdf36"
     },
     {
       "kind": "flow",
       "id": "card-delete",
       "refs": [
+        "api.CardDeletionPreflight",
+        "api.CardDeletionResult",
         "api.Service",
-        "api.Service.DeleteCard",
-        "api.Service.reserveCardReference",
-        "app.sessionActions",
+        "api.Service.ConfirmCardDeletion",
+        "api.Service.PreflightCardDeletion",
+        "api.Service.RetryCardDeletion",
+        "api.cardConfirmation",
+        "api.cardImpactDigest",
+        "api.cardPendingCleanup",
+        "api.tombstoneWriter",
+        "app.Coordinator",
         "config.FileRepository",
-        "config.FileRepository.DeleteIDCard",
+        "config.FileRepository.BeginCardDeletionWithPending",
         "session.Manager",
-        "session.Manager.DeleteCardIfUnreferenced",
-        "session.Manager.ReserveCardReference"
+        "session.Manager.WithCardReferencesAndSnapshot",
+        "views.Dashboard",
+        "views.Dashboard.ShowCardDeletionImpact",
+        "views.Dashboard.handleDeleteCard"
       ],
       "directRefs": [
-        "api.Service.DeleteCard",
-        "api.Service.reserveCardReference",
-        "config.FileRepository.DeleteIDCard",
-        "session.Manager.DeleteCardIfUnreferenced",
-        "session.Manager.ReserveCardReference"
+        "api.Service.ConfirmCardDeletion",
+        "api.Service.PreflightCardDeletion",
+        "api.Service.RetryCardDeletion",
+        "config.FileRepository.BeginCardDeletionWithPending",
+        "session.Manager.WithCardReferencesAndSnapshot",
+        "views.Dashboard.ShowCardDeletionImpact",
+        "views.Dashboard.handleDeleteCard"
       ],
       "participants": [
         "api.Service",
-        "app.sessionActions",
+        "app.Coordinator",
+        "config.FileRepository",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [
+        "api.CardDeletionPreflight",
+        "api.CardDeletionResult",
+        "api.cardConfirmation",
+        "api.cardImpactDigest",
+        "api.cardPendingCleanup",
+        "api.tombstoneWriter"
+      ],
+      "files": [
+        "internal/api/card_confirmation.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/config/card_tombstones.go",
+        "internal/config/repository.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "f5cbb7dee12480e8676b963f278c9a1ecd80f6a68ec77843cc15905bffa4efbb"
+    },
+    {
+      "kind": "flow",
+      "id": "card-recovery",
+      "refs": [
+        "api.Service",
+        "api.Service.ConfirmCardDeletion",
+        "api.Service.PreflightCardDeletion",
+        "api.Service.RetryCardDeletion",
+        "api.Service.cardOwnedBy",
+        "api.Service.cleanupCardPending",
+        "api.Service.validateCardConfirmationLocked",
+        "api.Service.validateDeletionInventory",
+        "api.Service.validateDeletionOwner",
+        "api.cardImpactDigest",
+        "api.cardPendingCleanup",
+        "config.CardDeletionPending",
+        "config.CardTombstone",
+        "config.FileRepository",
+        "config.FileRepository.BeginCardDeletion",
+        "config.FileRepository.BeginCardDeletionWithPending",
+        "config.FileRepository.FinishCardDeletion",
+        "config.FileRepository.ListCardTombstones",
+        "config.FileRepository.SaveCardDeletionPending",
+        "config.FileRepository.checkCardNotTombstonedLocked",
+        "config.FileRepository.loadCardTombstonesLocked",
+        "config.cardTombstonesFile",
+        "config.validateNewCardPending",
+        "session.Manager",
+        "session.Manager.CancelPendingCardReferences",
+        "session.Manager.RemoveResidual",
+        "session.Manager.ReserveCardDeletion",
+        "session.Manager.WaitCardReferences"
+      ],
+      "directRefs": [
+        "api.Service.cleanupCardPending",
+        "config.CardTombstone",
+        "config.FileRepository.FinishCardDeletion",
+        "config.FileRepository.SaveCardDeletionPending",
+        "session.Manager.CancelPendingCardReferences",
+        "session.Manager.RemoveResidual",
+        "session.Manager.ReserveCardDeletion",
+        "session.Manager.WaitCardReferences"
+      ],
+      "participants": [
+        "api.Service",
         "config.FileRepository",
         "session.Manager"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "api.Service.ConfirmCardDeletion",
+        "api.Service.PreflightCardDeletion",
+        "api.Service.RetryCardDeletion",
+        "api.Service.cardOwnedBy",
+        "api.Service.cleanupCardPending",
+        "api.Service.validateCardConfirmationLocked",
+        "api.Service.validateDeletionInventory",
+        "api.Service.validateDeletionOwner",
+        "api.cardImpactDigest",
+        "api.cardPendingCleanup",
+        "config.CardDeletionPending",
+        "config.CardTombstone",
+        "config.FileRepository.BeginCardDeletion",
+        "config.FileRepository.BeginCardDeletionWithPending",
+        "config.FileRepository.FinishCardDeletion",
+        "config.FileRepository.ListCardTombstones",
+        "config.FileRepository.SaveCardDeletionPending",
+        "config.FileRepository.checkCardNotTombstonedLocked",
+        "config.FileRepository.loadCardTombstonesLocked",
+        "config.cardTombstonesFile",
+        "config.validateNewCardPending",
+        "session.Manager.RemoveResidual"
+      ],
       "files": [
+        "internal/api/card_confirmation.go",
         "internal/api/service.go",
-        "internal/app/session_actions.go",
-        "internal/config/id_cards.go",
+        "internal/config/card_tombstones.go",
         "internal/config/repository.go",
         "internal/session/card_references.go",
-        "internal/session/manager.go"
+        "internal/session/dashboard_admission.go",
+        "internal/session/manager.go",
+        "internal/session/residual_cleanup.go"
       ],
-      "digest": "3d458f02431432bcb855280750378985ba724aacb8dfba51d6b28f50e7764642"
+      "digest": "e287440eb450aaeb83f56921646c2dcfccd134167077c2739580a6a1d0709059"
+    },
+    {
+      "kind": "flow",
+      "id": "cascade-recovery",
+      "refs": [
+        "api.DashboardDeletionResult",
+        "api.Service",
+        "api.Service.ConfirmDashboardDeletion",
+        "api.Service.GetDashboardDeletion",
+        "api.Service.RetryDashboardDeletion",
+        "api.Service.dashboardAlreadyDeleted",
+        "api.Service.dashboardDeletion",
+        "api.Service.deleteDashboardCard",
+        "api.Service.removeDashboardSession",
+        "api.Service.runDashboardDeletion",
+        "api.dashboardDeletionWriter",
+        "config.DashboardDeletion",
+        "config.DashboardDeletionCard",
+        "config.DashboardDeletionPending",
+        "config.DashboardDeletionReference",
+        "config.DashboardDeletionSession",
+        "config.FileRepository",
+        "config.FileRepository.BeginDashboardDeletion",
+        "config.FileRepository.FinalizeDashboardDeletion",
+        "config.FileRepository.ListDashboardDeletions",
+        "config.FileRepository.ListDashboardTombstones",
+        "config.FileRepository.SaveDashboardDeletion",
+        "config.FileRepository.listDashboardDeletionsLocked",
+        "config.FileRepository.loadDashboardTombstonesLocked",
+        "config.FileRepository.retainDashboardTombstoneLocked",
+        "config.FileRepository.writeDashboardDeletionLocked",
+        "config.dashboardDeletionFilename",
+        "config.validTemporaryIdentity",
+        "config.validateDashboardDeletion",
+        "session.Manager",
+        "session.Manager.RemoveDetailed",
+        "session.Manager.RemoveResidual",
+        "session.MessageStore",
+        "session.MessageStore.DeleteDashboard",
+        "views.DashboardList",
+        "views.DashboardList.Update",
+        "views.DashboardList.retryDeletion"
+      ],
+      "directRefs": [
+        "api.Service.RetryDashboardDeletion",
+        "api.Service.deleteDashboardCard",
+        "api.Service.removeDashboardSession",
+        "config.FileRepository.FinalizeDashboardDeletion",
+        "config.FileRepository.SaveDashboardDeletion",
+        "session.Manager.RemoveDetailed",
+        "session.Manager.RemoveResidual",
+        "session.MessageStore.DeleteDashboard",
+        "views.DashboardList.Update",
+        "views.DashboardList.retryDeletion"
+      ],
+      "participants": [
+        "api.Service",
+        "config.FileRepository",
+        "session.Manager",
+        "session.MessageStore",
+        "views.DashboardList"
+      ],
+      "supportingRefs": [
+        "api.DashboardDeletionResult",
+        "api.Service.ConfirmDashboardDeletion",
+        "api.Service.GetDashboardDeletion",
+        "api.Service.RetryDashboardDeletion",
+        "api.Service.dashboardAlreadyDeleted",
+        "api.Service.dashboardDeletion",
+        "api.Service.deleteDashboardCard",
+        "api.Service.removeDashboardSession",
+        "api.Service.runDashboardDeletion",
+        "api.dashboardDeletionWriter",
+        "config.DashboardDeletion",
+        "config.DashboardDeletionCard",
+        "config.DashboardDeletionPending",
+        "config.DashboardDeletionReference",
+        "config.DashboardDeletionSession",
+        "config.FileRepository.BeginDashboardDeletion",
+        "config.FileRepository.FinalizeDashboardDeletion",
+        "config.FileRepository.ListDashboardDeletions",
+        "config.FileRepository.ListDashboardTombstones",
+        "config.FileRepository.SaveDashboardDeletion",
+        "config.FileRepository.listDashboardDeletionsLocked",
+        "config.FileRepository.loadDashboardTombstonesLocked",
+        "config.FileRepository.retainDashboardTombstoneLocked",
+        "config.FileRepository.writeDashboardDeletionLocked",
+        "config.dashboardDeletionFilename",
+        "config.validTemporaryIdentity",
+        "config.validateDashboardDeletion"
+      ],
+      "files": [
+        "internal/api/dashboard_deletion.go",
+        "internal/api/service.go",
+        "internal/config/dashboard_deletions.go",
+        "internal/config/dashboard_tombstones.go",
+        "internal/config/repository.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go",
+        "internal/session/residual_cleanup.go",
+        "internal/ui/views/dashboard_list.go"
+      ],
+      "digest": "74d78b369650b53f4f1e0a7a72b418317c2d3cbafb467dffaca45f08dce6f441"
     },
     {
       "kind": "flow",
       "id": "control",
       "refs": [
+        "api.CardDiscovery",
+        "api.Repository",
         "api.Service",
         "api.Service.CreateSession",
         "api.Service.GetSession",
         "api.Service.ResolveCaller",
-        "api.Service.launchReservedSession",
+        "api.Service.launchDashboardWithID",
+        "api.SessionDiscovery",
         "mcp.Runtime",
         "mcp.addDiscoveryTools",
         "mcp.addLifecycleTools",
@@ -199,7 +557,7 @@
         "api.Service.CreateSession",
         "api.Service.GetSession",
         "api.Service.ResolveCaller",
-        "api.Service.launchReservedSession",
+        "api.Service.launchDashboardWithID",
         "mcp.addDiscoveryTools",
         "mcp.addLifecycleTools",
         "session.Manager.ResolveDashboardCaller"
@@ -209,15 +567,20 @@
         "mcp.Runtime",
         "session.Manager"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "api.CardDiscovery",
+        "api.Repository",
+        "api.SessionDiscovery"
+      ],
       "files": [
+        "internal/api/membership.go",
         "internal/api/operations.go",
         "internal/api/service.go",
         "internal/mcp/server.go",
         "internal/session/conversation.go",
         "internal/session/manager.go"
       ],
-      "digest": "972d25fb64c134e8dee4d598c42863619d3c84a4207e69092d123dcf417919e1"
+      "digest": "83d965860cb8dacb451fe40d86d672c18c2e402f783e039ba30cd7d227b2cecc"
     },
     {
       "kind": "flow",
@@ -267,7 +630,195 @@
         "internal/ui/views/card_editor.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "673a9b28c2dc8d9130652b772185aa34df5878befbcd1f7250a98eb9bd156050"
+      "digest": "b8dd87e00fac6e15a42a7aad4b52eade2a98ebbf971d8b63d299fe38fcb2eef6"
+    },
+    {
+      "kind": "flow",
+      "id": "dashboard-details",
+      "refs": [
+        "api.Service",
+        "api.Service.CreateDashboard",
+        "api.Service.ListDashboards",
+        "app.Coordinator",
+        "app.Coordinator.dashboardListCallbacks",
+        "config.Dashboard",
+        "config.FileRepository",
+        "config.FileRepository.CreateDashboard",
+        "config.FileRepository.ListDashboards",
+        "config.FileRepository.UpdateDashboardDetails",
+        "config.FileRepository.loadDashboardsLocked",
+        "config.dashboardsFile",
+        "config.validateDashboard",
+        "views.DashboardList",
+        "views.DashboardList.SetDashboards",
+        "views.DashboardList.Update",
+        "views.DashboardList.updateForm"
+      ],
+      "directRefs": [
+        "api.Service.CreateDashboard",
+        "api.Service.ListDashboards",
+        "app.Coordinator.dashboardListCallbacks",
+        "config.FileRepository.UpdateDashboardDetails",
+        "views.DashboardList.SetDashboards",
+        "views.DashboardList.Update",
+        "views.DashboardList.updateForm"
+      ],
+      "participants": [
+        "api.Service",
+        "app.Coordinator",
+        "config.FileRepository",
+        "views.DashboardList"
+      ],
+      "supportingRefs": [
+        "config.Dashboard",
+        "config.FileRepository.CreateDashboard",
+        "config.FileRepository.ListDashboards",
+        "config.FileRepository.UpdateDashboardDetails",
+        "config.FileRepository.loadDashboardsLocked",
+        "config.dashboardsFile",
+        "config.validateDashboard"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/app/dashboard_list.go",
+        "internal/config/dashboards.go",
+        "internal/config/repository.go",
+        "internal/ui/views/dashboard_list.go"
+      ],
+      "digest": "bb0c713e208f4981e04b81022ca3e5fda91f36a9649d8c275e42e153bb8f08fd"
+    },
+    {
+      "kind": "flow",
+      "id": "delete-dashboard",
+      "refs": [
+        "api.DashboardDeletionPreflight",
+        "api.Service",
+        "api.Service.ConfirmDashboardDeletion",
+        "api.Service.PreflightDashboardDeletion",
+        "api.Service.prepareDashboardDeletion",
+        "api.Service.runDashboardDeletion",
+        "api.dashboardConfirmation",
+        "api.dashboardImpactDigest",
+        "app.Coordinator.dashboardListCallbacks",
+        "app.Coordinator.refreshDashboardList",
+        "app.cardDeletionPreflightCommand",
+        "app.confirmCardDeletionCommand",
+        "app.dashboardDeletionStatus",
+        "app.dashboardDeletionSummary",
+        "app.dashboardListCommand",
+        "app.retryCardDeletionCommand",
+        "config.DashboardTombstone",
+        "config.FileRepository",
+        "config.FileRepository.BeginDashboardDeletion",
+        "config.dashboardTombstonesFile",
+        "session.AdmissionSnapshot",
+        "session.Manager",
+        "session.Manager.CancelDashboardAdmissions",
+        "session.Manager.ReserveCardDeletion",
+        "session.Manager.ReserveDashboardDeletion",
+        "session.Manager.WaitDashboardAdmissions",
+        "session.Manager.WithAdmissionSnapshot",
+        "views.DashboardList",
+        "views.DashboardList.Update"
+      ],
+      "directRefs": [
+        "api.Service.ConfirmDashboardDeletion",
+        "api.Service.PreflightDashboardDeletion",
+        "api.Service.prepareDashboardDeletion",
+        "api.Service.runDashboardDeletion",
+        "config.FileRepository.BeginDashboardDeletion",
+        "session.Manager.CancelDashboardAdmissions",
+        "session.Manager.WaitDashboardAdmissions",
+        "views.DashboardList.Update"
+      ],
+      "participants": [
+        "api.Service",
+        "config.FileRepository",
+        "session.Manager",
+        "views.DashboardList"
+      ],
+      "supportingRefs": [
+        "api.DashboardDeletionPreflight",
+        "api.Service.PreflightDashboardDeletion",
+        "api.Service.prepareDashboardDeletion",
+        "api.dashboardConfirmation",
+        "api.dashboardImpactDigest",
+        "app.Coordinator.dashboardListCallbacks",
+        "app.Coordinator.refreshDashboardList",
+        "app.cardDeletionPreflightCommand",
+        "app.confirmCardDeletionCommand",
+        "app.dashboardDeletionStatus",
+        "app.dashboardDeletionSummary",
+        "app.dashboardListCommand",
+        "app.retryCardDeletionCommand",
+        "config.DashboardTombstone",
+        "config.dashboardTombstonesFile",
+        "session.AdmissionSnapshot",
+        "session.Manager.CancelDashboardAdmissions",
+        "session.Manager.ReserveCardDeletion",
+        "session.Manager.ReserveDashboardDeletion",
+        "session.Manager.WaitDashboardAdmissions",
+        "session.Manager.WithAdmissionSnapshot"
+      ],
+      "files": [
+        "internal/api/dashboard_confirmation.go",
+        "internal/api/dashboard_deletion.go",
+        "internal/api/service.go",
+        "internal/app/dashboard_list.go",
+        "internal/config/dashboard_deletions.go",
+        "internal/config/dashboard_tombstones.go",
+        "internal/config/repository.go",
+        "internal/session/dashboard_admission.go",
+        "internal/session/manager.go",
+        "internal/ui/views/dashboard_list.go"
+      ],
+      "digest": "562d44c69a28afc843db3b61dd65d005392adeb74cfae34c46f74c8d914adca4"
+    },
+    {
+      "kind": "flow",
+      "id": "deleted-session",
+      "refs": [
+        "api.Service",
+        "api.Service.ReadDashboardData",
+        "api.Service.SwitchInDashboard",
+        "app.Coordinator",
+        "components.SessionListItem.Description",
+        "session.Data.restore",
+        "session.Manager",
+        "session.Manager.SwitchAgentWithChoiceCheckedContext",
+        "views.Dashboard",
+        "views.Dashboard.handleSessionEnter"
+      ],
+      "directRefs": [
+        "api.Service.ReadDashboardData",
+        "api.Service.SwitchInDashboard",
+        "components.SessionListItem.Description",
+        "session.Data.restore",
+        "session.Manager.SwitchAgentWithChoiceCheckedContext",
+        "views.Dashboard.handleSessionEnter"
+      ],
+      "participants": [
+        "api.Service",
+        "app.Coordinator",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [
+        "components.SessionListItem.Description"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/storage.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "c3ddd3f6bcda1951398ab454b3cebd8fb55adcec2d07686accd749cf1d1e543d"
     },
     {
       "kind": "flow",
@@ -310,21 +861,20 @@
         "internal/ui/views/card_editor.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "0c54435722eeb9370cfd453d99d487744c63918a3042b6f540d7eac4985a5e8e"
+      "digest": "f436bf656a2dcea105c0f893e5b210ce57d655350b6fa6bba5fb6be37c72789d"
     },
     {
       "kind": "flow",
       "id": "ide",
       "refs": [
+        "api.Service.CheckSessionInDashboard",
         "app.Coordinator",
+        "app.Coordinator.handleSessionMessages",
         "app.Coordinator.handleSpecialMessages",
-        "app.Coordinator.handleWorkspaceCommandResult",
         "app.Coordinator.launchIDE",
         "app.sessionActions",
         "app.sessionActions.launchIDE",
         "app.sessionActions.launchWorkspaceCommand",
-        "session.IDELauncher",
-        "session.IDELauncher.Launch",
         "session.LaunchWorkspaceCommand",
         "session.SplitCommand",
         "views.Dashboard",
@@ -332,12 +882,12 @@
         "views.Dashboard.handleLaunchSession"
       ],
       "directRefs": [
+        "api.Service.CheckSessionInDashboard",
+        "app.Coordinator.handleSessionMessages",
         "app.Coordinator.handleSpecialMessages",
-        "app.Coordinator.handleWorkspaceCommandResult",
         "app.Coordinator.launchIDE",
         "app.sessionActions.launchIDE",
         "app.sessionActions.launchWorkspaceCommand",
-        "session.IDELauncher.Launch",
         "session.LaunchWorkspaceCommand",
         "views.Dashboard.handleKey",
         "views.Dashboard.handleLaunchSession"
@@ -345,7 +895,6 @@
       "participants": [
         "app.Coordinator",
         "app.sessionActions",
-        "session.IDELauncher",
         "session.LaunchWorkspaceCommand",
         "views.Dashboard"
       ],
@@ -353,6 +902,7 @@
         "session.SplitCommand"
       ],
       "files": [
+        "internal/api/membership.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
         "internal/app/session_actions.go",
@@ -361,52 +911,232 @@
         "internal/session/workspace_launcher.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "17d7382295842bc235d0939f1f6cf34808e40c5e44c0aba03fe87f1139176a05"
+      "digest": "a7ead0e835448a51a041d4af92e8b8c1dc726012c42a55dea5e5d7317d461ac4"
     },
     {
       "kind": "flow",
       "id": "launch",
       "refs": [
         "api.Service",
-        "api.Service.Launch",
-        "app.sessionActions",
-        "app.sessionActions.launch",
+        "api.Service.LaunchInDashboard",
+        "app.Coordinator",
+        "app.Coordinator.launchCard",
         "driver.GenericCLIDriver",
-        "driver.GenericCLIDriver.Spawn",
+        "session.CardPendingReference",
+        "session.CardReferenceImpact",
+        "session.CardSessionReference",
         "session.Manager",
-        "session.Manager.LaunchWithIDContext",
-        "session.Manager.prepareActivationMCPConfig",
-        "session.Manager.prepareWorkspace",
+        "session.Manager.CancelPendingCardReferences",
+        "session.Manager.CardReferences",
+        "session.Manager.LaunchInDashboardWithIDContext",
+        "session.Manager.List",
+        "session.Manager.ReserveCardReferenceForDashboardWithCancel",
+        "session.Manager.SetNameChecked",
+        "session.Manager.ShutdownStarted",
+        "session.Manager.TemporaryWorkspaceRoot",
+        "session.Manager.WaitCardReferences",
+        "session.Manager.WithCardReferencesAndSnapshot",
+        "session.Manager.bindPendingWorkspace",
+        "session.Manager.cardReferencesLocked",
+        "session.Manager.listLocked",
+        "session.Manager.notifyCardReferencesLocked",
+        "session.Manager.reserveCardReference",
         "session.Manager.startSession",
-        "session.Manager.syncDriverFiles"
+        "session.NewManager",
+        "session.Session.data",
+        "session.Session.snapshot",
+        "session.cardReservation",
+        "views.SessionLauncher",
+        "views.SessionLauncher.Reset",
+        "views.SessionLauncher.SetNameResult",
+        "views.SessionLauncher.handleNameSubmit",
+        "views.SessionLauncherCallbacks"
       ],
       "directRefs": [
-        "api.Service.Launch",
-        "app.sessionActions.launch",
-        "driver.GenericCLIDriver.Spawn",
-        "session.Manager.LaunchWithIDContext",
-        "session.Manager.prepareActivationMCPConfig",
-        "session.Manager.prepareWorkspace",
+        "api.Service.LaunchInDashboard",
+        "app.Coordinator.launchCard",
+        "session.Manager.LaunchInDashboardWithIDContext",
+        "session.Manager.ReserveCardReferenceForDashboardWithCancel",
+        "session.Manager.bindPendingWorkspace",
         "session.Manager.startSession",
-        "session.Manager.syncDriverFiles"
+        "session.Session.data"
       ],
       "participants": [
         "api.Service",
-        "app.sessionActions",
+        "app.Coordinator",
         "driver.GenericCLIDriver",
         "session.Manager"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "session.CardPendingReference",
+        "session.CardReferenceImpact",
+        "session.CardSessionReference",
+        "session.Manager.CancelPendingCardReferences",
+        "session.Manager.CardReferences",
+        "session.Manager.List",
+        "session.Manager.ReserveCardReferenceForDashboardWithCancel",
+        "session.Manager.SetNameChecked",
+        "session.Manager.ShutdownStarted",
+        "session.Manager.TemporaryWorkspaceRoot",
+        "session.Manager.WaitCardReferences",
+        "session.Manager.WithCardReferencesAndSnapshot",
+        "session.Manager.bindPendingWorkspace",
+        "session.Manager.cardReferencesLocked",
+        "session.Manager.listLocked",
+        "session.Manager.notifyCardReferencesLocked",
+        "session.Manager.reserveCardReference",
+        "session.NewManager",
+        "session.Session.data",
+        "session.Session.snapshot",
+        "session.cardReservation",
+        "views.SessionLauncher",
+        "views.SessionLauncher.Reset",
+        "views.SessionLauncher.SetNameResult",
+        "views.SessionLauncher.handleNameSubmit",
+        "views.SessionLauncherCallbacks"
+      ],
       "files": [
+        "internal/api/membership.go",
         "internal/api/service.go",
-        "internal/app/session_actions.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
         "internal/driver/driver.go",
-        "internal/session/conversation.go",
+        "internal/session/card_references.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
-        "internal/session/workspace.go"
+        "internal/session/workspace.go",
+        "internal/ui/views/session_launcher.go"
       ],
-      "digest": "dad760fd35541543e17cfccb881f7be1b5a9dcbe40f5a56e25df01052fe6724b"
+      "digest": "66028bdf665352ec46695679bcdf96a23f5d34443c58669039bbe91f5336a525"
+    },
+    {
+      "kind": "flow",
+      "id": "list-errors",
+      "refs": [
+        "api.Service",
+        "api.Service.GetDashboardDeletion",
+        "app.Coordinator",
+        "app.Coordinator.dashboardListCallbacks",
+        "views.DashboardList",
+        "views.DashboardList.Init",
+        "views.DashboardList.SetDashboards",
+        "views.DashboardList.SetSize",
+        "views.DashboardList.Update",
+        "views.DashboardList.View",
+        "views.DashboardList.confirmDeletion",
+        "views.DashboardList.openForm",
+        "views.DashboardList.retryDeletion",
+        "views.DashboardList.selected",
+        "views.DashboardList.updateConfirmation",
+        "views.DashboardList.updateForm",
+        "views.NewDashboardList",
+        "views.dashboardItem.Description",
+        "views.dashboardItem.FilterValue",
+        "views.dashboardItem.Title"
+      ],
+      "directRefs": [
+        "api.Service.GetDashboardDeletion",
+        "app.Coordinator.dashboardListCallbacks",
+        "views.DashboardList.Update",
+        "views.DashboardList.View"
+      ],
+      "participants": [
+        "api.Service",
+        "app.Coordinator",
+        "views.DashboardList"
+      ],
+      "supportingRefs": [
+        "views.DashboardList.Init",
+        "views.DashboardList.SetDashboards",
+        "views.DashboardList.SetSize",
+        "views.DashboardList.Update",
+        "views.DashboardList.View",
+        "views.DashboardList.confirmDeletion",
+        "views.DashboardList.openForm",
+        "views.DashboardList.retryDeletion",
+        "views.DashboardList.selected",
+        "views.DashboardList.updateConfirmation",
+        "views.DashboardList.updateForm",
+        "views.NewDashboardList",
+        "views.dashboardItem.Description",
+        "views.dashboardItem.FilterValue",
+        "views.dashboardItem.Title"
+      ],
+      "files": [
+        "internal/api/dashboard_deletion.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/app/dashboard_list.go",
+        "internal/ui/views/dashboard_list.go"
+      ],
+      "digest": "e34087960d497b76bb0553fbde47340cad39dd0fc2346843a8106da27099594e"
+    },
+    {
+      "kind": "flow",
+      "id": "manual-session",
+      "refs": [
+        "api.Service",
+        "api.Service.AttachInDashboard",
+        "api.Service.RemoveInDashboard",
+        "api.Service.RenameInDashboard",
+        "api.Service.StopInDashboard",
+        "app.Coordinator",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.requestAttach",
+        "app.scopedAttachCommand",
+        "app.sessionActions.launch",
+        "app.sessionActions.launchIDE",
+        "app.sessionActions.launchTerminal",
+        "app.sessionActions.launchWorkspace",
+        "app.sessionActions.relaunch",
+        "app.sessionActions.switchAgent",
+        "session.Manager",
+        "session.Manager.AttachChecked",
+        "views.SessionLauncher",
+        "views.SessionLauncher.Reset",
+        "views.SessionLauncher.SetNameResult",
+        "views.SessionLauncher.handleNameSubmit"
+      ],
+      "directRefs": [
+        "api.Service.AttachInDashboard",
+        "api.Service.RemoveInDashboard",
+        "api.Service.RenameInDashboard",
+        "api.Service.StopInDashboard",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.requestAttach",
+        "session.Manager.AttachChecked"
+      ],
+      "participants": [
+        "api.Service",
+        "app.Coordinator",
+        "session.Manager",
+        "views.SessionLauncher"
+      ],
+      "supportingRefs": [
+        "app.Coordinator.requestAttach",
+        "app.scopedAttachCommand",
+        "app.sessionActions.launch",
+        "app.sessionActions.launchIDE",
+        "app.sessionActions.launchTerminal",
+        "app.sessionActions.launchWorkspace",
+        "app.sessionActions.relaunch",
+        "app.sessionActions.switchAgent",
+        "session.Manager.AttachChecked",
+        "views.SessionLauncher.Reset",
+        "views.SessionLauncher.SetNameResult",
+        "views.SessionLauncher.handleNameSubmit"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/attach.go",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/session/attach.go",
+        "internal/session/manager.go",
+        "internal/ui/views/session_launcher.go"
+      ],
+      "digest": "0392884c6e6461b867b1427b73e35460e265664a3226ee693de3d2d9522bc103"
     },
     {
       "kind": "flow",
@@ -481,7 +1211,7 @@
         "internal/session/lifecycle.go",
         "internal/session/manager.go"
       ],
-      "digest": "43af700021d2a86fadbf47e8427dbc185b7a00c4fdbcb53f21925e06e8609083"
+      "digest": "76264cfa05e444933a03cb5114b93fbc4e13ddea7b3e5c612e3722441d953b23"
     },
     {
       "kind": "flow",
@@ -491,11 +1221,11 @@
         "app.Coordinator.Update",
         "app.Coordinator.handleConfigFingerprint",
         "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handleSessionMessages",
         "app.Coordinator.handleSpecialMessages",
-        "app.Coordinator.handleWorkspaceCommandResult",
         "app.refreshRequestedCmd",
         "app.refresher",
-        "app.refresher.fullSeeded",
+        "app.refresher.scopedFull",
         "views.Dashboard"
       ],
       "directRefs": [
@@ -504,7 +1234,7 @@
         "app.Coordinator.handleDataLoaded",
         "app.Coordinator.handleSpecialMessages",
         "app.refreshRequestedCmd",
-        "app.refresher.fullSeeded"
+        "app.refresher.scopedFull"
       ],
       "participants": [
         "app.Coordinator",
@@ -512,17 +1242,396 @@
         "views.Dashboard"
       ],
       "supportingRefs": [
-        "app.Coordinator.handleWorkspaceCommandResult"
+        "app.Coordinator.handleSessionMessages"
       ],
       "files": [
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
         "internal/app/handlers.go",
         "internal/app/refresh.go",
+        "internal/app/scoped_refresh.go",
         "internal/app/terminal_launch_test.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "8c91bd0963ca1af13fde055dc536e331ba97e1e90c87c99306c58c4bf19d1815"
+      "digest": "345ddf372382aac975d44f4f5e96afadb1a8fff6ab32c623cc119c80be038980"
+    },
+    {
+      "kind": "flow",
+      "id": "navigation",
+      "refs": [
+        "api.Service",
+        "api.Service.ReadDashboardData",
+        "app.Coordinator",
+        "app.Coordinator.Init",
+        "app.Coordinator.dashboardListCallbacks",
+        "app.Coordinator.guardKey",
+        "app.Coordinator.handleAgentSwitched",
+        "app.Coordinator.handleConversationChoiceRequested",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.navigateTo",
+        "app.Coordinator.refreshDashboardList",
+        "app.Coordinator.resizeAll",
+        "app.NewCoordinator",
+        "app.cardDeletionPreflightCommand",
+        "app.confirmCardDeletionCommand",
+        "app.convertViewType",
+        "app.dashboardDeletionStatus",
+        "app.dashboardDeletionSummary",
+        "app.dashboardListCommand",
+        "app.retryCardDeletionCommand",
+        "views.Dashboard",
+        "views.Dashboard.SetDashboardName",
+        "views.Dashboard.SetDashboardScope",
+        "views.Dashboard.SetSize",
+        "views.Dashboard.ShowCardDeletionImpact",
+        "views.Dashboard.Update",
+        "views.Dashboard.View",
+        "views.Dashboard.footerText",
+        "views.Dashboard.handleDeleteCard",
+        "views.Dashboard.handleEdit",
+        "views.Dashboard.handleEnter",
+        "views.Dashboard.handleKey",
+        "views.Dashboard.handleSessionEnter",
+        "views.Dashboard.handleSwitch",
+        "views.Dashboard.renderBase",
+        "views.Dashboard.updateCardImpact",
+        "views.DashboardList",
+        "views.DashboardList.Init",
+        "views.DashboardList.SetDashboards",
+        "views.DashboardList.SetSize",
+        "views.DashboardList.Update",
+        "views.DashboardList.View",
+        "views.DashboardList.confirmDeletion",
+        "views.DashboardList.openForm",
+        "views.DashboardList.renderPage",
+        "views.DashboardList.retryDeletion",
+        "views.DashboardList.selected",
+        "views.DashboardList.updateConfirmation",
+        "views.DashboardList.updateForm",
+        "views.DashboardListCallbacks",
+        "views.NewDashboardList",
+        "views.dashboardItem",
+        "views.dashboardItem.Description",
+        "views.dashboardItem.FilterValue",
+        "views.dashboardItem.Title",
+        "views.dashboardListMode"
+      ],
+      "directRefs": [
+        "api.Service.ReadDashboardData",
+        "app.Coordinator.handleSpecialMessages",
+        "views.Dashboard.SetDashboardScope",
+        "views.Dashboard.handleKey",
+        "views.DashboardList.Update"
+      ],
+      "participants": [
+        "api.Service",
+        "app.Coordinator",
+        "views.Dashboard",
+        "views.DashboardList"
+      ],
+      "supportingRefs": [
+        "app.Coordinator.Init",
+        "app.Coordinator.dashboardListCallbacks",
+        "app.Coordinator.guardKey",
+        "app.Coordinator.handleAgentSwitched",
+        "app.Coordinator.handleConversationChoiceRequested",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.navigateTo",
+        "app.Coordinator.refreshDashboardList",
+        "app.Coordinator.resizeAll",
+        "app.NewCoordinator",
+        "app.cardDeletionPreflightCommand",
+        "app.confirmCardDeletionCommand",
+        "app.convertViewType",
+        "app.dashboardDeletionStatus",
+        "app.dashboardDeletionSummary",
+        "app.dashboardListCommand",
+        "app.retryCardDeletionCommand",
+        "views.Dashboard.SetDashboardName",
+        "views.Dashboard.SetDashboardScope",
+        "views.Dashboard.SetSize",
+        "views.Dashboard.ShowCardDeletionImpact",
+        "views.Dashboard.Update",
+        "views.Dashboard.View",
+        "views.Dashboard.footerText",
+        "views.Dashboard.handleDeleteCard",
+        "views.Dashboard.handleEdit",
+        "views.Dashboard.handleEnter",
+        "views.Dashboard.handleKey",
+        "views.Dashboard.handleSessionEnter",
+        "views.Dashboard.handleSwitch",
+        "views.Dashboard.renderBase",
+        "views.Dashboard.updateCardImpact",
+        "views.DashboardList",
+        "views.DashboardList.Init",
+        "views.DashboardList.SetDashboards",
+        "views.DashboardList.SetSize",
+        "views.DashboardList.Update",
+        "views.DashboardList.View",
+        "views.DashboardList.confirmDeletion",
+        "views.DashboardList.openForm",
+        "views.DashboardList.renderPage",
+        "views.DashboardList.retryDeletion",
+        "views.DashboardList.selected",
+        "views.DashboardList.updateConfirmation",
+        "views.DashboardList.updateForm",
+        "views.DashboardListCallbacks",
+        "views.NewDashboardList",
+        "views.dashboardItem",
+        "views.dashboardItem.Description",
+        "views.dashboardItem.FilterValue",
+        "views.dashboardItem.Title",
+        "views.dashboardListMode"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/app/dashboard_list.go",
+        "internal/app/navigation.go",
+        "internal/app/size_guard.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_list.go"
+      ],
+      "digest": "975c040f4fa98eacc253113dd882903acff566b2da4bf5a38f5b37c976576362"
+    },
+    {
+      "kind": "flow",
+      "id": "notification-authority",
+      "refs": [
+        "api.OperationRunner",
+        "api.OperationRunner.execute",
+        "api.OperationRunner.monitorCaller",
+        "api.notificationAuthority",
+        "api.notificationAuthority.monitor",
+        "api.notificationAuthority.validate",
+        "api.operationTask",
+        "api.taskAuthority",
+        "session.Manager",
+        "session.Manager.GetSession",
+        "session.Manager.reportAdmissionValidLocked",
+        "session.Manager.reportDashboardAvailableLocked",
+        "session.MessageStore",
+        "session.MessageStore.Notifications",
+        "session.MessageStore.notification"
+      ],
+      "directRefs": [
+        "api.OperationRunner.execute",
+        "api.OperationRunner.monitorCaller",
+        "api.notificationAuthority.monitor",
+        "api.notificationAuthority.validate",
+        "session.Manager.GetSession",
+        "session.MessageStore.Notifications"
+      ],
+      "participants": [
+        "api.OperationRunner",
+        "api.notificationAuthority",
+        "session.Manager",
+        "session.MessageStore"
+      ],
+      "supportingRefs": [
+        "api.operationTask",
+        "api.taskAuthority",
+        "session.Manager.reportAdmissionValidLocked",
+        "session.Manager.reportDashboardAvailableLocked",
+        "session.MessageStore.notification"
+      ],
+      "files": [
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "00e12f0ad96506722c7147a09dddd13dbe6536885da0b19325aaf49b17512b41"
+    },
+    {
+      "kind": "flow",
+      "id": "notification-cancel",
+      "refs": [
+        "api.OperationRunner",
+        "api.OperationRunner.Shutdown",
+        "api.preparedDelivery",
+        "api.preparedDelivery.cancel",
+        "session.Manager",
+        "session.MessageAdmission.Release",
+        "session.MessageStore",
+        "session.MessageStore.UpdateDelivery"
+      ],
+      "directRefs": [
+        "api.OperationRunner.Shutdown",
+        "api.preparedDelivery.cancel",
+        "session.MessageAdmission.Release",
+        "session.MessageStore.UpdateDelivery"
+      ],
+      "participants": [
+        "api.OperationRunner",
+        "api.preparedDelivery",
+        "session.Manager",
+        "session.MessageStore"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/operations.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "ff38d890d60b5f73af36a0732fcf226e3e35e162d3e03c9ec8771f510a4d3ce6"
+    },
+    {
+      "kind": "flow",
+      "id": "notification-dispatch",
+      "refs": [
+        "api.OperationRunner",
+        "api.OperationRunner.accept",
+        "api.OperationRunner.dispatchNotification",
+        "api.OperationRunner.startDispatcher",
+        "api.Service",
+        "api.Service.SetOperationRunner",
+        "api.dueNotifications",
+        "api.notificationSchedule",
+        "api.preparedDelivery",
+        "api.preparedDelivery.arguments",
+        "api.preparedDelivery.publish",
+        "session.Manager",
+        "session.Manager.ReserveReportNotification",
+        "session.MessageStore",
+        "session.MessageStore.Notifications",
+        "session.MessageStore.UpdateNotification",
+        "session.MessageStore.createIntent"
+      ],
+      "directRefs": [
+        "api.OperationRunner.accept",
+        "api.OperationRunner.startDispatcher",
+        "api.Service.SetOperationRunner",
+        "api.dueNotifications",
+        "api.preparedDelivery.arguments",
+        "api.preparedDelivery.publish",
+        "session.Manager.ReserveReportNotification",
+        "session.MessageStore.Notifications",
+        "session.MessageStore.UpdateNotification",
+        "session.MessageStore.createIntent"
+      ],
+      "participants": [
+        "api.OperationRunner",
+        "api.Service",
+        "api.preparedDelivery",
+        "session.Manager",
+        "session.MessageStore"
+      ],
+      "supportingRefs": [
+        "api.OperationRunner.dispatchNotification",
+        "api.notificationSchedule"
+      ],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "dbdd858c6f928223f280a81e0b54d65e9ec86ba190d4cad3df43a63626e9d5c1"
+    },
+    {
+      "kind": "flow",
+      "id": "notification-retry",
+      "refs": [
+        "api.OperationRunner",
+        "api.OperationRunner.dispatchNotification",
+        "api.OperationRunner.dispatchNotifications",
+        "api.OperationRunner.reconcileNotification",
+        "api.nextNotificationDelay",
+        "api.preparedDelivery",
+        "api.preparedDelivery.releaseUnpublished",
+        "session.MessageStore",
+        "session.MessageStore.GetMessage",
+        "session.MessageStore.UpdateNotification"
+      ],
+      "directRefs": [
+        "api.OperationRunner.dispatchNotification",
+        "api.OperationRunner.dispatchNotifications",
+        "api.OperationRunner.reconcileNotification",
+        "api.nextNotificationDelay",
+        "api.preparedDelivery.releaseUnpublished",
+        "session.MessageStore.GetMessage",
+        "session.MessageStore.UpdateNotification"
+      ],
+      "participants": [
+        "api.OperationRunner",
+        "api.preparedDelivery",
+        "session.MessageStore"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/messaging_review_test.go",
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "faa083c6ac96fba234fd7308bae97bbdebe15b2ea73af2a2c3591828132e9d01"
+    },
+    {
+      "kind": "flow",
+      "id": "notification-write",
+      "refs": [
+        "api.OperationRunner",
+        "api.preparedDelivery",
+        "api.preparedDelivery.submission",
+        "driver.AgentDriver",
+        "driver.ClaudeCodeDriver.SubmitPrompt",
+        "driver.CodexCLIDriver.SubmitPrompt",
+        "driver.GenericCLIDriver",
+        "driver.GenericCLIDriver.SubmitPrompt",
+        "driver.GenericCLIDriver.submitPrompt",
+        "driver.PromptEnvelope",
+        "driver.formatPrompt",
+        "session.Manager",
+        "session.Manager.SubmitMessage",
+        "session.Manager.beginMessageSubmission",
+        "session.MessageStore",
+        "session.MessageStore.UpdateDelivery",
+        "session.MessageStore.WaitTurn"
+      ],
+      "directRefs": [
+        "api.preparedDelivery.submission",
+        "driver.GenericCLIDriver.SubmitPrompt",
+        "driver.GenericCLIDriver.submitPrompt",
+        "driver.formatPrompt",
+        "session.Manager.SubmitMessage",
+        "session.Manager.beginMessageSubmission",
+        "session.MessageStore.UpdateDelivery",
+        "session.MessageStore.WaitTurn"
+      ],
+      "participants": [
+        "api.OperationRunner",
+        "api.preparedDelivery",
+        "driver.GenericCLIDriver",
+        "session.Manager",
+        "session.MessageStore"
+      ],
+      "supportingRefs": [
+        "driver.AgentDriver",
+        "driver.ClaudeCodeDriver.SubmitPrompt",
+        "driver.CodexCLIDriver.SubmitPrompt",
+        "driver.PromptEnvelope"
+      ],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/operations.go",
+        "internal/driver/driver.go",
+        "internal/driver/driver_test.go",
+        "internal/mcp/server_test.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "e666d54ef9bc790afd3effeea0c056d8d0d8a4d0a17465a4e39e61bb8f20b246"
     },
     {
       "kind": "flow",
@@ -537,6 +1646,11 @@
         "api.OperationRunner.loadRecord",
         "api.Service",
         "api.Service.CreateSession",
+        "api.controllerAuthority",
+        "api.controllerAuthority.monitor",
+        "api.controllerAuthority.validate",
+        "api.operationResult",
+        "api.taskAuthority",
         "session.Manager"
       ],
       "directRefs": [
@@ -546,20 +1660,27 @@
         "api.OperationRunner.execute",
         "api.OperationRunner.finishLocked",
         "api.OperationRunner.loadRecord",
-        "api.Service.CreateSession"
+        "api.Service.CreateSession",
+        "api.controllerAuthority.validate"
       ],
       "participants": [
         "api.OperationRunner",
         "api.Service",
+        "api.controllerAuthority",
         "session.Manager"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "api.controllerAuthority.monitor",
+        "api.controllerAuthority.validate",
+        "api.operationResult",
+        "api.taskAuthority"
+      ],
       "files": [
         "internal/api/operations.go",
         "internal/api/service.go",
         "internal/session/manager.go"
       ],
-      "digest": "c39a99d1e54a532e28b8c758e5e910d1625fa332a626507598a91e9c613a468f"
+      "digest": "63e6b7bf1dfa04f5e97737ff2a98eb2aae654d65e37edeb79fb0b8b487bd4e11"
     },
     {
       "kind": "flow",
@@ -686,7 +1807,7 @@
         "internal/session/manager.go",
         "main.go"
       ],
-      "digest": "2a2f9ece39a7dff5f6683f25340ae72c281d83d7a7ddf61b48f839ea4dcc3e52"
+      "digest": "75a2c41b2649d866f14b6af5f5af7b93194e19bffe3d32d501c03ca1cfce18bb"
     },
     {
       "kind": "flow",
@@ -697,7 +1818,7 @@
         "app.Coordinator",
         "driver.GenericCLIDriver",
         "session.Manager",
-        "session.Manager.Attach",
+        "session.Manager.AttachChecked",
         "session.Manager.activateSessionLocked",
         "session.Manager.deliveryAvailableLocked",
         "session.Manager.snapshotLocked",
@@ -705,7 +1826,7 @@
       ],
       "directRefs": [
         "api.inspectionFromSnapshot",
-        "session.Manager.Attach",
+        "session.Manager.AttachChecked",
         "session.Manager.activateSessionLocked",
         "session.Manager.deliveryAvailableLocked",
         "session.Manager.snapshotLocked",
@@ -726,29 +1847,29 @@
         "internal/session/lifecycle.go",
         "internal/session/manager.go"
       ],
-      "digest": "43c05405465bb8be5730d85d695e552f58abdb81a6b7bfb2eab866a1b7af1bb4"
+      "digest": "cb60eb438d8ebd3f12c24bb034cb2a2bb3486d23553c8ad6acd2926c1071b326"
     },
     {
       "kind": "flow",
       "id": "recovery",
       "refs": [
         "api.OperationRunner",
-        "api.OperationRunner.load",
+        "api.OperationRunner.dispatchNotification",
         "api.OperationRunner.loadRecord",
+        "api.OperationRunner.reconcileNotification",
         "session.Data.restore",
         "session.Manager",
         "session.MessageStore",
-        "session.MessageStore.Recover",
-        "session.NewMessageStore",
-        "session.loadSessions"
+        "session.MessageStore.Notifications",
+        "session.MessageStore.Recover"
       ],
       "directRefs": [
-        "api.OperationRunner.load",
+        "api.OperationRunner.dispatchNotification",
         "api.OperationRunner.loadRecord",
+        "api.OperationRunner.reconcileNotification",
         "session.Data.restore",
-        "session.MessageStore.Recover",
-        "session.NewMessageStore",
-        "session.loadSessions"
+        "session.MessageStore.Notifications",
+        "session.MessageStore.Recover"
       ],
       "participants": [
         "api.OperationRunner",
@@ -757,12 +1878,14 @@
       ],
       "supportingRefs": [],
       "files": [
+        "internal/api/notifications.go",
         "internal/api/operations.go",
         "internal/session/manager.go",
+        "internal/session/message_notifications.go",
         "internal/session/messaging.go",
         "internal/session/storage.go"
       ],
-      "digest": "4480062e29359963e7709897c18fc4de70f46b1b452e18fc2629b90284af8c3f"
+      "digest": "c0769962c79f9a2b24fee17382787708c3e6f5fbda0445b0a0c0c8d22bd04562"
     },
     {
       "kind": "flow",
@@ -773,6 +1896,7 @@
         "mcp.Runtime",
         "mcp.Start",
         "mcp.authorize",
+        "session.CallerIdentity",
         "session.Manager",
         "session.Manager.RegisterConversation",
         "session.Manager.activationAuthorityLocked",
@@ -780,6 +1904,8 @@
         "session.Manager.publishActivationLocked",
         "session.Manager.registerConversationLocked",
         "session.Manager.validateReportedConversationLocked",
+        "session.RegistrationResult",
+        "session.activationAuthority",
         "session.addConversationBinding"
       ],
       "directRefs": [
@@ -796,9 +1922,12 @@
         "session.Manager"
       ],
       "supportingRefs": [
+        "session.CallerIdentity",
         "session.Manager.activationAuthorityLocked",
         "session.Manager.publishActivationLocked",
         "session.Manager.validateReportedConversationLocked",
+        "session.RegistrationResult",
+        "session.activationAuthority",
         "session.addConversationBinding"
       ],
       "files": [
@@ -808,57 +1937,127 @@
         "internal/session/lifecycle.go",
         "internal/session/manager.go"
       ],
-      "digest": "36100fcb4fcd71d224896aeeac9135944b060d0cf801f5cb3bcf1c0dd2aeddab"
+      "digest": "d3abd1c0327da2c4616c3c6cadcc3ea0a03b1d0b37085d551d6d01f56e87c025"
+    },
+    {
+      "kind": "flow",
+      "id": "report-inspection",
+      "refs": [
+        "api.Service",
+        "api.Service.GetMessage",
+        "api.Service.GetReplies",
+        "mcp.addMessagingTools",
+        "session.MessageStore",
+        "session.MessageStore.GetMessage",
+        "session.MessageStore.GetReplies",
+        "session.cloneReply"
+      ],
+      "directRefs": [
+        "api.Service.GetMessage",
+        "api.Service.GetReplies",
+        "mcp.addMessagingTools",
+        "session.MessageStore.GetMessage",
+        "session.MessageStore.GetReplies",
+        "session.cloneReply"
+      ],
+      "participants": [
+        "api.Service",
+        "session.MessageStore"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/service.go",
+        "internal/mcp/server.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "4ebe763e3d84a36e803ec1e074510fc4c407856f026ae819ad1eb8a95e51147b"
+    },
+    {
+      "kind": "flow",
+      "id": "report-progress",
+      "refs": [
+        "api.Service",
+        "api.Service.ReportReply",
+        "session.Manager",
+        "session.Manager.ReportMessage",
+        "session.MessageStore",
+        "session.MessageStore.Notifications",
+        "session.MessageStore.RecordReply"
+      ],
+      "directRefs": [
+        "api.Service.ReportReply",
+        "session.Manager.ReportMessage",
+        "session.MessageStore.Notifications",
+        "session.MessageStore.RecordReply"
+      ],
+      "participants": [
+        "api.Service",
+        "session.Manager",
+        "session.MessageStore"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/service.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "0d5ff8bfab5add73195dec8861be1ce82ca40f51344713f023ddb721ff497cb2"
     },
     {
       "kind": "flow",
       "id": "reports",
       "refs": [
+        "api.OperationRunner",
         "api.Service",
-        "api.Service.GetMessage",
-        "api.Service.GetReplies",
         "api.Service.ReportReply",
-        "mcp.Runtime",
         "mcp.addMessagingTools",
         "session.Manager",
-        "session.Manager.MessageRecipientLive",
         "session.Manager.ReportMessage",
+        "session.MessageReply",
         "session.MessageStore",
-        "session.MessageStore.GetReplies",
+        "session.MessageStore.Notifications",
         "session.MessageStore.RecordReply",
-        "session.MessageStore.Recover",
-        "session.MessageStore.createIntent",
-        "session.MessageStore.evictLocked"
+        "session.MessageStore.signalLocked",
+        "session.NotificationState",
+        "session.PendingNotification",
+        "session.ReplyNotification"
       ],
       "directRefs": [
-        "api.Service.GetReplies",
         "api.Service.ReportReply",
         "mcp.addMessagingTools",
-        "session.Manager.MessageRecipientLive",
         "session.Manager.ReportMessage",
-        "session.MessageStore.GetReplies",
-        "session.MessageStore.RecordReply"
+        "session.MessageStore.Notifications",
+        "session.MessageStore.RecordReply",
+        "session.MessageStore.signalLocked"
       ],
       "participants": [
+        "api.OperationRunner",
         "api.Service",
-        "mcp.Runtime",
         "session.Manager",
         "session.MessageStore"
       ],
       "supportingRefs": [
-        "api.Service.GetMessage",
-        "session.MessageStore.Recover",
-        "session.MessageStore.createIntent",
-        "session.MessageStore.evictLocked"
+        "session.MessageReply",
+        "session.NotificationState",
+        "session.PendingNotification",
+        "session.ReplyNotification"
       ],
       "files": [
         "internal/api/messaging.go",
+        "internal/api/operations.go",
         "internal/api/service.go",
         "internal/mcp/server.go",
         "internal/session/manager.go",
-        "internal/session/messaging.go"
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go",
+        "internal/session/messaging_review_test.go",
+        "internal/session/messaging_test.go",
+        "kankuro_skills/kankuro-puppet/SKILL.md"
       ],
-      "digest": "45e8a721f7ecf1a17969d6518b8cc6a56e3102fad0e10323c178ca89442670d3"
+      "digest": "d6bfcec6f6bfc16ca4c0c37018dfdc2b6e767d36527d83360486199aaf166be1"
     },
     {
       "kind": "flow",
@@ -906,15 +2105,14 @@
         "internal/ui/views/settings.go",
         "internal/ui/views/settings_test.go"
       ],
-      "digest": "f0abfe3be2ddf1bd6a4ebf5d1c7753e655447db0a3461842d9d4fd48ae49b72e"
+      "digest": "268df727776228c6b7b368b283084b97a388648de7a2510893b9d0e94fb391ad"
     },
     {
       "kind": "flow",
       "id": "resume",
       "refs": [
         "api.Service",
-        "api.Service.Conversations",
-        "api.Service.SwitchAgentWithChoice",
+        "api.Service.SwitchInDashboard",
         "app.Coordinator",
         "app.Coordinator.conversationChoiceCallbacks",
         "app.Coordinator.handleConversationChoiceRequested",
@@ -925,10 +2123,14 @@
         "driver.CodexCLIDriver.SetSession",
         "driver.GenericCLIDriver.SetSession",
         "session.Manager",
-        "session.Manager.SwitchAgentWithChoiceContext",
+        "session.Manager.GetSession",
+        "session.Manager.SwitchAgentWithChoiceCheckedContext",
         "session.Manager.reserveForActivation",
+        "session.savedTemporaryRoot",
         "session.validateConversationChoice",
         "session.validateSessionWorkspace",
+        "views.AgentSwitchView.SetData",
+        "views.AgentSwitchView.handleKey",
         "views.ConversationChoiceView",
         "views.ConversationChoiceView.RefreshContext",
         "views.ConversationChoiceView.SelectedBinding",
@@ -936,14 +2138,14 @@
         "views.ConversationChoiceView.Update"
       ],
       "directRefs": [
-        "api.Service.Conversations",
-        "api.Service.SwitchAgentWithChoice",
+        "api.Service.SwitchInDashboard",
         "app.Coordinator.conversationChoiceCallbacks",
         "app.Coordinator.requestRelaunch",
         "driver.ClaudeCodeDriver.SetSession",
         "driver.CodexCLIDriver.SetSession",
         "driver.GenericCLIDriver.SetSession",
-        "session.Manager.SwitchAgentWithChoiceContext",
+        "session.Manager.GetSession",
+        "session.Manager.SwitchAgentWithChoiceCheckedContext",
         "session.Manager.reserveForActivation",
         "session.validateSessionWorkspace",
         "views.ConversationChoiceView.SetContext"
@@ -958,68 +2160,189 @@
       "supportingRefs": [
         "app.Coordinator.handleConversationChoiceRequested",
         "app.Coordinator.requestSwitch",
+        "session.savedTemporaryRoot",
         "session.validateConversationChoice",
+        "views.AgentSwitchView.SetData",
+        "views.AgentSwitchView.handleKey",
         "views.ConversationChoiceView.RefreshContext",
         "views.ConversationChoiceView.SelectedBinding",
         "views.ConversationChoiceView.Update"
       ],
       "files": [
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
         "internal/driver/driver.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
+        "internal/ui/views/agent_switch.go",
         "internal/ui/views/conversation_choice.go"
       ],
-      "digest": "e8c81f61f6aaf6c7fd9ed9d09e8947fc7ded10bfbcdff4e76954013dde75dac3"
+      "digest": "adf0766d56d1f891940f4d01d506eb69d96ff29e3dec6bb60f475addcf2836c7"
     },
     {
       "kind": "flow",
       "id": "savecard",
       "refs": [
+        "api.Service",
+        "api.Service.AttachInDashboard",
+        "api.Service.CheckSessionInDashboard",
+        "api.Service.CreateCardInDashboard",
+        "api.Service.CreateDashboard",
+        "api.Service.LaunchInDashboard",
+        "api.Service.ListDashboards",
+        "api.Service.ReadDashboardData",
+        "api.Service.RelaunchInDashboard",
+        "api.Service.RemoveInDashboard",
+        "api.Service.RenameInDashboard",
+        "api.Service.StopInDashboard",
+        "api.Service.SwitchInDashboard",
+        "api.Service.UpdateCardInDashboard",
+        "api.Service.UpdateDashboardDetails",
+        "api.Service.availableDashboardCard",
+        "api.Service.launchDashboardWithID",
+        "api.Service.listCardTombstones",
+        "api.Service.loadMembershipInventory",
+        "api.hasForeignCardReferences",
+        "api.membershipInventory.activeDashboard",
+        "api.membershipInventory.allowsCard",
+        "api.membershipInventory.allowsSession",
+        "api.membershipInventory.hasTombstone",
+        "api.newMembershipInventory",
+        "api.sessionInDashboard",
+        "api.sessionUsesCard",
         "app.Coordinator",
+        "app.Coordinator.agentSwitchCallbacks",
         "app.Coordinator.cardEditorCallbacks",
-        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.conversationChoiceCallbacks",
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.launchCard",
+        "app.Coordinator.launchIDE",
+        "app.Coordinator.launchTerminal",
+        "app.Coordinator.mcpCallbacks",
+        "app.Coordinator.navigationCommand",
+        "app.Coordinator.requestRelaunch",
+        "app.Coordinator.requestSwitch",
+        "app.Coordinator.sessionLauncherCallbacks",
+        "app.Coordinator.settingsCallbacks",
+        "components.Filter",
         "config.FileRepository",
+        "config.FileRepository.CreateIDCard",
+        "config.FileRepository.LoadIDCardsFile",
         "config.FileRepository.UpdateIDCard",
-        "config.FileRepository.ValidateCard",
-        "config.FileRepository.WriteAtomic",
-        "config.IDCard",
+        "config.FileRepository.WriteIDCardsFile",
+        "config.validateCardMembershipFormat",
+        "session.Manager",
+        "session.Manager.WithCardReferencesAndSnapshot",
         "views.CardEditor",
         "views.CardEditor.Card",
-        "views.CardEditor.handleSubmit"
+        "views.CardEditor.Reset",
+        "views.CardEditor.SetCard",
+        "views.CardEditor.SetDashboardContext",
+        "views.CardEditor.SetData",
+        "views.CardEditor.SetSettings",
+        "views.CardEditor.Update",
+        "views.CardEditor.fieldBlocks",
+        "views.CardEditor.handleSpace",
+        "views.CardEditor.renderDashboardControlLine",
+        "views.CardEditor.renderSharedLine",
+        "views.CardEditor.renderTmpWorkspaceLine",
+        "views.CardEditor.visibleFocusOrder",
+        "views.CardEditorCallbacks",
+        "views.focusTargetTable"
       ],
       "directRefs": [
+        "api.Service.CreateCardInDashboard",
+        "api.Service.UpdateCardInDashboard",
         "app.Coordinator.cardEditorCallbacks",
-        "app.Coordinator.handleSpecialMessages",
         "config.FileRepository.UpdateIDCard",
-        "config.FileRepository.ValidateCard",
-        "config.FileRepository.WriteAtomic",
+        "session.Manager.WithCardReferencesAndSnapshot",
         "views.CardEditor.Card",
-        "views.CardEditor.handleSubmit"
+        "views.CardEditor.SetDashboardContext"
       ],
       "participants": [
+        "api.Service",
         "app.Coordinator",
         "config.FileRepository",
+        "session.Manager",
         "views.CardEditor"
       ],
       "supportingRefs": [
-        "config.FileRepository.ValidateCard",
-        "config.IDCard",
-        "views.CardEditor.Card"
+        "api.Service.AttachInDashboard",
+        "api.Service.CheckSessionInDashboard",
+        "api.Service.CreateCardInDashboard",
+        "api.Service.CreateDashboard",
+        "api.Service.LaunchInDashboard",
+        "api.Service.ListDashboards",
+        "api.Service.ReadDashboardData",
+        "api.Service.RelaunchInDashboard",
+        "api.Service.RemoveInDashboard",
+        "api.Service.RenameInDashboard",
+        "api.Service.StopInDashboard",
+        "api.Service.SwitchInDashboard",
+        "api.Service.UpdateCardInDashboard",
+        "api.Service.UpdateDashboardDetails",
+        "api.Service.availableDashboardCard",
+        "api.Service.launchDashboardWithID",
+        "api.Service.listCardTombstones",
+        "api.Service.loadMembershipInventory",
+        "api.hasForeignCardReferences",
+        "api.membershipInventory.activeDashboard",
+        "api.membershipInventory.allowsCard",
+        "api.membershipInventory.allowsSession",
+        "api.membershipInventory.hasTombstone",
+        "api.newMembershipInventory",
+        "api.sessionInDashboard",
+        "api.sessionUsesCard",
+        "app.Coordinator.agentSwitchCallbacks",
+        "app.Coordinator.cardEditorCallbacks",
+        "app.Coordinator.conversationChoiceCallbacks",
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.launchCard",
+        "app.Coordinator.launchIDE",
+        "app.Coordinator.launchTerminal",
+        "app.Coordinator.mcpCallbacks",
+        "app.Coordinator.navigationCommand",
+        "app.Coordinator.requestRelaunch",
+        "app.Coordinator.requestSwitch",
+        "app.Coordinator.sessionLauncherCallbacks",
+        "app.Coordinator.settingsCallbacks",
+        "components.Filter",
+        "config.FileRepository.CreateIDCard",
+        "config.FileRepository.LoadIDCardsFile",
+        "config.FileRepository.UpdateIDCard",
+        "config.FileRepository.WriteIDCardsFile",
+        "config.validateCardMembershipFormat",
+        "views.CardEditor.Card",
+        "views.CardEditor.Reset",
+        "views.CardEditor.SetCard",
+        "views.CardEditor.SetDashboardContext",
+        "views.CardEditor.SetData",
+        "views.CardEditor.SetSettings",
+        "views.CardEditor.Update",
+        "views.CardEditor.fieldBlocks",
+        "views.CardEditor.handleSpace",
+        "views.CardEditor.renderDashboardControlLine",
+        "views.CardEditor.renderSharedLine",
+        "views.CardEditor.renderTmpWorkspaceLine",
+        "views.CardEditor.visibleFocusOrder",
+        "views.CardEditorCallbacks",
+        "views.focusTargetTable"
       ],
       "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
-        "internal/config/storage.go",
-        "internal/config/types.go",
-        "internal/config/validation.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/ui/components/filter.go",
         "internal/ui/views/card_editor.go"
       ],
-      "digest": "a2a3a688665fea508ee2a80d77449e67c92310079e2815bf134b36ffc344154d"
+      "digest": "4a9f31d9e52231347dc09db5f6a495a6e6f88b7c98603fce10829989e1d06b87"
     },
     {
       "kind": "flow",
@@ -1027,62 +2350,50 @@
       "refs": [
         "api.OperationRunner",
         "api.OperationRunner.SubmitWithAdmission",
+        "api.OperationRunner.submit",
         "api.Service",
         "api.Service.SendMessage",
-        "driver.AgentDriver",
-        "driver.ClaudeCodeDriver.SubmitPrompt",
-        "driver.CodexCLIDriver.SubmitPrompt",
-        "driver.GenericCLIDriver.submitPrompt",
-        "driver.GenericCLIDriver.submitPromptBytes",
-        "driver.ValidatePrompt",
-        "driver.classifySubmission",
-        "driver.writePromptPhases",
+        "api.preparedDelivery",
+        "api.preparedDelivery.arguments",
+        "api.preparedDelivery.publish",
+        "api.preparedDelivery.submission",
         "session.Manager",
         "session.Manager.PublishMessageAdmission",
         "session.Manager.ReserveMessageAdmission",
         "session.Manager.SubmitMessage",
-        "session.Manager.beginMessageSubmission",
         "session.MessageStore",
-        "session.MessageStore.CreateIntentWithAdmission",
-        "session.MessageStore.UpdateDelivery",
-        "session.MessageStore.WaitTurn"
+        "session.MessageStore.CreateIntentWithAdmission"
       ],
       "directRefs": [
         "api.OperationRunner.SubmitWithAdmission",
+        "api.OperationRunner.submit",
         "api.Service.SendMessage",
-        "driver.GenericCLIDriver.submitPrompt",
+        "api.preparedDelivery.publish",
+        "api.preparedDelivery.submission",
+        "session.Manager.PublishMessageAdmission",
         "session.Manager.ReserveMessageAdmission",
-        "session.Manager.beginMessageSubmission",
-        "session.MessageStore.CreateIntentWithAdmission",
-        "session.MessageStore.UpdateDelivery",
-        "session.MessageStore.WaitTurn"
+        "session.Manager.SubmitMessage",
+        "session.MessageStore.CreateIntentWithAdmission"
       ],
       "participants": [
         "api.OperationRunner",
         "api.Service",
-        "driver.AgentDriver",
+        "api.preparedDelivery",
         "session.Manager",
         "session.MessageStore"
       ],
       "supportingRefs": [
-        "driver.ClaudeCodeDriver.SubmitPrompt",
-        "driver.CodexCLIDriver.SubmitPrompt",
-        "driver.GenericCLIDriver.submitPromptBytes",
-        "driver.ValidatePrompt",
-        "driver.classifySubmission",
-        "driver.writePromptPhases",
-        "session.Manager.PublishMessageAdmission",
-        "session.Manager.SubmitMessage"
+        "api.preparedDelivery.arguments"
       ],
       "files": [
         "internal/api/messaging.go",
+        "internal/api/messaging_shared_delivery_test.go",
         "internal/api/operations.go",
         "internal/api/service.go",
-        "internal/driver/driver.go",
         "internal/session/manager.go",
         "internal/session/messaging.go"
       ],
-      "digest": "ea3c1cfba9011718316e1b4925d205b136ec17c6965fc79efd01714aa30ee634"
+      "digest": "b1a470eb465f8318a29cc725306b5a0d84c96474fb0ed19bebef0573d3655d0c"
     },
     {
       "kind": "flow",
@@ -1140,6 +2451,7 @@
         "components.DisplayText",
         "components.TruncateHead",
         "views.NewSettingsView",
+        "views.SettingsCallbacks",
         "views.SettingsView",
         "views.SettingsView.SetSettings",
         "views.SettingsView.SetSize",
@@ -1167,6 +2479,7 @@
       "supportingRefs": [
         "components.DisplayText",
         "components.TruncateHead",
+        "views.SettingsCallbacks",
         "views.SettingsView.TerminalInput"
       ],
       "files": [
@@ -1175,7 +2488,7 @@
         "internal/ui/views/settings.go",
         "internal/ui/views/settings_test.go"
       ],
-      "digest": "77562062def5adb94409231a0db2881aa90aa1485a546cfd493d2a0b63aaa542"
+      "digest": "0058fa080da795200aa6edd62efbb6a121fd1e403735486bcb7970b542ef2d92"
     },
     {
       "kind": "flow",
@@ -1232,7 +2545,7 @@
         "internal/ui/views/card_editor.go",
         "internal/ui/views/card_editor_test.go"
       ],
-      "digest": "17d519c4b6cb029a73c61e6f9d16b4b95e8a2aa23b19e4a1889ceee62a75a9b7"
+      "digest": "833bf014f428d9fe21f39212640fa16500f590b97a5b657b64b02261b7197ae7"
     },
     {
       "kind": "flow",
@@ -1278,7 +2591,7 @@
         "internal/driver/driver.go",
         "main.go"
       ],
-      "digest": "92b4467bc7dc2f2342abcb6736adcbe0d0dd3f087189144b69c49bf90de43c85"
+      "digest": "adb0823af5b9f5b50451a3e7d23367269b569e72f5cd51eb2ff5edd93e3c721d"
     },
     {
       "kind": "flow",
@@ -1325,9 +2638,26 @@
         "api.NewOperationRunner",
         "api.OperationRunner",
         "api.Service",
+        "api.Service.SetOperationRunner",
         "app.Coordinator",
+        "app.Coordinator.Init",
+        "app.New",
+        "config.CardRepository",
+        "config.DashboardRepository",
         "config.FileRepository",
+        "config.FileRepository.SyncSkillsFromSources",
         "config.NewFileRepository",
+        "config.OpenExistingFileRepository",
+        "config.ResolveDirectory",
+        "configstartup.AcquireLock",
+        "configstartup.Lock",
+        "configstartup.Lock.Close",
+        "configstartup.PrepareStartup",
+        "configstartup.ValidateLayout",
+        "configstartup.jsonValue",
+        "configstartup.validateJSON",
+        "configstartup.validateLayoutHistory",
+        "configstartup.validateLayoutSessions",
         "mcp.Runtime",
         "mcp.Start",
         "root.main",
@@ -1339,10 +2669,15 @@
       "directRefs": [
         "api.New",
         "api.NewOperationRunner",
+        "api.Service.SetOperationRunner",
+        "app.Coordinator.Init",
+        "app.New",
+        "config.FileRepository.SyncSkillsFromSources",
         "config.NewFileRepository",
+        "configstartup.AcquireLock",
+        "configstartup.PrepareStartup",
         "mcp.Start",
         "root.main",
-        "root.run",
         "session.Manager.SetMCPEndpoint",
         "session.NewManager"
       ],
@@ -1351,21 +2686,45 @@
         "api.Service",
         "app.Coordinator",
         "config.FileRepository",
+        "configstartup.PrepareStartup",
         "mcp.Runtime",
         "root.run",
         "session.Manager"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "app.New",
+        "config.CardRepository",
+        "config.DashboardRepository",
+        "config.NewFileRepository",
+        "config.OpenExistingFileRepository",
+        "config.ResolveDirectory",
+        "configstartup.AcquireLock",
+        "configstartup.Lock",
+        "configstartup.Lock.Close",
+        "configstartup.PrepareStartup",
+        "configstartup.ValidateLayout",
+        "configstartup.jsonValue",
+        "configstartup.validateJSON",
+        "configstartup.validateLayoutHistory",
+        "configstartup.validateLayoutSessions",
+        "root.run"
+      ],
       "files": [
         "internal/api/operations.go",
         "internal/api/service.go",
+        "internal/app/app.go",
         "internal/app/coordinator.go",
         "internal/config/repository.go",
+        "internal/config/skill_sources.go",
+        "internal/configstartup/json.go",
+        "internal/configstartup/lock.go",
+        "internal/configstartup/startup.go",
+        "internal/configstartup/validate.go",
         "internal/mcp/server.go",
         "internal/session/manager.go",
         "main.go"
       ],
-      "digest": "2c8692814dc52505deabcd3f5783847618e2393b5bad61d08b91ec65becbf815"
+      "digest": "cb4274c5d4a30ef0bb992e6c5a566912c52f93fcf1aeac13f431c67493395216"
     },
     {
       "kind": "flow",
@@ -1450,7 +2809,7 @@
         "kankuro_specs.md",
         "project.md"
       ],
-      "digest": "9f4602ea24d220cce6477cfe12a6da6afa1c92bd9cc98e46146e4a084c56efa1"
+      "digest": "bdb7ec24ef551a3070df907e0d15ac377fb31d71729bc9d02b2d6a85da5a49b8"
     },
     {
       "kind": "flow",
@@ -1504,7 +2863,7 @@
         "internal/ui/views/workspace_picker_modal.go",
         "internal/ui/views/workspace_picker_test.go"
       ],
-      "digest": "66dc01360c20eb5c411935ca7a5a0185ac5ea4dcda46560a8c197cc9c4e93d77"
+      "digest": "417c697b0f1511ae37e85d11f7b850bc6493bf4dfa9c7d52239f3ffff6f25c86"
     },
     {
       "kind": "flow",
@@ -1513,11 +2872,13 @@
         "views.CardEditor",
         "views.CardEditor.Card",
         "views.CardEditor.handleSpace",
+        "views.CardEditor.handleSubmit",
         "views.CardEditor.renderTmpWorkspaceLine"
       ],
       "directRefs": [
         "views.CardEditor.Card",
         "views.CardEditor.handleSpace",
+        "views.CardEditor.handleSubmit",
         "views.CardEditor.renderTmpWorkspaceLine"
       ],
       "participants": [
@@ -1527,38 +2888,38 @@
       "files": [
         "internal/ui/views/card_editor.go"
       ],
-      "digest": "32a6591b21c1b7cd37008dcb88853858d15a58ead35154d556a924d34e40805b"
+      "digest": "d9281bd6be4ab8b848e3b4968a223d498add7214a32e6f1012b2919efeeb372c"
     },
     {
       "kind": "flow",
       "id": "terminal",
       "refs": [
+        "api.Service.CheckSessionInDashboard",
         "app.Coordinator",
         "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.handleSessionMessages",
         "app.Coordinator.handleSpecialMessages",
-        "app.Coordinator.handleWorkspaceCommandResult",
         "app.Coordinator.launchTerminal",
         "app.sessionActions",
         "app.sessionActions.launchTerminal",
         "app.sessionActions.launchWorkspaceCommand",
-        "messages.TerminalLaunchedMsg",
+        "messages.ScopedActionFinishedMsg",
         "session.LaunchWorkspaceCommand",
         "session.Manager",
-        "session.Manager.List",
         "views.Dashboard",
         "views.Dashboard.handleKey",
         "views.Dashboard.handleLaunchSession",
         "views.DashboardCallbacks"
       ],
       "directRefs": [
+        "api.Service.CheckSessionInDashboard",
         "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.handleSessionMessages",
         "app.Coordinator.handleSpecialMessages",
-        "app.Coordinator.handleWorkspaceCommandResult",
         "app.Coordinator.launchTerminal",
         "app.sessionActions.launchTerminal",
         "app.sessionActions.launchWorkspaceCommand",
         "session.LaunchWorkspaceCommand",
-        "session.Manager.List",
         "views.Dashboard.handleKey",
         "views.Dashboard.handleLaunchSession"
       ],
@@ -1570,71 +2931,143 @@
         "views.Dashboard"
       ],
       "supportingRefs": [
-        "messages.TerminalLaunchedMsg",
+        "messages.ScopedActionFinishedMsg",
         "views.DashboardCallbacks"
       ],
       "files": [
+        "internal/api/membership.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
         "internal/app/session_actions.go",
         "internal/app/terminal_launch_test.go",
+        "internal/session/ide_launcher.go",
         "internal/session/manager.go",
         "internal/session/workspace_launcher.go",
         "internal/ui/messages/messages.go",
         "internal/ui/views/dashboard.go",
         "internal/ui/views/dashboard_test.go"
       ],
-      "digest": "959475d00474a8ce5eb7fea569341ce72deaa2cf50acd18d2427b08ec8e23280"
+      "digest": "26d5580f1696d063e774e593d8b22a5c6797ff33d59ceae70ac692e6157a033b"
     },
     {
       "kind": "flow",
       "id": "tick",
       "refs": [
+        "api.Service",
+        "api.Service.ReadDashboardData",
         "app.Coordinator",
-        "app.Coordinator.broadcastData",
         "app.Coordinator.handleConfigFingerprint",
+        "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handlePreviewRequest",
         "app.Coordinator.handleSessionsRefreshed",
         "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.maybeRefreshConfig",
+        "app.Coordinator.maybeSubscribeAutoSelectedPreview",
+        "app.Coordinator.refreshDataSeeded",
         "app.Coordinator.refreshSessions",
+        "app.previewSub.unsubscribe",
         "app.refresher",
-        "app.refresher.configIfChanged",
-        "app.refresher.sessionsOnly",
-        "config.FileRepository",
-        "config.FileRepository.Fingerprint",
-        "session.Manager",
-        "session.Manager.List",
-        "views.Dashboard"
+        "app.refresher.scopedConfigIfChanged",
+        "app.refresher.scopedFull",
+        "app.refresher.scopedSessions",
+        "components.SessionPreview.handleStateCSI",
+        "config.registryFiles",
+        "messages.AgentSwitchRequestedMsg",
+        "messages.AgentSwitchedMsg",
+        "messages.AttachFinishedMsg",
+        "messages.CardDeletionPreparedMsg",
+        "messages.CardSavedMsg",
+        "messages.ConversationChoiceRequestedMsg",
+        "messages.DashboardDeletionPreparedMsg",
+        "messages.DashboardDeletionStatusMsg",
+        "messages.DashboardListLoadedMsg",
+        "messages.DashboardListRequestedMsg",
+        "messages.DashboardMutationFinishedMsg",
+        "messages.DashboardOpenRequestedMsg",
+        "messages.MCPSavedMsg",
+        "messages.ScopedActionFinishedMsg",
+        "messages.ScopedAttachReadyMsg",
+        "messages.ScopedNavigateMsg",
+        "messages.ScopedSessionNamedMsg",
+        "messages.SessionAttachRequestedMsg",
+        "messages.SessionLaunchCompletedMsg",
+        "messages.SettingsSavedMsg",
+        "session.Data.restore",
+        "session.loadSessions",
+        "session.saveSession",
+        "views.Dashboard",
+        "views.Dashboard.SetSessions"
       ],
       "directRefs": [
-        "app.Coordinator.broadcastData",
-        "app.Coordinator.handleConfigFingerprint",
+        "api.Service.ReadDashboardData",
+        "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handlePreviewRequest",
         "app.Coordinator.handleSessionsRefreshed",
         "app.Coordinator.handleSpecialMessages",
-        "app.Coordinator.refreshSessions",
-        "app.refresher.configIfChanged",
-        "app.refresher.sessionsOnly",
-        "config.FileRepository.Fingerprint",
-        "session.Manager.List"
+        "app.Coordinator.refreshDataSeeded",
+        "app.refresher.scopedFull"
       ],
       "participants": [
+        "api.Service",
         "app.Coordinator",
         "app.refresher",
-        "config.FileRepository",
-        "session.Manager",
         "views.Dashboard"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "app.Coordinator.handleConfigFingerprint",
+        "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handlePreviewRequest",
+        "app.Coordinator.handleSessionsRefreshed",
+        "app.Coordinator.maybeRefreshConfig",
+        "app.Coordinator.maybeSubscribeAutoSelectedPreview",
+        "app.Coordinator.refreshDataSeeded",
+        "app.Coordinator.refreshSessions",
+        "app.previewSub.unsubscribe",
+        "app.refresher.scopedConfigIfChanged",
+        "app.refresher.scopedFull",
+        "app.refresher.scopedSessions",
+        "components.SessionPreview.handleStateCSI",
+        "config.registryFiles",
+        "messages.AgentSwitchRequestedMsg",
+        "messages.AgentSwitchedMsg",
+        "messages.AttachFinishedMsg",
+        "messages.CardDeletionPreparedMsg",
+        "messages.CardSavedMsg",
+        "messages.ConversationChoiceRequestedMsg",
+        "messages.DashboardDeletionPreparedMsg",
+        "messages.DashboardDeletionStatusMsg",
+        "messages.DashboardListLoadedMsg",
+        "messages.DashboardListRequestedMsg",
+        "messages.DashboardMutationFinishedMsg",
+        "messages.DashboardOpenRequestedMsg",
+        "messages.MCPSavedMsg",
+        "messages.ScopedActionFinishedMsg",
+        "messages.ScopedAttachReadyMsg",
+        "messages.ScopedNavigateMsg",
+        "messages.ScopedSessionNamedMsg",
+        "messages.SessionAttachRequestedMsg",
+        "messages.SessionLaunchCompletedMsg",
+        "messages.SettingsSavedMsg",
+        "session.Data.restore",
+        "session.loadSessions",
+        "session.saveSession",
+        "views.Dashboard.SetSessions"
+      ],
       "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
         "internal/app/coordinator.go",
         "internal/app/handlers.go",
-        "internal/app/navigation.go",
+        "internal/app/preview.go",
         "internal/app/refresh.go",
-        "internal/config/repository.go",
+        "internal/app/scoped_refresh.go",
         "internal/config/storage.go",
-        "internal/session/manager.go",
+        "internal/session/storage.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/messages/messages.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "3cc3e0950ba33c24c0f604186213a1f87b8cc53068dac051751a5fa25b65f46d"
+      "digest": "787b7f8c35238324ba6b30474c0a6fbb1da3632bc052dbceef35a795a3bbe847"
     },
     {
       "kind": "flow",
@@ -1679,7 +3112,7 @@
         "internal/session/lifecycle.go",
         "internal/session/manager.go"
       ],
-      "digest": "be22f02f2c39e5f0be5869ab6dadcb063d64432442783e55344cf9372fd8e49d"
+      "digest": "d2884cd81ffd277d3404fa3131a38b541e26848b205d776864980508fe1aadc9"
     },
     {
       "kind": "flow",
@@ -1725,7 +3158,7 @@
         "internal/session/messaging.go",
         "internal/session/watch.go"
       ],
-      "digest": "f0a6aad62e3ae247679a7bb801f68a6492b2318bd91be6c437025763f11f1b80"
+      "digest": "7d675d6c33737e241a75c76aaccdd44a228d823b28d8a850eae4a2cf66565419"
     },
     {
       "kind": "flow",
@@ -1735,7 +3168,7 @@
         "api.Service.GetSession",
         "api.Service.resolveCard",
         "session.Manager",
-        "session.Manager.RelaunchWithChoiceContext",
+        "session.Manager.RelaunchWithChoiceCheckedContext",
         "session.Manager.cleanupNewTemporaryWorkspace",
         "session.Manager.copyWorkspace",
         "session.Manager.prepareSubWorkspaces",
@@ -1757,7 +3190,7 @@
         "session.Manager"
       ],
       "supportingRefs": [
-        "session.Manager.RelaunchWithChoiceContext",
+        "session.Manager.RelaunchWithChoiceCheckedContext",
         "session.Manager.cleanupNewTemporaryWorkspace",
         "session.Manager.resolveWorkspacePath",
         "session.preparedSubWorkspaceDescriptors"
@@ -1769,27 +3202,27 @@
         "internal/session/sub_workspaces.go",
         "internal/session/workspace.go"
       ],
-      "digest": "ead0db0072a7fb7ecc1d6d362e54766112057779977a6bd8705fa5bd98379d02"
+      "digest": "3b72d5da245777332fff2c3db1e6440b1db0073ec79d78848bef782c2f5c7448"
     },
     {
       "kind": "flow",
       "id": "workspace-command-errors",
       "refs": [
+        "api.Service.CheckSessionInDashboard",
         "app.Coordinator",
         "app.Coordinator.Update",
-        "app.Coordinator.handleWorkspaceCommandResult",
+        "app.Coordinator.handleSessionMessages",
         "app.sessionActions",
         "app.sessionActions.launchTerminal",
-        "app.sessionActions.launchWorkspaceCommand",
-        "messages.TerminalLaunchedMsg",
+        "messages.ScopedActionFinishedMsg",
         "session.LaunchWorkspaceCommand"
       ],
       "directRefs": [
+        "api.Service.CheckSessionInDashboard",
         "app.Coordinator.Update",
-        "app.Coordinator.handleWorkspaceCommandResult",
+        "app.Coordinator.handleSessionMessages",
         "app.sessionActions.launchTerminal",
-        "app.sessionActions.launchWorkspaceCommand",
-        "messages.TerminalLaunchedMsg",
+        "messages.ScopedActionFinishedMsg",
         "session.LaunchWorkspaceCommand"
       ],
       "participants": [
@@ -1798,9 +3231,10 @@
         "session.LaunchWorkspaceCommand"
       ],
       "supportingRefs": [
-        "messages.TerminalLaunchedMsg"
+        "messages.ScopedActionFinishedMsg"
       ],
       "files": [
+        "internal/api/membership.go",
         "internal/app/command_race_internal_test.go",
         "internal/app/coordinator.go",
         "internal/app/session_actions.go",
@@ -1808,7 +3242,7 @@
         "internal/session/workspace_launcher.go",
         "internal/ui/messages/messages.go"
       ],
-      "digest": "d5c3164d5f636e1ce1ec4b605de87be57a4738652e6accc5eeb07f173abda8cc"
+      "digest": "2b6c9c91ca77670a24b7cbd5b657db63658769416fb752f70a6a3a737c0fa336"
     },
     {
       "kind": "flow",
@@ -1853,34 +3287,169 @@
         "internal/ui/views/card_editor.go",
         "internal/ui/views/source_manager.go"
       ],
-      "digest": "36f499d6097176fd757c44906239c56a204395cd5b418e8865949983c86fff9a"
+      "digest": "c20c172816126c68b6f9acd1b20d2b05363db6104b0ef176a5b1cdcd5c05bc5e"
     },
     {
       "kind": "package",
       "id": "api",
       "refs": [
         "api",
-        "api.OperationResult",
+        "api.New",
         "api.OperationRunner",
         "api.Service",
-        "api.SessionInspection"
+        "api.Service.AttachInDashboard",
+        "api.Service.CheckSessionInDashboard",
+        "api.Service.ConfirmCardDeletion",
+        "api.Service.ConfirmDashboardDeletion",
+        "api.Service.CreateCardInDashboard",
+        "api.Service.CreateDashboard",
+        "api.Service.GetDashboardDeletion",
+        "api.Service.GetMessage",
+        "api.Service.GetSession",
+        "api.Service.LaunchInDashboard",
+        "api.Service.ListDashboards",
+        "api.Service.ListSessions",
+        "api.Service.PreflightCardDeletion",
+        "api.Service.PreflightDashboardDeletion",
+        "api.Service.ReadDashboardData",
+        "api.Service.RelaunchInDashboard",
+        "api.Service.RemoveInDashboard",
+        "api.Service.RenameInDashboard",
+        "api.Service.ResolveCaller",
+        "api.Service.RetryCardDeletion",
+        "api.Service.RetryDashboardDeletion",
+        "api.Service.StopInDashboard",
+        "api.Service.SwitchInDashboard",
+        "api.Service.UpdateCardInDashboard",
+        "api.Service.UpdateDashboardDetails",
+        "api.Service.authorizeExistingOperation",
+        "api.Service.availableDashboardCard",
+        "api.Service.cardOwnedBy",
+        "api.Service.cleanupCardPending",
+        "api.Service.dashboardAlreadyDeleted",
+        "api.Service.dashboardDeletion",
+        "api.Service.deleteDashboardCard",
+        "api.Service.deletedCardIDs",
+        "api.Service.inspectionFromScopedSnapshot",
+        "api.Service.launchDashboardWithID",
+        "api.Service.listCardTombstones",
+        "api.Service.listCardsForCaller",
+        "api.Service.loadMembershipInventory",
+        "api.Service.prepareDashboardDeletion",
+        "api.Service.removeDashboardSession",
+        "api.Service.runDashboardDeletion",
+        "api.Service.validateCardConfirmationLocked",
+        "api.Service.validateDeletionInventory",
+        "api.Service.validateDeletionOwner",
+        "api.cardImpactDigest",
+        "api.cardPendingCleanup",
+        "api.dashboardImpactDigest",
+        "api.hasForeignCardReferences",
+        "api.inspectionFromSnapshot",
+        "api.membershipInventory",
+        "api.membershipInventory.activeDashboard",
+        "api.membershipInventory.allowsCard",
+        "api.membershipInventory.allowsSession",
+        "api.membershipInventory.hasTombstone",
+        "api.newMembershipInventory",
+        "api.persistedDashboardScope",
+        "api.persistedDashboardScope.AllowsCard",
+        "api.persistedDashboardScope.AllowsSession",
+        "api.persistedDashboardScope.DashboardForSession",
+        "api.persistedDashboardScope.SessionDashboard",
+        "api.persistedDashboardScope.inventory",
+        "api.persistedDashboardScope.validateScopeInventory",
+        "api.preparedDelivery",
+        "api.sessionInDashboard",
+        "api.sessionUsesCard"
       ],
       "directRefs": [
         "api",
-        "api.OperationResult",
         "api.OperationRunner",
         "api.Service",
-        "api.SessionInspection"
+        "api.membershipInventory",
+        "api.persistedDashboardScope",
+        "api.preparedDelivery"
       ],
       "participants": [],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "api.New",
+        "api.Service.AttachInDashboard",
+        "api.Service.CheckSessionInDashboard",
+        "api.Service.ConfirmCardDeletion",
+        "api.Service.ConfirmDashboardDeletion",
+        "api.Service.CreateCardInDashboard",
+        "api.Service.CreateDashboard",
+        "api.Service.GetDashboardDeletion",
+        "api.Service.GetMessage",
+        "api.Service.GetSession",
+        "api.Service.LaunchInDashboard",
+        "api.Service.ListDashboards",
+        "api.Service.ListSessions",
+        "api.Service.PreflightCardDeletion",
+        "api.Service.PreflightDashboardDeletion",
+        "api.Service.ReadDashboardData",
+        "api.Service.RelaunchInDashboard",
+        "api.Service.RemoveInDashboard",
+        "api.Service.RenameInDashboard",
+        "api.Service.ResolveCaller",
+        "api.Service.RetryCardDeletion",
+        "api.Service.RetryDashboardDeletion",
+        "api.Service.StopInDashboard",
+        "api.Service.SwitchInDashboard",
+        "api.Service.UpdateCardInDashboard",
+        "api.Service.UpdateDashboardDetails",
+        "api.Service.authorizeExistingOperation",
+        "api.Service.availableDashboardCard",
+        "api.Service.cardOwnedBy",
+        "api.Service.cleanupCardPending",
+        "api.Service.dashboardAlreadyDeleted",
+        "api.Service.dashboardDeletion",
+        "api.Service.deleteDashboardCard",
+        "api.Service.deletedCardIDs",
+        "api.Service.inspectionFromScopedSnapshot",
+        "api.Service.launchDashboardWithID",
+        "api.Service.listCardTombstones",
+        "api.Service.listCardsForCaller",
+        "api.Service.loadMembershipInventory",
+        "api.Service.prepareDashboardDeletion",
+        "api.Service.removeDashboardSession",
+        "api.Service.runDashboardDeletion",
+        "api.Service.validateCardConfirmationLocked",
+        "api.Service.validateDeletionInventory",
+        "api.Service.validateDeletionOwner",
+        "api.cardImpactDigest",
+        "api.cardPendingCleanup",
+        "api.dashboardImpactDigest",
+        "api.hasForeignCardReferences",
+        "api.inspectionFromSnapshot",
+        "api.membershipInventory.activeDashboard",
+        "api.membershipInventory.allowsCard",
+        "api.membershipInventory.allowsSession",
+        "api.membershipInventory.hasTombstone",
+        "api.newMembershipInventory",
+        "api.persistedDashboardScope.AllowsCard",
+        "api.persistedDashboardScope.AllowsSession",
+        "api.persistedDashboardScope.DashboardForSession",
+        "api.persistedDashboardScope.SessionDashboard",
+        "api.persistedDashboardScope.inventory",
+        "api.persistedDashboardScope.validateScopeInventory",
+        "api.sessionInDashboard",
+        "api.sessionUsesCard"
+      ],
       "files": [
+        "internal/api/card_confirmation.go",
+        "internal/api/dashboard_confirmation.go",
+        "internal/api/dashboard_deletion.go",
         "internal/api/errors.go",
+        "internal/api/membership.go",
         "internal/api/messaging.go",
+        "internal/api/notifications.go",
         "internal/api/operations.go",
+        "internal/api/persisted_scope.go",
         "internal/api/service.go"
       ],
-      "digest": "0367025268556c7a03438bbda0fb1592d217f791b9e493073921199b8d161a5b"
+      "digest": "8961e944f53515935514b6927fa099e27322fb4353f02521c93d14a7029d539e"
     },
     {
       "kind": "package",
@@ -1888,54 +3457,146 @@
       "refs": [
         "app",
         "app.Coordinator",
-        "app.attachExec",
-        "app.previewSub",
+        "app.Coordinator.Init",
+        "app.Coordinator.agentSwitchCallbacks",
+        "app.Coordinator.cardEditorCallbacks",
+        "app.Coordinator.conversationChoiceCallbacks",
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.dashboardListCallbacks",
+        "app.Coordinator.guardKey",
+        "app.Coordinator.handleAgentSwitched",
+        "app.Coordinator.handleConfigFingerprint",
+        "app.Coordinator.handleConversationChoiceRequested",
+        "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handlePreviewRequest",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.handleSessionsRefreshed",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.launchCard",
+        "app.Coordinator.launchIDE",
+        "app.Coordinator.launchTerminal",
+        "app.Coordinator.maybeRefreshConfig",
+        "app.Coordinator.maybeSubscribeAutoSelectedPreview",
+        "app.Coordinator.mcpCallbacks",
+        "app.Coordinator.navigateTo",
+        "app.Coordinator.navigationCommand",
+        "app.Coordinator.refreshDashboardList",
+        "app.Coordinator.refreshDataSeeded",
+        "app.Coordinator.refreshSessions",
+        "app.Coordinator.requestAttach",
+        "app.Coordinator.requestRelaunch",
+        "app.Coordinator.requestSwitch",
+        "app.Coordinator.resizeAll",
+        "app.Coordinator.sessionLauncherCallbacks",
+        "app.Coordinator.settingsCallbacks",
+        "app.New",
+        "app.NewCoordinator",
+        "app.cardDeletionPreflightCommand",
+        "app.confirmCardDeletionCommand",
+        "app.convertViewType",
+        "app.dashboardDeletionStatus",
+        "app.dashboardDeletionSummary",
+        "app.dashboardListCommand",
+        "app.previewSub.unsubscribe",
         "app.refresher",
+        "app.refresher.scopedConfigIfChanged",
+        "app.refresher.scopedFull",
+        "app.refresher.scopedSessions",
+        "app.retryCardDeletionCommand",
+        "app.scopedAttachCommand",
         "app.sessionActions",
         "app.sessionActions.launch",
-        "app.sessionActions.relaunchWithChoice",
-        "app.sessionActions.switchAgentWithChoice"
+        "app.sessionActions.launchIDE",
+        "app.sessionActions.launchTerminal",
+        "app.sessionActions.launchWorkspace",
+        "app.sessionActions.relaunch",
+        "app.sessionActions.switchAgent"
       ],
       "directRefs": [
         "app",
         "app.Coordinator",
-        "app.attachExec",
-        "app.previewSub",
         "app.refresher",
         "app.sessionActions"
       ],
       "participants": [],
       "supportingRefs": [
+        "app.Coordinator.Init",
+        "app.Coordinator.agentSwitchCallbacks",
+        "app.Coordinator.cardEditorCallbacks",
+        "app.Coordinator.conversationChoiceCallbacks",
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.dashboardListCallbacks",
+        "app.Coordinator.guardKey",
+        "app.Coordinator.handleAgentSwitched",
+        "app.Coordinator.handleConfigFingerprint",
+        "app.Coordinator.handleConversationChoiceRequested",
+        "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handlePreviewRequest",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.handleSessionsRefreshed",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.launchCard",
+        "app.Coordinator.launchIDE",
+        "app.Coordinator.launchTerminal",
+        "app.Coordinator.maybeRefreshConfig",
+        "app.Coordinator.maybeSubscribeAutoSelectedPreview",
+        "app.Coordinator.mcpCallbacks",
+        "app.Coordinator.navigateTo",
+        "app.Coordinator.navigationCommand",
+        "app.Coordinator.refreshDashboardList",
+        "app.Coordinator.refreshDataSeeded",
+        "app.Coordinator.refreshSessions",
+        "app.Coordinator.requestAttach",
+        "app.Coordinator.requestRelaunch",
+        "app.Coordinator.requestSwitch",
+        "app.Coordinator.resizeAll",
+        "app.Coordinator.sessionLauncherCallbacks",
+        "app.Coordinator.settingsCallbacks",
+        "app.New",
+        "app.NewCoordinator",
+        "app.cardDeletionPreflightCommand",
+        "app.confirmCardDeletionCommand",
+        "app.convertViewType",
+        "app.dashboardDeletionStatus",
+        "app.dashboardDeletionSummary",
+        "app.dashboardListCommand",
+        "app.previewSub.unsubscribe",
+        "app.refresher.scopedConfigIfChanged",
+        "app.refresher.scopedFull",
+        "app.refresher.scopedSessions",
+        "app.retryCardDeletionCommand",
+        "app.scopedAttachCommand",
         "app.sessionActions.launch",
-        "app.sessionActions.relaunchWithChoice",
-        "app.sessionActions.switchAgentWithChoice"
+        "app.sessionActions.launchIDE",
+        "app.sessionActions.launchTerminal",
+        "app.sessionActions.launchWorkspace",
+        "app.sessionActions.relaunch",
+        "app.sessionActions.switchAgent"
       ],
       "files": [
         "internal/app/app.go",
         "internal/app/attach.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
+        "internal/app/dashboard_list.go",
         "internal/app/handlers.go",
         "internal/app/navigation.go",
         "internal/app/preview.go",
         "internal/app/refresh.go",
+        "internal/app/scoped_refresh.go",
         "internal/app/session_actions.go",
         "internal/app/size_guard.go"
       ],
-      "digest": "d26448b50999cf12d9a1f9d7afb60a07d114ef1255d2d57737bbc7e0a193c778"
+      "digest": "990d7dbd1675cff3c73a24c008511baf36f195bf27910f5f713c10b9e2c5d38c"
     },
     {
       "kind": "package",
       "id": "ascii",
       "refs": [
-        "ascii",
-        "ascii.Canvas",
-        "ascii.Shape"
+        "ascii"
       ],
       "directRefs": [
-        "ascii",
-        "ascii.Canvas",
-        "ascii.Shape"
+        "ascii"
       ],
       "participants": [],
       "supportingRefs": [],
@@ -1944,20 +3605,16 @@
         "internal/ascii/options.go",
         "internal/ascii/shape.go"
       ],
-      "digest": "e6f49a6754ff5c2534375cb1d7d3fa315fd8f361892fe796c6de9117d66d8f70"
+      "digest": "4d68f8522dcef9ee07f85e8cfb152f3e22911327ab7e25e3ef147ef2ecb99d6b"
     },
     {
       "kind": "package",
       "id": "characters",
       "refs": [
-        "characters",
-        "characters.Face",
-        "characters.TextPuppet"
+        "characters"
       ],
       "directRefs": [
-        "characters",
-        "characters.Face",
-        "characters.TextPuppet"
+        "characters"
       ],
       "participants": [],
       "supportingRefs": [],
@@ -1966,49 +3623,70 @@
         "internal/ascii/characters/puppet.go",
         "internal/ascii/characters/text_puppet.go"
       ],
-      "digest": "030911abe9813b634ddf83fb2603abe8bbed9e02a5c1004386318875e2424730"
+      "digest": "9df5bcf76afb6aadc9b15a98301a0920f3e602a71226b5f75d800c2007ac9e62"
     },
     {
       "kind": "package",
       "id": "component",
       "refs": [
-        "component",
-        "component.Base",
-        "component.Model"
+        "component"
       ],
       "directRefs": [
-        "component",
-        "component.Base",
-        "component.Model"
+        "component"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
         "internal/ui/component/component.go"
       ],
-      "digest": "31a5cb160ceac3f39f36db999bac9fa5c7323aa91168f2f13f12641ceee42fe8"
+      "digest": "c50c3aee0670dc72bd9e57cde6f7956272750d5e99b773151022859e203f1723"
     },
     {
       "kind": "package",
       "id": "components",
       "refs": [
         "components",
-        "components.CapabilityList",
-        "components.CardList",
-        "components.ModalState",
-        "components.SessionList",
-        "components.SessionPreview"
+        "components.CapabilityList.Deselect",
+        "components.CapabilityList.Select",
+        "components.CapabilityList.SelectedOnly",
+        "components.CapabilityList.SetCursor",
+        "components.CapabilityList.SetSelected",
+        "components.CapabilityList.Toggle",
+        "components.CapabilityList.normalizeCursor",
+        "components.DisplayText",
+        "components.Filter",
+        "components.SessionList.refreshItems",
+        "components.SessionListItem.Description",
+        "components.SessionPreview.handleStateCSI",
+        "components.TruncateHead",
+        "components.cardDelegate.Render",
+        "components.renderPreviewField",
+        "components.renderedBlockWidth",
+        "components.wrapPreviewWords"
       ],
       "directRefs": [
-        "components",
-        "components.CapabilityList",
-        "components.CardList",
-        "components.ModalState",
-        "components.SessionList",
-        "components.SessionPreview"
+        "components"
       ],
       "participants": [],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "components.CapabilityList.Deselect",
+        "components.CapabilityList.Select",
+        "components.CapabilityList.SelectedOnly",
+        "components.CapabilityList.SetCursor",
+        "components.CapabilityList.SetSelected",
+        "components.CapabilityList.Toggle",
+        "components.CapabilityList.normalizeCursor",
+        "components.DisplayText",
+        "components.Filter",
+        "components.SessionList.refreshItems",
+        "components.SessionListItem.Description",
+        "components.SessionPreview.handleStateCSI",
+        "components.TruncateHead",
+        "components.cardDelegate.Render",
+        "components.renderPreviewField",
+        "components.renderedBlockWidth",
+        "components.wrapPreviewWords"
+      ],
       "files": [
         "internal/ui/components/capability_list.go",
         "internal/ui/components/card_list.go",
@@ -2022,32 +3700,110 @@
         "internal/ui/components/source_list.go",
         "internal/ui/components/text.go"
       ],
-      "digest": "77eae37019e79cf0d9effdf7463e40948cd1b1a020c045205921cc60a573c6cb"
+      "digest": "13cc6ad2b487262c70e36f113caaa9e4d15b3fe0d1442f25c099af05ddcf39dd"
     },
     {
       "kind": "package",
       "id": "config",
       "refs": [
         "config",
-        "config.AppSettings",
-        "config.FileRepository",
+        "config.BuiltinMCPs",
+        "config.BuiltinSkills",
+        "config.CardTombstone",
+        "config.Dashboard",
+        "config.DashboardDeletion",
+        "config.FileRepository.BeginCardDeletion",
+        "config.FileRepository.BeginCardDeletionWithPending",
+        "config.FileRepository.BeginDashboardDeletion",
+        "config.FileRepository.CreateDashboard",
+        "config.FileRepository.CreateIDCard",
+        "config.FileRepository.FinalizeDashboardDeletion",
+        "config.FileRepository.FinishCardDeletion",
+        "config.FileRepository.GetAppSettings",
+        "config.FileRepository.ListCardTombstones",
+        "config.FileRepository.ListDashboardDeletions",
+        "config.FileRepository.ListDashboardTombstones",
+        "config.FileRepository.ListDashboards",
+        "config.FileRepository.LoadIDCardsFile",
+        "config.FileRepository.SaveCardDeletionPending",
+        "config.FileRepository.SaveDashboardDeletion",
+        "config.FileRepository.UpdateDashboardDetails",
+        "config.FileRepository.UpdateIDCard",
+        "config.FileRepository.WriteIDCardsFile",
+        "config.FileRepository.checkCardNotTombstonedLocked",
+        "config.FileRepository.listDashboardDeletionsLocked",
+        "config.FileRepository.loadCardTombstonesLocked",
+        "config.FileRepository.loadDashboardTombstonesLocked",
+        "config.FileRepository.loadDashboardsLocked",
+        "config.FileRepository.retainDashboardTombstoneLocked",
+        "config.FileRepository.writeDashboardDeletionLocked",
+        "config.GetBuiltinSkillContent",
         "config.IDCard",
-        "config.Repository"
+        "config.NewFileRepository",
+        "config.OpenExistingFileRepository",
+        "config.ResolveDirectory",
+        "config.dashboardDeletionFilename",
+        "config.registryFiles",
+        "config.validTemporaryIdentity",
+        "config.validateCardMembershipFormat",
+        "config.validateDashboard",
+        "config.validateDashboardDeletion",
+        "config.validateNewCardPending"
       ],
       "directRefs": [
         "config",
-        "config.AppSettings",
-        "config.FileRepository",
-        "config.IDCard",
-        "config.Repository"
+        "config.CardTombstone",
+        "config.Dashboard",
+        "config.DashboardDeletion",
+        "config.IDCard"
       ],
       "participants": [],
       "supportingRefs": [
-        "config.AppSettings"
+        "config.BuiltinMCPs",
+        "config.BuiltinSkills",
+        "config.FileRepository.BeginCardDeletion",
+        "config.FileRepository.BeginCardDeletionWithPending",
+        "config.FileRepository.BeginDashboardDeletion",
+        "config.FileRepository.CreateDashboard",
+        "config.FileRepository.CreateIDCard",
+        "config.FileRepository.FinalizeDashboardDeletion",
+        "config.FileRepository.FinishCardDeletion",
+        "config.FileRepository.GetAppSettings",
+        "config.FileRepository.ListCardTombstones",
+        "config.FileRepository.ListDashboardDeletions",
+        "config.FileRepository.ListDashboardTombstones",
+        "config.FileRepository.ListDashboards",
+        "config.FileRepository.LoadIDCardsFile",
+        "config.FileRepository.SaveCardDeletionPending",
+        "config.FileRepository.SaveDashboardDeletion",
+        "config.FileRepository.UpdateDashboardDetails",
+        "config.FileRepository.UpdateIDCard",
+        "config.FileRepository.WriteIDCardsFile",
+        "config.FileRepository.checkCardNotTombstonedLocked",
+        "config.FileRepository.listDashboardDeletionsLocked",
+        "config.FileRepository.loadCardTombstonesLocked",
+        "config.FileRepository.loadDashboardTombstonesLocked",
+        "config.FileRepository.loadDashboardsLocked",
+        "config.FileRepository.retainDashboardTombstoneLocked",
+        "config.FileRepository.writeDashboardDeletionLocked",
+        "config.GetBuiltinSkillContent",
+        "config.NewFileRepository",
+        "config.OpenExistingFileRepository",
+        "config.ResolveDirectory",
+        "config.dashboardDeletionFilename",
+        "config.registryFiles",
+        "config.validTemporaryIdentity",
+        "config.validateCardMembershipFormat",
+        "config.validateDashboard",
+        "config.validateDashboardDeletion",
+        "config.validateNewCardPending"
       ],
       "files": [
-        "internal/config/app_settings_test.go",
         "internal/config/builtins.go",
+        "internal/config/card_tombstones.go",
+        "internal/config/dashboard_deletions.go",
+        "internal/config/dashboard_tombstones.go",
+        "internal/config/dashboards.go",
         "internal/config/errors.go",
         "internal/config/id_cards.go",
         "internal/config/mcps.go",
@@ -2064,7 +3820,45 @@
         "internal/config/validation_helpers.go",
         "internal/config/workspaces.go"
       ],
-      "digest": "f2cc0a946a785b8f80a38991239082276ea62d61bf77dd0953440bb49bd1e3fa"
+      "digest": "b041b7198ad02bf51421420ad76a884835b80dd185983c9fc45fc75c0305cd15"
+    },
+    {
+      "kind": "package",
+      "id": "configstartup",
+      "refs": [
+        "configstartup",
+        "configstartup.AcquireLock",
+        "configstartup.Lock",
+        "configstartup.Lock.Close",
+        "configstartup.PrepareStartup",
+        "configstartup.ValidateLayout",
+        "configstartup.jsonValue",
+        "configstartup.validateJSON",
+        "configstartup.validateLayoutHistory",
+        "configstartup.validateLayoutSessions"
+      ],
+      "directRefs": [
+        "configstartup",
+        "configstartup.Lock"
+      ],
+      "participants": [],
+      "supportingRefs": [
+        "configstartup.AcquireLock",
+        "configstartup.Lock.Close",
+        "configstartup.PrepareStartup",
+        "configstartup.ValidateLayout",
+        "configstartup.jsonValue",
+        "configstartup.validateJSON",
+        "configstartup.validateLayoutHistory",
+        "configstartup.validateLayoutSessions"
+      ],
+      "files": [
+        "internal/configstartup/json.go",
+        "internal/configstartup/lock.go",
+        "internal/configstartup/startup.go",
+        "internal/configstartup/validate.go"
+      ],
+      "digest": "d0637df69f5e744cb8ec0a6fc5373c20a23a55c7dc5165d2b92e276d9eab2c29"
     },
     {
       "kind": "package",
@@ -2081,32 +3875,38 @@
       "id": "driver",
       "refs": [
         "driver",
-        "driver.AgentDriver",
-        "driver.ClaudeCodeDriver",
-        "driver.ClaudeCodeDriver.SetSession",
         "driver.ClaudeCodeDriver.SubmitPrompt",
-        "driver.CodexCLIDriver",
-        "driver.CodexCLIDriver.SetSession",
         "driver.CodexCLIDriver.SubmitPrompt",
-        "driver.GenericCLIDriver",
-        "driver.GenericCLIDriver.SubmitPrompt",
-        "driver.RemoveWorkspaceTrust"
+        "driver.GenericCLIDriver.PrepareWorkspace",
+        "driver.GenericCLIDriver.submitPromptBytes",
+        "driver.MCPConfigPath",
+        "driver.PromptEnvelope",
+        "driver.ValidatePrompt",
+        "driver.classifySubmission",
+        "driver.trustJSONObject",
+        "driver.updateClaudeTrust",
+        "driver.updateCodexTrust",
+        "driver.writeInstructionFile",
+        "driver.writePromptPhases"
       ],
       "directRefs": [
         "driver",
-        "driver.AgentDriver",
-        "driver.ClaudeCodeDriver",
-        "driver.CodexCLIDriver",
-        "driver.GenericCLIDriver"
+        "driver.PromptEnvelope"
       ],
       "participants": [],
       "supportingRefs": [
-        "driver.ClaudeCodeDriver.SetSession",
         "driver.ClaudeCodeDriver.SubmitPrompt",
-        "driver.CodexCLIDriver.SetSession",
         "driver.CodexCLIDriver.SubmitPrompt",
-        "driver.GenericCLIDriver.SubmitPrompt",
-        "driver.RemoveWorkspaceTrust"
+        "driver.GenericCLIDriver.PrepareWorkspace",
+        "driver.GenericCLIDriver.submitPromptBytes",
+        "driver.MCPConfigPath",
+        "driver.ValidatePrompt",
+        "driver.classifySubmission",
+        "driver.trustJSONObject",
+        "driver.updateClaudeTrust",
+        "driver.updateCodexTrust",
+        "driver.writeInstructionFile",
+        "driver.writePromptPhases"
       ],
       "files": [
         "internal/driver/driver.go",
@@ -2115,7 +3915,7 @@
         "internal/driver/registry.go",
         "internal/driver/trust.go"
       ],
-      "digest": "f56b717e9c535dc5d693c63d86e616b3dc1fccb8bf5545d9e9b74771a0bffbb5"
+      "digest": "c07bf670e5482ee424a46b1b366dfc7f6768167ad4c84915a245e83619f14da9"
     },
     {
       "kind": "package",
@@ -2131,49 +3931,42 @@
       "files": [
         "internal/fsutil/atomic.go"
       ],
-      "digest": "a0d518dbafeb0ed7a0b7cc38d22966055e5e465e052aae3922b1ab14fcd6659d"
+      "digest": "8e1d3841544aff4024d9043ec028957c872c234d666b458ce8b4ad54adc16e12"
     },
     {
       "kind": "package",
       "id": "mcp",
       "refs": [
-        "mcp",
-        "mcp.Runtime"
+        "mcp"
       ],
       "directRefs": [
-        "mcp",
-        "mcp.Runtime"
+        "mcp"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
         "internal/mcp/server.go"
       ],
-      "digest": "605138e2ebe70adef086f1114f2ca09a8ffafe95512700e8e8b39a40cdee9c7b"
+      "digest": "32c64d7cbbd97d7dbf4d9d068e7aeca83f1ad9068e1de986280b138bc7e03929"
     },
     {
       "kind": "package",
       "id": "messages",
       "refs": [
         "messages",
-        "messages.DataLoadedMsg",
-        "messages.DataReceiver",
-        "messages.PreviewDataMsg",
-        "messages.SessionsRefreshedMsg"
+        "messages.ScopedActionFinishedMsg"
       ],
       "directRefs": [
-        "messages",
-        "messages.DataLoadedMsg",
-        "messages.DataReceiver",
-        "messages.PreviewDataMsg",
-        "messages.SessionsRefreshedMsg"
+        "messages"
       ],
       "participants": [],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "messages.ScopedActionFinishedMsg"
+      ],
       "files": [
         "internal/ui/messages/messages.go"
       ],
-      "digest": "2760c8bfb81f7cff3187bb6828462a3ddcffa1ec5e9ec328ed876088ebbfda66"
+      "digest": "534112aafcd18d2ffb3a486d5b83f794bf96c9076722cb002e352cd6dc8fe043"
     },
     {
       "kind": "package",
@@ -2190,68 +3983,148 @@
       "id": "root",
       "refs": [
         "root",
-        "root.logDir",
-        "root.main",
-        "root.run",
-        "root.stopSessions"
+        "root.run"
       ],
       "directRefs": [
         "root"
       ],
       "participants": [],
       "supportingRefs": [
-        "root.logDir",
-        "root.main",
-        "root.run",
-        "root.stopSessions"
+        "root.run"
       ],
       "files": [
-        "README.md",
-        "go.mod",
-        "kankuro_skills/mcp-cli/SKILL.md",
-        "main.go",
-        "main_test.go"
+        "main.go"
       ],
-      "digest": "2d5094981a669a1915766393db2f64bb96d1316f23ee1f819cdd9b7e5a588876"
+      "digest": "29acaa96021798c54bebbe10da7852648138d8a613f881637b08964afe3c0eec"
     },
     {
       "kind": "package",
       "id": "session",
       "refs": [
         "session",
+        "session.CardReferenceImpact",
+        "session.Data",
+        "session.Data.restore",
         "session.Manager",
-        "session.Manager.SwitchAgentWithChoiceContext",
-        "session.Manager.deliveryAvailableLocked",
-        "session.Manager.startSession",
-        "session.MessageAdmission",
-        "session.MessageStore",
+        "session.Manager.AttachChecked",
+        "session.Manager.CancelDashboardAdmissions",
+        "session.Manager.CancelPendingCardReferences",
+        "session.Manager.CardReferences",
+        "session.Manager.List",
+        "session.Manager.PublishMessageAdmission",
+        "session.Manager.RegisterConversation",
+        "session.Manager.RelaunchWithChoiceCheckedContext",
+        "session.Manager.RemoveResidual",
+        "session.Manager.ReserveCardDeletion",
+        "session.Manager.ReserveCardReferenceForDashboardWithCancel",
+        "session.Manager.ReserveDashboardDeletion",
+        "session.Manager.SetNameChecked",
+        "session.Manager.ShutdownStarted",
+        "session.Manager.SubmitMessage",
+        "session.Manager.TemporaryWorkspaceRoot",
+        "session.Manager.WaitCardReferences",
+        "session.Manager.WaitDashboardAdmissions",
+        "session.Manager.WithAdmissionSnapshot",
+        "session.Manager.WithCardReferencesAndSnapshot",
+        "session.Manager.activationAuthorityLocked",
+        "session.Manager.bindPendingWorkspace",
+        "session.Manager.cardReferencesLocked",
+        "session.Manager.cleanupNewTemporaryWorkspace",
+        "session.Manager.listLocked",
+        "session.Manager.notifyCardReferencesLocked",
+        "session.Manager.publishActivationLocked",
+        "session.Manager.reserveCardReference",
+        "session.Manager.resolveWorkspacePath",
+        "session.Manager.validateReportedConversationLocked",
+        "session.MessageReply",
+        "session.MessageStore.Recover",
+        "session.MessageStore.createIntent",
+        "session.MessageStore.evictLocked",
+        "session.NewManager",
+        "session.ReplyNotification",
         "session.Session",
-        "session.Snapshot"
+        "session.Session.data",
+        "session.Session.snapshot",
+        "session.SplitCommand",
+        "session.activationEnv",
+        "session.addConversationBinding",
+        "session.loadSessions",
+        "session.preparedSubWorkspaceDescriptors",
+        "session.saveSession",
+        "session.syncActivationMCPConfig",
+        "session.updateSessionOutputState",
+        "session.validateConversationChoice"
       ],
       "directRefs": [
         "session",
+        "session.CardReferenceImpact",
+        "session.Data",
         "session.Manager",
-        "session.MessageAdmission",
-        "session.MessageStore",
-        "session.Session",
-        "session.Snapshot"
+        "session.MessageReply",
+        "session.ReplyNotification",
+        "session.Session"
       ],
       "participants": [],
       "supportingRefs": [
-        "session.Manager.SwitchAgentWithChoiceContext",
-        "session.Manager.deliveryAvailableLocked",
-        "session.Manager.startSession",
-        "session.MessageStore"
+        "session.Data.restore",
+        "session.Manager.AttachChecked",
+        "session.Manager.CancelDashboardAdmissions",
+        "session.Manager.CancelPendingCardReferences",
+        "session.Manager.CardReferences",
+        "session.Manager.List",
+        "session.Manager.PublishMessageAdmission",
+        "session.Manager.RegisterConversation",
+        "session.Manager.RelaunchWithChoiceCheckedContext",
+        "session.Manager.RemoveResidual",
+        "session.Manager.ReserveCardDeletion",
+        "session.Manager.ReserveCardReferenceForDashboardWithCancel",
+        "session.Manager.ReserveDashboardDeletion",
+        "session.Manager.SetNameChecked",
+        "session.Manager.ShutdownStarted",
+        "session.Manager.SubmitMessage",
+        "session.Manager.TemporaryWorkspaceRoot",
+        "session.Manager.WaitCardReferences",
+        "session.Manager.WaitDashboardAdmissions",
+        "session.Manager.WithAdmissionSnapshot",
+        "session.Manager.WithCardReferencesAndSnapshot",
+        "session.Manager.activationAuthorityLocked",
+        "session.Manager.bindPendingWorkspace",
+        "session.Manager.cardReferencesLocked",
+        "session.Manager.cleanupNewTemporaryWorkspace",
+        "session.Manager.listLocked",
+        "session.Manager.notifyCardReferencesLocked",
+        "session.Manager.publishActivationLocked",
+        "session.Manager.reserveCardReference",
+        "session.Manager.resolveWorkspacePath",
+        "session.Manager.validateReportedConversationLocked",
+        "session.MessageStore.Recover",
+        "session.MessageStore.createIntent",
+        "session.MessageStore.evictLocked",
+        "session.NewManager",
+        "session.Session.data",
+        "session.Session.snapshot",
+        "session.SplitCommand",
+        "session.activationEnv",
+        "session.addConversationBinding",
+        "session.loadSessions",
+        "session.preparedSubWorkspaceDescriptors",
+        "session.saveSession",
+        "session.syncActivationMCPConfig",
+        "session.updateSessionOutputState",
+        "session.validateConversationChoice"
       ],
       "files": [
         "internal/session/attach.go",
         "internal/session/card_references.go",
         "internal/session/conversation.go",
+        "internal/session/dashboard_admission.go",
         "internal/session/ide_launcher.go",
         "internal/session/io.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
+        "internal/session/message_notifications.go",
         "internal/session/messaging.go",
+        "internal/session/residual_cleanup.go",
         "internal/session/startup.go",
         "internal/session/storage.go",
         "internal/session/sub_workspaces.go",
@@ -2259,7 +4132,7 @@
         "internal/session/workspace.go",
         "internal/session/workspace_launcher.go"
       ],
-      "digest": "31d981a7e425c3c9cde98fa9b918d9f91a61eeb164c5eca65fcb2316a6f78630"
+      "digest": "715258668bb139e95234f9a258faf931854cd0f4bdff19d71a9647eeb8969e53"
     },
     {
       "kind": "package",
@@ -2275,7 +4148,7 @@
       "files": [
         "internal/ui/styles/styles.go"
       ],
-      "digest": "0a382e007bd3c9d843483e74cff955cd8f789e400082c3a57df45b116f78d3b6"
+      "digest": "595d658cb615c50720a017b2c942b933aa482344d48e863a5ec17700447e8081"
     },
     {
       "kind": "package",
@@ -2301,7 +4174,7 @@
       "files": [
         "internal/testenv/testenv.go"
       ],
-      "digest": "5e6b919f3e6762d58cbe6f2dde311c5bdfffffb1176cfe519b2a32ef2540a165"
+      "digest": "aed37deda535ae20829575117503f38c8e90e4c176e5c4856d0ddf5855d30a02"
     },
     {
       "kind": "package",
@@ -2317,27 +4190,160 @@
       "files": [
         "internal/ui/uitest/shape.go"
       ],
-      "digest": "d391993c5f39f486b9c4f17f3957dbc28e8d0ee239dd47d0f23918570e01fa6b"
+      "digest": "5229dbc1e75475ed2aa4ac293cce1360daeea08c6286a4c7552039e694ad4cb4"
     },
     {
       "kind": "package",
       "id": "views",
       "refs": [
         "views",
-        "views.AgentSwitchView",
         "views.CardEditor",
-        "views.ConversationChoiceView",
-        "views.Dashboard"
+        "views.CardEditor.Card",
+        "views.CardEditor.Reset",
+        "views.CardEditor.SetCard",
+        "views.CardEditor.SetDashboardContext",
+        "views.CardEditor.SetData",
+        "views.CardEditor.SetSettings",
+        "views.CardEditor.Update",
+        "views.CardEditor.fieldBlocks",
+        "views.CardEditor.handleCtrlE",
+        "views.CardEditor.handleSpace",
+        "views.CardEditor.renderDashboardControlLine",
+        "views.CardEditor.renderSharedLine",
+        "views.CardEditor.renderTmpWorkspaceLine",
+        "views.CardEditor.renderWorkspaceLine",
+        "views.CardEditor.visibleFocusOrder",
+        "views.ConversationChoiceView.RefreshContext",
+        "views.ConversationChoiceView.SelectedBinding",
+        "views.ConversationChoiceView.Update",
+        "views.Dashboard",
+        "views.Dashboard.SetDashboardName",
+        "views.Dashboard.SetDashboardScope",
+        "views.Dashboard.SetSessions",
+        "views.Dashboard.SetSize",
+        "views.Dashboard.ShowCardDeletionImpact",
+        "views.Dashboard.Update",
+        "views.Dashboard.View",
+        "views.Dashboard.footerText",
+        "views.Dashboard.handleDeleteCard",
+        "views.Dashboard.handleEdit",
+        "views.Dashboard.handleEnter",
+        "views.Dashboard.handleKey",
+        "views.Dashboard.handleSessionEnter",
+        "views.Dashboard.handleSwitch",
+        "views.Dashboard.renderBase",
+        "views.Dashboard.renderPreviewPane",
+        "views.Dashboard.updateCardImpact",
+        "views.DashboardCallbacks",
+        "views.DashboardList",
+        "views.DashboardList.Init",
+        "views.DashboardList.SetDashboards",
+        "views.DashboardList.SetSize",
+        "views.DashboardList.Update",
+        "views.DashboardList.View",
+        "views.DashboardList.confirmDeletion",
+        "views.DashboardList.openForm",
+        "views.DashboardList.renderPage",
+        "views.DashboardList.retryDeletion",
+        "views.DashboardList.selected",
+        "views.DashboardList.updateConfirmation",
+        "views.DashboardList.updateForm",
+        "views.NewDashboardList",
+        "views.SessionLauncher.Reset",
+        "views.SessionLauncher.SetNameResult",
+        "views.SessionLauncher.handleNameSubmit",
+        "views.SettingsView.TerminalInput",
+        "views.SettingsView.renderDisplay",
+        "views.SettingsView.renderEdit",
+        "views.WorkspacePickerModal.SetExcludedID",
+        "views.WorkspacePickerModal.SetSelectedID",
+        "views.WorkspacePickerModal.SetSelectedIDs",
+        "views.WorkspacePickerModal.View",
+        "views.WorkspacePickerModal.restoreSingleSelection",
+        "views.WorkspacePickerModal.title",
+        "views.dashboardItem.Description",
+        "views.dashboardItem.FilterValue",
+        "views.dashboardItem.Title",
+        "views.editorKeyIdentity",
+        "views.focusTargetTable",
+        "views.workspaceItem.Title"
       ],
       "directRefs": [
         "views",
-        "views.AgentSwitchView",
         "views.CardEditor",
-        "views.ConversationChoiceView",
-        "views.Dashboard"
+        "views.Dashboard",
+        "views.DashboardList"
       ],
       "participants": [],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "views.CardEditor.Card",
+        "views.CardEditor.Reset",
+        "views.CardEditor.SetCard",
+        "views.CardEditor.SetDashboardContext",
+        "views.CardEditor.SetData",
+        "views.CardEditor.SetSettings",
+        "views.CardEditor.Update",
+        "views.CardEditor.fieldBlocks",
+        "views.CardEditor.handleCtrlE",
+        "views.CardEditor.handleSpace",
+        "views.CardEditor.renderDashboardControlLine",
+        "views.CardEditor.renderSharedLine",
+        "views.CardEditor.renderTmpWorkspaceLine",
+        "views.CardEditor.renderWorkspaceLine",
+        "views.CardEditor.visibleFocusOrder",
+        "views.ConversationChoiceView.RefreshContext",
+        "views.ConversationChoiceView.SelectedBinding",
+        "views.ConversationChoiceView.Update",
+        "views.Dashboard.SetDashboardName",
+        "views.Dashboard.SetDashboardScope",
+        "views.Dashboard.SetSessions",
+        "views.Dashboard.SetSize",
+        "views.Dashboard.ShowCardDeletionImpact",
+        "views.Dashboard.Update",
+        "views.Dashboard.View",
+        "views.Dashboard.footerText",
+        "views.Dashboard.handleDeleteCard",
+        "views.Dashboard.handleEdit",
+        "views.Dashboard.handleEnter",
+        "views.Dashboard.handleKey",
+        "views.Dashboard.handleSessionEnter",
+        "views.Dashboard.handleSwitch",
+        "views.Dashboard.renderBase",
+        "views.Dashboard.renderPreviewPane",
+        "views.Dashboard.updateCardImpact",
+        "views.DashboardCallbacks",
+        "views.DashboardList.Init",
+        "views.DashboardList.SetDashboards",
+        "views.DashboardList.SetSize",
+        "views.DashboardList.Update",
+        "views.DashboardList.View",
+        "views.DashboardList.confirmDeletion",
+        "views.DashboardList.openForm",
+        "views.DashboardList.renderPage",
+        "views.DashboardList.retryDeletion",
+        "views.DashboardList.selected",
+        "views.DashboardList.updateConfirmation",
+        "views.DashboardList.updateForm",
+        "views.NewDashboardList",
+        "views.SessionLauncher.Reset",
+        "views.SessionLauncher.SetNameResult",
+        "views.SessionLauncher.handleNameSubmit",
+        "views.SettingsView.TerminalInput",
+        "views.SettingsView.renderDisplay",
+        "views.SettingsView.renderEdit",
+        "views.WorkspacePickerModal.SetExcludedID",
+        "views.WorkspacePickerModal.SetSelectedID",
+        "views.WorkspacePickerModal.SetSelectedIDs",
+        "views.WorkspacePickerModal.View",
+        "views.WorkspacePickerModal.restoreSingleSelection",
+        "views.WorkspacePickerModal.title",
+        "views.dashboardItem.Description",
+        "views.dashboardItem.FilterValue",
+        "views.dashboardItem.Title",
+        "views.editorKeyIdentity",
+        "views.focusTargetTable",
+        "views.workspaceItem.Title"
+      ],
       "files": [
         "internal/ui/views/agent_switch.go",
         "internal/ui/views/agentsmd_editor_modal.go",
@@ -2345,6 +4351,7 @@
         "internal/ui/views/constants.go",
         "internal/ui/views/conversation_choice.go",
         "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_list.go",
         "internal/ui/views/mcp_form.go",
         "internal/ui/views/puppet_selector_modal.go",
         "internal/ui/views/session_launcher.go",
@@ -2353,7 +4360,7 @@
         "internal/ui/views/source_type.go",
         "internal/ui/views/workspace_picker_modal.go"
       ],
-      "digest": "8d5dd46a7b26a8e5df0b2830586899084ba5745c6e8a715bb6bd636f1878b8d7"
+      "digest": "38613fdbc458bddff148646304286c474316b6181bca41e1d7ee0f5cc5462029"
     },
     {
       "kind": "rule",
@@ -2379,7 +4386,7 @@
         "internal/app/coordinator.go",
         "internal/app/session_actions.go"
       ],
-      "digest": "01fa9ebbb048dbe92d1b238b0a51e1d16a1b265230fbebfda83a71520b1e8d95"
+      "digest": "814b71ffaa1078307ba9d5ab335fcd6a27079ef83eebb042e514191173c81eb0"
     },
     {
       "kind": "rule",
@@ -2472,7 +4479,7 @@
       "files": [
         "internal/session/conversation.go"
       ],
-      "digest": "ad99fd032e306125b61f9dacbe7c2299862e0b01589084a907411f3a6548ed2d"
+      "digest": "c6c90c7a69b1742271d1aa2d3f84897a85ef4de32fc8614c7fca38dcf8e8f7ca"
     },
     {
       "kind": "rule",
@@ -2510,17 +4517,17 @@
       "kind": "rule",
       "id": "17",
       "refs": [
-        "session.Manager.DeleteCardIfUnreferenced"
+        "api.Service.ConfirmCardDeletion"
       ],
       "directRefs": [
-        "session.Manager.DeleteCardIfUnreferenced"
+        "api.Service.ConfirmCardDeletion"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/session/card_references.go"
+        "internal/api/card_confirmation.go"
       ],
-      "digest": "818d57194d79abb0ed5c6ffd9760cc0dba3470e07487936e0f587d1a65166912"
+      "digest": "dd875ee03938f7604bd0952d3711c486029472c119280c37ca3d61bdd18e0873"
     },
     {
       "kind": "rule",
@@ -2536,7 +4543,23 @@
       "files": [
         "internal/session/messaging.go"
       ],
-      "digest": "37c678fc88bf57531651ad9402e540cc5e87ebbc7687f1fd449607347a1c2940"
+      "digest": "ee367c1df52fee6f6a1868613c0b7b0bab46c6057168d8d8137753535db4ad57"
+    },
+    {
+      "kind": "rule",
+      "id": "19",
+      "refs": [
+        "configstartup.PrepareStartup"
+      ],
+      "directRefs": [
+        "configstartup.PrepareStartup"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/configstartup/startup.go"
+      ],
+      "digest": "9bc06caa54656a6028cf1d284d7afd28e520556630923f887aba2e6a0e21f344"
     },
     {
       "kind": "rule",
@@ -2553,6 +4576,150 @@
         "internal/app/navigation.go"
       ],
       "digest": "aa704d899704eb49fdd24b04bacf2af24bf5137fc4471d91894586f4d9c46060"
+    },
+    {
+      "kind": "rule",
+      "id": "20",
+      "refs": [
+        "api.persistedDashboardScope.DashboardForSession"
+      ],
+      "directRefs": [
+        "api.persistedDashboardScope.DashboardForSession"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/persisted_scope.go"
+      ],
+      "digest": "e7510c7c09b688735f749a6d1045e744251db9036f1a0cac1af834b6ade1ddd8"
+    },
+    {
+      "kind": "rule",
+      "id": "21",
+      "refs": [
+        "api.Service.RetryDashboardDeletion"
+      ],
+      "directRefs": [
+        "api.Service.RetryDashboardDeletion"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/dashboard_deletion.go"
+      ],
+      "digest": "91ae1eeec9b0da4099d34a88f5efa4222e8d0bdf41b699c2c3340429926e1791"
+    },
+    {
+      "kind": "rule",
+      "id": "22",
+      "refs": [
+        "app.Coordinator.handleDataLoaded"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleDataLoaded"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/handlers.go"
+      ],
+      "digest": "4927c5615570a834e776d257752e89bc3e9be7291d0c8b0a1d361d72d14251af"
+    },
+    {
+      "kind": "rule",
+      "id": "23",
+      "refs": [
+        "views.DashboardList.Update"
+      ],
+      "directRefs": [
+        "views.DashboardList.Update"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/views/dashboard_list.go"
+      ],
+      "digest": "a9343bcce17fd60128a15f27f6bccdc920e2d030706e15e305a1a20df7ca4ae9"
+    },
+    {
+      "kind": "rule",
+      "id": "24",
+      "refs": [
+        "views.DashboardList.retryDeletion"
+      ],
+      "directRefs": [
+        "views.DashboardList.retryDeletion"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/views/dashboard_list.go"
+      ],
+      "digest": "7027ec22ce99390b02517686fa5d6914272d405a63c6063d036b15a87b038a31"
+    },
+    {
+      "kind": "rule",
+      "id": "25",
+      "refs": [
+        "session.MessageStore.RecordReply"
+      ],
+      "directRefs": [
+        "session.MessageStore.RecordReply"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/messaging.go"
+      ],
+      "digest": "07d109e8dfa503e6a004f2a060ffa4870f1183188eb66fb70157d6605a79e35f"
+    },
+    {
+      "kind": "rule",
+      "id": "26",
+      "refs": [
+        "session.Manager.ReserveReportNotification"
+      ],
+      "directRefs": [
+        "session.Manager.ReserveReportNotification"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/session/message_notifications.go"
+      ],
+      "digest": "1b747f6d8a7c1c2bf7d71a1eeab46c679744aba922d3cbcb0d44059fc1711ca8"
+    },
+    {
+      "kind": "rule",
+      "id": "27",
+      "refs": [
+        "api.OperationRunner.reconcileNotification"
+      ],
+      "directRefs": [
+        "api.OperationRunner.reconcileNotification"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/notifications.go"
+      ],
+      "digest": "dd7c0f1e7c95e40f609a5d89e8b92bbc79b511d49af5c26f21a3279d08225c60"
+    },
+    {
+      "kind": "rule",
+      "id": "28",
+      "refs": [
+        "driver.formatPrompt"
+      ],
+      "directRefs": [
+        "driver.formatPrompt"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/driver/driver.go"
+      ],
+      "digest": "d4fb5c90ac5a01b1b8678275edcd59110fb3ff827dd5fac705cd5bb16c71d5b5"
     },
     {
       "kind": "rule",
@@ -2575,21 +4742,21 @@
       "id": "4",
       "refs": [
         "app.Coordinator.Update",
-        "app.Coordinator.handleWorkspaceCommandResult"
+        "app.Coordinator.handleSessionMessages"
       ],
       "directRefs": [
         "app.Coordinator.Update"
       ],
       "participants": [],
       "supportingRefs": [
-        "app.Coordinator.handleWorkspaceCommandResult"
+        "app.Coordinator.handleSessionMessages"
       ],
       "files": [
         "internal/app/coordinator.go",
         "internal/app/error_banner_test.go",
         "internal/app/terminal_launch_test.go"
       ],
-      "digest": "b9f1cdc0ec0e7fd8749c7a67a7832157f3decaefdfdd6b4f59a4b818ecd2e3c5"
+      "digest": "2b9d1f54c0acba08dbd5d2830e4459ef8623bb60d345fd1d0a34e43f3b8dcfe1"
     },
     {
       "kind": "rule",
@@ -2643,17 +4810,17 @@
       "kind": "rule",
       "id": "8",
       "refs": [
-        "session.Manager.Launch"
+        "session.Manager.LaunchInDashboardWithIDContext"
       ],
       "directRefs": [
-        "session.Manager.Launch"
+        "session.Manager.LaunchInDashboardWithIDContext"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
         "internal/session/lifecycle.go"
       ],
-      "digest": "22b987e0475bac0ecf8d6ab474bc187892fca716ba1423ea35c46f410ede69a9"
+      "digest": "d537f2647b48073cb4681f29d8f10db40b07cd141b6c8fe8000632eedf8230da"
     },
     {
       "kind": "rule",
@@ -2715,12 +4882,12 @@
       "refs": [
         "app.Coordinator.handleSessionMessages",
         "app.Coordinator.handleSpecialMessages",
-        "messages.TerminalLaunchedMsg"
+        "messages.ScopedActionFinishedMsg"
       ],
       "directRefs": [
         "app.Coordinator.handleSessionMessages",
         "app.Coordinator.handleSpecialMessages",
-        "messages.TerminalLaunchedMsg"
+        "messages.ScopedActionFinishedMsg"
       ],
       "participants": [],
       "supportingRefs": [],
@@ -2728,7 +4895,7 @@
         "internal/app/coordinator.go",
         "internal/ui/messages/messages.go"
       ],
-      "digest": "4698b6cd1c551a0285b0c8c837a87163033381ddc92ea0705c0128ff35fdbedc"
+      "digest": "453dfb8ea71a705642f9337ee145464f944102cb124caf51e19384d9c3cf3d7a"
     },
     {
       "kind": "task",
@@ -2832,22 +4999,96 @@
     },
     {
       "kind": "task",
+      "id": "Change card or dashboard deletion recovery",
+      "refs": [
+        "api.Service.ConfirmCardDeletion",
+        "api.Service.runDashboardDeletion",
+        "views.DashboardList.retryDeletion"
+      ],
+      "directRefs": [
+        "api.Service.ConfirmCardDeletion",
+        "api.Service.runDashboardDeletion",
+        "views.DashboardList.retryDeletion"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_confirmation.go",
+        "internal/api/dashboard_deletion.go",
+        "internal/ui/views/dashboard_list.go"
+      ],
+      "digest": "553ac5e830d63425d3ef661323c04b63a20b53818b6acbc8f54460d890cb35b3"
+    },
+    {
+      "kind": "task",
+      "id": "Change configuration startup",
+      "refs": [
+        "configstartup.AcquireLock",
+        "configstartup.PrepareStartup",
+        "configstartup.ValidateLayout"
+      ],
+      "directRefs": [
+        "configstartup.AcquireLock",
+        "configstartup.PrepareStartup",
+        "configstartup.ValidateLayout"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/configstartup/lock.go",
+        "internal/configstartup/startup.go",
+        "internal/configstartup/validate.go"
+      ],
+      "digest": "6fb9c732a10e86678b210e6c241e3fcaa37f097bbb2ccdf5d7517458e93982a4"
+    },
+    {
+      "kind": "task",
       "id": "Change dashboard layout or keys",
       "refs": [
         "views.Dashboard.footerText",
-        "views.Dashboard.handleKey"
+        "views.Dashboard.handleKey",
+        "views.DashboardList.Update",
+        "views.DashboardList.renderPage"
       ],
       "directRefs": [
         "views.Dashboard.footerText",
-        "views.Dashboard.handleKey"
+        "views.Dashboard.handleKey",
+        "views.DashboardList.Update",
+        "views.DashboardList.renderPage"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
         "internal/ui/views/dashboard.go",
-        "internal/ui/views/dashboard_layout_test.go"
+        "internal/ui/views/dashboard_layout_test.go",
+        "internal/ui/views/dashboard_list.go"
       ],
-      "digest": "6efa5bfe896704639c45c0d63a865d8df8fccf5d3218d069b1e86bc91aab7a08"
+      "digest": "bddc8a47d2e251eec88f013639b44ae55cf9b808ed4d448efc5b60671877fdc7"
+    },
+    {
+      "kind": "task",
+      "id": "Change dashboard ownership or shared-card availability",
+      "refs": [
+        "api.membershipInventory",
+        "api.persistedDashboardScope",
+        "config.Dashboard",
+        "config.IDCard"
+      ],
+      "directRefs": [
+        "api.membershipInventory",
+        "api.persistedDashboardScope",
+        "config.Dashboard",
+        "config.IDCard"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/persisted_scope.go",
+        "internal/config/dashboards.go",
+        "internal/config/types.go"
+      ],
+      "digest": "b6198d760da7c9b3c80b190448f3885b96a8ccafcf0d3c5bf2e347186fc393ce"
     },
     {
       "kind": "task",
@@ -2869,31 +5110,22 @@
       "kind": "task",
       "id": "Change how IDE or terminal windows open",
       "refs": [
-        "app.Coordinator.launchTerminal",
-        "app.sessionActions.launchWorkspaceCommand",
-        "config.AppSettings",
-        "session.IDELauncher",
+        "app.sessionActions.launchWorkspace",
         "session.LaunchWorkspaceCommand"
       ],
       "directRefs": [
-        "app.Coordinator.launchTerminal",
-        "app.sessionActions.launchWorkspaceCommand",
-        "config.AppSettings",
-        "session.IDELauncher",
+        "app.sessionActions.launchWorkspace",
         "session.LaunchWorkspaceCommand"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/app/callbacks.go",
         "internal/app/session_actions.go",
         "internal/app/terminal_launch_test.go",
-        "internal/config/types.go",
-        "internal/session/ide_launcher.go",
         "internal/session/ide_launcher_test.go",
         "internal/session/workspace_launcher.go"
       ],
-      "digest": "485f50a5eb2adb590affb07cd04715b3cd2589fbcf885f31f0f1d7a06144a2ba"
+      "digest": "f3976246b598d45d4a939981e232f8a9db1d869ba9e51d4a569ab77cb390dea4"
     },
     {
       "kind": "task",
@@ -2922,20 +5154,42 @@
     },
     {
       "kind": "task",
+      "id": "Change notification authorization or lifecycle handling",
+      "refs": [
+        "api.notificationAuthority",
+        "driver.PromptEnvelope",
+        "session.Manager.ReserveReportNotification",
+        "session.Manager.reportAdmissionValidLocked"
+      ],
+      "directRefs": [
+        "api.notificationAuthority",
+        "driver.PromptEnvelope",
+        "session.Manager.ReserveReportNotification",
+        "session.Manager.reportAdmissionValidLocked"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/notifications.go",
+        "internal/driver/driver.go",
+        "internal/session/message_notifications.go"
+      ],
+      "digest": "d6cf26a97d4b9140505072cd38fd127033c26752656942698365d001588522b2"
+    },
+    {
+      "kind": "task",
       "id": "Change prompt delivery or explicit report kinds",
       "refs": [
-        "api.Service.SendMessage",
-        "driver.ClaudeCodeDriver.SubmitPrompt",
-        "driver.CodexCLIDriver.SubmitPrompt",
-        "driver.GenericCLIDriver.SubmitPrompt",
+        "api.preparedDelivery",
+        "driver.PromptEnvelope",
+        "driver.formatPrompt",
         "session.Manager.SubmitMessage",
         "session.MessageStore.RecordReply"
       ],
       "directRefs": [
-        "api.Service.SendMessage",
-        "driver.ClaudeCodeDriver.SubmitPrompt",
-        "driver.CodexCLIDriver.SubmitPrompt",
-        "driver.GenericCLIDriver.SubmitPrompt",
+        "api.preparedDelivery",
+        "driver.PromptEnvelope",
+        "driver.formatPrompt",
         "session.Manager.SubmitMessage",
         "session.MessageStore.RecordReply"
       ],
@@ -2946,7 +5200,7 @@
         "internal/driver/driver.go",
         "internal/session/messaging.go"
       ],
-      "digest": "1354368ea33fa2d8f10179a657d56486dde1d56d2ba37dcbb9ebf8b4447da1cf"
+      "digest": "18402a9893174fcbd66b791118f98120280e8fbd39be1fea4bf4046cf1adde96"
     },
     {
       "kind": "task",
@@ -2969,25 +5223,49 @@
     },
     {
       "kind": "task",
+      "id": "Change report-notification retry timing or fairness",
+      "refs": [
+        "api.OperationRunner.dispatchNotifications",
+        "api.OperationRunner.reconcileNotification",
+        "api.dueNotifications",
+        "api.nextNotificationDelay"
+      ],
+      "directRefs": [
+        "api.OperationRunner.dispatchNotifications",
+        "api.OperationRunner.reconcileNotification",
+        "api.dueNotifications",
+        "api.nextNotificationDelay"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/notifications.go"
+      ],
+      "digest": "f0be62dc616d44a28767fd72174965aa79167fc119a8fac1c0705d0409dc5b3e"
+    },
+    {
+      "kind": "task",
       "id": "Change retry, cancellation or restart behavior",
       "refs": [
         "api.OperationRunner",
-        "api.SafeRejection",
+        "api.OperationRunner.dispatchNotifications",
+        "api.OperationRunner.reconcileNotification",
         "session.MessageStore.Recover"
       ],
       "directRefs": [
         "api.OperationRunner",
-        "api.SafeRejection",
+        "api.OperationRunner.dispatchNotifications",
+        "api.OperationRunner.reconcileNotification",
         "session.MessageStore.Recover"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/api/errors.go",
+        "internal/api/notifications.go",
         "internal/api/operations.go",
         "internal/session/messaging.go"
       ],
-      "digest": "b8735bf507c65a41239dab9e4da2960d37926b9c750f418f2ab6ff9c8221d087"
+      "digest": "bab7c729e10f03955a3666a872ad8db42206f420a408a9e8f21c24bca3a2a369"
     },
     {
       "kind": "task",
@@ -3156,6 +5434,27 @@
     },
     {
       "kind": "task",
+      "id": "Change when a report wakes its orchestrator",
+      "refs": [
+        "mcp.addMessagingTools",
+        "session.MessageStore.RecordReply",
+        "session.ReplyNotification"
+      ],
+      "directRefs": [
+        "mcp.addMessagingTools",
+        "session.MessageStore.RecordReply",
+        "session.ReplyNotification"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/mcp/server.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "7d3ca5abd2cf0233132d9d597912db7168c2ce86419f9bd78ecc3e6118c1ac22"
+    },
+    {
+      "kind": "task",
       "id": "Change workspace picking or the selected Skills view",
       "refs": [
         "components.CapabilityList",
@@ -3204,5 +5503,5 @@
       "digest": "5dba625e983465423e8c2f3de67b9f68ed98aa3951277334ead2259450baf16e"
     }
   ],
-  "digest": "f901ea1265ae264a9be9bcc7581ed017eff72352d226efb0180ad86b9046ee79"
+  "digest": "89a5a088a341ed81e61d3ef0e4df76f659242ff721667201f895a9e82ba2d3dd"
 }

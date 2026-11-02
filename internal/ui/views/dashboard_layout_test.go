@@ -20,40 +20,9 @@ import (
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
-// Contract (step 0 of impl_plan_2.md). The coordinator sizes the dashboard to
-// (terminal width, terminal rows - 4) - app.views.CoordinatorRows - and
-// Dashboard.SetSize's comment promises the full render then fills the terminal:
-//
-//	row 0               header   "K A N K U R O"   BOUNDED (17 wide; not padded)
-//	row 1               blank (header's bottom margin)
-//	rows 2 .. T-2       body: three bordered panes side by side, EXACT: every
-//	                    row is exactly W wide, there are exactly T-3 = h+1 rows
-//	row T-1             footer key legend            BOUNDED
-//
-// so the whole render is exactly T = h+4 lines (dashboardChrome below pins the
-// +4). "Exact" is the dashboard's contract only for the body: the header and
-// footer are not padded to W, which is deliberate for the header and a bug for
-// a footer wider than the terminal (TestDashboardFooterFitsWidth).
-//
-// Region contract: the panes keep their columns. With cards = cw, preview = pw
-// and sessions = W-cw-pw (Dashboard.CardsWidth / PreviewWidth), a vertical
-// border sits at columns cw-1, cw, cw+pw-1, cw+pw and W-1 on every body row,
-// and the corners on the first and last body row. A pane that grows by one
-// column moves its neighbour's border, which this catches even when the total
-// width survives.
-//
-// Smallest supported terminal: 80x24 (views.MinTerminalWidth/Height). Below that
-// the coordinator shows a "terminal too small" notice instead of any view
-// (app/size_guard_test.go); the dashboard is still sized then, and only has to
-// not go negative (TestDashboardSizeNeverNegative).
-//
-// Seen to fail: the shape/region sweeps were red at 80 and 120 columns against
-// the old code because of the session list help line (fixed since, by
-// SetShowHelp(false)); the delete-modal size, footer and long-query tests were
-// red until impl_plan_5.md fixed them (they were skipped, with their causes in
-// impl_plan_2.md). The sweeps were also seen red by widening the preview pane
-// by one column (Width(d.previewWidth + 1)) and by shortening the body by one
-// row; the focus test by swapping which pane gets the focused border.
+// The dashboard fills the terminal with a two-row header, three bordered panes
+// and a one-row footer. Pane borders keep their columns across content and focus
+// changes; unsupported sizes must not produce negative dimensions.
 
 const (
 	// dashboardChrome is the rows around the panes: header (1) + its blank
@@ -579,6 +548,21 @@ func TestDashboardFooterShowsFocusedPaneKeys(t *testing.T) {
 	for _, want := range []string{"[Nav] Tab", "[Card] Enter=Launch n=New e=Edit", "[Global] m=MCP w=Workspaces c=Settings q=Quit"} {
 		if !strings.Contains(footer, want) {
 			t.Errorf("wide footer %q is missing %q", footer, want)
+		}
+	}
+}
+
+func TestScopedDashboardFooterKeepsBackNavigationAtMinimumWidth(t *testing.T) {
+	for _, pane := range []views.Pane{views.PaneCards, views.PaneSessions} {
+		d := newDashboard(t, views.MinTerminalWidth, 30, dashboardData{sessions: 1, cards: 1})
+		d.SetDashboardScope("dashboard", 1)
+		if pane == views.PaneSessions {
+			d.TogglePane()
+		}
+		lines := strings.Split(ansi.Strip(d.View()), "\n")
+		footer := lines[len(lines)-1]
+		if !strings.Contains(footer, "Esc=Dashboards") || !strings.Contains(footer, "q=Quit") {
+			t.Errorf("pane %v: missing navigation or quit in %q", pane, footer)
 		}
 	}
 }

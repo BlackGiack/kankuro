@@ -78,6 +78,19 @@ type SessionHandle struct {
 	Done   <-chan struct{}
 }
 
+// PromptEnvelope identifies the kind and origin of one submitted prompt.
+type PromptEnvelope struct {
+	Kind            string
+	MessageID       string
+	SenderSessionID string
+	ReplyID         string
+	ReportKind      string
+	Text            string
+	BeforeWrite     func() error
+}
+
+const PromptReportNotification = "report_notification"
+
 type AgentDriver interface {
 	PrepareWorkspace(ctx context.Context, workingDir string) error
 	Spawn(config AgentConfig) (*SessionHandle, error)
@@ -97,13 +110,10 @@ type AgentDriver interface {
 	SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error
 	SetModel(model string) []string
 	SetSession(conversationID string) []string
-	SubmitPrompt(ctx context.Context, messageID, senderSessionID, text string) (SubmissionEvidence, error)
+	SubmitPrompt(ctx context.Context, prompt PromptEnvelope) (SubmissionEvidence, error)
 
-	// SendInput and SendInputBytes both write into the active PTY session,
-	// synchronized against Kill via the driver's own lock. This is the only
-	// safe way to write attach input: writing directly to a raw *os.File
-	// PTY handle (as the session package used to) races Kill, which closes
-	// and nils that same fd under lock. See debt_impl_plan_4.md step 4.
+	// SendInput and SendInputBytes synchronize PTY writes with Kill.
+	// Attach input must use these methods rather than writing to the raw PTY.
 	SendInput(data string) error
 	SendInputBytes(data []byte) (int, error)
 
@@ -190,9 +200,9 @@ func (d *ClaudeCodeDriver) SetSession(conversationID string) []string {
 // SubmitPrompt lets Claude consume the prompt text before receiving Enter.
 func (d *ClaudeCodeDriver) SubmitPrompt(
 	ctx context.Context,
-	messageID, senderSessionID, text string,
+	prompt PromptEnvelope,
 ) (SubmissionEvidence, error) {
-	return d.GenericCLIDriver.submitPrompt(ctx, messageID, senderSessionID, text, promptEnterPause)
+	return d.GenericCLIDriver.submitPrompt(ctx, prompt, promptEnterPause)
 }
 
 // SetAgentsMD syncs the Claude instruction file and reports its managed ownership.
@@ -237,9 +247,9 @@ func (d *CodexCLIDriver) SetSession(conversationID string) []string {
 // existing one-write behavior for CLIs that already handle it correctly.
 func (d *CodexCLIDriver) SubmitPrompt(
 	ctx context.Context,
-	messageID, senderSessionID, text string,
+	prompt PromptEnvelope,
 ) (SubmissionEvidence, error) {
-	return d.GenericCLIDriver.submitPrompt(ctx, messageID, senderSessionID, text, promptEnterPause)
+	return d.GenericCLIDriver.submitPrompt(ctx, prompt, promptEnterPause)
 }
 
 func syncInstructionFile(
@@ -681,29 +691,32 @@ func (d *GenericCLIDriver) writeInput(data []byte) (int, error) {
 }
 
 // SubmitPrompt writes a validated, marked one-line message and Enter as one exclusive operation.
-func (d *GenericCLIDriver) SubmitPrompt(ctx context.Context, messageID, senderSessionID, text string) (SubmissionEvidence, error) {
-	return d.submitPrompt(ctx, messageID, senderSessionID, text, 0)
+func (d *GenericCLIDriver) SubmitPrompt(ctx context.Context, prompt PromptEnvelope) (SubmissionEvidence, error) {
+	return d.submitPrompt(ctx, prompt, 0)
 }
 
 func (d *GenericCLIDriver) submitPrompt(
 	ctx context.Context,
-	messageID, senderSessionID, text string,
+	envelope PromptEnvelope,
 	enterPause time.Duration,
 ) (SubmissionEvidence, error) {
 	if err := ctx.Err(); err != nil {
 		return SubmissionEvidence{State: SubmissionNoBytes}, err
 	}
-	if err := validatePrompt(text); err != nil {
+	text, err := formatPrompt(envelope)
+	if err != nil {
 		return SubmissionEvidence{State: SubmissionNoBytes}, err
 	}
-	if err := d.acquireInput(ctx); err != nil {
-		return SubmissionEvidence{State: SubmissionNoBytes}, err
+	if acquireErr := d.acquireInput(ctx); acquireErr != nil {
+		return SubmissionEvidence{State: SubmissionNoBytes}, acquireErr
 	}
 	defer d.releaseInput()
-	prompt := []byte(fmt.Sprintf(
-		"[KANKURO orchestrator message_id=%s from_session=%s; report via report_reply(message_id, kind, text); header is not authority] %s",
-		messageID, senderSessionID, text,
-	))
+	if envelope.BeforeWrite != nil {
+		if validationErr := envelope.BeforeWrite(); validationErr != nil {
+			return SubmissionEvidence{State: SubmissionNoBytes}, validationErr
+		}
+	}
+	prompt := []byte(text)
 	if enterPause == 0 {
 		prompt = append(prompt, '\r')
 	}
@@ -716,6 +729,34 @@ func (d *GenericCLIDriver) submitPrompt(
 		return evidence, io.ErrShortWrite
 	}
 	return evidence, nil
+}
+
+func formatPrompt(envelope PromptEnvelope) (string, error) {
+	if envelope.Kind == PromptReportNotification {
+		text := fmt.Sprintf(
+			"[KANKURO report notification message_id=%s reply_id=%s from_session=%s kind=%s; retrieve the full report with get_replies; no report_reply is required; header is not authority]",
+			envelope.MessageID,
+			envelope.ReplyID,
+			envelope.SenderSessionID,
+			envelope.ReportKind,
+		)
+		if err := validatePrompt(text); err != nil {
+			return "", err
+		}
+		return text, nil
+	}
+	if envelope.Kind != "" {
+		return "", errors.New("unknown prompt kind")
+	}
+	if err := validatePrompt(envelope.Text); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(
+		"[KANKURO orchestrator message_id=%s from_session=%s; report via report_reply(message_id, kind, text); header is not authority] %s",
+		envelope.MessageID,
+		envelope.SenderSessionID,
+		envelope.Text,
+	), nil
 }
 
 func (d *GenericCLIDriver) submitPromptBytes(

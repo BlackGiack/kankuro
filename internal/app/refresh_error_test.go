@@ -7,23 +7,30 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
-// TestRefreshDataSurfacesErrorAndKeepsPreviousCards pins the app half of
-// finding #8 from tech_debt_founding.md: refreshData used to discard every
-// registry read error (`cards, _ := ...`), so one corrupt YAML file rendered
-// as a silently empty list - which a subsequent save could then persist,
-// destroying real data. debt_impl_plan_4.md step 5 requires that a read
-// error (a) reaches the coordinator's error banner and (b) does not blank a
-// receiver's existing data: DataLoadedMsg.Cards is left nil on error, and
-// Dashboard.SetData's `if msg.Cards != nil` guard means the previous cards
-// stay in place.
+// A failed registry read must surface an error while preserving previously loaded cards.
 func TestRefreshDataSurfacesErrorAndKeepsPreviousCards(t *testing.T) {
-	repo, errRepo := config.NewFileRepository(t.TempDir())
+	root := t.TempDir()
+	lock, errLock := configstartup.AcquireLock(root)
+	if errLock != nil {
+		t.Fatal(errLock)
+	}
+	t.Cleanup(func() {
+		if err := lock.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	if err := configstartup.PrepareStartup(root); err != nil {
+		t.Fatal(err)
+	}
+	repo, errRepo := config.NewFileRepository(root)
 	if errRepo != nil {
 		t.Fatalf("new repo: %v", errRepo)
 	}
@@ -37,14 +44,18 @@ func TestRefreshDataSurfacesErrorAndKeepsPreviousCards(t *testing.T) {
 		Name:        "Good Card",
 		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
+		DashboardID: "default",
 	})
 	if errCreate != nil {
 		t.Fatalf("create card: %v", errCreate)
 	}
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := app.NewCoordinator(repo, sm, api.New(repo, sm))
 	coord.Init()
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	coord.Update(
+		messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}},
+	)
 
 	// First refresh: the card is loaded cleanly.
 	coord.Update(coord.RefreshData()())

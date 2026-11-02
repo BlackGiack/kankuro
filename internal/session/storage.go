@@ -6,18 +6,22 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/BlackGiack/kankuro/internal/fsutil"
 )
 
 const (
-	sessionsDirMode = 0o700
-	sessionFileMode = 0o600
+	sessionsDirMode      = 0o700
+	sessionFileMode      = 0o600
+	sessionSchemaVersion = 2
 )
 
 type Data struct {
+	SchemaVersion                 int                              `json:"schema_version,omitempty"`
 	ID                            string                           `json:"id"`
+	DashboardID                   string                           `json:"dashboard_id,omitempty"`
 	CardID                        string                           `json:"card_id"`
 	Name                          string                           `json:"name"`
 	PID                           int                              `json:"pid"`
@@ -44,6 +48,7 @@ type Data struct {
 func (d *Data) restore() *Session {
 	return &Session{
 		ID:                            d.ID,
+		DashboardID:                   d.DashboardID,
 		CardID:                        d.CardID,
 		Name:                          d.Name,
 		PID:                           d.PID,
@@ -90,6 +95,14 @@ func loadSessions(dir string) ([]*Data, error) {
 			errs = append(errs, fmt.Errorf("parse session file %s: %w", path, errUnmarshal))
 			continue
 		}
+		if s.SchemaVersion != sessionSchemaVersion {
+			errs = append(errs, fmt.Errorf("session file %s has unsupported schema version %d", path, s.SchemaVersion))
+			continue
+		}
+		if strings.TrimSpace(s.DashboardID) == "" {
+			errs = append(errs, fmt.Errorf("session file %s has missing dashboard membership", path))
+			continue
+		}
 		out = append(out, &s)
 	}
 	return out, errors.Join(errs...)
@@ -99,6 +112,9 @@ func loadSessions(dir string) ([]*Data, error) {
 // crash mid-write must not truncate the only pointer to a session's name and
 // temporary workspace.
 func saveSession(dir string, s *Data) error {
+	if s.SchemaVersion != sessionSchemaVersion || strings.TrimSpace(s.DashboardID) == "" {
+		return errors.New("session must have current schema and dashboard membership")
+	}
 	if err := os.MkdirAll(dir, sessionsDirMode); err != nil {
 		return err
 	}

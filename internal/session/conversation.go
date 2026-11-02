@@ -22,6 +22,7 @@ const (
 
 type activationAuthority struct {
 	sessionID    string
+	dashboardID  string
 	activationID string
 	cardID       string
 	driver       string
@@ -38,6 +39,7 @@ type activationAuthority struct {
 // It intentionally contains no credential and is not available during startup.
 type CallerIdentity struct {
 	SessionID        string
+	DashboardID      string
 	ActivationID     string
 	CardID           string
 	Driver           string
@@ -46,6 +48,7 @@ type CallerIdentity struct {
 
 func (m *Manager) prepareActivationMCPConfig(
 	sessionID string,
+	dashboardID string,
 	card config.IDCard,
 	d driver.AgentDriver,
 	mcps []config.MCPServer,
@@ -76,6 +79,9 @@ func (m *Manager) prepareActivationMCPConfig(
 	if m.closed {
 		return "", ErrManagerClosed
 	}
+	if existing := m.sessions[sessionID]; existing != nil {
+		dashboardID = existing.DashboardID
+	}
 	if hasKankuro {
 		if m.mcpEndpoint == "" {
 			return "", errors.New("kankuro MCP endpoint is not configured")
@@ -98,6 +104,7 @@ func (m *Manager) prepareActivationMCPConfig(
 	if hasKankuro {
 		m.authorities[token] = &activationAuthority{
 			sessionID:    sessionID,
+			dashboardID:  dashboardID,
 			activationID: activationID,
 			cardID:       card.ID,
 			driver:       card.Driver,
@@ -181,6 +188,7 @@ func (m *Manager) publishActivationLocked(token string, s *Session) {
 	}
 	if authority.staged != nil {
 		addConversationBinding(s, authority.cardID, *authority.staged)
+		m.cardReferenceRevision++
 		s.ExpectedConversationID = authority.staged.ID
 		s.Registration = RegistrationRegistered
 		s.RegistrationPersistence = RegistrationNotAttempted
@@ -191,6 +199,7 @@ func (m *Manager) publishActivationLocked(token string, s *Session) {
 }
 
 type RegistrationResult struct {
+	DashboardID string                  `json:"dashboard_id,omitempty"`
 	Status      RegistrationState       `json:"status"`
 	Persistence RegistrationPersistence `json:"persistence"`
 	Warning     string                  `json:"warning,omitempty"`
@@ -265,13 +274,18 @@ func (m *Manager) registerConversationLocked(authority *activationAuthority, bin
 	authority.failure = ""
 	if !authority.published {
 		authority.staged = &binding
-		return RegistrationResult{Status: "pending_activation", Persistence: RegistrationNotAttempted}, nil
+		return RegistrationResult{
+			DashboardID: authority.dashboardID,
+			Status:      "pending_activation",
+			Persistence: RegistrationNotAttempted,
+		}, nil
 	}
 	s := m.sessions[authority.sessionID]
 	if s == nil || s.ActivationID != authority.activationID || s.Status == StatusTerminated {
 		return RegistrationResult{}, errors.New("activation is no longer live")
 	}
 	addConversationBinding(s, authority.cardID, binding)
+	m.cardReferenceRevision++
 	s.ExpectedConversationID = binding.ID
 	s.Registration = RegistrationRegistered
 	s.RegistrationPersistence = RegistrationNotAttempted
@@ -281,9 +295,14 @@ func (m *Manager) registerConversationLocked(authority *activationAuthority, bin
 		s.RegistrationErr = conversationPersistenceWarning
 		// A live activation with unsaved metadata is a successful registration outcome.
 		//nolint:nilerr // The transport returns durability in the structured result.
-		return RegistrationResult{Status: RegistrationRegistered, Persistence: RegistrationUnsaved, Warning: s.RegistrationErr}, nil
+		return RegistrationResult{
+			DashboardID: s.DashboardID,
+			Status:      RegistrationRegistered,
+			Persistence: RegistrationUnsaved,
+			Warning:     s.RegistrationErr,
+		}, nil
 	}
-	return RegistrationResult{Status: RegistrationRegistered, Persistence: RegistrationSaved}, nil
+	return RegistrationResult{DashboardID: s.DashboardID, Status: RegistrationRegistered, Persistence: RegistrationSaved}, nil
 }
 
 func (m *Manager) setRegistrationFailureLocked(authority *activationAuthority, message string) {
@@ -351,6 +370,7 @@ func (m *Manager) ResolveDashboardCaller(token string) (CallerIdentity, error) {
 	}
 	return CallerIdentity{
 		SessionID:        authority.sessionID,
+		DashboardID:      s.DashboardID,
 		ActivationID:     authority.activationID,
 		CardID:           authority.cardID,
 		Driver:           authority.driver,

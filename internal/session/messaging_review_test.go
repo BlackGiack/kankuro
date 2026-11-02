@@ -33,17 +33,17 @@ type promptCountingDriver struct {
 	calls atomic.Int32
 }
 
-func (d *promptCountingDriver) SubmitPrompt(context.Context, string, string, string) (driver.SubmissionEvidence, error) {
+func (d *promptCountingDriver) SubmitPrompt(context.Context, driver.PromptEnvelope) (driver.SubmissionEvidence, error) {
 	d.calls.Add(1)
 	return driver.SubmissionEvidence{State: driver.SubmissionComplete}, nil
 }
 
 func (d *failAfterPromptDriver) SubmitPrompt(
 	ctx context.Context,
-	messageID, senderSessionID, text string,
+	prompt driver.PromptEnvelope,
 ) (driver.SubmissionEvidence, error) {
 	d.calls++
-	evidence, err := d.AgentDriver.SubmitPrompt(ctx, messageID, senderSessionID, text)
+	evidence, err := d.AgentDriver.SubmitPrompt(ctx, prompt)
 	if d.calls == 1 {
 		d.backupPath = d.path + ".review-backup"
 		if renameErr := os.Rename(d.path, d.backupPath); renameErr != nil {
@@ -244,22 +244,26 @@ func newReviewMessagingManager(t *testing.T) (*Manager, string, string, string, 
 	manager := NewManager(repository.Dir(), repository, WithStartupDelay(0))
 	manager.SetMCPEndpoint("http://127.0.0.1:12345/mcp")
 	t.Cleanup(func() { manager.Shutdown() })
-	callerCard, err := repository.CreateIDCard(config.IDCard{ID: "review-controller", Name: "controller", Driver: "cat",
-		WorkspaceID: workspaces[0].ID, DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro}})
+	callerCard, err := repository.CreateIDCard(
+		config.IDCard{DashboardID: "default", ID: "review-controller", Name: "controller", Driver: "cat",
+			WorkspaceID: workspaces[0].ID, DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro}},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	recipientCard, err := repository.CreateIDCard(config.IDCard{ID: "review-message-target", Name: "recipient", Driver: "cat",
-		WorkspaceID: workspaces[0].ID, MCPIDs: []string{config.BuiltinMCPKankuro}})
+	recipientCard, err := repository.CreateIDCard(
+		config.IDCard{DashboardID: "default", ID: "review-message-target", Name: "recipient", Driver: "cat",
+			WorkspaceID: workspaces[0].ID, MCPIDs: []string{config.BuiltinMCPKankuro}},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	callerID, err := manager.Launch(callerCard, nil, nil, config.BuiltinMCPs())
+	callerID, err := testLaunch(manager, callerCard, nil, nil, config.BuiltinMCPs())
 	if err != nil {
 		t.Fatal(err)
 	}
 	callerToken := readReviewActivationToken(t, filepath.Join(workspace, ".kankuro", "mcp-servers.json"))
-	recipientID, err := manager.Launch(recipientCard, nil, nil, config.BuiltinMCPs())
+	recipientID, err := testLaunch(manager, recipientCard, nil, nil, config.BuiltinMCPs())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -307,7 +307,9 @@ func (i SessionListItem) Title() string {
 func (i SessionListItem) Description() string {
 	// Find card name for display
 	cardName := i.Session.CardID
-	if i.Card != nil {
+	if i.Session.CardDeleted {
+		cardName = "deleted card: " + i.Session.CardID
+	} else if i.Card != nil {
 		cardName = i.Card.Name
 	}
 	cardName = DisplayText(cardName)

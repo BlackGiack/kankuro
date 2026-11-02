@@ -62,11 +62,7 @@ func (v *AgentSwitchView) SetSession(id, name string) {
 	v.sessionName = name
 }
 
-// SetData implements messages.DataReceiver. Per messages.DataLoadedMsg's
-// contract, a nil field means "that registry could not be read this round" -
-// so each field is only replaced when non-nil, leaving the view's existing
-// card list in place across a transient read failure instead of emptying it
-// (see review_dp_4.md finding 1).
+// SetData preserves each existing registry when its incoming field is nil.
 func (v *AgentSwitchView) SetData(msg messages.DataLoadedMsg) {
 	changed := false
 	if msg.Cards != nil {
@@ -134,9 +130,7 @@ func (v *AgentSwitchView) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		if v.callbacks.OnCancel != nil {
 			return v.callbacks.OnCancel(), true
 		}
-		return func() tea.Msg {
-			return messages.NavigateMsg{View: messages.ViewDashboard}
-		}, true
+		return nil, true
 	case tea.KeyEnter:
 		if item := v.list.SelectedItem(); item != nil {
 			if si, ok := item.(switchCardItem); ok && v.callbacks.OnSwitch != nil {

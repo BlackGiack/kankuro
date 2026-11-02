@@ -11,29 +11,6 @@ const (
 	PathPlaceholder = "$PATH"
 )
 
-// IDELauncher provides IDE launching functionality.
-type IDELauncher struct {
-	command string
-}
-
-// NewIDELauncher creates a launcher with the given command.
-func NewIDELauncher(command string) *IDELauncher {
-	return &IDELauncher{command: command}
-}
-
-// Command returns the underlying command.
-func (l *IDELauncher) Command() string {
-	return l.command
-}
-
-// Launch starts the IDE for the given workspace path.
-func (l *IDELauncher) Launch(workspacePath string) error {
-	if l.command == "" {
-		return ErrIDENotConfigured
-	}
-	return LaunchWorkspaceCommand(l.command, workspacePath)
-}
-
 // SplitCommand parses a command string with quote support.
 func SplitCommand(cmd string) []string {
 	return splitCommand(cmd)

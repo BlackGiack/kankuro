@@ -14,7 +14,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
@@ -40,13 +42,19 @@ func (r *countingRepo) ListSkillSources() ([]string, error) {
 
 func newCountingCoordinator(t *testing.T) (*Coordinator, *countingRepo, *config.FileRepository) {
 	t.Helper()
-	base, err := config.NewFileRepository(t.TempDir())
+	root := t.TempDir()
+	if err := configstartup.PrepareStartup(root); err != nil {
+		t.Fatal(err)
+	}
+	base, err := config.NewFileRepository(root)
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 	repo := &countingRepo{Repository: base}
 	sm := newTestManager(t, base.Dir(), base)
-	return NewCoordinator(repo, sm), repo, base
+	c := NewCoordinator(repo, sm, api.New(repo, sm))
+	c.Update(messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}})
+	return c, repo, base
 }
 
 // TestMaybeRefreshConfigSkipsUnchangedRegistry pins step 1: a second
@@ -138,6 +146,7 @@ func TestMutationRefreshDoesNotWaitForTick(t *testing.T) {
 	}
 
 	saved, err := base.CreateIDCard(config.IDCard{
+		DashboardID: "default",
 		Name:        "Mutation Card",
 		Driver:      "echo",
 		WorkspaceID: workspaces[0].ID,
@@ -146,7 +155,7 @@ func TestMutationRefreshDoesNotWaitForTick(t *testing.T) {
 		t.Fatalf("create card: %v", err)
 	}
 
-	_, cmd := c.Update(messages.CardSavedMsg{Card: saved})
+	_, cmd := c.Update(messages.CardSavedMsg{Card: saved, DashboardID: "default", Generation: c.viewGeneration})
 	if cmd == nil {
 		t.Fatal("expected CardSavedMsg to produce a follow-up cmd")
 	}
@@ -212,7 +221,7 @@ func TestFullRefreshSeedsFingerprintBaseline(t *testing.T) {
 		t.Fatal("expected the tick right after a mutation refresh to see an unchanged baseline")
 	}
 	if tickMsg.stamps != nil {
-		t.Fatal("expected an unchanged result to carry nil stamps (review_dp_5_2.md finding 1)")
+		t.Fatal("expected an unchanged result to carry nil stamps")
 	}
 	if repo.cardListCalls != callsAfterMutation {
 		t.Fatalf("expected no additional ListIDCards call from the tick, got %d (was %d)",
@@ -220,13 +229,7 @@ func TestFullRefreshSeedsFingerprintBaseline(t *testing.T) {
 	}
 }
 
-// TestUnchangedTickResultDoesNotClobberNewerBaseline pins
-// review_dp_5_2.md finding 1: an "unchanged" configFingerprintMsg (nil
-// stamps) delivered after a newer baseline was already adopted must not
-// reset that baseline. This can happen when a tick's fingerprint check and a
-// mutation's refreshDataSeeded are both in flight and the tick's (stale)
-// result is delivered last - without the fix, it would stomp the newer
-// baseline and force one extra full reload on the following tick.
+// An unchanged tick result must not overwrite a newer baseline from a mutation refresh.
 func TestUnchangedTickResultDoesNotClobberNewerBaseline(t *testing.T) {
 	c, _, _ := newCountingCoordinator(t)
 
@@ -251,12 +254,17 @@ func TestUnchangedTickResultDoesNotClobberNewerBaseline(t *testing.T) {
 // registry must abort launchCard (no session created, an error surfaced via
 // SessionLaunchCompletedMsg) rather than launching capability-less.
 func TestLaunchCardAbortsOnRegistryReadError(t *testing.T) {
-	base, err := config.NewFileRepository(t.TempDir())
+	root := t.TempDir()
+	if err := configstartup.PrepareStartup(root); err != nil {
+		t.Fatal(err)
+	}
+	base, err := config.NewFileRepository(root)
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 	sm := newTestManager(t, base.Dir(), base)
-	c := NewCoordinator(base, sm)
+	c := NewCoordinator(base, sm, api.New(base, sm))
+	c.Update(messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}})
 
 	wd := t.TempDir()
 	if saveErr := base.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd}}); saveErr != nil {
@@ -273,6 +281,7 @@ func TestLaunchCardAbortsOnRegistryReadError(t *testing.T) {
 	}
 
 	card, err := base.CreateIDCard(config.IDCard{
+		DashboardID: "default",
 		Name:        "Launch Card",
 		Driver:      "echo",
 		WorkspaceID: workspaces[0].ID,

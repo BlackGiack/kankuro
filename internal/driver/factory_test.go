@@ -44,7 +44,7 @@ func (s *stubDriver) SetSession(id string) []string {
 }
 func (s *stubDriver) SendInput(_ string) error             { return nil }
 func (s *stubDriver) SendInputBytes(_ []byte) (int, error) { return 0, nil }
-func (s *stubDriver) SubmitPrompt(_ context.Context, _, _, _ string) (driver.SubmissionEvidence, error) {
+func (s *stubDriver) SubmitPrompt(_ context.Context, _ driver.PromptEnvelope) (driver.SubmissionEvidence, error) {
 	return driver.SubmissionEvidence{State: driver.SubmissionNoBytes}, nil
 }
 func (s *stubDriver) GetStatus() driver.SessionStatus { return driver.StatusRunning }

@@ -14,14 +14,14 @@ import (
 )
 
 func TestPreviewImmediateUpdate(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, _ := repo.CreateIDCard(config.IDCard{
+	card, _ := createCurrentCard(repo, config.IDCard{
 		Name:        "Test Card",
 		Driver:      "echo",
 		Model:       "test",
@@ -29,9 +29,9 @@ func TestPreviewImmediateUpdate(t *testing.T) {
 	})
 
 	// Launch session
-	sessionID, _ := sm.Launch(card, nil, nil, nil)
+	sessionID, _ := launchCurrentSession(repo, sm, card)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
 	// Execute refreshData from Init
@@ -54,14 +54,14 @@ func TestPreviewImmediateUpdate(t *testing.T) {
 }
 
 func TestPreviewAutoSelection(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, _ := repo.CreateIDCard(config.IDCard{
+	card, _ := createCurrentCard(repo, config.IDCard{
 		Name:        "Test Card",
 		Driver:      "echo",
 		Model:       "test",
@@ -69,9 +69,9 @@ func TestPreviewAutoSelection(t *testing.T) {
 	})
 
 	// Launch session
-	sessionID, _ := sm.Launch(card, nil, nil, nil)
+	sessionID, _ := launchCurrentSession(repo, sm, card)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
 	// Initial data load: refreshData will have PreviewSessionID="" because dashboard hasn't seen the session yet
@@ -95,14 +95,14 @@ func TestPreviewAutoSelection(t *testing.T) {
 }
 
 func TestPreviewStreaming(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, _ := repo.CreateIDCard(config.IDCard{
+	card, _ := createCurrentCard(repo, config.IDCard{
 		Name:        "Test Card",
 		Driver:      "echo",
 		Model:       "test",
@@ -110,9 +110,9 @@ func TestPreviewStreaming(t *testing.T) {
 	})
 
 	// Launch session
-	sessionID, _ := sm.Launch(card, nil, nil, nil)
+	sessionID, _ := launchCurrentSession(repo, sm, card)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
 	// Initial data load
@@ -154,14 +154,14 @@ func TestPreviewStreaming(t *testing.T) {
 }
 
 func TestPreviewStreamingKitty(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
 	wd := t.TempDir()
 	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
 	workspaces, _ := repo.ListWorkspaces()
 
-	card, _ := repo.CreateIDCard(config.IDCard{
+	card, _ := createCurrentCard(repo, config.IDCard{
 		Name:        "Test Card",
 		Driver:      "echo",
 		Model:       "test",
@@ -169,9 +169,9 @@ func TestPreviewStreamingKitty(t *testing.T) {
 	})
 
 	// Launch session
-	sessionID, _ := sm.Launch(card, nil, nil, nil)
+	sessionID, _ := launchCurrentSession(repo, sm, card)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newOpenedCoordinator(repo, sm)
 	coord.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 
 	// Initial data load

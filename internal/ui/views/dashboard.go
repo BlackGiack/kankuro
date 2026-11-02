@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode"
 
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
@@ -46,6 +47,7 @@ type PendingAction struct {
 
 // DashboardCallbacks defines callbacks for dashboard actions.
 type DashboardCallbacks struct {
+	OnBack     func() tea.Cmd
 	OnEditCard func(card config.IDCard) tea.Cmd
 
 	OnLaunchCard func(card config.IDCard) tea.Cmd
@@ -55,16 +57,24 @@ type DashboardCallbacks struct {
 	OnKill     func(sessionID string) (tea.Cmd, error)
 	OnRemove   func(sessionID string) (tea.Cmd, error)
 
-	OnDeleteCard     func(cardID string) (tea.Cmd, error)
-	OnOpenMCP        func() tea.Cmd
-	OnOpenWorkspaces func() tea.Cmd
-	OnOpenSettings   func() tea.Cmd
-	OnOpenCardEditor func() tea.Cmd
-	OnLaunchIDE      func(sessionID string) tea.Cmd
-	OnLaunchTerminal func(sessionID string) tea.Cmd
+	OnDeleteCard          func(cardID string) (tea.Cmd, error)
+	OnConfirmCardDeletion func(cardID, token string, foreignConfirmed bool) tea.Cmd
+	OnRetryCardDeletion   func(cardID string) tea.Cmd
+	OnOpenMCP             func() tea.Cmd
+	OnOpenWorkspaces      func() tea.Cmd
+	OnOpenSettings        func() tea.Cmd
+	OnOpenCardEditor      func() tea.Cmd
+	OnLaunchIDE           func(sessionID string) tea.Cmd
+	OnLaunchTerminal      func(sessionID string) tea.Cmd
 }
 
 // Dashboard is the main composite view showing cards, preview, and sessions.
+const (
+	cardImpactMargin    = 8
+	cardImpactMaxWidth  = 72
+	cardImpactMaxHeight = 12
+)
+
 type Dashboard struct {
 	component.Base
 
@@ -78,7 +88,14 @@ type Dashboard struct {
 	search      SearchState
 	pending     PendingAction
 
-	callbacks DashboardCallbacks
+	callbacks           DashboardCallbacks
+	dashboardName       string
+	dashboardID         string
+	dashboardGeneration uint64
+	cardImpactOpen      bool
+	cardImpactID        string
+	cardImpactToken     string
+	cardImpactViewport  viewport.Model
 
 	// Data (passed from App)
 	cards    []config.IDCard
@@ -139,6 +156,47 @@ func NewDashboard(callbacks DashboardCallbacks) *Dashboard {
 	return d
 }
 
+// SetDashboardName updates the human-visible dashboard heading.
+func (d *Dashboard) SetDashboardName(name string) { d.dashboardName = name }
+
+// SetDashboardScope tags navigation commands with the originating view.
+func (d *Dashboard) SetDashboardScope(id string, generation uint64) {
+	d.dashboardID, d.dashboardGeneration = id, generation
+}
+
+// ShowCardDeletionImpact requires explicit confirmation of foreign references.
+func (d *Dashboard) ShowCardDeletionImpact(cardID, token string, summary []string) {
+	d.cardImpactID, d.cardImpactToken, d.cardImpactOpen = cardID, token, true
+	d.cardImpactViewport = viewport.New()
+	d.cardImpactViewport.SetWidth(max(1, min(d.Width-cardImpactMargin, cardImpactMaxWidth)))
+	d.cardImpactViewport.SetHeight(max(1, min(d.Height-cardImpactMargin, cardImpactMaxHeight)))
+	lines := make([]string, 0, len(summary))
+	for _, line := range summary {
+		lines = append(lines, components.DisplayText(line))
+	}
+	d.cardImpactViewport.SetContent(strings.Join(lines, "\n"))
+}
+
+func (d *Dashboard) updateCardImpact(msg tea.Msg) (component.Model, tea.Cmd) {
+	if key, ok := msg.(tea.KeyPressMsg); ok {
+		if key.Code == tea.KeyEsc {
+			d.cardImpactOpen = false
+			return d, nil
+		}
+		if key.Code == tea.KeyEnter {
+			id, token := d.cardImpactID, d.cardImpactToken
+			d.cardImpactOpen = false
+			if d.callbacks.OnConfirmCardDeletion != nil {
+				return d, d.callbacks.OnConfirmCardDeletion(id, token, true)
+			}
+			return d, nil
+		}
+	}
+	var cmd tea.Cmd
+	d.cardImpactViewport, cmd = d.cardImpactViewport.Update(msg)
+	return d, cmd
+}
+
 // SetData updates all child components with fresh data.
 func (d *Dashboard) SetData(msg messages.DataLoadedMsg) {
 	if msg.Cards != nil {
@@ -180,11 +238,8 @@ func (d *Dashboard) SetData(msg messages.DataLoadedMsg) {
 	}
 }
 
-// SetSessions applies just the session list - used by the coordinator for
-// the idle tick's sessions-only refresh (messages.SessionsRefreshedMsg),
-// which is routed directly here rather than through SetData/broadcastData so
-// it never reaches an unrelated DataReceiver - see
-// debt_impl_plan_5.md review finding 1.
+// SetSessions replaces the session list and synchronizes the preview selection.
+// A nil slice preserves the previous data.
 func (d *Dashboard) SetSessions(sessions []session.Snapshot) {
 	if sessions == nil {
 		return
@@ -333,6 +388,9 @@ func disableKittyProtocolCmd() tea.Msg {
 
 // Update handles messages.
 func (d *Dashboard) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+	if d.cardImpactOpen {
+		return d.updateCardImpact(msg)
+	}
 	// Handle modals first
 	if d.deleteModal.IsOpen() {
 		return d.updateDeleteModal(msg)
@@ -362,6 +420,9 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 
 	switch keyMsg.Code {
 	case tea.KeyEsc:
+		if d.callbacks.OnBack != nil {
+			return d.callbacks.OnBack(), true
+		}
 		return nil, true
 	case tea.KeyTab:
 		d.togglePane()
@@ -401,6 +462,11 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return d.handleKill()
 		case "s":
 			return d.handleSwitch()
+		case "r":
+			if card, ok := d.cardList.Selected(); d.focusedPane == PaneCards && ok && card.DeletionState == config.CardDeleting &&
+				d.callbacks.OnRetryCardDeletion != nil {
+				return d.callbacks.OnRetryCardDeletion(card.ID), true
+			}
 		}
 	}
 
@@ -415,8 +481,12 @@ func (d *Dashboard) handleNewCard() (tea.Cmd, bool) {
 }
 
 func (d *Dashboard) handleEdit() (tea.Cmd, bool) {
+	//nolint:nestif // Card deletion has separate ownership and confirmation paths.
 	if d.focusedPane == PaneCards {
 		if card, ok := d.cardList.Selected(); ok {
+			if card.DeletionState != "" {
+				return nil, true
+			}
 			if d.callbacks.OnEditCard != nil {
 				return d.callbacks.OnEditCard(card), true
 			}
@@ -536,6 +606,11 @@ func (d *Dashboard) handleEnter() (tea.Cmd, bool) {
 	}
 
 	if card, ok := d.cardList.Selected(); ok {
+		if card.DeletionState == config.CardDeleting {
+			return func() tea.Msg {
+				return messages.ErrorMsg{Err: errors.New("card deletion in progress; press r to retry")}
+			}, true
+		}
 		if d.callbacks.OnLaunchCard != nil {
 			return d.callbacks.OnLaunchCard(card), true
 		}
@@ -550,6 +625,11 @@ func (d *Dashboard) handleSessionEnter() (tea.Cmd, bool) {
 	}
 
 	if sess.Status == session.StatusTerminated {
+		if sess.CardDeleted {
+			return func() tea.Msg {
+				return messages.ErrorMsg{Err: errors.New("card deleted: choose another available card")}
+			}, true
+		}
 		if d.callbacks.OnRelaunch != nil {
 			return d.callbacks.OnRelaunch(sess.ID), true
 		}
@@ -663,12 +743,22 @@ func (d *Dashboard) handleDeleteCard() (tea.Cmd, bool) {
 	if !ok {
 		return nil, false
 	}
+	if card.DeletionState == config.CardDeleting {
+		if d.callbacks.OnRetryCardDeletion != nil {
+			return d.callbacks.OnRetryCardDeletion(card.ID), true
+		}
+		return nil, true
+	}
 
 	d.pending = PendingAction{
 		Code:   "delete-card",
 		CardID: card.ID,
 	}
-	d.deleteModal.SetContent("Delete this ID card?")
+	if card.Shared {
+		d.deleteModal.SetContent("Delete this shared card globally?")
+	} else {
+		d.deleteModal.SetContent("Delete this ID card?")
+	}
 	d.deleteModal.SetLegend("Enter/y: Confirm • Esc/n: Cancel")
 	d.deleteModal.Open()
 	return nil, true
@@ -682,10 +772,13 @@ func (d *Dashboard) handleSwitch() (tea.Cmd, bool) {
 
 	if sess, ok := d.sessionList.Selected(); ok {
 		if sess.Status == session.StatusTerminated {
+			dashboardID, generation := d.dashboardID, d.dashboardGeneration
 			return func() tea.Msg {
 				return messages.AgentSwitchRequestedMsg{
 					SessionID:   sess.ID,
 					SessionName: sess.Name,
+					DashboardID: dashboardID,
+					Generation:  generation,
 				}
 			}, true
 		}
@@ -783,6 +876,10 @@ func (d *Dashboard) togglePane() {
 // SetSize implements component.Model.
 func (d *Dashboard) SetSize(width, height int) {
 	d.Base.SetSize(width, height)
+	if d.cardImpactOpen {
+		d.cardImpactViewport.SetWidth(max(1, min(width-cardImpactMargin, cardImpactMaxWidth)))
+		d.cardImpactViewport.SetHeight(max(1, min(height-cardImpactMargin, cardImpactMaxHeight)))
+	}
 
 	const cardListMinWidth = 46
 
@@ -819,6 +916,11 @@ func (d *Dashboard) SetSize(width, height int) {
 
 // View renders the dashboard.
 func (d *Dashboard) View() string {
+	if d.cardImpactOpen {
+		content := "Delete this card globally?\n" + d.cardImpactViewport.View() + "\nEnter: confirm  Esc: cancel  ↑/↓: scroll"
+		modal := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).Render(content)
+		return lipgloss.Place(d.Width, d.Height, lipgloss.Center, lipgloss.Center, modal)
+	}
 	// Handle modal overlays
 	if d.deleteModal.IsOpen() {
 		return d.renderWithOverlay(d.deleteModal.View())
@@ -842,13 +944,20 @@ func (d *Dashboard) renderBase() string {
 	)
 
 	// Header
+	headerText := "K A N K U R O"
+	if d.dashboardName != "" {
+		headerText += " — " + components.DisplayText(d.dashboardName)
+	}
+	if d.Width > 0 {
+		headerText = components.TruncateTail(headerText, max(1, d.Width-cardsListPadding*2))
+	}
 	header := lipgloss.NewStyle().
 		Foreground(styles.White).
 		Background(styles.PrimaryColor).
 		Padding(0, cardsListPadding).
 		MarginBottom(1).
 		Bold(true).
-		Render("K A N K U R O")
+		Render(headerText)
 
 	// Footer
 	footer := d.renderFooter()
@@ -1013,20 +1122,34 @@ const (
 // the focused pane's group - and as a last resort clips the line.
 func (d *Dashboard) footerText(width int) string {
 	pane := footerCards
+	navigation := footerNav
+	if d.dashboardID != "" {
+		navigation = "[Nav] Tab Esc=Dashboards"
+	}
+	if card, ok := d.cardList.Selected(); d.focusedPane == PaneCards && ok && card.DeletionState == config.CardDeleting {
+		pane = "[Card] r=Retry deletion"
+	}
 	if d.focusedPane == PaneSessions {
 		pane = footerSessions
 	}
 	candidates := [][]string{
-		{footerNav, pane, footerGlobal},
-		{pane, footerGlobal},
-		{pane, footerGlobalMinimal},
+		{navigation, pane, footerGlobal},
+		{navigation, pane, footerGlobalMinimal},
+	}
+	if d.dashboardID == "" {
+		candidates = append(candidates, []string{pane, footerGlobal}, []string{pane, footerGlobalMinimal})
 	}
 	if d.focusedPane == PaneSessions {
 		candidates = append(candidates,
-			[]string{footerSessionsCompact, footerGlobalMinimal},
-			[]string{footerSessionsCompact},
+			[]string{navigation, footerSessionsCompact, footerGlobalMinimal},
+			[]string{navigation, "[Session] Enter=Attach o=IDE t=Terminal", footerGlobalMinimal},
 		)
+		if d.dashboardID != "" {
+			candidates = append(candidates, []string{"Esc=Dashboards", "[Session] Enter=Attach t=Terminal", footerGlobalMinimal})
+		}
+		candidates = append(candidates, []string{footerSessionsCompact, footerGlobalMinimal})
 	}
+	candidates = append(candidates, []string{navigation, footerGlobalMinimal}, []string{pane, footerGlobalMinimal})
 	candidates = append(candidates, []string{footerGlobalMinimal})
 	if width <= 0 { // not sized yet: nothing to fit
 		return strings.Join(candidates[0], footerGroupGap)

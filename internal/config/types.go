@@ -1,7 +1,5 @@
 package config
 
-// TODO: Split this file declaring each type in the file it's used
-
 import (
 	"time"
 )
@@ -10,6 +8,9 @@ const SchemaVersion = 1
 
 type IDCard struct {
 	ID                 string            `yaml:"id"`
+	DeletionState      string            `yaml:"-"                           json:"-"`
+	DashboardID        string            `yaml:"dashboard_id,omitempty"`
+	Shared             bool              `yaml:"shared,omitempty"`
 	Name               string            `yaml:"name"`
 	Driver             string            `yaml:"driver"`
 	Model              string            `yaml:"model"`

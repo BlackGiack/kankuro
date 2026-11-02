@@ -46,9 +46,7 @@ func (c *Coordinator) initViews() {
 // Update. Coordinator.Update writes the view returned by updateCurrentView
 // back into c.views[c.currentView] *after* the view's Update returns; if
 // navigateTo ran during that Update, c.currentView has already changed and
-// the old view is stored under the new view's key. Act 1 did exactly this
-// once: the agent-switch view's OnSwitch callback navigated to the dashboard
-// and the agent-switch view replaced the dashboard. Instead, return a Cmd
+// the old view is stored under the new view's key. Instead, return a Cmd
 // that produces a NavigateMsg (or SessionAttachRequestedMsg) and navigate
 // from a handler in handleSpecialMessages / handleSessionMessages, which
 // return early and never write c.views.
@@ -69,8 +67,12 @@ func (c *Coordinator) navigateTo(vt ViewType) tea.Cmd {
 }
 
 func (c *Coordinator) resizeAll() {
-	for _, view := range c.views {
-		view.SetSize(c.width, c.height-views.CoordinatorRows)
+	for viewType, view := range c.views {
+		height := c.height - views.CoordinatorRows
+		if viewType == ViewDashboardList {
+			height = c.height
+		}
+		view.SetSize(c.width, height)
 	}
 }
 
@@ -144,6 +146,8 @@ func convertViewType(vt messages.ViewType) ViewType {
 		return ViewAgentSwitch
 	case messages.ViewConversationChoice:
 		return ViewConversationChoice
+	case messages.ViewDashboardList:
+		return ViewDashboardList
 	default:
 		return ViewDashboard
 	}

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
@@ -15,7 +16,10 @@ import (
 // Repository is the configuration surface required by Service.
 type Repository interface {
 	ListIDCards() ([]config.IDCard, error)
-	DeleteIDCard(id string) error
+	ListDashboards() ([]config.Dashboard, error)
+	ListCardTombstones() ([]config.CardTombstone, error)
+	ListDashboardDeletions() ([]config.DashboardDeletion, error)
+	ListDashboardTombstones() ([]config.DashboardTombstone, error)
 	ListSkills() ([]config.Skill, error)
 	ListPersonas() ([]config.Persona, error)
 	ListMCPs() ([]config.MCPServer, error)
@@ -25,31 +29,11 @@ type workspaceLister interface {
 	ListWorkspaces() ([]config.Workspace, error)
 }
 
-// DashboardScopeResolver isolates dashboard membership policy from lifecycle logic.
-type DashboardScopeResolver interface {
-	DashboardForSession(sessionID string) string
-	AllowsSession(callerSessionID, targetSessionID string) bool
-	AllowsCard(callerSessionID, cardID string) bool
-}
-
-type dashboardSessionAssigner interface {
-	AssignSession(callerSessionID, targetSessionID, cardID string)
-}
-
-type dashboardScopeLookup interface {
-	SessionDashboard(sessionID string) (dashboardID string, exists bool)
-	CardDashboard(cardID string) (dashboardID string, exists bool)
-}
-
-type singleDashboardScope struct{}
-
-func (singleDashboardScope) DashboardForSession(string) string { return DefaultDashboardID }
-func (singleDashboardScope) AllowsSession(string, string) bool { return true }
-func (singleDashboardScope) AllowsCard(string, string) bool    { return true }
-
 // CardDiscovery contains only configuration fields useful for choosing a card.
 type CardDiscovery struct {
 	ID                string   `json:"id"`
+	OwnerDashboardID  string   `json:"owner_dashboard_id,omitempty"`
+	Shared            bool     `json:"shared"`
 	Name              string   `json:"name"`
 	Driver            string   `json:"driver"`
 	Model             string   `json:"model,omitempty"`
@@ -62,11 +46,13 @@ type CardDiscovery struct {
 
 // SessionDiscovery is a safe summary, excluding terminal output and process data.
 type SessionDiscovery struct {
-	ID       string         `json:"session_id"`
-	Name     string         `json:"name"`
-	CardID   string         `json:"card_id"`
-	Status   session.Status `json:"status"`
-	Activity string         `json:"activity"`
+	ID          string         `json:"session_id"`
+	DashboardID string         `json:"dashboard_id,omitempty"`
+	CardDeleted bool           `json:"card_deleted"`
+	Name        string         `json:"name"`
+	CardID      string         `json:"card_id"`
+	Status      session.Status `json:"status"`
+	Activity    string         `json:"activity"`
 }
 
 // SessionInspection returns durable workspace identity and saved conversation metadata.
@@ -101,10 +87,13 @@ const DefaultDashboardID = "default"
 
 // Service coordinates configuration resolution with the existing session manager.
 type Service struct {
-	repo       Repository
-	sessions   *session.Manager
-	operations *OperationRunner
-	scope      DashboardScopeResolver
+	repo                   Repository
+	sessions               *session.Manager
+	operations             *OperationRunner
+	scope                  persistedDashboardScope
+	confirmationMu         sync.Mutex
+	confirmations          map[string]cardConfirmation
+	dashboardConfirmations map[string]dashboardConfirmation
 }
 
 type cardBundle struct {
@@ -118,115 +107,18 @@ type cardBundle struct {
 type RegistrationResult = session.RegistrationResult
 
 func New(repo Repository, sessions *session.Manager) *Service {
-	return &Service{repo: repo, sessions: sessions, scope: singleDashboardScope{}}
-}
-
-// SetDashboardScopeResolver replaces the initial single-dashboard policy.
-func (s *Service) SetDashboardScopeResolver(scope DashboardScopeResolver) {
-	if scope != nil {
-		s.scope = scope
-	}
+	service := &Service{repo: repo, sessions: sessions}
+	service.scope = persistedDashboardScope{service: service}
+	return service
 }
 
 // SetOperationRunner wires the durable lifecycle operation coordinator before MCP starts.
-func (s *Service) SetOperationRunner(runner *OperationRunner) { s.operations = runner }
-
-// Launch resolves capabilities from the supplied card snapshot and starts it.
-func (s *Service) Launch(card config.IDCard) (string, error) {
-	release, err := s.reserveCardReference(card.ID)
-	if err != nil {
-		return "", err
+func (s *Service) SetOperationRunner(runner *OperationRunner) {
+	s.operations = runner
+	if runner != nil {
+		runner.startDispatcher()
 	}
-	defer release()
-	bundle, err := s.resolveCapabilities(card)
-	if err != nil {
-		return "", err
-	}
-	return s.sessions.Launch(card, bundle.Skills, bundle.Personas, bundle.MCPs)
 }
-
-// Relaunch restarts a session without redeploying its workspace configuration.
-func (s *Service) Relaunch(sessionID string) error {
-	return s.RelaunchWithChoice(sessionID, session.ConversationChoice{})
-}
-
-// RelaunchWithChoice restarts a session with an explicit native conversation choice.
-func (s *Service) RelaunchWithChoice(sessionID string, choice session.ConversationChoice) error {
-	snapshot, found := s.sessions.GetSession(sessionID)
-	if !found {
-		return fmt.Errorf("session not found: %s", sessionID)
-	}
-	card, err := s.loadCard(snapshot.CardID)
-	if err != nil {
-		return err
-	}
-	return s.sessions.RelaunchWithChoice(sessionID, card, choice)
-}
-
-// SwitchAgent changes the card while the manager retains the session workspace.
-func (s *Service) SwitchAgent(sessionID, cardID string) error {
-	release, err := s.reserveCardReference(cardID)
-	if err != nil {
-		return err
-	}
-	defer release()
-	bundle, err := s.resolveCard(cardID)
-	if err != nil {
-		return err
-	}
-	return s.sessions.SwitchAgentWithChoice(
-		sessionID,
-		bundle.Card,
-		bundle.Skills,
-		bundle.Personas,
-		bundle.MCPs,
-		session.ConversationChoice{},
-	)
-}
-
-// SwitchAgentWithChoice changes cards and optionally resumes a conversation
-// saved for that destination card.
-func (s *Service) SwitchAgentWithChoice(sessionID, cardID string, choice session.ConversationChoice) error {
-	release, err := s.reserveCardReference(cardID)
-	if err != nil {
-		return err
-	}
-	defer release()
-	bundle, err := s.resolveCard(cardID)
-	if err != nil {
-		return err
-	}
-	return s.sessions.SwitchAgentWithChoice(sessionID, bundle.Card, bundle.Skills, bundle.Personas, bundle.MCPs, choice)
-}
-
-// Conversations returns the saved bindings for one session/card pair.
-func (s *Service) Conversations(sessionID, cardID string) ([]session.ConversationBinding, error) {
-	snapshot, found := s.sessions.GetSession(sessionID)
-	if !found {
-		return nil, fmt.Errorf("session not found: %s", sessionID)
-	}
-	return append([]session.ConversationBinding(nil), snapshot.Conversations[cardID]...), nil
-}
-
-// DeleteCard refuses deletion while any session, including a terminated one, references it.
-func (s *Service) DeleteCard(cardID string) error {
-	return s.sessions.DeleteCardIfUnreferenced(cardID, func() error {
-		return s.repo.DeleteIDCard(cardID)
-	})
-}
-
-func (s *Service) reserveCardReference(cardID string) (func(), error) {
-	return s.sessions.ReserveCardReference(cardID, func() (bool, error) {
-		_, err := s.loadCard(cardID)
-		if errors.Is(err, errCardNotFound) {
-			return false, nil
-		}
-		return err == nil, err
-	})
-}
-
-// RemoveSession delegates lifecycle guards and workspace cleanup to the manager.
-func (s *Service) RemoveSession(sessionID string) error { return s.sessions.Remove(sessionID) }
 
 // RegisterConversation delegates an authenticated activation report to the
 // manager, which validates that the credential still owns a live activation.
@@ -245,8 +137,12 @@ func (s *Service) ResolveCaller(token string) (CallerContext, error) {
 	if err != nil {
 		return CallerContext{}, reject("forbidden", "caller activation is not authorized for dashboard control")
 	}
+	dashboardID := s.scope.DashboardForSession(identity.SessionID)
+	if dashboardID == "" {
+		return CallerContext{}, reject("forbidden", "caller dashboard is unavailable")
+	}
 	return CallerContext{
-		SessionID: identity.SessionID, ActivationID: identity.ActivationID, DashboardID: s.scope.DashboardForSession(identity.SessionID),
+		SessionID: identity.SessionID, ActivationID: identity.ActivationID, DashboardID: dashboardID,
 		DashboardControl: true,
 	}, nil
 }
@@ -291,53 +187,19 @@ func (s *Service) validateOperationScope(token string, operation Operation) erro
 }
 
 func (s *Service) authorizeExistingOperation(caller CallerContext, operation Operation) error {
+	if err := s.scope.validateScopeInventory(); err != nil {
+		return reject("forbidden", "dashboard inventory is unavailable")
+	}
 	if operation.DashboardID != caller.DashboardID {
 		return reject("forbidden", "operation is outside the caller's dashboard scope")
 	}
-	lookup, hasLookup := s.scope.(dashboardScopeLookup)
 	if operation.TargetSession != "" {
-		if hasLookup {
-			dashboard, exists := lookup.SessionDashboard(operation.TargetSession)
-			if exists && dashboard != caller.DashboardID {
-				return reject("forbidden", "operation target is outside the caller's dashboard scope")
-			}
-			// Missing targets are historical tombstones; they remain readable to
-			// their originating dashboard, while a moved live target is denied.
-		} else if !s.scope.AllowsSession(caller.SessionID, operation.TargetSession) {
+		dashboard, exists := s.scope.SessionDashboard(operation.TargetSession)
+		if exists && dashboard != caller.DashboardID {
 			return reject("forbidden", "operation target is outside the caller's dashboard scope")
 		}
 	}
-	cardID := operationCardID(operation)
-	if cardID == "" {
-		return nil
-	}
-	if hasLookup {
-		dashboard, exists := lookup.CardDashboard(cardID)
-		if exists && dashboard != caller.DashboardID {
-			return reject("forbidden", "operation card is outside the caller's dashboard scope")
-		}
-		return nil
-	}
-	if !s.scope.AllowsCard(caller.SessionID, cardID) {
-		return reject("forbidden", "operation card is outside the caller's dashboard scope")
-	}
 	return nil
-}
-
-func operationCardID(operation Operation) string {
-	switch operation.Kind {
-	case createSessionOperation:
-		var args createArguments
-		if json.Unmarshal(operation.Arguments, &args) == nil {
-			return args.CardID
-		}
-	case "switch_session_card":
-		var args switchArguments
-		if json.Unmarshal(operation.Arguments, &args) == nil {
-			return args.CardID
-		}
-	}
-	return ""
 }
 
 // ListCards authenticates and restricts destination cards in the shared service.
@@ -371,9 +233,18 @@ func (s *Service) listCardsForCaller(caller CallerContext) ([]CardDiscovery, err
 		if caller.SessionID != "" && !s.scope.AllowsCard(caller.SessionID, card.ID) {
 			continue
 		}
-		entry := CardDiscovery{ID: card.ID, Name: card.Name, Driver: card.Driver, Model: card.Model,
-			WorkspaceID: card.WorkspaceID, WorkspacePath: byID[card.WorkspaceID],
-			SubWorkspaceIDs: append([]string(nil), card.SubWorkspaceIDs...), UseTmpWorkspace: card.UseTmpWorkspace}
+		entry := CardDiscovery{
+			ID:               card.ID,
+			OwnerDashboardID: card.DashboardID,
+			Shared:           card.Shared,
+			Name:             card.Name,
+			Driver:           card.Driver,
+			Model:            card.Model,
+			WorkspaceID:      card.WorkspaceID,
+			WorkspacePath:    byID[card.WorkspaceID],
+			SubWorkspaceIDs:  append([]string(nil), card.SubWorkspaceIDs...),
+			UseTmpWorkspace:  card.UseTmpWorkspace,
+		}
 		for _, id := range card.SubWorkspaceIDs {
 			entry.SubWorkspacePaths = append(entry.SubWorkspacePaths, byID[id])
 		}
@@ -390,12 +261,16 @@ func (s *Service) ListSessions(token string) ([]SessionDiscovery, error) {
 		return nil, err
 	}
 	out := make([]SessionDiscovery, 0)
+	deleted, err := s.deletedCardIDs()
+	if err != nil {
+		return nil, err
+	}
 	for _, item := range s.sessions.List() {
 		if item.ID == caller.SessionID || !s.scope.AllowsSession(caller.SessionID, item.ID) {
 			continue
 		}
 		out = append(out, SessionDiscovery{
-			ID: item.ID, Name: item.Name, CardID: item.CardID,
+			ID: item.ID, DashboardID: item.DashboardID, CardDeleted: deleted[item.CardID], Name: item.Name, CardID: item.CardID,
 			Status: item.Status, Activity: item.LifecycleActivity,
 		})
 	}
@@ -418,6 +293,27 @@ func (s *Service) GetSession(token, id string) (SessionInspection, error) {
 	if !ok {
 		return SessionInspection{}, errors.New("session not found")
 	}
+	return s.inspectionFromScopedSnapshot(item)
+}
+
+func (s *Service) deletedCardIDs() (map[string]bool, error) {
+	deleted := make(map[string]bool)
+	tombstones, err := s.listCardTombstones()
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range tombstones {
+		deleted[item.ID] = true
+	}
+	return deleted, nil
+}
+
+func (s *Service) inspectionFromScopedSnapshot(item session.Snapshot) (SessionInspection, error) {
+	deleted, err := s.deletedCardIDs()
+	if err != nil {
+		return SessionInspection{}, err
+	}
+	item.CardDeleted = deleted[item.CardID]
 	return inspectionFromSnapshot(item), nil
 }
 
@@ -523,7 +419,7 @@ func inspectionFromSnapshot(item session.Snapshot) SessionInspection {
 		conversations = map[string][]session.ConversationBinding{}
 	}
 	return SessionInspection{
-		ID: item.ID, Name: item.Name, CardID: item.CardID,
+		ID: item.ID, DashboardID: item.DashboardID, CardDeleted: item.CardDeleted, Name: item.Name, CardID: item.CardID,
 		Status: item.Status, Activity: item.LifecycleActivity,
 		WorkingDir: item.WorkingDir, OriginalDir: item.OriginalDir,
 		UseTmpWorkspace: item.UseTmpWorkspace, Conversations: conversations,

@@ -116,12 +116,15 @@ func TestCardEditor_Card(t *testing.T) {
 }
 
 // TestCardEditorPreservesUnmanagedFields fails when a new IDCard field is
-// added that the editor neither edits nor preserves (finding #1: Card() used
+// added that the editor neither edits nor preserves (Card() used
 // to rebuild config.IDCard{} from scratch, silently dropping
 // SystemInstruction and Env on every save).
 func TestCardEditorPreservesUnmanagedFields(t *testing.T) {
 	original := config.IDCard{
 		ID:                 "id-1",
+		DeletionState:      "test-state",
+		DashboardID:        "dashboard-1",
+		Shared:             true,
 		Name:               "orig-name",
 		Driver:             "orig-driver",
 		Model:              "orig-model",
@@ -155,7 +158,7 @@ func TestCardEditorPreservesUnmanagedFields(t *testing.T) {
 
 	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	// CapabilityList.SelectedIDs() only returns IDs present in its current
-	// items (see finding #17), so the lists must know about s1/p1/m1 before
+	// items, so the lists must know about s1/p1/m1 before
 	// SetCard's selection can round-trip through Card().
 	e.SetData(messages.DataLoadedMsg{
 		Skills:   []config.Skill{{ID: "s1", Name: "Skill 1"}},
@@ -208,7 +211,9 @@ func TestSelectedOnlySkillCursorNormalizesAfterRegistryRefresh(t *testing.T) {
 	if !ok || item.GetID() != "a" {
 		t.Fatalf("selected-only cursor item = %v, %v; want A", item, ok)
 	}
-	e.CycleFocus(views.FocusSkills)
+	for e.FocusIndex() != views.FocusSkills {
+		e.CycleFocus(1)
+	}
 	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	if e.SkillList().IsSelected("a") {
 		t.Fatal("Space did not toggle the normalized visible skill")
@@ -355,6 +360,7 @@ func TestCtrlXPickerSaveAndCancelFlow(t *testing.T) {
 
 func TestCardEditor_CycleFocus(t *testing.T) {
 	e := views.NewCardEditor(views.CardEditorCallbacks{})
+	e.SetDashboardContext("dashboard", false)
 
 	if e.FocusIndex() != 0 {
 		t.Error("Should start on first field")
@@ -377,6 +383,37 @@ func TestCardEditor_CycleFocus(t *testing.T) {
 	e.CycleFocus(-1)
 	if e.FocusIndex() != views.FocusCount-1 {
 		t.Errorf("Should wrap to last, got %d", e.FocusIndex())
+	}
+}
+
+func TestCardEditorSharedAndConsumerReadOnly(t *testing.T) {
+	card := config.IDCard{ID: "card", Name: "Shared", DashboardID: "owner", Shared: true}
+	owner := views.NewCardEditor(views.CardEditorCallbacks{})
+	owner.SetSize(80, 21)
+	owner.SetCard(card)
+	owner.SetDashboardContext("owner", false)
+	for i := 0; owner.FocusIndex() != views.FocusShared && i < views.FocusCount; i++ {
+		owner.CycleFocus(1)
+	}
+	if owner.FocusIndex() != views.FocusShared {
+		t.Fatal("shared control is not reachable")
+	}
+	owner.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	if owner.Card().Shared {
+		t.Fatal("shared toggle did not change")
+	}
+	var saves int
+	consumer := views.NewCardEditor(views.CardEditorCallbacks{OnSave: func(config.IDCard) tea.Cmd { saves++; return nil }})
+	consumer.SetSize(80, 21)
+	consumer.SetCard(card)
+	consumer.SetDashboardContext("consumer", true)
+	consumer.Update(tea.KeyPressMsg{Text: "changed", Code: 'c'})
+	consumer.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if saves != 0 || consumer.Card().Name != card.Name || !consumer.Card().Shared {
+		t.Fatal("consumer changed a read-only card")
+	}
+	if !strings.Contains(consumer.View(), "read-only") || !strings.Contains(consumer.View(), "owner") {
+		t.Fatal("read-only owner details missing")
 	}
 }
 

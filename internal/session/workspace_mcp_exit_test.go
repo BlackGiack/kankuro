@@ -57,7 +57,7 @@ func TestNaturalExitRevokesOnlyItsWorkspaceKankuroEntry(t *testing.T) {
 	manager.SetMCPEndpoint(runtime.Endpoint())
 	selected := append(config.BuiltinMCPs(), config.MCPServer{ID: "ordinary", Name: "ordinary", URL: "https://ordinary"})
 	card := config.IDCard{ID: "card", Name: "natural-exit", Driver: driverPath, WorkspaceID: workspaces[0].ID}
-	sessionID, err := manager.Launch(card, nil, nil, selected)
+	sessionID, err := testLaunch(manager, card, nil, nil, selected)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestWorkspaceMCPWriteFailureAbortsBeforeSpawn(t *testing.T) {
 	if err := os.Chmod(filepath.Dir(configPath), 0o500); err != nil {
 		t.Fatal(err)
 	}
-	_, launchErr := manager.Launch(card, nil, nil, nil)
+	_, launchErr := testLaunch(manager, card, nil, nil, nil)
 	if err := os.Chmod(filepath.Dir(configPath), 0o700); err != nil {
 		t.Fatal(err)
 	}

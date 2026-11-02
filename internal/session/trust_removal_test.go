@@ -76,7 +76,7 @@ func TestTemporarySessionTrustCleanupSurvivesRestartAndCanRetry(t *testing.T) {
 	}
 	manager := newTestManager(t, repo.Dir(), repo, session.WithDriverRegistry(registry))
 	card := config.IDCard{ID: "a", Name: "a", Driver: "codex-test", WorkspaceID: workspaceID, UseTmpWorkspace: true}
-	id, err := manager.Launch(card, nil, nil, nil)
+	id, err := testLaunch(manager, card, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestTemporarySessionTrustCleanupSurvivesRestartAndCanRetry(t *testing.T) {
 	}
 	card.ID = "b"
 	card.Driver = "claude-test"
-	if err := manager.SwitchAgent(id, card, nil, nil, nil); err != nil {
+	if err := testSwitchAgent(manager, id, card, nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	var before struct {
@@ -172,7 +172,7 @@ func TestNonTemporarySessionDeletionPreservesTrust(t *testing.T) {
 	t.Setenv("HOME", home)
 	repo, workspaceID := workspaceValidationRepository(t)
 	manager := newTestManager(t, repo.Dir(), repo)
-	id, err := manager.Launch(config.IDCard{ID: "a", Name: "a", Driver: "cat", WorkspaceID: workspaceID}, nil, nil, nil)
+	id, err := testLaunch(manager, config.IDCard{ID: "a", Name: "a", Driver: "cat", WorkspaceID: workspaceID}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +216,7 @@ func TestFailedTemporaryLaunchRemovesTrust(t *testing.T) {
 				return &trustTestDriver{GenericCLIDriver: driver.NewGenericCLIDriver(), prepare: tc.prepare, fail: true}
 			})
 			manager := newTestManager(t, repo.Dir(), repo, session.WithDriverRegistry(registry))
-			_, err := manager.Launch(
+			_, err := testLaunch(manager,
 				config.IDCard{ID: "a", Name: "a", Driver: "fail", WorkspaceID: workspaceID, UseTmpWorkspace: true},
 				nil,
 				nil,

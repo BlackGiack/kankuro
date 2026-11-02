@@ -26,9 +26,46 @@ type sendMessageArguments struct {
 	Fingerprint           string `json:"fingerprint"`
 }
 
+// preparedDelivery owns a reserved message until publication transfers it to the runner.
+type preparedDelivery struct {
+	service     *Service
+	store       *session.MessageStore
+	admission   *session.MessageAdmission
+	intent      session.MessageRecord
+	requestID   string
+	fingerprint string
+	token       string
+	published   bool
+}
+
+func (d *preparedDelivery) arguments() sendMessageArguments {
+	return sendMessageArguments{d.intent.RecipientSessionID, d.intent.RecipientActivationID, d.fingerprint}
+}
+
+func (d *preparedDelivery) publish(persistAcceptance func() error) error {
+	err := d.service.sessions.PublishMessageAdmission(d.admission, func() error {
+		_, persistErr := d.store.CreateIntentWithAdmission(d.intent, d.requestID, d.fingerprint, persistAcceptance)
+		return persistErr
+	})
+	if err != nil {
+		return messagingRejection(err)
+	}
+	d.published = true
+	return nil
+}
+
+func (d *preparedDelivery) cancel(Operation) {
+	_ = d.store.UpdateDelivery(d.intent.ID, session.MessageNotSubmitted, "operation was canceled before prompt submission began")
+	d.admission.Release()
+}
+
+func (d *preparedDelivery) releaseUnpublished() {
+	if !d.published {
+		d.admission.Release()
+	}
+}
+
 // SendMessage admits one idempotent prompt against a pinned live activation.
-//
-//nolint:gocognit // Idempotency replay must be resolved before target or prompt side effects.
 func (s *Service) SendMessage(ctx context.Context, token, requestID, recipientID, activationID, text string) (OperationResult, error) {
 	caller, err := s.ResolveCaller(token)
 	if err != nil {
@@ -43,7 +80,11 @@ func (s *Service) SendMessage(ctx context.Context, token, requestID, recipientID
 		return OperationResult{}, reject("invalid_request", err.Error())
 	}
 	fingerprint := session.SendFingerprint(recipientID, activationID, text)
-	args := sendMessageArguments{recipientID, activationID, fingerprint}
+	messageID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("kankuro-message:"+caller.SessionID+":"+requestID)).String()
+	intent := session.MessageRecord{ID: messageID, DashboardID: caller.DashboardID, SenderSessionID: caller.SessionID,
+		SenderActivationID: caller.ActivationID, RecipientSessionID: recipientID, RecipientActivationID: activationID, Text: text}
+	delivery := &preparedDelivery{service: s, intent: intent, requestID: requestID, fingerprint: fingerprint, token: token}
+	args := delivery.arguments()
 	if replay, found, replayErr := s.replayMutation(ctx, token, requestID, messageOperation, recipientID, args); replayErr != nil {
 		return OperationResult{}, replayErr
 	} else if found {
@@ -84,43 +125,10 @@ func (s *Service) SendMessage(ctx context.Context, token, requestID, recipientID
 	if admissionErr != nil {
 		return OperationResult{}, messagingRejection(admissionErr)
 	}
-	messageID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("kankuro-message:"+caller.SessionID+":"+requestID)).String()
-	intent := session.MessageRecord{ID: messageID, DashboardID: caller.DashboardID, SenderSessionID: caller.SessionID,
-		SenderActivationID: caller.ActivationID, RecipientSessionID: recipientID, RecipientActivationID: activationID, Text: text}
-	acceptedIntent := false
-	beforeAccept := func(persistAcceptance func() error) error {
-		createErr := s.sessions.PublishMessageAdmission(admission, func() error {
-			_, persistErr := store.CreateIntentWithAdmission(intent, requestID, fingerprint, persistAcceptance)
-			return persistErr
-		})
-		if createErr != nil {
-			return messagingRejection(createErr)
-		}
-		acceptedIntent = true
-		return nil
-	}
-	operation, submitErr := s.operations.SubmitWithAdmission(ctx, token, requestID, messageOperation, recipientID, args, beforeAccept,
-		func(operationCtx context.Context, _ Operation) (json.RawMessage, error) {
-			record, sendErr := s.sessions.SubmitMessage(operationCtx, admission, token,
-				messageID, recipientID, activationID, text)
-			effects := OperationEffects{MessageID: messageID, Delivery: string(record.Delivery)}
-			encoded, marshalErr := json.Marshal(effects)
-			if marshalErr != nil {
-				return nil, marshalErr
-			}
-			if sendErr != nil && record.Delivery != session.MessageNotSubmitted && record.Delivery != "" {
-				return encoded, operationWarningError{
-					"prompt delivery is uncertain; partial input may remain in the CLI input buffer; inspect get_message before deciding what to do",
-				}
-			}
-			return encoded, errors.Join(sendErr, marshalErr)
-		}, func(Operation) {
-			_ = store.UpdateDelivery(messageID, session.MessageNotSubmitted, "operation was canceled before prompt submission began")
-			admission.Release()
-		})
-	if !acceptedIntent {
-		admission.Release()
-	}
+	delivery.store, delivery.admission = store, admission
+	defer delivery.releaseUnpublished()
+	operation, submitErr := s.operations.SubmitWithAdmission(ctx, token, requestID, messageOperation, recipientID, args, delivery.publish,
+		delivery.submission(), delivery.cancel)
 	if operation.ID == "" {
 		return operationResult(operation), submitErr
 	}
@@ -129,6 +137,24 @@ func (s *Service) SendMessage(ctx context.Context, token, requestID, recipientID
 		result.Result = &OperationEffects{MessageID: messageID, Delivery: string(session.MessageAccepted)}
 	}
 	return result, submitErr
+}
+
+func (d *preparedDelivery) submission() func(context.Context, Operation) (json.RawMessage, error) {
+	return func(ctx context.Context, _ Operation) (json.RawMessage, error) {
+		intent := d.intent
+		record, sendErr := d.service.sessions.SubmitMessage(ctx, d.admission, d.token, intent.ID,
+			intent.RecipientSessionID, intent.RecipientActivationID, intent.Text)
+		encoded, err := json.Marshal(OperationEffects{MessageID: intent.ID, Delivery: string(record.Delivery)})
+		if err != nil {
+			return nil, err
+		}
+		if sendErr != nil && record.Delivery != session.MessageNotSubmitted && record.Delivery != "" {
+			return encoded, operationWarningError{
+				"prompt delivery is uncertain; partial input may remain in the CLI input buffer; inspect get_message before deciding what to do",
+			}
+		}
+		return encoded, sendErr
+	}
 }
 
 // GetMessage returns retained message content to an authorized dashboard controller.

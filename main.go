@@ -18,6 +18,7 @@ import (
 	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/driver"
 	"github.com/BlackGiack/kankuro/internal/mcp"
 	"github.com/BlackGiack/kankuro/internal/session"
@@ -45,13 +46,26 @@ func main() {
 	}
 }
 
-//nolint:funlen // Startup and shutdown ordering is deliberately visible in the composition root.
-func run(registry driver.Registry) error {
+//nolint:funlen // Keep startup and shutdown ordering visible in the composition root.
+func run(registry driver.Registry) (returnErr error) {
 	var cfgDir string
 	var debug bool
 	flag.StringVar(&cfgDir, "config-dir", os.Getenv("KANKURO_CONFIG_DIR"), "override config directory")
 	flag.BoolVar(&debug, "debug", false, "write debug logs")
 	flag.Parse()
+
+	configRoot, err := config.ResolveDirectory(cfgDir)
+	if err != nil {
+		return err
+	}
+	configLock, err := configstartup.AcquireLock(configRoot)
+	if err != nil {
+		return err
+	}
+	defer func() { returnErr = errors.Join(returnErr, configLock.Close()) }()
+	if startupErr := configstartup.PrepareStartup(configRoot); startupErr != nil {
+		return startupErr
+	}
 
 	// internal/session logs background-only failures (no caller to report
 	// them to, e.g. a persist failure from the watch ticker) via an injected
@@ -61,7 +75,7 @@ func run(registry driver.Registry) error {
 	// at the same debug log file used for bubbletea's own logging.
 	var sessionLogger *slog.Logger
 	if debug {
-		if err := os.MkdirAll(logDir(), 0o700); err == nil {
+		if mkdirErr := os.MkdirAll(logDir(), 0o700); mkdirErr == nil {
 			logFile, logErr := tea.LogToFile(filepath.Join(logDir(), "kankuro.log"), "debug")
 			if logErr == nil {
 				defer logFile.Close()
@@ -70,7 +84,7 @@ func run(registry driver.Registry) error {
 		}
 	}
 
-	repo, err := config.NewFileRepository(cfgDir)
+	repo, err := config.NewFileRepository(configRoot)
 	if err != nil {
 		return fmt.Errorf("config init error: %w", err)
 	}
@@ -88,6 +102,12 @@ func run(registry driver.Registry) error {
 	sharedAPI := api.New(repo, sm)
 	operationRunner := api.NewOperationRunner(repo.Dir(), sharedAPI)
 	sharedAPI.SetOperationRunner(operationRunner)
+	application, err := app.New(repo, sm, sharedAPI)
+	if err != nil {
+		operationRunner.Shutdown()
+		sm.Shutdown()
+		return fmt.Errorf("ui init error: %w", err)
+	}
 	if journalErr := operationRunner.LoadError(); journalErr != nil {
 		fmt.Fprintf(os.Stderr, "kankuro: lifecycle MCP tools disabled because the operation journal could not be loaded: %v\n", journalErr)
 	}
@@ -98,17 +118,6 @@ func run(registry driver.Registry) error {
 		return fmt.Errorf("start MCP endpoint: %w", err)
 	}
 	sm.SetMCPEndpoint(mcpRuntime.Endpoint())
-	application, err := app.New(repo, sm)
-	if err != nil {
-		operationRunner.Shutdown()
-		sm.Shutdown()
-		shutdownErr := shutdownMCP(mcpRuntime)
-		if shutdownErr != nil {
-			return errors.Join(fmt.Errorf("ui init error: %w", err), shutdownErr)
-		}
-		return fmt.Errorf("ui init error: %w", err)
-	}
-
 	p := tea.NewProgram(application)
 	failureCtx, stopFailureWatch := context.WithCancel(context.Background())
 	serverFailures := make(chan error, 1)

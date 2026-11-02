@@ -45,8 +45,7 @@ func TestSessionLauncher_LaunchFlow(t *testing.T) {
 	}
 }
 
-// TestSessionLauncher_PersistFailureStillOffersAttach pins the Finding-1
-// fix: a session.ErrPersistFailed result means the agent process is
+// A session.ErrPersistFailed result means the agent process is
 // running and the session is fully usable, so the view must not render the
 // hard "Launch failed" dead end (Esc-only), and Enter must still submit the
 // name and attach - unlike a genuine launch failure, which must not.
@@ -54,16 +53,11 @@ func TestSessionLauncher_PersistFailureStillOffersAttach(t *testing.T) {
 	card := config.IDCard{ID: "c1", Name: "Test Card"}
 	persistErr := fmt.Errorf("%w: disk full", session.ErrPersistFailed)
 
-	var attachCalled bool
 	var setNameCalled bool
 	l := views.NewSessionLauncher(views.SessionLauncherCallbacks{
-		OnSetName: func(_, _ string) error {
+		OnSetNameAsync: func(_, _ string) tea.Cmd {
 			setNameCalled = true
-			return nil
-		},
-		OnAttach: func(_ string) tea.Cmd {
-			attachCalled = true
-			return nil
+			return func() tea.Msg { return nil }
 		},
 	})
 	l.SetCard(card)
@@ -91,9 +85,6 @@ func TestSessionLauncher_PersistFailureStillOffersAttach(t *testing.T) {
 	if !setNameCalled {
 		t.Errorf("expected OnSetName to be called")
 	}
-	if !attachCalled {
-		t.Errorf("expected OnAttach to be called")
-	}
 }
 
 // TestSessionLauncher_FatalFailureBlocksAttach pins the other half: when no
@@ -102,16 +93,11 @@ func TestSessionLauncher_PersistFailureStillOffersAttach(t *testing.T) {
 func TestSessionLauncher_FatalFailureBlocksAttach(t *testing.T) {
 	card := config.IDCard{ID: "c1", Name: "Test Card"}
 
-	var attachCalled bool
 	var setNameCalled bool
 	l := views.NewSessionLauncher(views.SessionLauncherCallbacks{
-		OnSetName: func(_, _ string) error {
+		OnSetNameAsync: func(_, _ string) tea.Cmd {
 			setNameCalled = true
-			return nil
-		},
-		OnAttach: func(_ string) tea.Cmd {
-			attachCalled = true
-			return nil
+			return func() tea.Msg { return nil }
 		},
 	})
 	l.SetCard(card)
@@ -127,7 +113,34 @@ func TestSessionLauncher_FatalFailureBlocksAttach(t *testing.T) {
 
 	enterMsg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	l.Update(enterMsg)
-	if setNameCalled || attachCalled {
+	if setNameCalled {
 		t.Errorf("expected Enter to be a no-op on a fatal launch failure")
+	}
+}
+
+func TestSessionLauncherWaitsForNameResultAndAllowsRetry(t *testing.T) {
+	calls := 0
+	launcher := views.NewSessionLauncher(views.SessionLauncherCallbacks{
+		OnSetNameAsync: func(_, _ string) tea.Cmd {
+			calls++
+			return func() tea.Msg { return nil }
+		},
+	})
+	launcher.SetLaunchResult("session", nil)
+	launcher.SetName("name")
+	_, first := launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if first == nil || calls != 1 {
+		t.Fatal("name submission did not start")
+	}
+	if _, duplicate := launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter}); duplicate != nil || calls != 1 {
+		t.Fatal("duplicate naming started while the first request was pending")
+	}
+	launcher.SetNameResult(errors.New("rename failed"))
+	if !strings.Contains(launcher.View(), "rename failed") {
+		t.Fatal("rename error was not shown")
+	}
+	_, retry := launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if retry == nil || calls != 2 {
+		t.Fatal("rename could not be retried")
 	}
 }

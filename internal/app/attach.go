@@ -44,20 +44,18 @@ var (
 	errDetach = errors.New("detach")
 )
 
-func (c *Coordinator) attachSession(id string) tea.Cmd {
-	handle, err := c.session.Attach(id)
-	if err != nil {
-		return func() tea.Msg {
-			return messages.AttachFinishedMsg{SessionID: id, Err: err}
-		}
+func (c *Coordinator) requestAttach(id string) tea.Cmd {
+	dashboardID, generation, service := c.activeDashboard, c.viewGeneration, c.actions.service
+	return func() tea.Msg {
+		handle, err := service.AttachInDashboard(dashboardID, id)
+		return messages.ScopedAttachReadyMsg{DashboardID: dashboardID, Generation: generation, SessionID: id, Handle: handle, Err: err}
 	}
+}
 
-	cmd := &attachExec{
-		sessionID: id,
-		handle:    handle,
-	}
-	return tea.Exec(cmd, func(err error) tea.Msg {
-		return messages.AttachFinishedMsg{SessionID: id, Err: err}
+func scopedAttachCommand(msg messages.ScopedAttachReadyMsg) tea.Cmd {
+	command := &attachExec{sessionID: msg.SessionID, handle: msg.Handle}
+	return tea.Exec(command, func(err error) tea.Msg {
+		return messages.AttachFinishedMsg{SessionID: msg.SessionID, DashboardID: msg.DashboardID, Generation: msg.Generation, Err: err}
 	})
 }
 

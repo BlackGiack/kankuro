@@ -33,6 +33,7 @@ func TestCreateAndListIDCard(t *testing.T) {
 	}
 
 	_, err = repo.CreateIDCard(config.IDCard{
+		DashboardID: "default",
 		Name:        "Claude",
 		Driver:      "cat",
 		Model:       "opus",
@@ -73,6 +74,7 @@ func TestCreateIDCardRejectsUnknownRefs(t *testing.T) {
 	wsID := workspaces[0].ID
 
 	_, err = repo.CreateIDCard(config.IDCard{
+		DashboardID: "default",
 		Name:        "Bad",
 		Driver:      "cat",
 		WorkspaceID: wsID,

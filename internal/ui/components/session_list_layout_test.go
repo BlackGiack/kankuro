@@ -15,24 +15,8 @@ import (
 	"github.com/BlackGiack/kankuro/internal/ui/uitest"
 )
 
-// Contract (step 0 of impl_plan_2.md): SessionList.View() is a bare
-// bubbles/list render, so it is BOUNDED, not exact: no line wider than the
-// width it was given (the dashboard pane pads it) and exactly the height it
-// was given or less. Observed: it renders exactly `height` lines because the
-// list pads its page, but only the "at most" half is part of the contract.
-//
-// Region contract: every item occupies SessionDelegateHeight rows plus one
-// spacing row. Its third row (index 2) is the status line "<status> pid=N",
-// so a status row must sit at 5*k+2 for every item k on the page and nowhere
-// else - an item whose name or card wrapped would push it out of place.
-//
-// Seen to fail: the two tests that were skipped here (working dir sliced by
-// byte, tabs in names) failed against the code before impl_plan_5.md fixed them
-// ("Found, not fixed" #2 and #4 in impl_plan_2.md); the sweeps were seen red
-// before those cases were split out, and again with the list's help line
-// re-enabled (they then measure the raw View(), trailing padding included); the
-// item-row test was seen red by shifting the expected status row by one. The
-// sweeps use every adversarial name, tabs included.
+// Session lists stay within their assigned dimensions. Each item occupies
+// SessionDelegateHeight rows plus one spacing row; names must not move the status row.
 
 const sessionItemRows = components.SessionDelegateHeight + 1 // item rows + spacing row
 

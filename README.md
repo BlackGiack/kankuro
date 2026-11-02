@@ -5,7 +5,7 @@ CLI sessions.
 
 ## Install
 
-Requires Go **1.26.1**. The Go command's default `GOTOOLCHAIN=auto` behavior can
+Requires Go **1.27.3**. The Go command's default `GOTOOLCHAIN=auto` behavior can
 automatically download and select the version required by this module.
 
 ```bash
@@ -32,3 +32,8 @@ KANKURO_TMP_DIR=/tmp/kankuro-test/tmp \
 KANKURO_CONFIG_DIR=/tmp/kankuro-test/config \
   go run .
 ```
+
+An empty config directory initializes automatically. Existing configurations must
+use the current dashboard format; startup rejects incomplete or unsupported
+layouts without converting them. Use a dedicated config directory rather than a
+folder containing build or review artifacts.

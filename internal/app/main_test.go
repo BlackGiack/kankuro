@@ -2,8 +2,11 @@ package app_test
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
+	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/testenv"
 )
@@ -14,6 +17,21 @@ import (
 // is what a manager without a Shutdown cleanup does (see newTestManager). A
 // test may still override KANKURO_TMP_DIR with t.Setenv.
 func TestMain(m *testing.M) {
+	_, source, _, ok := runtime.Caller(0)
+	if !ok {
+		os.Exit(2)
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(source), "..", ".."))
+	mcpSkill, err := os.ReadFile(filepath.Join(root, "kankuro_skills/mcp-cli/SKILL.md"))
+	if err != nil {
+		os.Exit(2)
+	}
+	puppetSkill, err := os.ReadFile(filepath.Join(root, "kankuro_skills/kankuro-puppet/SKILL.md"))
+	if err != nil {
+		os.Exit(2)
+	}
+	config.SetBuiltinMCPCLISkillContent(mcpSkill)
+	config.SetBuiltinKankuroPuppetSkillContent(puppetSkill)
 	os.Exit(testenv.Run(m, "app"))
 }
 

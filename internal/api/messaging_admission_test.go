@@ -24,7 +24,7 @@ func TestFullOperationQueueDoesNotStartMessageAdmissionTransaction(t *testing.T)
 	}
 	called := false
 	_, _, err := runner.accept("sender", "dashboard", operationKey{caller: "sender", request: uuid.NewString()},
-		uuid.NewString(), messageOperation, "recipient", []byte(`{}`), "fingerprint", "token", nil, nil,
+		uuid.NewString(), messageOperation, "recipient", []byte(`{}`), "fingerprint", nil, nil, nil,
 		func(func() error) error { called = true; return nil })
 	if err == nil || called {
 		t.Fatalf("full queue admission err=%v, transaction callback called=%v", err, called)
@@ -86,7 +86,7 @@ func TestFullQueuePreservesAcceptedHistoryAtRetentionCapacity(t *testing.T) {
 	}
 	called := false
 	_, _, err = runner.accept("sender", "dashboard", operationKey{caller: "sender", request: uuid.NewString()},
-		uuid.NewString(), messageOperation, "recipient", []byte(`{}`), "new-fingerprint", "token", nil, nil,
+		uuid.NewString(), messageOperation, "recipient", []byte(`{}`), "new-fingerprint", nil, nil, nil,
 		func(persist func() error) error {
 			called = true
 			_, createErr := store.CreateIntentWithAdmission(session.MessageRecord{ID: "rejected", DashboardID: "dashboard",

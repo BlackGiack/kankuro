@@ -27,12 +27,12 @@ func TestNaturalRecipientExitWakesMessagingWaiters(t *testing.T) {
 	}
 	manager := newTestManager(t, repo.Dir(), repo)
 	manager.SetMCPEndpoint("http://127.0.0.1:12345/mcp")
-	card, err := repo.CreateIDCard(config.IDCard{ID: "natural-exit", Name: "natural exit", Driver: "cat",
+	card, err := repo.CreateIDCard(config.IDCard{DashboardID: "default", ID: "natural-exit", Name: "natural exit", Driver: "cat",
 		WorkspaceID: workspaces[0].ID, MCPIDs: []string{config.BuiltinMCPKankuro}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	sessionID, err := manager.Launch(card, nil, nil, config.BuiltinMCPs())
+	sessionID, err := testLaunch(manager, card, nil, nil, config.BuiltinMCPs())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,23 +83,27 @@ func TestPendingMessageReservationDoesNotBlockStopOrShutdown(t *testing.T) {
 			}
 			manager := newTestManager(t, repo.Dir(), repo)
 			manager.SetMCPEndpoint("http://127.0.0.1:12345/mcp")
-			controller, err := repo.CreateIDCard(config.IDCard{ID: "admission-controller", Name: "controller", Driver: "cat",
-				WorkspaceID: workspaces[0].ID, DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro}})
+			controller, err := repo.CreateIDCard(
+				config.IDCard{DashboardID: "default", ID: "admission-controller", Name: "controller", Driver: "cat",
+					WorkspaceID: workspaces[0].ID, DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro}},
+			)
 			if err != nil {
 				t.Fatal(err)
 			}
-			recipient, err := repo.CreateIDCard(config.IDCard{ID: "admission-recipient", Name: "recipient", Driver: "cat",
-				WorkspaceID: workspaces[0].ID, MCPIDs: []string{config.BuiltinMCPKankuro}})
+			recipient, err := repo.CreateIDCard(
+				config.IDCard{DashboardID: "default", ID: "admission-recipient", Name: "recipient", Driver: "cat",
+					WorkspaceID: workspaces[0].ID, MCPIDs: []string{config.BuiltinMCPKankuro}},
+			)
 			if err != nil {
 				t.Fatal(err)
 			}
-			controllerID, err := manager.Launch(controller, nil, nil, config.BuiltinMCPs())
+			controllerID, err := testLaunch(manager, controller, nil, nil, config.BuiltinMCPs())
 			if err != nil {
 				t.Fatal(err)
 			}
 			controllerWorkspace := filepath.Join(workspace, ".kankuro", "mcp-servers.json")
 			token := readRelaunchToken(t, controllerWorkspace)
-			recipientID, err := manager.Launch(recipient, nil, nil, config.BuiltinMCPs())
+			recipientID, err := testLaunch(manager, recipient, nil, nil, config.BuiltinMCPs())
 			if err != nil {
 				t.Fatal(err)
 			}

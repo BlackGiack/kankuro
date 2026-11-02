@@ -6,23 +6,25 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/app"
-	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
+//nolint:gocognit // Verify navigation across all source and settings views.
 func TestCoordinator_NavigationKeys(t *testing.T) {
-	repo, _ := config.NewFileRepository(t.TempDir())
+	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
-	coord := app.NewCoordinator(repo, sm)
+	coord := newScopedCoordinator(repo, sm)
 	coord.Init()
+	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	openDefaultDashboard(coord)
 
 	// Test 'n' key - should navigate to CardEditor
 	_, cmd := coord.Update(tea.KeyPressMsg{Code: 0, Text: "n"})
-	// Execute the command to get the NavigateMsg
+	// Execute the captured-context navigation command
 	if cmd != nil {
 		msg := cmd()
-		if navigateMsg, ok := msg.(messages.NavigateMsg); ok {
+		if navigateMsg, ok := msg.(messages.ScopedNavigateMsg); ok {
 			coord.Update(navigateMsg)
 		}
 	}
@@ -31,14 +33,14 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 	}
 
 	// Navigate back to dashboard
-	coord.Update(messages.NavigateMsg{View: messages.ViewDashboard})
+	coord.Update(messages.ScopedNavigateMsg{View: messages.ViewDashboard, DashboardID: "default", Generation: 1})
 
 	// Test 'm' key - should navigate to MCPForm
 	_, cmd = coord.Update(tea.KeyPressMsg{Code: 0, Text: "m"})
-	// Execute the command to get the NavigateMsg
+	// Execute the captured-context navigation command
 	if cmd != nil {
 		msg := cmd()
-		if navigateMsg, ok := msg.(messages.NavigateMsg); ok {
+		if navigateMsg, ok := msg.(messages.ScopedNavigateMsg); ok {
 			coord.Update(navigateMsg)
 		}
 	}
@@ -47,14 +49,14 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 	}
 
 	// Navigate back to dashboard
-	coord.Update(messages.NavigateMsg{View: messages.ViewDashboard})
+	coord.Update(messages.ScopedNavigateMsg{View: messages.ViewDashboard, DashboardID: "default", Generation: 1})
 
 	// Test 'w' key - should navigate to SourceManagerWorkspaces
 	_, cmd = coord.Update(tea.KeyPressMsg{Code: 0, Text: "w"})
-	// Execute the command to get the NavigateMsg
+	// Execute the captured-context navigation command
 	if cmd != nil {
 		msg := cmd()
-		if navigateMsg, ok := msg.(messages.NavigateMsg); ok {
+		if navigateMsg, ok := msg.(messages.ScopedNavigateMsg); ok {
 			coord.Update(navigateMsg)
 		}
 	}
@@ -63,17 +65,49 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 	}
 
 	// Navigate back to dashboard
-	coord.Update(messages.NavigateMsg{View: messages.ViewDashboard})
+	coord.Update(messages.ScopedNavigateMsg{View: messages.ViewDashboard, DashboardID: "default", Generation: 1})
 
 	// Test 'c' key - should navigate to Settings
 	_, cmd = coord.Update(tea.KeyPressMsg{Code: 0, Text: "c"})
 	if cmd != nil {
 		msg := cmd()
-		if navigateMsg, ok := msg.(messages.NavigateMsg); ok {
+		if navigateMsg, ok := msg.(messages.ScopedNavigateMsg); ok {
 			coord.Update(navigateMsg)
 		}
 	}
 	if coord.CurrentView() != app.ViewSettings {
 		t.Errorf("Expected ViewSettings after 'c' key, got %v", coord.CurrentView())
+	}
+	_, cmd = coord.Update(tea.KeyPressMsg{Text: "p", Code: 'p'})
+	if cmd == nil {
+		t.Fatal("settings did not open puppet sources")
+	}
+	coord.Update(cmd())
+	if coord.CurrentView() != app.ViewSourceManagerPuppets {
+		t.Fatal("puppet sources did not open")
+	}
+	_, cmd = coord.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	if cmd == nil {
+		t.Fatal("source manager did not return to settings")
+	}
+	coord.Update(cmd())
+	if coord.CurrentView() != app.ViewSettings {
+		t.Fatal("source manager returned to the wrong view")
+	}
+	_, cmd = coord.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	if cmd == nil {
+		t.Fatal("settings did not return to dashboard")
+	}
+	coord.Update(cmd())
+	if coord.CurrentView() != app.ViewDashboard {
+		t.Fatal("settings returned to the wrong view")
+	}
+	_, cmd = coord.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	if cmd == nil {
+		t.Fatal("dashboard did not return to list")
+	}
+	coord.Update(cmd())
+	if coord.CurrentView() != app.ViewDashboardList {
+		t.Fatal("dashboard list did not open")
 	}
 }
