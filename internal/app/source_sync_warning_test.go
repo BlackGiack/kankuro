@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/BlackGiack/kankuro/internal/app"
-	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
@@ -17,13 +15,14 @@ import (
 // succeeded - while also reporting an ErrorMsg so the user is not left
 // thinking the source synced cleanly when skills.yaml is actually stale.
 func TestSaveSimpleSourceSurfacesSyncFailure(t *testing.T) {
-	repo, err := config.NewFileRepository(t.TempDir())
+	repo, err := newCurrentRepository(t.TempDir())
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
 	sm := newTestManager(t, repo.Dir(), repo)
-	coord := app.NewCoordinator(repo, sm)
+	coord := newScopedCoordinator(repo, sm)
 	coord.Init()
+	openDefaultDashboard(coord)
 
 	badPath := filepath.Join(t.TempDir(), "nonexistent")
 	callbacks := coord.SourceManagerCallbacks(views.SourceTypeSkills)

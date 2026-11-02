@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -9,7 +10,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/driver"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -25,7 +28,11 @@ func (d *coordinatorCodexDriver) Spawn(cfg driver.AgentConfig) (*driver.SessionH
 
 //nolint:cyclop,gocognit,gocyclo,govet // Exercises refresh recovery for both relaunch and switch errors against real manager state.
 func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
-	repo, err := config.NewFileRepository(t.TempDir())
+	root := t.TempDir()
+	if err := configstartup.PrepareStartup(root); err != nil {
+		t.Fatal(err)
+	}
+	repo, err := config.NewFileRepository(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,12 +51,20 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 	manager := newTestManager(t, repo.Dir(), repo, session.WithDriverRegistry(registry))
 	manager.SetMCPEndpoint("http://127.0.0.1:43210/mcp")
 	card, err := repo.CreateIDCard(
-		config.IDCard{ID: "conversation-card", Name: "Conversation card", Driver: "cat", WorkspaceID: workspaces[0].ID},
+		config.IDCard{
+			DashboardID: "default",
+			ID:          "conversation-card",
+			Name:        "Conversation card",
+			Driver:      "cat",
+			WorkspaceID: workspaces[0].ID,
+			MCPIDs:      []string{config.BuiltinMCPKankuro},
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	sessionID, err := manager.Launch(card, nil, nil, config.BuiltinMCPs())
+	service := api.New(repo, manager)
+	sessionID, err := service.LaunchInDashboard(context.Background(), "default", card.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,12 +83,8 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 	if _, err := repo.UpdateIDCard(card); err != nil {
 		t.Fatal(err)
 	}
-	if err := manager.SwitchAgentWithChoice(
-		sessionID,
-		card,
-		nil,
-		nil,
-		config.BuiltinMCPs(),
+	if err := service.SwitchInDashboard(
+		context.Background(), "default", sessionID, card.ID,
 		session.ConversationChoice{New: true},
 	); err != nil {
 		t.Fatal(err)
@@ -90,8 +101,12 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	coord := NewCoordinator(repo, manager)
-	coord.Update(messages.DataLoadedMsg{Cards: []config.IDCard{card}, Sessions: manager.List()})
+	coord := NewCoordinator(repo, manager, service)
+	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	coord.Update(
+		messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}},
+	)
+	coord.Update(coord.refreshData()())
 	request := coord.DashboardCallbacks().OnRelaunch(sessionID)
 	if request == nil {
 		t.Fatal("relaunch request returned no command")
@@ -126,7 +141,14 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 	if _, err := repo.UpdateIDCard(card); err != nil {
 		t.Fatal(err)
 	}
-	_, switchRefresh := coord.Update(messages.AgentSwitchedMsg{SessionID: sessionID, Err: errors.New("stale switch choice")})
+	_, switchRefresh := coord.Update(
+		messages.AgentSwitchedMsg{
+			DashboardID: "default",
+			Generation:  coord.viewGeneration,
+			SessionID:   sessionID,
+			Err:         errors.New("stale switch choice"),
+		},
+	)
 	if switchRefresh == nil {
 		t.Fatal("switch failure did not request refreshed context")
 	}
@@ -136,10 +158,20 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 		t.Fatalf("switch refresh selection = %#v, found=%v", selected, ok)
 	}
 
-	if err := repo.DeleteIDCard(card.ID); err != nil {
+	preflight, err := service.PreflightCardDeletion("default", card.ID)
+	if err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(messages.DataLoadedMsg{Cards: []config.IDCard{}, Sessions: manager.List()})
+	if _, err := service.ConfirmCardDeletion(
+		context.Background(),
+		"default",
+		card.ID,
+		preflight.Token,
+		preflight.RequiresForeignConfirmation,
+	); err != nil {
+		t.Fatal(err)
+	}
+	coord.Update(coord.refreshData()())
 	if !strings.Contains(choiceView.View(), "destination card was removed") {
 		t.Fatalf("removed destination did not leave an actionable picker error: %s", choiceView.View())
 	}
@@ -149,7 +181,7 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 	if err := manager.Remove(sessionID); err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(messages.SessionsRefreshedMsg{Sessions: manager.List()})
+	coord.Update(coord.refreshSessions()())
 	if !strings.Contains(choiceView.View(), "selected session was removed") {
 		t.Fatalf("removed session did not leave an actionable picker error: %s", choiceView.View())
 	}

@@ -32,6 +32,7 @@ const (
 
 type Session struct {
 	ID                            string
+	DashboardID                   string
 	CardID                        string
 	Name                          string
 	PID                           int
@@ -62,11 +63,8 @@ type Session struct {
 	ActivationToken         string
 	ExpectedConversationID  string
 	Driver                  driver.AgentDriver
-	// PTY is the raw pseudo-terminal file, used only for ioctl-based resize
-	// (Attach hands it out as AttachHandle.PTY). Keystrokes must NOT be
-	// written directly to this fd - it races Kill, which closes and nils the
-	// driver's own copy under lock. Use Driver.SendInputBytes for writes; see
-	// debt_impl_plan_4.md step 4 and session/attach.go's driverInputWriter.
+	// PTY is the raw pseudo-terminal file, exposed for ioctl-based resize.
+	// Write input through Driver.SendInputBytes, which synchronizes with Kill.
 	PTY         *os.File
 	Output      <-chan []byte
 	Done        <-chan struct{}
@@ -116,6 +114,8 @@ var (
 
 type Snapshot struct {
 	ID                            string
+	DashboardID                   string
+	CardDeleted                   bool
 	CardID                        string
 	Name                          string
 	PID                           int
@@ -186,18 +186,25 @@ type WorkspaceReader interface {
 }
 
 type Manager struct {
-	mu               sync.RWMutex
-	pendingCardRefs  map[string]int
-	subWorkspaceGate chan struct{}
-	sessions         map[string]*Session
-	launching        map[string]struct{}
-	configDir        string
-	repo             WorkspaceReader
-	workspaceCopier  WorkspaceCopier
-	drivers          driver.Registry
-	loadErr          error
-	logger           *slog.Logger
-	messages         *MessageStore
+	mu                         sync.RWMutex
+	pendingCardRefs            map[string]int
+	pendingCardRefsByDashboard map[string]map[string]int
+	cardReferenceRevision      uint64
+	pendingCardCancels         map[string]map[*cardReservation]context.CancelFunc
+	pendingCardDetails         map[string]map[*cardReservation]CardPendingReference
+	cardRefsChanged            chan struct{}
+	dashboardDeletionWorkers   map[string]bool
+	cardDeletionWorkers        map[string]bool
+	subWorkspaceGate           chan struct{}
+	sessions                   map[string]*Session
+	launching                  map[string]struct{}
+	configDir                  string
+	repo                       WorkspaceReader
+	workspaceCopier            WorkspaceCopier
+	drivers                    driver.Registry
+	loadErr                    error
+	logger                     *slog.Logger
+	messages                   *MessageStore
 
 	// stop is closed by Shutdown to make every watch goroutine return without
 	// a final tick; watchers counts them so Shutdown can wait. closed (under
@@ -292,20 +299,25 @@ func WithLogger(logger *slog.Logger) Option {
 // NewManager creates a session registry and loads persisted sessions.
 func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager {
 	m := &Manager{
-		sessions:          make(map[string]*Session),
-		pendingCardRefs:   make(map[string]int),
-		subWorkspaceGate:  make(chan struct{}, 1),
-		launching:         make(map[string]struct{}),
-		configDir:         configDir,
-		repo:              repo,
-		drivers:           driver.NewBuiltinRegistry(), // default builtin registry
-		logger:            slog.New(slog.DiscardHandler),
-		stop:              make(chan struct{}),
-		shutdownStart:     make(chan struct{}),
-		startupDelay:      startupDelay,
-		startupClock:      realStartupClock{},
-		authorities:       make(map[string]*activationAuthority),
-		messageAdmissions: make(map[*MessageAdmission]struct{}),
+		sessions:                   make(map[string]*Session),
+		pendingCardRefs:            make(map[string]int),
+		pendingCardRefsByDashboard: make(map[string]map[string]int),
+		pendingCardCancels:         make(map[string]map[*cardReservation]context.CancelFunc),
+		pendingCardDetails:         make(map[string]map[*cardReservation]CardPendingReference),
+		cardRefsChanged:            make(chan struct{}),
+		dashboardDeletionWorkers:   make(map[string]bool),
+		subWorkspaceGate:           make(chan struct{}, 1),
+		launching:                  make(map[string]struct{}),
+		configDir:                  configDir,
+		repo:                       repo,
+		drivers:                    driver.NewBuiltinRegistry(), // default builtin registry
+		logger:                     slog.New(slog.DiscardHandler),
+		stop:                       make(chan struct{}),
+		shutdownStart:              make(chan struct{}),
+		startupDelay:               startupDelay,
+		startupClock:               realStartupClock{},
+		authorities:                make(map[string]*activationAuthority),
+		messageAdmissions:          make(map[*MessageAdmission]struct{}),
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -330,6 +342,9 @@ func NewManager(configDir string, repo WorkspaceReader, opts ...Option) *Manager
 
 	return m
 }
+
+// ShutdownStarted closes once manager shutdown begins.
+func (m *Manager) ShutdownStarted() <-chan struct{} { return m.shutdownStart }
 
 // Messages returns the manager-owned durable messaging store shared by all frontends.
 func (m *Manager) Messages() *MessageStore { return m.messages }
@@ -403,6 +418,10 @@ func (m *Manager) SetLastWordAt(id string, t time.Time) {
 func (m *Manager) List() []Snapshot {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	return m.listLocked()
+}
+
+func (m *Manager) listLocked() []Snapshot {
 	out := make([]Snapshot, 0, len(m.sessions))
 	for _, s := range m.sessions {
 		out = append(out, m.snapshotLocked(s))
@@ -515,6 +534,7 @@ func (s *Session) snapshot() Snapshot {
 	}
 	return Snapshot{
 		ID:                            s.ID,
+		DashboardID:                   s.DashboardID,
 		CardID:                        s.CardID,
 		Name:                          s.Name,
 		PID:                           s.PID,
@@ -526,7 +546,7 @@ func (s *Session) snapshot() Snapshot {
 		KankuroMCPEnabled:             s.KankuroMCPEnabled,
 		DashboardControl:              s.DashboardControl,
 		InstructionsManaged:           s.InstructionsManaged,
-		InstructionOwnership:          sessionInstructionOwnership(s),
+		InstructionOwnership:          cloneInstructionOwnership(s.InstructionOwnership),
 		StartedAt:                     s.StartedAt,
 		LastWordAt:                    s.LastWordAt,
 		LastOutput:                    s.LastOutput,
@@ -546,8 +566,9 @@ func (s *Session) snapshot() Snapshot {
 // data builds the persisted Data record from a Session. Callers must hold
 // m.mu (read or write) while calling this.
 func (s *Session) data() *Data {
-	return &Data{
+	data := &Data{
 		ID:                            s.ID,
+		DashboardID:                   s.DashboardID,
 		CardID:                        s.CardID,
 		Name:                          s.Name,
 		PID:                           s.PID,
@@ -559,7 +580,7 @@ func (s *Session) data() *Data {
 		KankuroMCPEnabled:             s.KankuroMCPEnabled,
 		DashboardControl:              s.DashboardControl,
 		InstructionsManaged:           s.InstructionsManaged,
-		InstructionOwnership:          sessionInstructionOwnership(s),
+		InstructionOwnership:          cloneInstructionOwnership(s.InstructionOwnership),
 		StartedAt:                     s.StartedAt,
 		LastWordAt:                    s.LastWordAt,
 		LastOutput:                    s.LastOutput,
@@ -567,6 +588,8 @@ func (s *Session) data() *Data {
 		ExitCode:                      s.ExitCode,
 		Conversations:                 cloneConversations(s.Conversations),
 	}
+	data.SchemaVersion = sessionSchemaVersion
+	return data
 }
 
 func cloneConversations(in map[string][]ConversationBinding) map[string][]ConversationBinding {
@@ -589,18 +612,6 @@ func cloneInstructionOwnership(in map[string]bool) map[string]bool {
 	return out
 }
 
-func sessionInstructionOwnership(s *Session) map[string]bool {
-	ownership := cloneInstructionOwnership(s.InstructionOwnership)
-	if ownership == nil {
-		ownership = make(map[string]bool)
-	}
-	// Older session records only stored the generic driver's ownership flag.
-	if s.InstructionsManaged && len(s.InstructionOwnership) == 0 {
-		ownership["AGENTS.md"] = true
-	}
-	return ownership
-}
-
 func updateInstructionOwnership(previous map[string]bool, filename string, managed bool) map[string]bool {
 	updated := cloneInstructionOwnership(previous)
 	if updated == nil {
@@ -614,10 +625,20 @@ func updateInstructionOwnership(previous map[string]bool, filename string, manag
 	return updated
 }
 
-// SetName updates the name of an existing session and persists it.
-func (m *Manager) SetName(id, name string) error {
+// SetNameChecked validates scope under the manager lock before persisting.
+func (m *Manager) SetNameChecked(id, name string, check func([]Snapshot) error) error {
+	if check == nil {
+		return errors.New("rename scope check is required")
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.closed {
+		return ErrManagerClosed
+	}
+	if err := check(m.listLocked()); err != nil {
+		return err
+	}
 	s, ok := m.sessions[id]
 	if !ok {
 		return fmt.Errorf("session not found: %s", id)

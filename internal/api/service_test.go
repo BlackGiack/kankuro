@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/driver"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/testenv"
@@ -34,57 +35,8 @@ type testRepository struct {
 
 	mu sync.Mutex
 
-	cardsErr, skillsErr, personasErr, mcpsErr, deleteErr error
-	cardReads, skillReads, personaReads, mcpReads        int
-}
-
-type testDashboardScope struct {
-	mu       sync.RWMutex
-	sessions map[string]string
-	cards    map[string]string
-}
-
-func (scope *testDashboardScope) DashboardForSession(id string) string {
-	scope.mu.RLock()
-	defer scope.mu.RUnlock()
-	return scope.sessions[id]
-}
-func (scope *testDashboardScope) AllowsSession(callerID, targetID string) bool {
-	scope.mu.RLock()
-	defer scope.mu.RUnlock()
-	return scope.sessions[callerID] != "" && scope.sessions[callerID] == scope.sessions[targetID]
-}
-func (scope *testDashboardScope) AllowsCard(callerID, cardID string) bool {
-	scope.mu.RLock()
-	defer scope.mu.RUnlock()
-	return scope.sessions[callerID] != "" && scope.sessions[callerID] == scope.cards[cardID]
-}
-func (scope *testDashboardScope) AssignSession(callerID, targetID, _ string) {
-	scope.mu.Lock()
-	defer scope.mu.Unlock()
-	scope.sessions[targetID] = scope.sessions[callerID]
-}
-func (scope *testDashboardScope) setSession(id, dashboard string) {
-	scope.mu.Lock()
-	defer scope.mu.Unlock()
-	scope.sessions[id] = dashboard
-}
-func (scope *testDashboardScope) setCard(id, dashboard string) {
-	scope.mu.Lock()
-	defer scope.mu.Unlock()
-	scope.cards[id] = dashboard
-}
-func (scope *testDashboardScope) SessionDashboard(id string) (string, bool) {
-	scope.mu.RLock()
-	defer scope.mu.RUnlock()
-	dashboard, exists := scope.sessions[id]
-	return dashboard, exists
-}
-func (scope *testDashboardScope) CardDashboard(id string) (string, bool) {
-	scope.mu.RLock()
-	defer scope.mu.RUnlock()
-	dashboard, exists := scope.cards[id]
-	return dashboard, exists
+	cardsErr, skillsErr, personasErr, mcpsErr     error
+	cardReads, skillReads, personaReads, mcpReads int
 }
 
 func (r *testRepository) ListIDCards() ([]config.IDCard, error) {
@@ -95,12 +47,6 @@ func (r *testRepository) ListIDCards() ([]config.IDCard, error) {
 		return nil, r.cardsErr
 	}
 	return r.FileRepository.ListIDCards()
-}
-func (r *testRepository) DeleteIDCard(id string) error {
-	if r.deleteErr != nil {
-		return r.deleteErr
-	}
-	return r.FileRepository.DeleteIDCard(id)
 }
 func (r *testRepository) ListSkills() ([]config.Skill, error) {
 	r.mu.Lock()
@@ -134,6 +80,18 @@ func (r *testRepository) ListMCPs() ([]config.MCPServer, error) {
 func newServiceFixture(t *testing.T, managerOptions ...session.Option) (*Service, *testRepository, *session.Manager, string, string) {
 	t.Helper()
 	repoDir := t.TempDir()
+	lock, err := configstartup.AcquireLock(repoDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if closeErr := lock.Close(); closeErr != nil {
+			t.Error(closeErr)
+		}
+	})
+	if err = configstartup.PrepareStartup(repoDir); err != nil {
+		t.Fatal(err)
+	}
 	base, err := config.NewFileRepository(repoDir)
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
@@ -152,8 +110,28 @@ func newServiceFixture(t *testing.T, managerOptions ...session.Option) (*Service
 	return New(repo, sessions), repo, sessions, workspace, workspaces[0].ID
 }
 
+// launchCardTest exercises the same dashboard-aware activation used by MCP and UI.
+func relaunchCardTest(service *Service, id string) error {
+	return service.RelaunchInDashboard(context.Background(), DefaultDashboardID, id, session.ConversationChoice{})
+}
+
+func switchCardTest(service *Service, id, cardID string) error {
+	return service.SwitchInDashboard(context.Background(), DefaultDashboardID, id, cardID, session.ConversationChoice{})
+}
+
+func removeSessionTest(service *Service, id string) error {
+	return service.RemoveInDashboard(DefaultDashboardID, id)
+}
+
+func launchCardTest(service *Service, card config.IDCard) (string, error) {
+	return service.LaunchInDashboard(context.Background(), card.DashboardID, card.ID)
+}
+
 func saveCard(t *testing.T, repo *config.FileRepository, card config.IDCard) config.IDCard {
 	t.Helper()
+	if card.DashboardID == "" {
+		card.DashboardID = DefaultDashboardID
+	}
 	saved, err := repo.CreateIDCard(card)
 	if err != nil {
 		t.Fatalf("save card %q: %v", card.Name, err)
@@ -161,7 +139,7 @@ func saveCard(t *testing.T, repo *config.FileRepository, card config.IDCard) con
 	return saved
 }
 
-func TestListCardsReturnsResolvedCopiedWorkspaceData(t *testing.T) {
+func TestUnauthenticatedDiscoveryIsDenied(t *testing.T) {
 	service, _, _, _, _ := newServiceFixture(t)
 	if _, err := service.ListCards(""); err == nil {
 		t.Fatal("unauthenticated card discovery succeeded")
@@ -171,16 +149,6 @@ func TestListCardsReturnsResolvedCopiedWorkspaceData(t *testing.T) {
 	}
 	if _, err := service.GetSession("", "target"); err == nil {
 		t.Fatal("unauthenticated inspection succeeded")
-	}
-}
-
-func TestDashboardScopeResolverFiltersCardsAndSessions(t *testing.T) {
-	service, _, _, _, _ := newServiceFixture(t)
-	service.SetDashboardScopeResolver(&testDashboardScope{
-		sessions: map[string]string{"caller": "factory-a"}, cards: map[string]string{},
-	})
-	if _, scopeErr := service.ListCards("invalid"); scopeErr == nil {
-		t.Fatal("fabricated caller metadata authorized discovery")
 	}
 }
 
@@ -204,7 +172,7 @@ func TestOperationRunnerCreatesOnceAndReplaysRequest(t *testing.T) {
 	secondCard := saveCard(t, repo.FileRepository, config.IDCard{
 		ID: "second", Name: "reviewer", Driver: "cat", WorkspaceID: workspaceID,
 	})
-	callerID, err := service.Launch(callerCard)
+	callerID, err := launchCardTest(service, callerCard)
 	if err != nil {
 		t.Fatalf("launch caller: %v", err)
 	}
@@ -235,7 +203,7 @@ func TestOperationRunnerCreatesOnceAndReplaysRequest(t *testing.T) {
 		ID: "registration-only", Name: "registration only", Driver: "cat", WorkspaceID: workspaceID,
 		MCPIDs: []string{config.BuiltinMCPKankuro},
 	})
-	if _, launchErr := service.Launch(registrationOnly); launchErr != nil {
+	if _, launchErr := launchCardTest(service, registrationOnly); launchErr != nil {
 		t.Fatalf("launch registration-only card: %v", launchErr)
 	}
 	configData, err = os.ReadFile(filepath.Join(workspace, ".kankuro", "mcp-servers.json"))
@@ -259,11 +227,6 @@ func TestOperationRunnerCreatesOnceAndReplaysRequest(t *testing.T) {
 		t.Fatal("registration-only caller inspected a session")
 	}
 
-	scope := &testDashboardScope{
-		sessions: map[string]string{callerID: "factory-a"},
-		cards:    map[string]string{callerCard.ID: "factory-a", targetCard.ID: "factory-a", secondCard.ID: "factory-a"},
-	}
-	service.SetDashboardScopeResolver(scope)
 	runner := NewOperationRunner(repo.Dir(), service)
 	service.SetOperationRunner(runner)
 	t.Cleanup(runner.Shutdown)
@@ -311,8 +274,6 @@ func TestOperationRunnerCreatesOnceAndReplaysRequest(t *testing.T) {
 	if _, namedErr = service.CreateSession(context.Background(), token, namedRequest, targetCard.ID); namedErr == nil {
 		t.Fatal("omitted name accepted for named retry")
 	}
-	scope.setSession(named.TargetSession, "other-dashboard")
-
 	second, err := service.CreateSession(context.Background(), token, requestID, targetCard.ID)
 	if err != nil {
 		t.Fatalf("replay create: %v", err)
@@ -323,8 +284,8 @@ func TestOperationRunnerCreatesOnceAndReplaysRequest(t *testing.T) {
 	repo.cardsErr = errors.New("temporary card registry outage")
 	registryFailureReplay, replayErr := service.CreateSession(context.Background(), token, requestID, targetCard.ID)
 	repo.cardsErr = nil
-	if replayErr != nil || registryFailureReplay.ID != first.ID || registryFailureReplay.State != OperationSucceeded {
-		t.Fatalf("replay depended on mutable card registry: %#v, %v", registryFailureReplay, replayErr)
+	if replayErr == nil {
+		t.Fatalf("corrupt inventory authorized replay: %#v", registryFailureReplay)
 	}
 	if _, conflictErr := service.CreateSession(context.Background(), token, requestID, callerCard.ID); conflictErr == nil {
 		t.Fatal("same request ID with different arguments was accepted")
@@ -349,7 +310,7 @@ func TestOperationRunnerCreatesOnceAndReplaysRequest(t *testing.T) {
 		_, requestErr := service.GetOperation(token, uuid.NewString())
 		return requestErr
 	})
-	assertRejectedCode("card registry unavailable", "registry_unavailable", func() error {
+	assertRejectedCode("card registry unavailable", "forbidden", func() error {
 		repo.cardsErr = errors.New("registry offline")
 		defer func() { repo.cardsErr = nil }()
 		_, requestErr := service.CreateSession(context.Background(), token, uuid.NewString(), targetCard.ID)
@@ -376,39 +337,34 @@ func TestOperationRunnerCreatesOnceAndReplaysRequest(t *testing.T) {
 	if !ok {
 		t.Fatal("created session disappeared")
 	}
-	if cards, discoveryErr := service.ListCards(token); discoveryErr != nil || len(cards) != 3 {
+	if cards, discoveryErr := service.ListCards(token); discoveryErr != nil || len(cards) != 4 {
 		t.Fatalf("scoped cards = %#v, %v", cards, discoveryErr)
 	}
-	if sessions, discoveryErr := service.ListSessions(token); discoveryErr != nil || len(sessions) != 1 {
+	if sessions, discoveryErr := service.ListSessions(token); discoveryErr != nil || len(sessions) != 3 {
 		t.Fatalf("scoped sessions = %#v, %v", sessions, discoveryErr)
 	}
 	if _, inspectErr := service.GetSession(token, first.TargetSession); inspectErr != nil {
 		t.Fatalf("scoped inspection: %v", inspectErr)
 	}
-	scope.setSession(first.TargetSession, "factory-b")
-	if _, crossScopeErr := service.StopSession(context.Background(), token, uuid.NewString(), first.TargetSession); crossScopeErr == nil {
+	foreignDashboard, err := repo.CreateDashboard(config.Dashboard{ID: "factory-b", Name: "Factory B"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreignCard := saveCard(
+		t,
+		repo.FileRepository,
+		config.IDCard{Name: "foreign", Driver: "cat", WorkspaceID: workspaceID, DashboardID: foreignDashboard.ID},
+	)
+	foreignID, err := launchCardTest(service, foreignCard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, crossScopeErr := service.StopSession(context.Background(), token, uuid.NewString(), foreignID); crossScopeErr == nil {
 		t.Fatal("cross-dashboard stop was accepted")
 	}
-	if _, movedTargetReplayErr := service.CreateSession(
-		context.Background(), token, requestID, targetCard.ID,
-	); movedTargetReplayErr == nil {
-		t.Fatal("create replay disclosed a target moved outside the caller's dashboard")
+	if _, crossScopeErr := service.CreateSession(context.Background(), token, uuid.NewString(), foreignCard.ID); crossScopeErr == nil {
+		t.Fatal("cross-dashboard card activation was accepted")
 	}
-	if _, lookupErr := service.GetOperation(token, first.ID); lookupErr == nil {
-		t.Fatal("operation lookup disclosed a target moved outside the caller's dashboard")
-	}
-	if _, cancelErr := service.CancelOperation(token, first.ID); cancelErr == nil {
-		t.Fatal("operation cancellation was allowed after the target moved")
-	}
-	scope.setSession(first.TargetSession, "factory-a")
-	scope.setCard(targetCard.ID, "factory-b")
-	if _, movedCardReplayErr := service.CreateSession(context.Background(), token, requestID, targetCard.ID); movedCardReplayErr == nil {
-		t.Fatal("create replay disclosed a destination card moved outside the caller's dashboard")
-	}
-	if _, lookupErr := service.GetOperation(token, first.ID); lookupErr == nil {
-		t.Fatal("operation lookup disclosed a destination card moved outside the caller's dashboard")
-	}
-	scope.setCard(targetCard.ID, "factory-a")
 	handoff := filepath.Join(created.WorkingDir, "handoff.txt")
 	if writeErr := os.WriteFile(handoff, []byte("caller prepared this file"), 0o600); writeErr != nil {
 		t.Fatal(writeErr)
@@ -513,7 +469,7 @@ func TestFinalJournalWriteFailureReturnsOutcomeAndRecoversInterrupted(t *testing
 	targetCard := saveCard(t, repo.FileRepository, config.IDCard{
 		ID: "target", Name: "target", Driver: "cat", WorkspaceID: workspaceID,
 	})
-	if _, err := service.Launch(callerCard); err != nil {
+	if _, err := launchCardTest(service, callerCard); err != nil {
 		t.Fatalf("launch controller: %v", err)
 	}
 	var workspaceMCP struct {
@@ -605,7 +561,7 @@ func TestRunnerCancellationDuringTemporaryWorkspaceCopyReleasesActivation(t *tes
 	targetCard := saveCard(t, repo.FileRepository, config.IDCard{
 		ID: "target", Name: "target", Driver: "cat", WorkspaceID: workspaceID, UseTmpWorkspace: true,
 	})
-	if _, err := service.Launch(callerCard); err != nil {
+	if _, err := launchCardTest(service, callerCard); err != nil {
 		t.Fatalf("launch controller: %v", err)
 	}
 	var mcpConfig struct {
@@ -639,8 +595,9 @@ func TestRunnerCancellationDuringTemporaryWorkspaceCopyReleasesActivation(t *tes
 	case <-time.After(time.Second):
 		t.Fatal("workspace copy did not reach the cancellation gate")
 	}
-	if deleteErr := uiService.DeleteCard(targetCard.ID); deleteErr == nil {
-		t.Fatal("delete card succeeded while MCP create was preparing")
+	impact, err := uiService.PreflightCardDeletion(DefaultDashboardID, targetCard.ID)
+	if err != nil || impact.Impact.PendingByDashboard[DefaultDashboardID] != 1 {
+		t.Fatalf("pending activation missing from preflight: %+v %v", impact, err)
 	}
 	// Resolve the accepted operation through its request identity without racing
 	// on runner internals after the copy gate has signalled admission.
@@ -708,8 +665,12 @@ func TestRunnerCancellationDuringTemporaryWorkspaceCopyReleasesActivation(t *tes
 	if _, statErr := os.Stat(filepath.Join(os.Getenv("KANKURO_TMP_DIR"), secondOperation.TargetSession)); !os.IsNotExist(statErr) {
 		t.Fatalf("caller-revoked activation left a temporary copy: %v", statErr)
 	}
-	if _, retryErr := manager.LaunchWithIDContext(
-		context.Background(), operation.TargetSession, targetCard, nil, nil, nil,
+	if _, retryErr := service.launchDashboardWithID(
+		context.Background(),
+		DefaultDashboardID,
+		targetCard.ID,
+		operation.TargetSession,
+		nil,
 	); retryErr != nil {
 		t.Fatalf("activation reservation was not released after cancellation: %v", retryErr)
 	}
@@ -719,12 +680,16 @@ func TestRunnerCancellationDuringTemporaryWorkspaceCopyReleasesActivation(t *tes
 	if _, err := manager.RemoveDetailed(operation.TargetSession); err != nil {
 		t.Fatalf("remove retry session after reservation check: %v", err)
 	}
-	if err := uiService.DeleteCard(targetCard.ID); err != nil {
-		t.Fatalf("delete card after cancelled preparations and cleanup: %v", err)
+	impact, err = uiService.PreflightCardDeletion(DefaultDashboardID, targetCard.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = uiService.ConfirmCardDeletion(context.Background(), DefaultDashboardID, targetCard.ID, impact.Token, false); err != nil {
+		t.Fatal(err)
 	}
 }
 
-func TestPendingCardReferenceBlocksCrossServiceDeleteDuringMCPCreate(t *testing.T) {
+func TestCardDeletionCancelsCrossServiceMCPCreate(t *testing.T) {
 	setBuiltinMCPCLISkillForTest(t)
 	allowCopy := make(chan struct{})
 	copyEntered := make(chan struct{})
@@ -752,7 +717,7 @@ func TestPendingCardReferenceBlocksCrossServiceDeleteDuringMCPCreate(t *testing.
 	targetCard := saveCard(t, repo.FileRepository, config.IDCard{
 		ID: "copy-target", Name: "temporary target", Driver: "cat", WorkspaceID: workspaceID, UseTmpWorkspace: true,
 	})
-	if _, err := service.Launch(callerCard); err != nil {
+	if _, err := launchCardTest(service, callerCard); err != nil {
 		t.Fatalf("launch controller: %v", err)
 	}
 	token := workspaceMCPToken(t, workspace)
@@ -774,8 +739,19 @@ func TestPendingCardReferenceBlocksCrossServiceDeleteDuringMCPCreate(t *testing.
 	case <-time.After(2 * time.Second):
 		t.Fatal("MCP create did not reach temporary-copy gate")
 	}
-	if err := uiService.DeleteCard(targetCard.ID); err == nil || !strings.Contains(err.Error(), "activation(s) in progress") {
-		t.Fatalf("cross-service deletion during create = %v, want pending-reference refusal", err)
+	impact, err := uiService.PreflightCardDeletion(DefaultDashboardID, targetCard.ID)
+	if err != nil || impact.Impact.PendingByDashboard[DefaultDashboardID] != 1 {
+		t.Fatalf("preflight: %+v %v", impact, err)
+	}
+	// Cancelling the confirmation has no effect; the gated launch remains pending.
+	select {
+	case <-replies:
+		t.Fatal("launch completed before confirmation")
+	default:
+	}
+	deletion, err := uiService.ConfirmCardDeletion(context.Background(), DefaultDashboardID, targetCard.ID, impact.Token, false)
+	if err != nil || deletion.State != config.CardDeleted {
+		t.Fatalf("confirmed deletion: %+v %v", deletion, err)
 	}
 	close(allowCopy)
 	var created reply
@@ -784,21 +760,11 @@ func TestPendingCardReferenceBlocksCrossServiceDeleteDuringMCPCreate(t *testing.
 	case <-time.After(5 * time.Second):
 		t.Fatal("MCP create did not complete after copy gate release")
 	}
-	if created.err != nil || created.result.State != OperationSucceeded || created.result.Result == nil {
-		t.Fatalf("MCP create result = %#v, %v", created.result, created.err)
+	if created.err == nil && created.result.State == OperationSucceeded {
+		t.Fatalf("cancelled create succeeded: %+v", created.result)
 	}
-	sessionID := created.result.Result.SessionID
-	if err := manager.Kill(sessionID); err != nil {
-		t.Fatalf("stop created session: %v", err)
-	}
-	if err := uiService.Relaunch(sessionID); err != nil {
-		t.Fatalf("relaunch with retained card: %v", err)
-	}
-	if err := manager.Kill(sessionID); err != nil {
-		t.Fatalf("stop relaunched session: %v", err)
-	}
-	if err := uiService.DeleteCard(targetCard.ID); err == nil {
-		t.Fatal("delete succeeded after session publication and termination")
+	if _, found := manager.GetSession(created.result.TargetSession); found {
+		t.Fatal("cancelled create was published")
 	}
 }
 
@@ -831,7 +797,8 @@ func (d *gatedInstructionDriver) SetAgentsMD(
 	return managed, nil
 }
 
-func TestPendingCardReferenceBlocksCrossServiceDeleteDuringMCPSwitch(t *testing.T) {
+//nolint:gocognit,govet // Exercise concurrent deletion and activation ordering.
+func TestCardDeletionCancelsCrossServiceMCPSwitch(t *testing.T) {
 	setBuiltinMCPCLISkillForTest(t)
 	gate := &instructionGate{entered: make(chan struct{}), release: make(chan struct{})}
 	registry := driver.NewBuiltinRegistry()
@@ -853,19 +820,19 @@ func TestPendingCardReferenceBlocksCrossServiceDeleteDuringMCPSwitch(t *testing.
 	destination := saveCard(t, repo.FileRepository, config.IDCard{
 		ID: "switch-destination", Name: "destination", Driver: "cat", WorkspaceID: workspaceID,
 	})
-	if _, err := service.Launch(callerCard); err != nil {
+	if _, err := launchCardTest(service, callerCard); err != nil {
 		t.Fatalf("launch controller: %v", err)
 	}
 	token := workspaceMCPToken(t, workspace)
-	sourceID, launchErr := service.Launch(sourceCard)
+	sourceID, launchErr := launchCardTest(service, sourceCard)
 	if launchErr != nil {
 		t.Fatalf("launch source: %v", launchErr)
 	}
 	if err := manager.Kill(sourceID); err != nil {
 		t.Fatalf("stop source: %v", err)
 	}
-	if bindings, err := service.Conversations(sourceID, destination.ID); err != nil || len(bindings) != 0 {
-		t.Fatalf("destination should have no saved conversation binding before switch: %v, %v", bindings, err)
+	if snapshot, ok := manager.GetSession(sourceID); !ok || len(snapshot.Conversations[destination.ID]) != 0 {
+		t.Fatal("unexpected destination binding")
 	}
 	runner := NewOperationRunner(repo.Dir(), service)
 	service.SetOperationRunner(runner)
@@ -886,8 +853,28 @@ func TestPendingCardReferenceBlocksCrossServiceDeleteDuringMCPSwitch(t *testing.
 	case <-time.After(2 * time.Second):
 		t.Fatal("MCP switch did not reach destination preparation gate")
 	}
-	if err := uiService.DeleteCard(destination.ID); err == nil || !strings.Contains(err.Error(), "activation(s) in progress") {
-		t.Fatalf("cross-service deletion during switch = %v, want pending-reference refusal", err)
+	impact, err := uiService.PreflightCardDeletion(DefaultDashboardID, destination.ID)
+	if err != nil || impact.Impact.PendingByDashboard[DefaultDashboardID] != 1 {
+		t.Fatalf("preflight: %+v %v", impact, err)
+	}
+	deletion := make(chan error, 1)
+	go func() {
+		_, err := uiService.ConfirmCardDeletion(context.Background(), DefaultDashboardID, destination.ID, impact.Token, false)
+		deletion <- err
+	}()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		items, readErr := repo.ListCardTombstones()
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if len(items) != 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("deletion intent not persisted")
+		}
+		time.Sleep(time.Millisecond)
 	}
 	close(gate.release)
 	var switched reply
@@ -896,30 +883,32 @@ func TestPendingCardReferenceBlocksCrossServiceDeleteDuringMCPSwitch(t *testing.
 	case <-time.After(5 * time.Second):
 		t.Fatal("MCP switch did not complete after gate release")
 	}
-	if switched.err != nil || switched.result.State != OperationSucceeded {
-		t.Fatalf("MCP switch result = %#v, %v", switched.result, switched.err)
+	if switched.err == nil && switched.result.State == OperationSucceeded {
+		t.Fatalf("cancelled switch succeeded: %+v", switched.result)
+	}
+	if err := <-deletion; err != nil {
+		t.Fatal(err)
 	}
 	snapshot, found := manager.GetSession(sourceID)
-	if !found || snapshot.CardID != destination.ID {
-		t.Fatalf("switch did not publish destination reference: %#v, found=%v", snapshot, found)
-	}
-	if err := manager.Kill(sourceID); err != nil {
-		t.Fatalf("stop switched session: %v", err)
-	}
-	if err := uiService.DeleteCard(destination.ID); err == nil {
-		t.Fatal("delete succeeded after switch publication and termination")
+	if !found || snapshot.CardID != sourceCard.ID {
+		t.Fatalf("source session changed: %#v, found=%v", snapshot, found)
 	}
 }
 
+//nolint:govet // Keep each operation error local to the assertion.
 func TestDeletionWinningBeforeAdmissionRejectsLoadedCardSnapshot(t *testing.T) {
 	service, repo, manager, _, workspaceID := newServiceFixture(t)
 	staleSnapshot := saveCard(t, repo.FileRepository, config.IDCard{
 		ID: "deleted-before-launch", Name: "stale", Driver: "cat", WorkspaceID: workspaceID,
 	})
-	if err := service.DeleteCard(staleSnapshot.ID); err != nil {
-		t.Fatalf("delete unreferenced card: %v", err)
+	impact, err := service.PreflightCardDeletion(DefaultDashboardID, staleSnapshot.ID)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := service.Launch(staleSnapshot); err == nil || !strings.Contains(err.Error(), "card not found") {
+	if _, err = service.ConfirmCardDeletion(context.Background(), DefaultDashboardID, staleSnapshot.ID, impact.Token, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := launchCardTest(service, staleSnapshot); err == nil || !strings.Contains(err.Error(), "card not found") {
 		t.Fatalf("launch with stale loaded snapshot = %v, want missing-card refusal", err)
 	}
 	if sessions := manager.List(); len(sessions) != 0 {
@@ -972,7 +961,7 @@ func TestOperationQueueBoundAndDisconnectedWaitReturnPromptly(t *testing.T) {
 		ID: "controller", Name: "controller", Driver: "cat", WorkspaceID: workspaceID,
 		DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro},
 	})
-	if _, err := service.Launch(card); err != nil {
+	if _, err := launchCardTest(service, card); err != nil {
 		t.Fatalf("launch controller: %v", err)
 	}
 	var mcpConfig struct {
@@ -1273,7 +1262,7 @@ func TestResolveCapabilitiesPropagatesEachRegistryFailure(t *testing.T) {
 			case "mcps":
 				repo.mcpsErr = want
 			}
-			_, err := api.Launch(saved) // empty selections still read each registry.
+			_, err := launchCardTest(api, saved) // empty selections still read each registry.
 			if !errors.Is(err, want) || err == nil || !strings.HasPrefix(err.Error(), tc.context) {
 				t.Fatalf("resolve error = %v, want wrapped %q failure", err, tc.context)
 			}
@@ -1312,12 +1301,17 @@ func TestResolveCardDistinguishesRegistryFailureAndMissingCard(t *testing.T) {
 	}
 }
 
-func TestServiceLaunchUsesSuppliedCardSnapshot(t *testing.T) {
+func TestServiceLaunchResolvesCurrentSavedCard(t *testing.T) {
 	api, repo, sessions, workspace, workspaceID := newServiceFixture(t)
 	saved := saveCard(t, repo.FileRepository, config.IDCard{ID: "stored", Name: "stored-card", Driver: "cat", WorkspaceID: workspaceID})
 	selected := saved
 	selected.Name = "selected-snapshot"
-	sid, err := api.Launch(selected)
+	updated := saved
+	updated.Name = "updated-card"
+	if _, err := repo.UpdateIDCard(updated); err != nil {
+		t.Fatal(err)
+	}
+	sid, err := launchCardTest(api, selected)
 	if err != nil {
 		t.Fatalf("Launch: %v", err)
 	}
@@ -1325,8 +1319,9 @@ func TestServiceLaunchUsesSuppliedCardSnapshot(t *testing.T) {
 	if !ok {
 		t.Fatal("launched session missing from manager")
 	}
-	if snapshot.CardID != selected.ID || snapshot.Name != selected.Name || snapshot.WorkingDir != workspace {
-		t.Fatalf("session did not use supplied snapshot: %#v", snapshot)
+	if snapshot.CardID != saved.ID || snapshot.Name != updated.Name || snapshot.WorkingDir != workspace ||
+		snapshot.DashboardID != saved.DashboardID {
+		t.Fatalf("session did not use current saved card: %#v", snapshot)
 	}
 }
 
@@ -1337,7 +1332,7 @@ func TestServiceRelaunchAndSwitchResolveLatestSavedCards(t *testing.T) {
 		ID: "first", Name: "old", Driver: "cat", WorkspaceID: workspaceID, AgentsMD: "before",
 	})
 	second := saveCard(t, repo.FileRepository, config.IDCard{ID: "second", Name: "destination", Driver: "cat", WorkspaceID: workspaceID})
-	sid, err := api.Launch(first)
+	sid, err := launchCardTest(api, first)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1348,7 +1343,7 @@ func TestServiceRelaunchAndSwitchResolveLatestSavedCards(t *testing.T) {
 	if _, err := repo.UpdateIDCard(first); err != nil {
 		t.Fatal(err)
 	}
-	if err := api.Relaunch(sid); err != nil {
+	if err := relaunchCardTest(api, sid); err != nil {
 		t.Fatalf("Relaunch: %v", err)
 	}
 	content, err := os.ReadFile(filepath.Join(workspace, "AGENTS.md"))
@@ -1362,7 +1357,7 @@ func TestServiceRelaunchAndSwitchResolveLatestSavedCards(t *testing.T) {
 	if _, err := repo.UpdateIDCard(second); err != nil {
 		t.Fatal(err)
 	}
-	if err := api.SwitchAgent(sid, second.ID); err != nil {
+	if err := switchCardTest(api, sid, second.ID); err != nil {
 		t.Fatalf("SwitchAgent: %v", err)
 	}
 	got, _ := sessions.GetSession(sid)
@@ -1406,14 +1401,14 @@ func TestServiceSwitchPreservesWorkspaceAcrossDifferentCardSettings(t *testing.T
 	if err := os.WriteFile(workFile, []byte("keep"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	sid, err := api.Launch(start)
+	sid, err := launchCardTest(api, start)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := sessions.Kill(sid); err != nil {
 		t.Fatal(err)
 	}
-	if err := api.SwitchAgent(sid, destination.ID); err != nil {
+	if err := switchCardTest(api, sid, destination.ID); err != nil {
 		t.Fatalf("SwitchAgent: %v", err)
 	}
 	var spawnDirs []byte
@@ -1479,7 +1474,7 @@ func TestServiceRelaunchPreservesSavedWorkspaceIdentity(t *testing.T) {
 			card := saveCard(t, repo.FileRepository, config.IDCard{
 				ID: "card", Name: "card", Driver: driverPath, WorkspaceID: sourceWorkspaceID, UseTmpWorkspace: sourceTmp,
 			})
-			sessionID, err := api.Launch(card)
+			sessionID, err := launchCardTest(api, card)
 			if err != nil {
 				t.Fatalf("launch: %v", err)
 			}
@@ -1497,7 +1492,7 @@ func TestServiceRelaunchPreservesSavedWorkspaceIdentity(t *testing.T) {
 			if _, err := repo.UpdateIDCard(card); err != nil {
 				t.Fatal(err)
 			}
-			if err := api.Relaunch(sessionID); err != nil {
+			if err := relaunchCardTest(api, sessionID); err != nil {
 				t.Fatalf("relaunch: %v", err)
 			}
 			waitForSpawnLog(t, spawnLog, 2)
@@ -1552,7 +1547,7 @@ func TestServiceActivationPersistenceFailuresKeepSessionsUsable(t *testing.T) {
 			var sid string
 			if operation != "launch" {
 				var err error
-				sid, err = api.Launch(card)
+				sid, err = launchCardTest(api, card)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -1578,13 +1573,13 @@ func TestServiceActivationPersistenceFailuresKeepSessionsUsable(t *testing.T) {
 			}
 			var err error
 			if operation == "launch" {
-				sid, err = api.Launch(card)
+				sid, err = launchCardTest(api, card)
 			}
 			if operation == "relaunch" {
-				err = api.Relaunch(sid)
+				err = relaunchCardTest(api, sid)
 			}
 			if operation == "switch" {
-				err = api.SwitchAgent(sid, card.ID)
+				err = switchCardTest(api, sid, card.ID)
 			}
 			if !errors.Is(err, session.ErrPersistFailed) {
 				t.Fatalf("%s error = %v, want ErrPersistFailed", operation, err)
@@ -1596,7 +1591,7 @@ func TestServiceActivationPersistenceFailuresKeepSessionsUsable(t *testing.T) {
 			if !ok || active.Status == session.StatusTerminated {
 				t.Fatalf("activation not usable after persistence failure: %#v, exists=%v", active, ok)
 			}
-			handle, err := sessions.Attach(sid)
+			handle, err := api.AttachInDashboard(DefaultDashboardID, sid)
 			if err != nil {
 				t.Fatalf("Attach after persistence failure: %v", err)
 			}
@@ -1605,33 +1600,71 @@ func TestServiceActivationPersistenceFailuresKeepSessionsUsable(t *testing.T) {
 	}
 }
 
-//nolint:govet // local error declarations keep each expected failure assertion readable.
-func TestServiceDeleteCardGuardsAndRepositoryErrors(t *testing.T) {
-	api, repo, sessions, _, workspaceID := newServiceFixture(t)
+type failingBeginCardRepository struct {
+	*testRepository
+
+	failure error
+}
+
+func (r *failingBeginCardRepository) BeginCardDeletionWithPending(card config.IDCard, pending []config.CardDeletionPending) error {
+	if r.failure != nil {
+		return r.failure
+	}
+	return r.testRepository.BeginCardDeletionWithPending(card, pending)
+}
+
+func TestServiceCardDeletionRequiresOwnershipAndRetainsSessions(t *testing.T) {
+	service, repo, sessions, _, workspaceID := newServiceFixture(t)
 	card := saveCard(t, repo.FileRepository, config.IDCard{ID: "referenced", Name: "referenced", Driver: "cat", WorkspaceID: workspaceID})
-	sid, err := api.Launch(card)
+	sid, err := launchCardTest(service, card)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.DeleteCard(card.ID); err == nil || !strings.Contains(err.Error(), "referenced by session(s) referenced") {
-		t.Fatalf("running reference was not refused: %v", err)
+	if _, err = service.PreflightCardDeletion("foreign", card.ID); err == nil {
+		t.Fatal("nonowner prepared deletion")
 	}
-	if err := sessions.Kill(sid); err != nil {
+	impact, err := service.PreflightCardDeletion(DefaultDashboardID, card.ID)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.DeleteCard(card.ID); err == nil {
-		t.Fatal("terminated-session reference was not refused")
+	if len(impact.Impact.Sessions) != 1 {
+		t.Fatalf("missing session impact: %+v", impact)
 	}
-	unreferenced := saveCard(t, repo.FileRepository, config.IDCard{ID: "free", Name: "free", Driver: "cat", WorkspaceID: workspaceID})
-	if err := api.DeleteCard(unreferenced.ID); err != nil {
-		t.Fatalf("delete unreferenced card: %v", err)
+	result, err := service.ConfirmCardDeletion(context.Background(), DefaultDashboardID, card.ID, impact.Token, false)
+	if err != nil || result.State != config.CardDeleted {
+		t.Fatalf("deletion: %+v %v", result, err)
 	}
-	if repo.deleteErr != nil {
-		t.Fatal("test setup unexpectedly had deletion error")
+	if snapshot, ok := sessions.GetSession(sid); !ok || snapshot.CardID != card.ID || snapshot.Status == session.StatusTerminated {
+		t.Fatal("referencing running session was not preserved")
 	}
-	repo.deleteErr = errors.New("write failed")
-	if err := api.DeleteCard("other"); !errors.Is(err, repo.deleteErr) {
-		t.Fatalf("repository deletion error not preserved: %v", err)
+	if _, err = launchCardTest(service, card); err == nil {
+		t.Fatal("deleted card launched")
+	}
+	free := saveCard(t, repo.FileRepository, config.IDCard{ID: "free", Name: "free", Driver: "cat", WorkspaceID: workspaceID})
+	failure := errors.New("injected intent write failure")
+	failing := New(&failingBeginCardRepository{testRepository: repo, failure: failure}, sessions)
+	next, err := failing.PreflightCardDeletion(DefaultDashboardID, free.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = failing.ConfirmCardDeletion(
+		context.Background(),
+		DefaultDashboardID,
+		free.ID,
+		next.Token,
+		false,
+	); !errors.Is(
+		err,
+		failure,
+	) {
+		t.Fatalf("intent failure: %v", err)
+	}
+	cards, err := repo.ListIDCards()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cards) != 1 || cards[0].ID != free.ID {
+		t.Fatalf("failed intent modified cards: %+v", cards)
 	}
 }
 
@@ -1641,11 +1674,11 @@ func TestServiceRemoveSessionDelegatesGuardsCleanupAndManagerErrors(t *testing.T
 	card := saveCard(t, repo.FileRepository, config.IDCard{
 		ID: "tmp", Name: "tmp", Driver: "cat", WorkspaceID: workspaceID, UseTmpWorkspace: true,
 	})
-	sid, err := api.Launch(card)
+	sid, err := launchCardTest(api, card)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := api.RemoveSession(sid); err == nil || !strings.Contains(err.Error(), "session still running") {
+	if err := removeSessionTest(api, sid); err == nil || !strings.Contains(err.Error(), "session still running") {
 		t.Fatalf("running removal not rejected: %v", err)
 	}
 	if err := sessions.Kill(sid); err != nil {
@@ -1655,7 +1688,7 @@ func TestServiceRemoveSessionDelegatesGuardsCleanupAndManagerErrors(t *testing.T
 	if _, err := os.Stat(snapshot.WorkingDir); err != nil {
 		t.Fatalf("temporary workspace missing before remove: %v", err)
 	}
-	if err := api.RemoveSession(sid); err != nil {
+	if err := removeSessionTest(api, sid); err != nil {
 		t.Fatalf("remove terminated session: %v", err)
 	}
 	if _, err := os.Stat(snapshot.WorkingDir); !errors.Is(err, os.ErrNotExist) {
@@ -1663,7 +1696,7 @@ func TestServiceRemoveSessionDelegatesGuardsCleanupAndManagerErrors(t *testing.T
 	}
 
 	failedCard := saveCard(t, repo.FileRepository, config.IDCard{ID: "cleanup", Name: "cleanup", Driver: "cat", WorkspaceID: workspaceID})
-	failedID, err := api.Launch(failedCard)
+	failedID, err := launchCardTest(api, failedCard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1680,7 +1713,7 @@ func TestServiceRemoveSessionDelegatesGuardsCleanupAndManagerErrors(t *testing.T
 	if err := os.WriteFile(filepath.Join(recordPath, "blocker"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := api.RemoveSession(failedID); err == nil {
+	if err := removeSessionTest(api, failedID); err == nil {
 		t.Fatal("expected session-record cleanup failure")
 	}
 	if _, ok := sessions.GetSession(failedID); ok {
@@ -1688,12 +1721,12 @@ func TestServiceRemoveSessionDelegatesGuardsCleanupAndManagerErrors(t *testing.T
 	}
 
 	closedCard := saveCard(t, repo.FileRepository, config.IDCard{ID: "closed", Name: "closed", Driver: "cat", WorkspaceID: workspaceID})
-	closedID, err := api.Launch(closedCard)
+	closedID, err := launchCardTest(api, closedCard)
 	if err != nil {
 		t.Fatal(err)
 	}
 	sessions.Shutdown()
-	if err := api.Relaunch(closedID); !errors.Is(err, session.ErrManagerClosed) {
+	if err := relaunchCardTest(api, closedID); !errors.Is(err, session.ErrManagerClosed) {
 		t.Fatalf("shutdown error not propagated through service: %v", err)
 	}
 }
@@ -1729,14 +1762,14 @@ func assertIDs(t *testing.T, got, want []string) {
 func TestServiceMissingSessionAndActivationErrorsRemainDistinct(t *testing.T) {
 	api, repo, sessions, _, workspaceID := newServiceFixture(t)
 	card := saveCard(t, repo.FileRepository, config.IDCard{ID: "card", Name: "card", Driver: "cat", WorkspaceID: workspaceID})
-	if err := api.Relaunch("missing"); err == nil || !strings.Contains(err.Error(), "session not found") {
+	if err := relaunchCardTest(api, "missing"); err == nil || !strings.Contains(err.Error(), "outside dashboard scope") {
 		t.Fatalf("missing session error = %v", err)
 	}
-	if err := api.SwitchAgent("missing", card.ID); err == nil || strings.Contains(err.Error(), "card not found") {
+	if err := switchCardTest(api, "missing", card.ID); err == nil || strings.Contains(err.Error(), "card not found") {
 		t.Fatalf("switch lifecycle error = %v", err)
 	}
 	repo.personasErr = errors.New("personas unavailable")
-	_, err := api.Launch(card)
+	_, err := launchCardTest(api, card)
 	if err == nil || !strings.HasPrefix(err.Error(), "list personas:") {
 		t.Fatalf("launch should abort on capability failure: %v", err)
 	}
@@ -1777,7 +1810,7 @@ func TestMessagingOperationsPinActivationsAndPersistExplicitReports(t *testing.T
 		config.IDCard{ID: "recipient", Name: "recipient", Driver: "cat", WorkspaceID: workspaceID,
 			MCPIDs: []string{config.BuiltinMCPKankuro}},
 	)
-	_, err = service.Launch(callerCard)
+	_, err = launchCardTest(service, callerCard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1797,7 +1830,7 @@ func TestMessagingOperationsPinActivationsAndPersistExplicitReports(t *testing.T
 		return strings.TrimPrefix(configFile.Servers["kankuro"].Headers["Authorization"], "Bearer ")
 	}
 	callerToken := tokenFromWorkspace()
-	recipientID, err := service.Launch(recipientCard)
+	recipientID, err := launchCardTest(service, recipientCard)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1857,7 +1890,7 @@ func TestMessagingOperationsPinActivationsAndPersistExplicitReports(t *testing.T
 	if err = manager.Kill(recipientID); err != nil {
 		t.Fatal(err)
 	}
-	if err = service.RemoveSession(recipientID); err != nil {
+	if err = removeSessionTest(service, recipientID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = service.GetMessage(callerToken, result.Result.MessageID); err == nil {

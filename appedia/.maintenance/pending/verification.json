@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-07",
+  "commit": "60e580829d169b3e283adc0efbd0f0a6ab767efb",
+  "status": "rebuilt and reviewed",
+  "build": "passed",
+  "sourceConsistency": {
+    "packages": 18,
+    "symbols": 1491,
+    "status": "passed"
+  },
+  "content": {
+    "flows": 55,
+    "rules": 28,
+    "tasks": 31,
+    "reviewedImpactItems": 367
+  },
+  "focusedNavigation": {
+    "routes": 143,
+    "errors": 0,
+    "includes": "Dependencies navigation and exact snapshot/table row comparison"
+  },
+  "screenshots": {
+    "generated": 16,
+    "inspected": [
+      "map-light",
+      "pkg-api-light",
+      "type-api.preparedDelivery.publish-dark",
+      "flow-reports-light",
+      "flow-notification-retry-dark",
+      "focus-api.preparedDelivery-light",
+      "dependencies-light",
+      "dependencies-dark"
+    ]
+  },
+  "fullRouteSmoke": "not rerun; user requested the long-running test be stopped",
+  "baselineAccepted": false,
+  "applicationSourceChanged": false,
+  "sha256": {
+    "data/content.js": "f3c37eb60a876ab2e5b0161c5c69d304f40d8df892954ee934773cd62b7278bc",
+    "data/model.js": "5d8803c3c6200e9f79374459718372583d54ea7272dca9f436733acac9cf8122",
+    "data/content-index.json": "43c98f1145c4917bc483a9e1128c5c50e63fae084a9d15596bd0f1f6a5ab6a50",
+    ".maintenance/pending/model.json": "71c3e85a665fc2ee70c56ad908cceb28977af477b38e75789f50ce238338231f",
+    ".maintenance/pending/candidate.json": "ebb69eb516f9356b68c37f4c61d6330f554704ed56de1ec406ed7f7da3874108",
+    ".maintenance/pending/impact.json": "900410b9ff7a20c62f7f1e0ea0317344f2adccb109c08529d93de2c73700950a",
+    ".maintenance/baseline.json": "5ebf4f1e9937e9a74441da4d467e88212a3277e1b397352398edc2b50537b5e1",
+    ".maintenance/baseline-model.json": "340e27dc95c37de6b38e10be1014784d5d5dacc57b0bd3dd26719a2cf6e09d74",
+    "appedia.js": "9e46eaa5c742b314fcd63c4898ce9339de20482e7f58824a9be3b20ebaf60261",
+    "appedia.css": "d17046b509aa183b3056e5bf2057dcfc81491a7005bde324e209e4f008ce4079",
+    "index.html": "64c3a94b6a0d5fcbd19b14c4d229efad8ea1df5ccdb53d80fb0fdb6400284c70",
+    "artifact.html": "4c1339c85d5b20aa6e7aad0d0efcd5cc022a500863e2db81ff7519af2aa4cf08",
+    ".maintenance/pending/dependencies.json": "e1d0c7f377388e5a8db61b2602526bc09fd059bed01e9aed2330eaf5a31ba3e7"
+  },
+  "dependencySnapshot": {
+    "checkedAt": "2026-11-07T10:59:15.023623+00:00",
+    "directDeclarations": 12,
+    "current": 5,
+    "outdated": 7,
+    "unknown": 0,
+    "source": "Go package manager metadata; no browser/search/registry HTTP collection",
+    "projectDependenciesModified": false
+  }
+}

@@ -16,26 +16,9 @@ import (
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
-// Contract (step 0 of impl_plan_2.md, reworked by impl_plan_5.md): CardEditor.View()
-// is BOUNDED. It is a plain top-to-bottom form with no border, so it does not
-// pad to its size: no line wider than the width it was given and no more lines
-// than the height it was given (the coordinator gives it terminal rows - 4, so
-// 20 rows on the 80x24 minimum terminal).
-//
-// Region contract: the form is title, text inputs, workspace/puppet lines, the
-// AGENTS.md row, then one capability list per visible section (Skills always,
-// Personas and MCPs by app settings), then the help line - and the help line
-// must be the LAST line for every combination. A section that is hidden must
-// really be gone while the form is not scrolled.
-//
-// When the form is taller than its box it scrolls: the focused block stays on
-// screen and a dim "more" row marks each cut edge
-// (TestCardEditorFocusedFieldAlwaysVisible). The sweep therefore only checks
-// the section list on forms that fit; the scroll tests check the rest.
-//
-// Seen to fail: the sweep was seen red at 80x20 before the form scrolled (the
-// form was 30 lines tall), when the Personas list was rendered regardless of
-// its setting, and when a trailing newline followed the help line.
+// The card editor stays within its assigned width and height. Hidden capability
+// sections occupy no rows, the help line stays last, and tall forms scroll to
+// keep the focused field visible.
 
 const moreAbove, moreBelow = "↑ more", "↓ more"
 

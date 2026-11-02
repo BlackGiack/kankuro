@@ -39,13 +39,16 @@ package app
 // compiler can drop, which leaves the race detector nothing to see.
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
@@ -61,7 +64,11 @@ type raceFixture struct {
 
 func newRaceFixture(t *testing.T, killSession bool) raceFixture {
 	t.Helper()
-	repo, err := config.NewFileRepository(t.TempDir())
+	root := t.TempDir()
+	if err := configstartup.PrepareStartup(root); err != nil {
+		t.Fatal(err)
+	}
+	repo, err := config.NewFileRepository(root)
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
@@ -77,7 +84,9 @@ func newRaceFixture(t *testing.T, killSession bool) raceFixture {
 
 	var first config.IDCard
 	for _, name := range []string{"race-a", "race-b"} {
-		created, createErr := repo.CreateIDCard(config.IDCard{Name: name, Driver: "cat", WorkspaceID: workspaces[0].ID})
+		created, createErr := repo.CreateIDCard(
+			config.IDCard{Name: name, Driver: "cat", WorkspaceID: workspaces[0].ID, DashboardID: "default"},
+		)
 		if createErr != nil {
 			t.Fatalf("create card %s: %v", name, createErr)
 		}
@@ -87,7 +96,8 @@ func newRaceFixture(t *testing.T, killSession bool) raceFixture {
 	}
 	card := first
 
-	sessionID, err := sm.Launch(card, nil, nil, nil)
+	service := api.New(repo, sm)
+	sessionID, err := service.LaunchInDashboard(context.Background(), "default", card.ID)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -97,8 +107,9 @@ func newRaceFixture(t *testing.T, killSession bool) raceFixture {
 		}
 	}
 
-	c := NewCoordinator(repo, sm)
+	c := NewCoordinator(repo, sm, service)
 	c.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	c.Update(messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}})
 	c.Update(c.refreshDataSeeded()())
 	return raceFixture{coord: c, sessionID: sessionID}
 }
@@ -108,10 +119,10 @@ func hammer(c *Coordinator) {
 	c.Update(raceNoopMsg{})
 	c.Update(messages.ErrorMsg{Err: errors.New("hammer")})
 	c.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	c.Update(messages.SettingsSavedMsg{Settings: config.DefaultAppSettings()})
-	c.Update(messages.NavigateMsg{View: messages.ViewSettings})
+	c.Update(messages.SettingsSavedMsg{Settings: config.DefaultAppSettings(), DashboardID: c.activeDashboard, Generation: c.viewGeneration})
+	c.Update(messages.ScopedNavigateMsg{View: messages.ViewSettings, DashboardID: c.activeDashboard, Generation: c.viewGeneration})
 	_ = c.View()
-	c.Update(messages.NavigateMsg{View: messages.ViewDashboard})
+	c.Update(messages.ScopedNavigateMsg{View: messages.ViewDashboard, DashboardID: c.activeDashboard, Generation: c.viewGeneration})
 	_ = c.View()
 }
 
@@ -213,6 +224,25 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 			want: isMsg(func(m tea.Msg) bool { _, ok := m.(configFingerprintMsg); return ok }),
 		},
 		{
+			name: "dashboard list save",
+			run: func(_ *testing.T, f raceFixture) tea.Cmd {
+				return f.coord.dashboardListCallbacks().Save("", "race dashboard", "")
+			},
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.DashboardMutationFinishedMsg); return ok }),
+		},
+		{
+			name: "asynchronous session name",
+			run: func(_ *testing.T, f raceFixture) tea.Cmd {
+				return f.coord.sessionLauncherCallbacks().OnSetNameAsync(f.sessionID, "race session")
+			},
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.ScopedSessionNamedMsg); return ok }),
+		},
+		{
+			name: "scoped attachment readiness",
+			run:  func(_ *testing.T, f raceFixture) tea.Cmd { return f.coord.requestAttach(f.sessionID) },
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.ScopedAttachReadyMsg); return ok }),
+		},
+		{
 			name: "launch card (Enter on the cards pane)",
 			run: func(_ *testing.T, f raceFixture) tea.Cmd {
 				_, cmd := f.coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -237,7 +267,7 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 				_, cmd := f.coord.Update(key("x"))
 				return cmd
 			},
-			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.DataRefreshRequestedMsg); return ok }),
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.ScopedActionFinishedMsg); return ok }),
 		},
 		{
 			name: "open IDE for the selected session",
@@ -246,17 +276,23 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 				_, cmd := f.coord.Update(key("o"))
 				return cmd
 			},
-			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.IDELaunchedMsg); return ok }),
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.ScopedActionFinishedMsg); return ok }),
 		},
 		{
 			name: "open terminal for the selected session",
 			run: func(_ *testing.T, f raceFixture) tea.Cmd {
-				f.coord.Update(messages.SettingsSavedMsg{Settings: config.AppSettings{TerminalCommand: "/bin/true"}})
+				f.coord.Update(
+					messages.SettingsSavedMsg{
+						Settings:    config.AppSettings{TerminalCommand: "/bin/true"},
+						DashboardID: f.coord.activeDashboard,
+						Generation:  f.coord.viewGeneration,
+					},
+				)
 				f.coord.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 				_, cmd := f.coord.Update(key("t"))
 				return cmd
 			},
-			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.TerminalLaunchedMsg); return ok }),
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.ScopedActionFinishedMsg); return ok }),
 		},
 		{
 			name:       "relaunch a terminated session (Enter on the sessions pane)",
@@ -272,7 +308,14 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 			name:       "switch agent on a terminated session",
 			killedSess: true,
 			run: func(t *testing.T, f raceFixture) tea.Cmd {
-				f.coord.Update(messages.AgentSwitchRequestedMsg{SessionID: f.sessionID, SessionName: "race"})
+				f.coord.Update(
+					messages.AgentSwitchRequestedMsg{
+						SessionID:   f.sessionID,
+						SessionName: "race",
+						DashboardID: f.coord.activeDashboard,
+						Generation:  f.coord.viewGeneration,
+					},
+				)
 				if f.coord.CurrentView() != ViewAgentSwitch {
 					t.Fatalf("expected the agent-switch view, got %v", f.coord.CurrentView())
 				}

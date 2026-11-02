@@ -88,6 +88,7 @@ func TestUpdateIDCardRefactored(t *testing.T) {
 	wsID := workspaces[0].ID
 
 	card := config.IDCard{
+		DashboardID: "default",
 		Name:        "Original",
 		Driver:      "cat",
 		WorkspaceID: wsID,

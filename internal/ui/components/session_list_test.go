@@ -35,6 +35,13 @@ func TestSessionList_New(t *testing.T) {
 	}
 }
 
+func TestSessionListShowsDeletedCardLabel(t *testing.T) {
+	item := components.SessionListItem{Session: session.Snapshot{CardID: "old-card", CardDeleted: true}}
+	if !strings.Contains(item.Description(), "deleted card: old-card") {
+		t.Fatalf("description: %q", item.Description())
+	}
+}
+
 func TestSessionList_SetSessions(t *testing.T) {
 	callbacks := components.SessionListCallbacks{}
 	sl := components.NewSessionList(callbacks)

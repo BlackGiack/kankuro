@@ -40,7 +40,7 @@ func newReplacementFixture(t *testing.T) replacementFixture {
 	manager.SetMCPEndpoint("http://127.0.0.1:12345/mcp")
 	t.Cleanup(func() { manager.Shutdown() })
 	sender := config.IDCard{ID: "sender", Name: "sender", Driver: "cat", WorkspaceID: workspaces[0].ID, DashboardControl: true}
-	senderID, err := manager.Launch(sender, nil, nil, config.BuiltinMCPs())
+	senderID, err := testLaunch(manager, sender, nil, nil, config.BuiltinMCPs())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func requireStartingAdmissionRejected(t *testing.T, f replacementFixture, activa
 
 func requireAttachmentOutput(t *testing.T, f replacementFixture, marker string) {
 	t.Helper()
-	handle, err := f.manager.Attach(f.id)
+	handle, err := testAttach(f.manager, f.id)
 	if err != nil {
 		t.Fatalf("attach while starting: %v", err)
 	}
@@ -173,7 +173,7 @@ func TestRelaunchAndDistinctCardSwitchGateMessageDelivery(t *testing.T) {
 	f := newReplacementFixture(t)
 	name := "custom session"
 	runReplacement(t, func() error {
-		_, err := f.manager.LaunchWithIDContext(context.Background(), f.id, f.original, nil, nil, config.BuiltinMCPs(), &name)
+		_, err := testLaunchWithIDContext(f.manager, context.Background(), f.id, f.original, nil, nil, config.BuiltinMCPs(), &name)
 		return err
 	})
 	firstTimer := nextReplacementTimer(t, f.clock)
@@ -184,14 +184,14 @@ func TestRelaunchAndDistinctCardSwitchGateMessageDelivery(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitStartupSignal(t, firstTimer.stopped)
-	runReplacement(t, func() error { return f.manager.Relaunch(f.id, f.original) })
+	runReplacement(t, func() error { return testRelaunch(f.manager, f.id, f.original) })
 	secondTimer := nextReplacementTimer(t, f.clock)
 	assertReplacement(t, f, first, firstTimer, secondTimer, f.original.ID, "relaunch output marker")
 
 	if err := f.manager.Kill(f.id); err != nil {
 		t.Fatal(err)
 	}
-	runReplacement(t, func() error { return f.manager.Relaunch(f.id, f.original) })
+	runReplacement(t, func() error { return testRelaunch(f.manager, f.id, f.original) })
 	thirdTimer := nextReplacementTimer(t, f.clock)
 	third, _ := f.manager.GetSession(f.id)
 	requireStartingAdmissionRejected(t, f, third.ActivationID)
@@ -200,7 +200,7 @@ func TestRelaunchAndDistinctCardSwitchGateMessageDelivery(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitStartupSignal(t, thirdTimer.stopped)
-	runReplacement(t, func() error { return f.manager.SwitchAgent(f.id, f.replacement, nil, nil, config.BuiltinMCPs()) })
+	runReplacement(t, func() error { return testSwitchAgent(f.manager, f.id, f.replacement, nil, nil, config.BuiltinMCPs()) })
 	fourthTimer := nextReplacementTimer(t, f.clock)
 	fourth := assertReplacement(t, f, third, thirdTimer, fourthTimer, f.replacement.ID, "switch output marker")
 	if fourth.ActivationID == first.ActivationID {

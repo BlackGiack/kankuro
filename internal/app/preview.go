@@ -42,11 +42,8 @@ func (p *previewSub) subscribe(id string) ([]byte, tea.Cmd) {
 	return scrollback, p.next()
 }
 
-// unsubscribe drops the subscription and forgets the session. The ID is
-// cleared together with the channel so a SessionOutputMsg already queued for
-// the session we just left cannot still match accepts after we've navigated
-// away - otherwise the handler would re-arm next on a nil channel (see
-// debt_impl_plan_4.md #12/#17).
+// unsubscribe clears the session ID and subscription together so queued output
+// from the previous selection cannot rearm a stale subscription.
 func (p *previewSub) unsubscribe() {
 	p.release()
 	p.sessionID = ""

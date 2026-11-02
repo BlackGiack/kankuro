@@ -15,23 +15,8 @@ import (
 	"github.com/BlackGiack/kankuro/internal/ui/uitest"
 )
 
-// Contract (step 0 of impl_plan_2.md): SessionPreview.View() is BOUNDED. The
-// header block is as wide as its text and the scrollback block below it is
-// exactly the preview width, so the render is not a uniform rectangle; the
-// dashboard pane pads it. What the preview owes its parent is: no line wider
-// than the width it was given and no more lines than the height it was given.
-// It owes that by itself - Dashboard.renderPreviewPane also clamps, but that
-// clamp is a backstop that must not be what makes the preview fit (see
-// TestSessionPreviewFitsWithoutParentClamp).
-//
-// Region contract: below the header (name, status badge, ID, WS, Started,
-// Card, blank, side by side with the puppet) comes a full-width rule, then the
-// tail of the scrollback. When the pane is tall enough to show the body, that
-// rule must be on the screen and the last meaningful line must be visible.
-//
-// Seen to fail: with the clampToSize call removed from renderPreview the
-// sweep goes red (long lines and oversized puppets spill) while the dashboard
-// would still look fine - see TestSessionPreviewFitsWithoutParentClamp.
+// Session previews must fit without relying on their parent's clamp. When space
+// permits, the scrollback rule and last meaningful content line remain visible.
 
 // previewBodyMinHeight is the height from which the header (at most 7 rows)
 // leaves room for a scrollback rule and at least one content row.

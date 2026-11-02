@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,7 +31,14 @@ type CardRepository interface {
 	ListIDCards() ([]IDCard, error)
 	CreateIDCard(card IDCard) (IDCard, error)
 	UpdateIDCard(card IDCard) (IDCard, error)
-	DeleteIDCard(id string) error
+}
+
+// DashboardRepository provides inventory operations; cascading deletion is
+// coordinated separately with session and card lifecycle admission.
+type DashboardRepository interface {
+	ListDashboards() ([]Dashboard, error)
+	CreateDashboard(Dashboard) (Dashboard, error)
+	UpdateDashboardDetails(id, name, description string) (Dashboard, error)
 }
 
 // WorkspaceRepository defines persistence operations for workspaces.
@@ -105,12 +113,16 @@ type PuppetRepository interface {
 // operations for a specific domain.
 type Repository interface {
 	CardRepository
+	DashboardRepository
 	WorkspaceRepository
 	SkillRepository
 	PersonaRepository
 	MCPRepository
 	SettingsRepository
 	PuppetRepository
+	ListCardTombstones() ([]CardTombstone, error)
+	ListDashboardDeletions() ([]DashboardDeletion, error)
+	ListDashboardTombstones() ([]DashboardTombstone, error)
 	Dir() string
 	Fingerprint() (map[string]FileStamp, error)
 }
@@ -131,21 +143,47 @@ type FileRepository struct {
 	mu  sync.Mutex
 }
 
-// NewFileRepository creates the repository and bootstraps empty YAML files when missing.
-func NewFileRepository(dir string) (*FileRepository, error) {
+// ResolveDirectory returns the effective config root without creating it.
+func ResolveDirectory(dir string) (string, error) {
 	if dir == "" {
 		cfg, err := os.UserConfigDir()
 		if err != nil {
-			return nil, fmt.Errorf("resolve user config dir: %w", err)
+			return "", fmt.Errorf("resolve user config dir: %w", err)
 		}
 		dir = filepath.Join(cfg, "kankuro")
 	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, fmt.Errorf("create config dir: %w", err)
+	return dir, nil
+}
+
+// OpenExistingFileRepository opens an existing root without creating or
+// normalizing files. It is used for validation before application startup.
+func OpenExistingFileRepository(dir string) (*FileRepository, error) {
+	resolved, err := ResolveDirectory(dir)
+	if err != nil {
+		return nil, err
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, errors.New("config root is not a directory")
+	}
+	return &FileRepository{dir: resolved}, nil
+}
+
+// NewFileRepository creates the repository and bootstraps empty YAML files when missing.
+func NewFileRepository(dir string) (*FileRepository, error) {
+	dir, err := ResolveDirectory(dir)
+	if err != nil {
+		return nil, err
+	}
+	if mkdirErr := os.MkdirAll(dir, 0o700); mkdirErr != nil {
+		return nil, fmt.Errorf("create config dir: %w", mkdirErr)
 	}
 	r := &FileRepository{dir: dir}
-	if err := r.EnsureFiles(); err != nil {
-		return nil, err
+	if ensureErr := r.EnsureFiles(); ensureErr != nil {
+		return nil, ensureErr
 	}
 	return r, nil
 }
@@ -156,7 +194,7 @@ func (r *FileRepository) Dir() string { return r.dir }
 // EnsureFiles guarantees that all expected config files exist.
 func (r *FileRepository) EnsureFiles() error {
 	idCardsPath := filepath.Join(r.dir, IDCardsFilename)
-	idCardsDefault := IDCardsFile{SchemaVersion: SchemaVersion, IDCards: []IDCard{}}
+	idCardsDefault := IDCardsFile{SchemaVersion: CardSchemaVersion, IDCards: []IDCard{}}
 	if err := r.EnsureYAML(idCardsPath, idCardsDefault); err != nil {
 		return err
 	}

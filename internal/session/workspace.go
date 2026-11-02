@@ -20,6 +20,12 @@ func (m *Manager) tmpRoot() string {
 	return filepath.Join(m.configDir, "tmp")
 }
 
+// TemporaryWorkspaceRoot returns the effective root used for new session copies.
+// Deletion manifests record resolved paths rather than recomputing this on retry.
+func (m *Manager) TemporaryWorkspaceRoot() (string, error) {
+	return filepath.Abs(m.tmpRoot())
+}
+
 func (m *Manager) prepareWorkspace(
 	ctx context.Context,
 	sid string,

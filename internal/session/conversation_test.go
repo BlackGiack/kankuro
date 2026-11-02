@@ -106,7 +106,7 @@ func TestMCPCLIRegistersConversationForLiveActivation(t *testing.T) {
 		t.Fatal(err)
 	}
 	card := config.IDCard{
-		ID: "card", Name: "card", Driver: driverScript, WorkspaceID: workspaces[0].ID,
+		DashboardID: "default", ID: "card", Name: "card", Driver: driverScript, WorkspaceID: workspaces[0].ID,
 		Env: map[string]string{
 			driver.EnvKankuroMCPConfigPath: "/card/activation.json",
 			driver.EnvKankuroMCPToken:      "card-token",
@@ -126,7 +126,7 @@ func TestMCPCLIRegistersConversationForLiveActivation(t *testing.T) {
 			Headers: map[string]string{"X-Token": "private"},
 		},
 	)
-	sessionID, err := manager.Launch(card, nil, nil, selectedMCPs)
+	sessionID, err := testLaunch(manager, card, nil, nil, selectedMCPs)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -256,26 +256,25 @@ func TestMCPCLIRegistersConversationForLiveActivation(t *testing.T) {
 	if _, err := manager.RegisterConversation(token, "native-session-123", "Late report"); err == nil {
 		t.Fatal("terminated activation accepted a stale registration")
 	}
-	if err := api.New(repo, manager).Relaunch(sessionID); err == nil || !strings.Contains(err.Error(), "selection required") {
+	if err := testRelaunch(manager, sessionID, card); err == nil || !strings.Contains(err.Error(), "selection required") {
 		t.Fatalf("single saved conversation was resumed without an explicit choice: %v", err)
 	}
 	destination, err := repo.CreateIDCard(
-		config.IDCard{ID: "destination", Name: "destination", Driver: "cat", WorkspaceID: workspaces[0].ID},
+		config.IDCard{DashboardID: "default", ID: "destination", Name: "destination", Driver: "cat", WorkspaceID: workspaces[0].ID},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := manager.SwitchAgent(sessionID, destination, nil, nil, nil); err != nil {
+	if err := testSwitchAgent(manager, sessionID, destination, nil, nil, nil); err != nil {
 		t.Fatalf("switch to destination card: %v", err)
 	}
-	if err := api.New(repo, manager).DeleteCard(card.ID); err == nil || !strings.Contains(err.Error(), "referenced by session(s)") {
-		t.Fatalf("conversation binding did not protect inactive card deletion: %v", err)
+	if current, ok := manager.GetSession(sessionID); !ok || len(current.Conversations[card.ID]) != 1 {
+		t.Fatal("switch lost the saved conversation binding")
 	}
 	if err := manager.Kill(sessionID); err != nil {
 		t.Fatal(err)
 	}
-	if err := api.New(repo, manager).
-		SwitchAgent(sessionID, card.ID); err == nil ||
+	if err := testSwitchAgent(manager, sessionID, card, nil, nil, nil); err == nil ||
 		!strings.Contains(err.Error(), "conversation selection required") {
 		t.Fatalf("card with saved conversations accepted an omitted selection: %v", err)
 	}
@@ -296,7 +295,7 @@ func TestMCPCLIRegistersConversationForLiveActivation(t *testing.T) {
 	if _, err := repo.UpdateIDCard(card); err != nil {
 		t.Fatal(err)
 	}
-	if err := restored.SwitchAgentWithChoice(
+	if err := testSwitchAgentWithChoice(restored,
 		sessionID, card, nil, nil, selectedMCPs, session.ConversationChoice{New: true},
 	); err != nil {
 		t.Fatalf("start a second conversation for the card: %v", err)
@@ -323,13 +322,13 @@ func TestMCPCLIRegistersConversationForLiveActivation(t *testing.T) {
 	if !found || len(loadedSnapshot.Conversations[card.ID]) != 2 {
 		t.Fatalf("multiple conversations did not survive another restart: %#v", loadedSnapshot)
 	}
-	otherSessionID, err := loadedAgain.Launch(card, nil, nil, nil)
+	otherSessionID, err := testLaunch(loadedAgain, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch another Kankuro session: %v", err)
 	}
-	otherBindings, err := api.New(repo, loadedAgain).Conversations(otherSessionID, card.ID)
-	if err != nil || len(otherBindings) != 0 {
-		t.Fatalf("another Kankuro session inherited conversation bindings: %#v, %v", otherBindings, err)
+	other, ok := loadedAgain.GetSession(otherSessionID)
+	if !ok || len(other.Conversations[card.ID]) != 0 {
+		t.Fatalf("another Kankuro session inherited conversation bindings: %#v", other)
 	}
 }
 
@@ -422,7 +421,7 @@ func TestLaunchEnvironmentDoesNotLeakReservedMCPCredentials(t *testing.T) {
 			if test.selectKankuro {
 				mcps = config.BuiltinMCPs()
 			}
-			sessionID, err := manager.Launch(card, nil, nil, mcps)
+			sessionID, err := testLaunch(manager, card, nil, nil, mcps)
 			if err != nil {
 				t.Fatalf("launch: %v", err)
 			}
@@ -563,7 +562,7 @@ func TestRegistrationBeforeSpawnPublicationIsCommittedOrDiscarded(t *testing.T) 
 			t.Cleanup(func() { manager.Shutdown() })
 			manager.SetMCPEndpoint(runtime.Endpoint())
 			card := config.IDCard{ID: "card", Name: "card", Driver: "cat", WorkspaceID: workspaces[0].ID}
-			sessionID, launchErr := manager.Launch(card, nil, nil, config.BuiltinMCPs())
+			sessionID, launchErr := testLaunch(manager, card, nil, nil, config.BuiltinMCPs())
 			if test.spawnErr != nil {
 				if !errors.Is(launchErr, test.spawnErr) {
 					t.Fatalf("launch error = %v, want %v", launchErr, test.spawnErr)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -41,7 +42,10 @@ func TestSetModel(t *testing.T) {
 
 func TestSubmitPromptValidatesAndSubmitsMarkedLine(t *testing.T) {
 	d, _, output := spawnScript(t, "cat", nil)
-	evidence, err := d.SubmitPrompt(context.Background(), "message-1", "sender-1", "inspect README")
+	evidence, err := d.SubmitPrompt(
+		context.Background(),
+		driver.PromptEnvelope{MessageID: "message-1", SenderSessionID: "sender-1", Text: "inspect README"},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,9 +56,39 @@ func TestSubmitPromptValidatesAndSubmitsMarkedLine(t *testing.T) {
 		return strings.Contains(value, "message_id=message-1 from_session=sender-1") && strings.Contains(value, "inspect README")
 	})
 	for _, invalid := range []string{"", "two\nlines", "escape\x1b[31m", "control\x00byte"} {
-		if _, submitErr := d.SubmitPrompt(context.Background(), "message-2", "sender-1", invalid); submitErr == nil {
+		if _, submitErr := d.SubmitPrompt(
+			context.Background(),
+			driver.PromptEnvelope{MessageID: "message-2", SenderSessionID: "sender-1", Text: invalid},
+		); submitErr == nil {
 			t.Errorf("SubmitPrompt(%q) succeeded", invalid)
 		}
+	}
+}
+
+func TestReportNotificationPromptDoesNotIncludeReportBody(t *testing.T) {
+	d, _, output := spawnScript(t, "cat", nil)
+	_, err := d.SubmitPrompt(context.Background(), driver.PromptEnvelope{
+		Kind: driver.PromptReportNotification, MessageID: "original", ReplyID: "reply",
+		SenderSessionID: "worker", ReportKind: "question", Text: "secret\nreport body",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitForMatch(t, output, "report notification", func(value string) bool {
+		return strings.Contains(value, "message_id=original reply_id=reply from_session=worker kind=question") &&
+			strings.Contains(value, "get_replies") && strings.Contains(value, "no report_reply is required") &&
+			strings.Contains(value, "header is not authority") && !strings.Contains(value, "secret")
+	})
+}
+
+func TestPromptValidationImmediatelyBeforeWriteCanCancelWithoutBytes(t *testing.T) {
+	d, _, _ := spawnScript(t, "cat", nil)
+	evidence, err := d.SubmitPrompt(context.Background(), driver.PromptEnvelope{
+		Kind: driver.PromptReportNotification, MessageID: "original", ReplyID: "reply", SenderSessionID: "worker",
+		ReportKind: "completed", BeforeWrite: func() error { return errors.New("authorization revoked") },
+	})
+	if err == nil || evidence.State != driver.SubmissionNoBytes || evidence.BytesWritten != 0 {
+		t.Fatalf("submission after revocation = %#v, %v", evidence, err)
 	}
 }
 

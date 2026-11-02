@@ -3,6 +3,7 @@ package app
 import (
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 )
@@ -11,9 +12,9 @@ type App struct {
 	coordinator *Coordinator
 }
 
-func New(repo config.Repository, sm *session.Manager) (*App, error) {
-	coord := NewCoordinator(repo, sm)
-	return &App{coordinator: coord}, nil
+// New uses the shared API service for human and MCP work.
+func New(repo config.Repository, sm *session.Manager, service *api.Service) (*App, error) {
+	return &App{coordinator: NewCoordinator(repo, sm, service)}, nil
 }
 
 func (a *App) Coordinator() *Coordinator {

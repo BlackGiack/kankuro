@@ -26,7 +26,7 @@ func TestLoadSessionsSkipsCorruptButReportsError(t *testing.T) {
 		Driver:      "cat",
 		WorkspaceID: workspaces[0].ID,
 	}
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestSaveSessionIsAtomic(t *testing.T) {
 
 	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{ID: "card-atomic", Name: "atomic", Driver: "cat", WorkspaceID: workspaces[0].ID}
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestLoadSessionsIgnoresLeftoverTempFiles(t *testing.T) {
 
 	sm := newTestManager(t, repo.Dir(), repo)
 	card := config.IDCard{ID: "card-leftover", Name: "leftover", Driver: "cat", WorkspaceID: workspaces[0].ID}
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}

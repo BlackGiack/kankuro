@@ -29,25 +29,27 @@ const (
 	ViewSessionLauncher
 	ViewAgentSwitch
 	ViewConversationChoice
+	ViewDashboardList
 )
 
 type Coordinator struct {
 	// --- coordinator-goroutine state: never read or written from a tea.Cmd closure ---
-	currentView ViewType
-	prevView    ViewType
-	views       map[ViewType]component.Model
-	width       int
-	height      int
-	err         error
-	settings    config.AppSettings
-	preview     previewSub
+	currentView          ViewType
+	prevView             ViewType
+	views                map[ViewType]component.Model
+	width                int
+	height               int
+	err                  error
+	settings             config.AppSettings
+	preview              previewSub
+	activeDashboard      string
+	viewGeneration       uint64
+	dashboardListRequest uint64
+	dashboardViews       map[string]*views.Dashboard
+	editingCard          config.IDCard
 
-	// configFingerprint is the mtime+size marker of every registry file as
-	// of the last config load, used by the idle tick to skip re-reading
-	// unchanged YAML - see maybeRefreshConfig and debt_impl_plan_5.md step
-	// 1. Seeded by refreshDataSeeded (Init and every mutation path), so it
-	// is nil only until that first result arrives, or if Fingerprint itself
-	// failed. maybeRefreshConfig hands it to the refresher by value.
+	// configFingerprint tracks the last loaded registry stamps. Seeded refreshes
+	// update the baseline; idle ticks skip configuration reads when it is unchanged.
 	configFingerprint map[string]config.FileStamp
 
 	// --- safe from any goroutine: concurrency-safe handles, and helpers that
@@ -58,15 +60,16 @@ type Coordinator struct {
 	actions sessionActions
 }
 
-func NewCoordinator(repo config.Repository, sm *session.Manager) *Coordinator {
+func NewCoordinator(repo config.Repository, sm *session.Manager, service *api.Service) *Coordinator {
 	c := &Coordinator{
-		repo:        repo,
-		session:     sm,
-		preview:     previewSub{sessions: sm},
-		refresh:     refresher{repo: repo, sessions: sm},
-		actions:     sessionActions{repo: repo, sessions: sm, service: api.New(repo, sm)},
-		views:       make(map[ViewType]component.Model),
-		currentView: ViewDashboard,
+		repo:           repo,
+		session:        sm,
+		preview:        previewSub{sessions: sm},
+		refresh:        refresher{repo: repo, sessions: sm},
+		actions:        sessionActions{repo: repo, sessions: sm, service: service},
+		views:          make(map[ViewType]component.Model),
+		currentView:    ViewDashboardList,
+		dashboardViews: make(map[string]*views.Dashboard),
 	}
 
 	settings, err := repo.GetAppSettings()
@@ -76,6 +79,7 @@ func NewCoordinator(repo config.Repository, sm *session.Manager) *Coordinator {
 	c.settings = settings
 
 	c.initViews()
+	c.views[ViewDashboardList] = views.NewDashboardList(c.dashboardListCallbacks())
 	return c
 }
 
@@ -94,11 +98,6 @@ func (c *Coordinator) Views() map[ViewType]component.Model {
 	return c.views
 }
 
-// NavigateTo changes the current view.
-func (c *Coordinator) NavigateTo(vt ViewType) tea.Cmd {
-	return c.navigateTo(vt)
-}
-
 // Width returns the coordinator width.
 func (c *Coordinator) Width() int {
 	return c.width
@@ -109,55 +108,22 @@ func (c *Coordinator) Height() int {
 	return c.height
 }
 
-// ResizeAll triggers a resize of all views.
-func (c *Coordinator) ResizeAll() {
-	c.resizeAll()
-}
-
-// DashboardCallbacks returns the dashboard callbacks.
-func (c *Coordinator) DashboardCallbacks() views.DashboardCallbacks {
-	return c.dashboardCallbacks()
-}
-
-// SourceManagerCallbacks returns the source manager callbacks for a given type.
-func (c *Coordinator) SourceManagerCallbacks(st views.SourceType) views.SourceManagerCallbacks {
-	return c.sourceManagerCallbacks(st)
-}
-
-// AgentSwitchCallbacks returns the agent-switch view callbacks.
-func (c *Coordinator) AgentSwitchCallbacks() views.AgentSwitchCallbacks {
-	return c.agentSwitchCallbacks()
-}
-
-// RefreshData triggers a data refresh. It is a test helper: real callers
-// inside the coordinator use refreshDataSeeded, which additionally seeds the
-// idle tick's fingerprint baseline (see debt_impl_plan_5.md review finding
-// 2 in review_dp_5.md). This wraps the unseeded refreshData so tests get one
-// deterministic DataLoadedMsg back without also driving a configFingerprintMsg.
-func (c *Coordinator) RefreshData() tea.Cmd {
-	return c.refreshData()
-}
-
 // Err returns the current error, if any.
 func (c *Coordinator) Err() error {
 	return c.err
 }
 
 func (c *Coordinator) Init() tea.Cmd {
-	// Also run the initial view's own Init (the dashboard's, at startup):
-	// navigating between views already does this via navigateTo, but
-	// nothing previously ran it for the view Coordinator starts on, so
-	// Dashboard.Init's transition-only work (disabling the Kitty keyboard
-	// protocol left on by a previous run that died mid-attach; see
-	// review_dp_4.md finding 2) never fired at cold start. This also
-	// belatedly runs cardList/sessionList/preview.Init(), which had the same
-	// gap.
+	// Initialize the entry view so terminal setup runs before the first frame.
 	var initialViewCmd tea.Cmd
 	if view, ok := c.views[c.currentView]; ok {
 		initialViewCmd = view.Init()
 	}
+	var dashboardListCmd = c.refreshDashboardList()
+
 	return tea.Batch(
 		initialViewCmd,
+		dashboardListCmd,
 		c.refreshDataSeeded(),
 		tick(),
 		c.refresh.syncPuppets(),
@@ -194,7 +160,7 @@ func (c *Coordinator) Update(msg tea.Msg) (*Coordinator, tea.Cmd) {
 	return c, cmd
 }
 
-//nolint:funlen // Central message router keeps ordering-sensitive app transitions together.
+//nolint:funlen,gocognit,gocyclo,cyclop // Central message router keeps ordering-sensitive app transitions together.
 func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -204,10 +170,79 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, nil
 
 	case tickMsg:
-		// Sessions (in-memory) refresh every tick; config (YAML on disk)
-		// only refreshes when maybeRefreshConfig's mtime check says a
-		// registry file actually changed - see debt_impl_plan_5.md step 1.
-		return true, tea.Batch(c.refreshSessions(), c.maybeRefreshConfig(), tick())
+		// Refresh scoped sessions every tick; reread configuration only when its
+		// fingerprint changes.
+		var listCmd tea.Cmd
+		if c.currentView == ViewDashboardList {
+			listCmd = c.refreshDashboardList()
+		}
+		return true, tea.Batch(c.refreshSessions(), c.maybeRefreshConfig(), listCmd, tick())
+
+	case messages.DashboardListLoadedMsg:
+
+		if m.RequestID != c.dashboardListRequest {
+			return true, nil
+		}
+		if m.Err != nil {
+			c.err = m.Err
+			return true, nil
+		}
+		if view, ok := c.views[ViewDashboardList].(*views.DashboardList); ok {
+			view.SetDashboards(m.Dashboards)
+		}
+		return true, nil
+
+	case messages.DashboardMutationFinishedMsg:
+		if m.Generation != c.viewGeneration {
+			return true, nil
+		}
+		if m.Err != nil {
+			c.err = m.Err
+		}
+		return true, c.refreshDashboardList()
+
+	case messages.CardDeletionPreparedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || c.currentView != ViewDashboard {
+			return true, nil
+		}
+		if m.Err != nil {
+			c.err = m.Err
+			return true, nil
+		}
+		if m.RequiresForeignConfirmation {
+			if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+				dashboard.ShowCardDeletionImpact(m.CardID, m.Token, m.Summary)
+			}
+			return true, nil
+		}
+		return true, confirmCardDeletionCommand(c.actions.service, m.DashboardID, m.CardID, m.Token, m.Generation, false)
+
+	case messages.DashboardOpenRequestedMsg:
+		if c.currentView != ViewDashboardList || m.Generation != c.viewGeneration || m.Dashboard.ID == "" ||
+			m.Dashboard.State != config.DashboardActive {
+			return true, nil
+		}
+		c.activeDashboard = m.Dashboard.ID
+		c.viewGeneration++
+		dashboard := c.dashboardViews[m.Dashboard.ID]
+		if dashboard == nil {
+			dashboard = views.NewDashboard(c.dashboardCallbacks())
+			c.dashboardViews[m.Dashboard.ID] = dashboard
+		}
+		dashboard.SetDashboardName(m.Dashboard.Name)
+		dashboard.SetDashboardScope(m.Dashboard.ID, c.viewGeneration)
+		dashboard.SetSize(c.width, c.height-views.CoordinatorRows)
+		c.views[ViewDashboard] = dashboard
+		return true, tea.Batch(c.navigateTo(ViewDashboard), c.refreshDataSeeded())
+
+	case messages.DashboardListRequestedMsg:
+
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, nil
+		}
+		c.activeDashboard = ""
+		c.viewGeneration++
+		return true, tea.Batch(c.navigateTo(ViewDashboardList), c.refreshDashboardList())
 
 	case configFingerprintMsg:
 		return true, c.handleConfigFingerprint(m)
@@ -218,13 +253,19 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 	case messages.PuppetsSyncedMsg:
 		return true, c.refreshDataSeeded()
 
-	case messages.NavigateMsg:
+	case messages.ScopedNavigateMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, nil
+		}
 		return true, c.navigateTo(convertViewType(m.View))
 
 	case messages.NavigateBackMsg:
 		return true, c.navigateTo(c.prevView)
 
 	case messages.CardSavedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, nil
+		}
 		if m.Err != nil {
 			c.err = m.Err
 			return true, nil
@@ -232,6 +273,9 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, tea.Batch(c.refreshDataSeeded(), c.navigateTo(ViewDashboard))
 
 	case messages.MCPSavedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, c.refreshDataSeeded()
+		}
 		if m.Err != nil {
 			c.err = m.Err
 			return true, nil
@@ -240,6 +284,15 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, tea.Batch(c.refreshDataSeeded(), c.navigateTo(c.prevView))
 
 	case messages.SettingsSavedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			if m.Err == nil {
+				c.settings = m.Settings
+				if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
+					editor.SetSettings(m.Settings)
+				}
+			}
+			return true, c.refreshDataSeeded()
+		}
 		if m.Err != nil {
 			c.err = m.Err
 			return true, nil
@@ -269,23 +322,12 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 	case messages.ClearErrorMsg:
 		c.err = nil
 		return true, nil
-
-	case messages.IDELaunchedMsg:
-		return c.handleWorkspaceCommandResult(m.Err)
-	case messages.TerminalLaunchedMsg:
-		return c.handleWorkspaceCommandResult(m.Err)
 	}
 
 	return c.handleSessionMessages(msg)
 }
 
-func (c *Coordinator) handleWorkspaceCommandResult(err error) (bool, tea.Cmd) {
-	if err != nil {
-		c.err = err
-	}
-	return true, nil
-}
-
+//nolint:gocognit,gocyclo,cyclop,funlen // Session message routing preserves scoped transitions.
 func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 	switch m := msg.(type) {
 	case messages.DataLoadedMsg:
@@ -301,6 +343,9 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, c.handleSessionOutput(m)
 
 	case messages.SessionLaunchCompletedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, nil
+		}
 		launcher, ok := c.views[ViewSessionLauncher].(*views.SessionLauncher)
 		if ok {
 			launcher.SetLaunchResult(m.SessionID, m.Err)
@@ -308,6 +353,9 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, c.refreshDataSeeded()
 
 	case messages.AgentSwitchRequestedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, nil
+		}
 		switchView, ok := c.views[ViewAgentSwitch].(*views.AgentSwitchView)
 		if ok {
 			switchView.SetSession(m.SessionID, m.SessionName)
@@ -315,12 +363,21 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, c.navigateTo(ViewAgentSwitch)
 
 	case messages.ConversationChoiceRequestedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, nil
+		}
 		return true, c.handleConversationChoiceRequested(m)
 
 	case messages.AgentSwitchedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, nil
+		}
 		return true, c.handleAgentSwitched(m)
 
 	case messages.SessionAttachRequestedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, nil
+		}
 		// Navigate here, not in the callback that produced this message
 		// (invariant 2, see navigateTo's doc comment).
 		var initCmd tea.Cmd
@@ -330,9 +387,51 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		if m.Warning != nil {
 			c.err = m.Warning
 		}
-		return true, tea.Batch(initCmd, c.attachSession(m.SessionID))
+		return true, tea.Batch(initCmd, c.requestAttach(m.SessionID))
+
+	case messages.ScopedAttachReadyMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			if m.Handle != nil {
+				m.Handle.Close()
+			}
+			return true, nil
+		}
+		if m.Err != nil {
+			c.err = m.Err
+			return true, nil
+		}
+		if m.Handle == nil {
+			c.err = errors.New("attachment unavailable")
+			return true, nil
+		}
+		return true, scopedAttachCommand(m)
+
+	case messages.ScopedSessionNamedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration ||
+			c.currentView != ViewSessionLauncher {
+			return true, nil
+		}
+		if launcher, ok := c.views[ViewSessionLauncher].(*views.SessionLauncher); ok {
+			launcher.SetNameResult(m.Err)
+		}
+		if m.Err != nil {
+			return true, nil
+		}
+		return true, tea.Batch(c.navigateTo(ViewDashboard), c.requestAttach(m.SessionID))
+
+	case messages.ScopedActionFinishedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, nil
+		}
+		if m.Err != nil {
+			c.err = m.Err
+		}
+		return true, c.refreshDataSeeded()
 
 	case messages.AttachFinishedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, nil
+		}
 		if m.Err != nil {
 			c.err = m.Err
 		}
@@ -346,6 +445,10 @@ func (c *Coordinator) handleConversationChoiceRequested(m messages.ConversationC
 	snapshot, found := c.session.GetSession(m.SessionID)
 	if !found {
 		c.err = fmt.Errorf("session not found: %s", m.SessionID)
+		return nil
+	}
+	if snapshot.DashboardID != c.activeDashboard {
+		c.err = errors.New("session is outside dashboard scope")
 		return nil
 	}
 	if snapshot.Status != session.StatusTerminated {
@@ -454,7 +557,12 @@ func (c *Coordinator) handleAgentSwitched(m messages.AgentSwitchedMsg) tea.Cmd {
 	return tea.Batch(
 		c.refreshDataSeeded(),
 		func() tea.Msg {
-			return messages.SessionAttachRequestedMsg{SessionID: m.SessionID, Warning: m.Err}
+			return messages.SessionAttachRequestedMsg{
+				SessionID:   m.SessionID,
+				Warning:     m.Err,
+				DashboardID: m.DashboardID,
+				Generation:  m.Generation,
+			}
 		},
 	)
 }

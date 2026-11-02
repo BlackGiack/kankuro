@@ -160,6 +160,7 @@ func TestRepositoryConcurrentMixedOperationsNoDeadlock(t *testing.T) {
 		wg.Add(4)
 		go worker(func() error {
 			_, createErr := repo.CreateIDCard(config.IDCard{
+				DashboardID: "default",
 				Name:        fmt.Sprintf("card-%d", i),
 				Driver:      "cat",
 				WorkspaceID: wsID,

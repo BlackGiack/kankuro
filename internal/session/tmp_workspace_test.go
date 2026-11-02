@@ -44,7 +44,7 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	}
 
 	// 1. Launch
-	sid, err := sm.Launch(card, nil, nil, nil)
+	sid, err := testLaunch(sm, card, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestTmpWorkspaceLifecycle(t *testing.T) {
 	}
 
 	// 5. Relaunch
-	if errRelaunch := sm.Relaunch(sid, card); errRelaunch != nil {
+	if errRelaunch := testRelaunch(sm, sid, card); errRelaunch != nil {
 		t.Fatalf("relaunch: %v", errRelaunch)
 	}
 
@@ -171,7 +171,7 @@ func TestSwitchAgentReplacesSkillsInTmpWorkspace(t *testing.T) {
 	skills1 := []config.Skill{
 		{ID: "s1", Name: "alpha-skill", Source: skill1Dir},
 	}
-	sid, err := sm.Launch(card1, skills1, nil, nil)
+	sid, err := testLaunch(sm, card1, skills1, nil, nil)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestSwitchAgentReplacesSkillsInTmpWorkspace(t *testing.T) {
 	skills2 := []config.Skill{
 		{ID: "s2", Name: "beta-skill", Source: skill2Dir},
 	}
-	if errSwitch := sm.SwitchAgent(sid, card2, skills2, nil, nil); errSwitch != nil {
+	if errSwitch := testSwitchAgent(sm, sid, card2, skills2, nil, nil); errSwitch != nil {
 		t.Fatalf("switch: %v", errSwitch)
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -236,7 +236,7 @@ func TestTmpWorkspaceDefaultsUnderConfigDir(t *testing.T) {
 	workspaces, _ := repo.ListWorkspaces()
 	sm := newTestManager(t, configDir, repo)
 
-	sid, err := sm.Launch(config.IDCard{
+	sid, err := testLaunch(sm, config.IDCard{
 		ID:              "card-default-tmp",
 		Name:            "default-tmp",
 		Driver:          "cat",

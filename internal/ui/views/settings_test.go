@@ -213,14 +213,18 @@ func TestSettingsView_CancelEdit(t *testing.T) {
 }
 
 func TestSettingsView_NavigateDashboard(t *testing.T) {
-	v := views.NewSettingsView(views.SettingsCallbacks{})
+	v := views.NewSettingsView(views.SettingsCallbacks{OnBack: func() tea.Cmd {
+		return func() tea.Msg {
+			return messages.ScopedNavigateMsg{View: messages.ViewDashboard, DashboardID: "default", Generation: 1}
+		}
+	}})
 	_, cmd := v.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 
 	if cmd == nil {
 		t.Fatal("expected NavigateMsg command")
 	}
 	msg := cmd()
-	nav, ok := msg.(messages.NavigateMsg)
+	nav, ok := msg.(messages.ScopedNavigateMsg)
 	if !ok {
 		t.Fatalf("expected NavigateMsg, got %T", msg)
 	}

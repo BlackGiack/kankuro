@@ -11,19 +11,8 @@ import (
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 )
 
-// Contract (bonus_impl_plan.md, part B): a CapabilityList that was given a
-// height renders EXACTLY that many lines in every state, and the row each
-// element sits on depends on the size and on the unfiltered item count only,
-// never on the cursor or the search:
-//
-//	row 0     the header
-//	rows 1..  the body, Height-1 rows. When the list fits, items start on
-//	          row 1. When it overflows (and the body has 3+ rows) the first and
-//	          last body rows are reserved for "  ..." (blank when nothing is cut
-//	          off on that side) and items sit between them.
-//
-// Seen to fail: before the fix a list scrolled to the middle rendered Height+1
-// rows, and a search matching 1 item or none rendered 2.
+// Capability lists render exactly their assigned height. Row positions depend
+// on size and unfiltered item count, not the cursor or search results.
 
 type capItem struct{ id string }
 

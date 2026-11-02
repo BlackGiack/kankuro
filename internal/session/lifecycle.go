@@ -66,7 +66,6 @@ func (m *Manager) syncDriverFiles(
 	instructionMode driver.InstructionSyncMode,
 ) (driver.AgentDriver, bool, error) {
 	if clearTmp {
-		// TODO: if other names become relevant, implement a more elegant way of handling this
 		agentDirs := []string{".agents", ".claude"}
 		if d.GetAgentFolder() != agentDirs[0] && d.GetAgentFolder() != agentDirs[1] {
 			agentDirs = append(agentDirs, d.GetAgentFolder())
@@ -97,30 +96,36 @@ func (m *Manager) syncDriverFiles(
 	return d, instructionsManaged, nil
 }
 
-func (m *Manager) Launch(card config.IDCard, skills []config.Skill, personas []config.Persona, mcps []config.MCPServer) (string, error) {
-	return m.LaunchWithID(uuid.NewString(), card, skills, personas, mcps)
-}
-
-// LaunchWithID starts a new session using an ID allocated by Kankuro's
-// operation journal. External callers must not choose session identities.
-func (m *Manager) LaunchWithID(
-	sid string,
-	card config.IDCard,
-	skills []config.Skill,
-	personas []config.Persona,
-	mcps []config.MCPServer,
-) (string, error) {
-	return m.LaunchWithIDContext(context.Background(), sid, card, skills, personas, mcps)
-}
-
-// LaunchWithIDContext starts an activation that can be cancelled before publication.
-func (m *Manager) LaunchWithIDContext(
+// LaunchInDashboardWithIDContext captures membership before publication. The
+// caller must reserve the card reference and validate availability under admission.
+// The publication check runs under the manager lock and must not call the manager.
+func (m *Manager) LaunchInDashboardWithIDContext(
 	ctx context.Context,
-	sid string,
+	sid, dashboardID string,
 	card config.IDCard,
 	skills []config.Skill,
 	personas []config.Persona,
 	mcps []config.MCPServer,
+	publicationCheck func([]Snapshot) error,
+	name ...*string,
+) (string, error) {
+	if strings.TrimSpace(dashboardID) == "" {
+		return "", errors.New("dashboard ID is required")
+	}
+	if publicationCheck == nil {
+		return "", errors.New("dashboard publication check is required")
+	}
+	return m.launchWithIDContext(ctx, sid, dashboardID, card, skills, personas, mcps, publicationCheck, name...)
+}
+
+func (m *Manager) launchWithIDContext(
+	ctx context.Context,
+	sid, dashboardID string,
+	card config.IDCard,
+	skills []config.Skill,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+	publicationCheck func([]Snapshot) error,
 	name ...*string,
 ) (string, error) {
 	if _, err := uuid.Parse(sid); err != nil {
@@ -151,7 +156,7 @@ func (m *Manager) LaunchWithIDContext(
 		m.mu.Unlock()
 		m.activations.Done()
 	}()
-	return sid, m.startSession(ctx, sid, card, skills, personas, mcps, true, "", "", nil, "", name)
+	return sid, m.startSession(ctx, sid, dashboardID, card, skills, personas, mcps, true, "", "", nil, "", publicationCheck, name)
 }
 
 // activationSnapshot holds the session fields Relaunch/SwitchAgent need while
@@ -244,7 +249,7 @@ func (m *Manager) reserveForActivation(
 	m.activations.Add(1)
 	return activationSnapshot{
 		WorkingDir: s.WorkingDir, OriginalDir: s.OriginalDir,
-		UseTmpWorkspace: s.UseTmpWorkspace, InstructionOwnership: sessionInstructionOwnership(s),
+		UseTmpWorkspace: s.UseTmpWorkspace, InstructionOwnership: cloneInstructionOwnership(s.InstructionOwnership),
 		KankuroMCPEnabled: s.KankuroMCPEnabled,
 		DashboardControl:  s.DashboardControl,
 	}, conversationID, nil
@@ -296,25 +301,18 @@ func (m *Manager) releaseActivation(id string) {
 	}
 }
 
-// Relaunch restarts a terminated session using its existing workspace (if tmp).
-func (m *Manager) Relaunch(id string, card config.IDCard) error {
-	return m.RelaunchWithChoice(id, card, ConversationChoice{})
-}
-
-func (m *Manager) RelaunchWithChoice(
-	id string,
-	card config.IDCard,
-	choice ConversationChoice,
+// RelaunchWithChoiceCheckedContext rechecks scope before activation publication.
+func (m *Manager) RelaunchWithChoiceCheckedContext(
+	ctx context.Context, id string, card config.IDCard, choice ConversationChoice, publicationCheck func([]Snapshot) error,
 ) error {
-	return m.RelaunchWithChoiceContext(context.Background(), id, card, choice)
+	if publicationCheck == nil {
+		return errors.New("dashboard publication check is required")
+	}
+	return m.relaunchWithChoiceContext(ctx, id, card, choice, publicationCheck)
 }
 
-// RelaunchWithChoiceContext propagates cancellation through workspace preparation.
-func (m *Manager) RelaunchWithChoiceContext(
-	ctx context.Context,
-	id string,
-	card config.IDCard,
-	choice ConversationChoice,
+func (m *Manager) relaunchWithChoiceContext(
+	ctx context.Context, id string, card config.IDCard, choice ConversationChoice, publicationCheck func([]Snapshot) error,
 ) error {
 	snap, conversationID, err := m.reserveForActivation(id, card.ID, card.Driver, "session is already running", choice)
 	if err != nil {
@@ -330,6 +328,7 @@ func (m *Manager) RelaunchWithChoiceContext(
 	err = m.startSession(
 		ctx,
 		id,
+		"",
 		card,
 		nil,
 		nil,
@@ -339,6 +338,7 @@ func (m *Manager) RelaunchWithChoiceContext(
 		snap.OriginalDir,
 		snap.InstructionOwnership,
 		conversationID,
+		publicationCheck,
 		nil,
 	)
 	// ErrPersistFailed means the activation did happen (and already cleared
@@ -349,32 +349,9 @@ func (m *Manager) RelaunchWithChoiceContext(
 	return err
 }
 
-// SwitchAgent restarts a terminated session using its existing workspace, but with a new agent card.
-func (m *Manager) SwitchAgent(
-	id string,
-	card config.IDCard,
-	skills []config.Skill,
-	personas []config.Persona,
-	mcps []config.MCPServer,
-) error {
-	return m.SwitchAgentWithChoice(id, card, skills, personas, mcps, ConversationChoice{})
-}
-
-func (m *Manager) SwitchAgentWithChoice(
-	id string,
-	card config.IDCard,
-	skills []config.Skill,
-	personas []config.Persona,
-	mcps []config.MCPServer,
-	choice ConversationChoice,
-) error {
-	return m.SwitchAgentWithChoiceContext(context.Background(), id, card, skills, personas, mcps, choice)
-}
-
-// SwitchAgentWithChoiceContext propagates cancellation until activation publication.
-//
-//nolint:gocognit,funlen // Reservation, rollback, spawn publication, and persistence form one activation transaction.
-func (m *Manager) SwitchAgentWithChoiceContext(
+// SwitchAgentWithChoiceCheckedContext revalidates membership under the manager
+// lock immediately before publishing the destination activation.
+func (m *Manager) SwitchAgentWithChoiceCheckedContext(
 	ctx context.Context,
 	id string,
 	card config.IDCard,
@@ -382,6 +359,24 @@ func (m *Manager) SwitchAgentWithChoiceContext(
 	personas []config.Persona,
 	mcps []config.MCPServer,
 	choice ConversationChoice,
+	publicationCheck func([]Snapshot) error,
+) error {
+	if publicationCheck == nil {
+		return errors.New("dashboard publication check is required")
+	}
+	return m.switchAgentWithChoiceContext(ctx, id, card, skills, personas, mcps, choice, publicationCheck)
+}
+
+//nolint:gocognit,funlen // Reservation, rollback, spawn publication, and persistence form one activation transaction.
+func (m *Manager) switchAgentWithChoiceContext(
+	ctx context.Context,
+	id string,
+	card config.IDCard,
+	skills []config.Skill,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+	choice ConversationChoice,
+	publicationCheck func([]Snapshot) error,
 ) (returnErr error) {
 	snap, conversationID, err := m.reserveForActivation(
 		id,
@@ -440,7 +435,7 @@ func (m *Manager) SwitchAgentWithChoiceContext(
 		return ctxErr
 	}
 
-	token, tokenErr := m.prepareActivationMCPConfig(id, card, d, mcps, conversationID, finalWD, false)
+	token, tokenErr := m.prepareActivationMCPConfig(id, "", card, d, mcps, conversationID, finalWD, false)
 	if tokenErr != nil {
 		return tokenErr
 	}
@@ -497,6 +492,14 @@ func (m *Manager) SwitchAgentWithChoiceContext(
 	if !ok {
 		m.mu.Unlock()
 		return errors.Join(fmt.Errorf("%w: %s", ErrSessionNotFound, id), teardownUnpublished(d, h.Output))
+	}
+	if checkErr := publicationCheck(m.listLocked()); checkErr != nil {
+		m.mu.Unlock()
+		return errors.Join(checkErr, teardownUnpublished(d, h.Output))
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		m.mu.Unlock()
+		return errors.Join(ctxErr, teardownUnpublished(d, h.Output))
 	}
 	select {
 	case <-h.Done:
@@ -582,6 +585,7 @@ func validateSessionWorkspace(path string) error {
 func (m *Manager) startSession(
 	ctx context.Context,
 	sid string,
+	dashboardID string,
 	card config.IDCard,
 	skills []config.Skill,
 	personas []config.Persona,
@@ -591,13 +595,18 @@ func (m *Manager) startSession(
 	originalOverride string,
 	previousInstructionOwnership map[string]bool,
 	conversationID string,
+	publicationCheck func([]Snapshot) error,
 	name []*string,
 ) (returnErr error) {
 	var wd, finalWD string
+	//nolint:nestif // Resolve and reserve the workspace before any launch effects.
 	if isNew {
 		var err error
 		wd, err = m.resolveWorkspacePath(card, workspaceOverride)
 		if err != nil {
+			return err
+		}
+		if err = m.bindPendingWorkspace(ctx, card.ID, sid, wd, card.UseTmpWorkspace, publicationCheck); err != nil {
 			return err
 		}
 		var errPrep error
@@ -635,7 +644,7 @@ func (m *Manager) startSession(
 		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, ctxErr)
 	}
 
-	token, tokenErr := m.prepareActivationMCPConfig(sid, card, d, mcps, conversationID, finalWD, !isNew)
+	token, tokenErr := m.prepareActivationMCPConfig(sid, dashboardID, card, d, mcps, conversationID, finalWD, !isNew)
 	if tokenErr != nil {
 		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, tokenErr)
 	}
@@ -695,6 +704,14 @@ func (m *Manager) startSession(
 		m.mu.Unlock()
 		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ErrManagerClosed, teardownUnpublished(d, h.Output)))
 	}
+	if checkErr := publicationCheck(m.listLocked()); checkErr != nil {
+		m.mu.Unlock()
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(checkErr, teardownUnpublished(d, h.Output)))
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		m.mu.Unlock()
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ctxErr, teardownUnpublished(d, h.Output)))
+	}
 	select {
 	case <-h.Done:
 		m.mu.Unlock()
@@ -712,6 +729,7 @@ func (m *Manager) startSession(
 	if !exists {
 		s = &Session{
 			ID:          sid,
+			DashboardID: dashboardID,
 			Subscribers: make(map[chan []byte]struct{}),
 		}
 		s.Name = card.Name
@@ -824,6 +842,7 @@ func (m *Manager) activateSessionLocked(
 	now time.Time,
 ) {
 	s.generation++
+	m.cardReferenceRevision++
 	s.activating = false
 	s.CardID = card.ID
 	s.PID = pid
@@ -851,13 +870,8 @@ func (m *Manager) persistSessionLockedErr(s *Session) error {
 	return nil
 }
 
-// persistSessionLocked is the background-safe variant: failures cannot
-// propagate to a caller (e.g. the watch ticker), so they are logged instead
-// of discarded. See debt_impl_plan_2.md step 3 for the logging decision:
-// callers must never log unconditionally to stderr (it corrupts the
-// rendered TUI frame), so this goes through the Manager's injected logger
-// (WithLogger), which main.go points at the debug log file, or discards
-// entirely when --debug is not set.
+// persistSessionLocked logs background persistence failures through the injected logger.
+// This keeps diagnostics off stderr while the TUI owns the terminal.
 func (m *Manager) persistSessionLocked(s *Session) {
 	if err := m.persistSessionLockedErr(s); err != nil {
 		m.logger.Warn("session persist failed", "session_id", s.ID, "error", err)
@@ -981,7 +995,7 @@ type RemovalResult struct {
 
 // RemoveDetailed reports each deletion effect independently.
 //
-//nolint:funlen // Reservation, retryable cleanup, and deletion form one transaction.
+//nolint:funlen,gocognit // Reservation, retryable cleanup, and deletion form one transaction.
 func (m *Manager) RemoveDetailed(id string) (RemovalResult, error) {
 	m.mu.Lock()
 	s, ok := m.sessions[id]
@@ -1015,7 +1029,16 @@ func (m *Manager) RemoveDetailed(id string) (RemovalResult, error) {
 	workingDir := s.WorkingDir
 	m.mu.Unlock()
 
+	var temporaryRoot string
 	if tmp {
+		var pathErr error
+		temporaryRoot, pathErr = savedTemporaryRoot(id, workingDir)
+		if pathErr != nil {
+			m.mu.Lock()
+			s.deleting = false
+			m.mu.Unlock()
+			return RemovalResult{}, pathErr
+		}
 		if trustErr := driver.RemoveWorkspaceTrust(context.Background(), workingDir); trustErr != nil {
 			m.mu.Lock()
 			s.deleting = false
@@ -1040,10 +1063,7 @@ func (m *Manager) RemoveDetailed(id string) (RemovalResult, error) {
 
 	var rmErr error
 	if tmp {
-		sessionRoot := filepath.Join(m.tmpRoot(), id)
-		// G703: Path traversal via taint analysis.
-		// sessionRoot is derived from managed ID.
-		rmErr = os.RemoveAll(sessionRoot)
+		rmErr = os.RemoveAll(temporaryRoot)
 	}
 
 	// Always drop the in-memory session so the UI does not wedge on a row it
@@ -1051,6 +1071,7 @@ func (m *Manager) RemoveDetailed(id string) (RemovalResult, error) {
 	m.mu.Lock()
 	if m.sessions[id] == s {
 		delete(m.sessions, id)
+		m.cardReferenceRevision++
 	}
 	m.mu.Unlock()
 	if m.messages != nil {
@@ -1071,6 +1092,18 @@ func (m *Manager) RemoveDetailed(id string) (RemovalResult, error) {
 	}
 	return RemovalResult{InMemoryRemoved: true, SessionRecordDeleted: deleteErr == nil,
 		TemporaryWorkspaceRemoved: tmp && rmErr == nil}, errors.Join(errs...)
+}
+
+func savedTemporaryRoot(id, workingDir string) (string, error) {
+	path, err := filepath.Abs(workingDir)
+	if err != nil {
+		return "", err
+	}
+	root := filepath.Dir(path)
+	if id == "" || id == "." || id == ".." || filepath.Base(root) != id || filepath.Dir(root) == root {
+		return "", errors.New("invalid saved temporary workspace path")
+	}
+	return root, nil
 }
 
 // RunningCount reports how many sessions are running or waiting, so a caller

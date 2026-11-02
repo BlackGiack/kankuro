@@ -41,6 +41,7 @@ const (
 type SettingsCallbacks struct {
 	OnSave              func(settings config.AppSettings) tea.Cmd
 	OnOpenPuppetSources func() tea.Cmd
+	OnBack              func() tea.Cmd
 }
 
 type SettingsView struct {
@@ -120,7 +121,10 @@ func (s *SettingsView) updateDisplay(msg tea.Msg) (component.Model, tea.Cmd) {
 
 	switch keyMsg.Code {
 	case tea.KeyEsc:
-		return s, func() tea.Msg { return messages.NavigateMsg{View: messages.ViewDashboard} }
+		if s.callbacks.OnBack != nil {
+			return s, s.callbacks.OnBack()
+		}
+		return s, nil
 	case tea.KeyEnter:
 		s.startEdit()
 		return s, nil

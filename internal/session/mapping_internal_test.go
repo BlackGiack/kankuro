@@ -7,18 +7,8 @@ import (
 	"time"
 )
 
-// TestDataRoundTripCopiesEveryField is the sibling of
-// TestSnapshotCoversPersistedFields (mapping_test.go): that test checks that
-// every Data field exists *by name* on Session and Snapshot. It says nothing
-// about whether the hand-written mapping functions next to the type
-// declarations - data(), restore(), snapshot() - actually copy each field's
-// *value*. A field can pass the name-presence test and still be silently
-// dropped from disk (or from a snapshot) if a mapper body forgets it, which
-// is exactly the failure mode finding #9 in tech_debt_founding.md describes.
-//
-// This lives in an internal (package session) test file, unlike its sibling,
-// because it calls the unexported data()/snapshot() methods and Data.restore()
-// directly.
+// TestDataRoundTripCopiesEveryField checks values through data, restore and snapshot.
+// Name-presence checks alone cannot detect a field omitted by a mapper.
 func TestDataRoundTripCopiesEveryField(t *testing.T) {
 	dataType := reflect.TypeFor[Data]()
 
@@ -30,12 +20,12 @@ func TestDataRoundTripCopiesEveryField(t *testing.T) {
 		// Status is deliberately excluded: restore() forces Terminated
 		// because a process cannot survive a restart, so it never round-trips.
 		assertFieldsMatch(t, dataType, reflect.ValueOf(src).Elem(), reflect.ValueOf(got).Elem(),
-			map[string]bool{"Status": true})
+			map[string]bool{"Status": true, "SchemaVersion": true})
 	})
 
 	t.Run("snapshot", func(t *testing.T) {
 		got := src.snapshot()
-		assertFieldsMatch(t, dataType, reflect.ValueOf(src).Elem(), reflect.ValueOf(&got).Elem(), nil)
+		assertFieldsMatch(t, dataType, reflect.ValueOf(src).Elem(), reflect.ValueOf(&got).Elem(), map[string]bool{"SchemaVersion": true})
 	})
 }
 
@@ -47,6 +37,9 @@ func fillNonZero(t *testing.T, dst reflect.Value, fieldsFrom reflect.Type) {
 	t.Helper()
 	i := 0
 	for field := range fieldsFrom.Fields() {
+		if field.Name == "SchemaVersion" { // Disk format metadata, not session state.
+			continue
+		}
 		i++
 		target := dst.FieldByName(field.Name)
 		if !target.IsValid() || !target.CanSet() {

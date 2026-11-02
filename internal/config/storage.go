@@ -58,11 +58,12 @@ type FileStamp struct {
 	Size    int64
 }
 
-// registryFiles lists the files refreshConfig actually reads. Kept next to
-// Fingerprint (not in the caller) so the coordinator never has to know
-// filenames - see debt_impl_plan_5.md step 1.
+// registryFiles centralizes the configuration files covered by Fingerprint.
 func registryFiles() []string {
 	return []string{
+		DashboardsFilename,
+		CardTombstonesFilename,
+		DashboardTombstonesFilename,
 		IDCardsFilename,
 		SkillsFilename,
 		PersonasFilename,

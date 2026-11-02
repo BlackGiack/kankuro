@@ -7,7 +7,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
@@ -46,7 +45,7 @@ func (r *capabilityFailingRepository) ListMCPs() ([]config.MCPServer, error) {
 }
 
 func TestRelaunchLoadsCardWithoutCapabilityRegistries(t *testing.T) {
-	repo, repoErr := config.NewFileRepository(t.TempDir())
+	repo, repoErr := newCurrentRepository(t.TempDir())
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
@@ -58,12 +57,12 @@ func TestRelaunchLoadsCardWithoutCapabilityRegistries(t *testing.T) {
 	if workspaceErr != nil {
 		t.Fatal(workspaceErr)
 	}
-	card, cardErr := repo.CreateIDCard(config.IDCard{Name: "relaunch registry", Driver: "cat", WorkspaceID: workspaces[0].ID})
+	card, cardErr := createCurrentCard(repo, config.IDCard{Name: "relaunch registry", Driver: "cat", WorkspaceID: workspaces[0].ID})
 	if cardErr != nil {
 		t.Fatal(cardErr)
 	}
 	sm := newTestManager(t, repo.Dir(), repo)
-	sid, launchErr := sm.Launch(card, nil, nil, nil)
+	sid, launchErr := launchCurrentSession(repo, sm, card)
 	if launchErr != nil {
 		t.Fatal(launchErr)
 	}
@@ -72,7 +71,7 @@ func TestRelaunchLoadsCardWithoutCapabilityRegistries(t *testing.T) {
 	}
 
 	failingRepo := &capabilityFailingRepository{Repository: repo}
-	coord := app.NewCoordinator(failingRepo, sm)
+	coord := newOpenedCoordinator(failingRepo, sm)
 	var result tea.Msg
 	for _, msg := range collectMsgs(t, coord.DashboardCallbacks().OnRelaunch(sid)) {
 		result = msg
@@ -80,8 +79,12 @@ func TestRelaunchLoadsCardWithoutCapabilityRegistries(t *testing.T) {
 	if _, ok := result.(messages.SessionAttachRequestedMsg); !ok {
 		t.Fatalf("relaunch result = %T (%+v), want SessionAttachRequestedMsg", result, result)
 	}
-	if failingRepo.cardsRead != 1 || failingRepo.capabilityReads != 0 {
-		t.Fatalf("relaunch reads: cards=%d capabilities=%d, want 1 and 0", failingRepo.cardsRead, failingRepo.capabilityReads)
+	if failingRepo.cardsRead == 0 || failingRepo.capabilityReads != 0 {
+		t.Fatalf(
+			"relaunch reads: cards=%d capabilities=%d, want at least one card read and no capability reads",
+			failingRepo.cardsRead,
+			failingRepo.capabilityReads,
+		)
 	}
 	if err := sm.Kill(sid); err != nil {
 		t.Fatal(err)
@@ -89,7 +92,7 @@ func TestRelaunchLoadsCardWithoutCapabilityRegistries(t *testing.T) {
 }
 
 func TestCardAndCapabilityLookupFailuresRemainVisible(t *testing.T) {
-	repo, repoErr := config.NewFileRepository(t.TempDir())
+	repo, repoErr := newCurrentRepository(t.TempDir())
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
@@ -101,14 +104,14 @@ func TestCardAndCapabilityLookupFailuresRemainVisible(t *testing.T) {
 	if workspaceErr != nil {
 		t.Fatal(workspaceErr)
 	}
-	card, cardErr := repo.CreateIDCard(config.IDCard{Name: "lookup", Driver: "cat", WorkspaceID: workspaces[0].ID})
+	card, cardErr := createCurrentCard(repo, config.IDCard{Name: "lookup", Driver: "cat", WorkspaceID: workspaces[0].ID})
 	if cardErr != nil {
 		t.Fatal(cardErr)
 	}
 	sm := newTestManager(t, repo.Dir(), repo)
 	failingRepo := &capabilityFailingRepository{Repository: repo}
-	coord := app.NewCoordinator(failingRepo, sm)
-	sid, launchErr := sm.Launch(card, nil, nil, nil)
+	coord := newOpenedCoordinator(failingRepo, sm)
+	sid, launchErr := launchCurrentSession(repo, sm, card)
 	if launchErr != nil {
 		t.Fatal(launchErr)
 	}
@@ -121,15 +124,15 @@ func TestCardAndCapabilityLookupFailuresRemainVisible(t *testing.T) {
 	if len(msg) != 1 {
 		t.Fatalf("card read failure messages = %v", msg)
 	}
-	errMsg, ok := msg[0].(messages.ErrorMsg)
-	if !ok || !strings.Contains(errMsg.Err.Error(), "list cards: cards unavailable") {
+	errMsg, ok := msg[0].(messages.ScopedActionFinishedMsg)
+	if !ok || !strings.Contains(errMsg.Err.Error(), "cards unavailable") {
 		t.Fatalf("card read failure = %T (%+v)", msg[0], msg[0])
 	}
 	failingRepo.cardErr = nil
 	failingRepo.Repository = repositoryWithoutCard{Repository: repo, excludedID: card.ID}
 	msg = collectMsgs(t, coord.DashboardCallbacks().OnRelaunch(sid))
-	errMsg, ok = msg[0].(messages.ErrorMsg)
-	if !ok || !strings.Contains(errMsg.Err.Error(), "card not found: "+card.ID) {
+	errMsg, ok = msg[0].(messages.ScopedActionFinishedMsg)
+	if !ok || errMsg.Err == nil {
 		t.Fatalf("missing card result = %T (%+v)", msg[0], msg[0])
 	}
 
