@@ -1,4 +1,4 @@
-package layout
+package configstartup
 
 import (
 	"fmt"
@@ -12,8 +12,7 @@ import (
 // removed: unlinking it while another process waits would permit split locks.
 type Lock struct{ file *os.File }
 
-// AcquireLock obtains a nonblocking exclusive lock. It must eventually be used
-// by both application startup and migration before either accesses the layout.
+// AcquireLock obtains a nonblocking exclusive lock for the configuration root.
 func AcquireLock(dir string) (*Lock, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("create config directory: %w", err)
@@ -24,7 +23,7 @@ func AcquireLock(dir string) (*Lock, error) {
 	}
 	if errAt25 := unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB); errAt25 != nil {
 		_ = file.Close()
-		return nil, fmt.Errorf("acquire layout lock (stop other Kankuro or migration processes): %w", errAt25)
+		return nil, fmt.Errorf("acquire layout lock (another Kankuro process may be using this configuration): %w", errAt25)
 	}
 	return &Lock{file: file}, nil
 }

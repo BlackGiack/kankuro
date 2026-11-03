@@ -14,28 +14,8 @@ import (
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
-// Contract (step 0 of impl_plan_2.md, reworked by impl_plan_5.md D). The card
-// editor renders a modal as a REPLACEMENT for the form, never as a composite
-// over it, so "an overflowing modal corrupts the view underneath" really means
-// "the modal is larger than the screen, so lipgloss.Place passes it through
-// unpadded and unclipped".
-//
-// All three modals go through CardEditor.renderWithOverlay =
-// lipgloss.Place(W, H, centre, centre, modal), so the contract, asserted through
-// the editor, is EXACT: while any modal is open the editor's View is exactly
-// W x H - the screen does not jump when a modal opens. A modal larger than the
-// screen would come out larger than W x H, which is what the *StaysWithin*
-// sweeps catch (and what the user puppet, the long AGENTS.md line and the
-// 20-row editor used to do). The modals' own boxes are exact too, at the width
-// each one declares (TestWorkspacePickerModalIsAnExactBox,
-// TestAgentsMDEditorModalHonoursItsWidth).
-//
-// Seen to fail: before impl_plan_5.md the workspace picker (returned bare),
-// puppet selector (width from the art) and the three AGENTS.md tests (box 6
-// columns too wide, wrapped rows, 22 rows tall) all failed; the bounded sweeps
-// and exact-box tests were seen red by making the workspace picker's box 2 rows
-// taller, the AGENTS.md text area 10 rows taller, and the puppet selector's
-// padding 30 columns wider.
+// Card-editor modals replace the form and render within an exact screen-sized overlay.
+// The modal boxes must also honor their declared dimensions.
 
 // modalSizes are view sizes for terminals from 80x24 to 160x60 (rows minus
 // views.CoordinatorRows).
@@ -322,17 +302,8 @@ func TestPuppetSelectorScrollsToTheCursor(t *testing.T) {
 	}
 }
 
-// Contract (bonus_impl_plan.md, part A): the workspace picker keeps its
-// elements in place. The column of the title, of the first item, of the page
-// dots and of the legend (measured from the box's left border) and the row of
-// the legend depend on the size of the picker only - not on which page is shown
-// or on whether a search is active. Shape tests above check that the box fits;
-// these check where things are.
-//
-// Seen to fail: the list was padded to its widest line and joined centred, so
-// the list block and the legend moved sideways from page to page (columns
-// 7/4/6/2 became 5/2/4/2 and the legend 4, 5, 7, 8, 10), and the legend moved
-// down a row when a search started.
+// Workspace-picker title, items, pagination and legend keep their positions
+// across page changes and searches.
 
 // mixedWorkspaces has short paths on the first and last pages and long ones in
 // the middle, so the widest line on a page changes as it is paged through.

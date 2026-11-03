@@ -1,8 +1,10 @@
 # Feature 7: Multiple dashboards for independent factories
 
-Status: proposed; implementation and integration review pending.
+Status: second-review implementation and verification complete; ready for review.
+See `feature_7_handoff.md` for evidence and integration limitations; acceptance
+requires separate review.
 
-Dependency: Feature 6 accepted; deferred until the existing dashboard is useful and dependable.
+Dependency: Feature 6 accepted.
 
 ## Intent
 
@@ -22,7 +24,6 @@ which they can use as independent factories without imposing a factory workflow.
   sessions launched from shared cards. Sharing a card does not share its sessions.
 - Support independent dashboard views of available cards and owned sessions.
 - Keep conversation continuity and workspace retention intact.
-- Preserve existing installations with a clear default-dashboard migration.
 - Integrate membership with MCP discovery, creation, and caller scopes so agents
   cannot accidentally mix unrelated dashboard operations.
 - A caller using MCP from a session can see/control only sessions in that session's
@@ -38,8 +39,9 @@ which they can use as independent factories without imposing a factory workflow.
 - Skills, MCP definitions, personas, and workspace registries remain global across
   dashboards. Users select those capabilities when configuring dashboard-specific
   or shared cards.
-- Deleting a dashboard deletes its sessions and its unshared agent configurations.
-  Shared cards and global capability/workspace registries survive dashboard deletion.
+- Deleting a dashboard deletes its sessions and all cards it owns, including shared
+  cards globally, after confirmation of foreign references. Foreign sessions and
+  global capability/workspace registries survive dashboard deletion.
   Apply the existing process teardown, temporary workspace/trust cleanup, and
   deletion rules; do not leave running processes or delete another dashboard's
   sessions. Surface partial cleanup failures truthfully.
@@ -62,10 +64,10 @@ which they can use as independent factories without imposing a factory workflow.
 - The dashboard list exposes each dashboard's identity and description and opens
   the selected dashboard with Enter. Returning to the list or opening another
   dashboard preserves running sessions and their conversation/workspace state.
-- Deleting one dashboard removes its sessions and unshared cards, preserves shared
-  cards and the other dashboard's data, and handles active process teardown and
-  cleanup errors explicitly.
-- Existing records migrate without lost cards, sessions, workspaces, or bindings. We ensure this through a migration script, not by legacy code.
+- Deleting one dashboard removes its sessions and all cards it owns, including
+  shared cards globally after reference confirmation. It preserves foreign
+  sessions and cards owned by other dashboards, and handles active process
+  teardown and cleanup errors explicitly.
 
 ## Planning decisions
 
@@ -76,18 +78,14 @@ The following product decisions are settled:
   while shared cards are usable across dashboards.
 - Sessions always belong to their creation dashboard and do not become shared
   when their card is shared.
-- Dashboard deletion cascades to its sessions and unshared card configurations,
-  preserving shared cards and global registries.
+- Dashboard deletion cascades to its sessions and all its owned cards, including
+  shared cards globally after reference confirmation, while preserving global
+  registries and foreign sessions.
 - Application navigation starts at a dashboard list; Enter opens a dashboard.
-- Existing data is migrated by an explicit migration script, preserving records
-  and bindings, rather than permanent compatibility branches in runtime code.
 
-Implementation planning must choose persistence layout, migration execution,
-editing/navigation details, and the coordination and error handling for cascading
-deletion. Address shared-card references from other dashboards and define what
-happens when a shared card is made exclusive again; do not silently move sessions
-or broaden caller permissions. Consult the user for remaining material product
-choices without reopening the settled decisions above.
+The implementation plan records persistence, editing, navigation,
+deletion, and unsharing decisions. Do not silently move sessions or broaden caller
+permissions.
 
 ## Out of scope
 

@@ -1,4 +1,4 @@
-package dashboardmigration
+package configstartup
 
 import (
 	"bytes"

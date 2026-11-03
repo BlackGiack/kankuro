@@ -178,23 +178,69 @@ func TestDashboardListCreatesNamedDashboard(t *testing.T) {
 }
 
 func TestDashboardListShowsRetryableDeletionStatus(t *testing.T) {
-	var inspected, retried string
-	v := views.NewDashboardList(views.DashboardListCallbacks{
-		InspectDelete: func(id string) tea.Cmd { inspected = id; return nil },
-		RetryDelete:   func(id string) tea.Cmd { retried = id; return nil },
-	})
-	v.SetSize(80, 21)
-	v.SetDashboards([]config.Dashboard{{ID: "a", Name: "A", State: config.DashboardDeleting}})
-	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	if inspected != "a" {
-		t.Fatalf("inspected %q", inspected)
+	for _, key := range []rune{tea.KeyDelete, tea.KeyBackspace} {
+		var inspected, retried string
+		v := views.NewDashboardList(views.DashboardListCallbacks{
+			InspectDelete: func(id string) tea.Cmd { inspected = id; return nil },
+			RetryDelete:   func(id string) tea.Cmd { retried = id; return nil },
+		})
+		v.SetSize(80, 21)
+		v.SetDashboards([]config.Dashboard{{ID: "a", Name: "A", State: config.DashboardDeleting}})
+		v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		if inspected != "a" {
+			t.Fatalf("inspected %q", inspected)
+		}
+		v.Update(messages.DashboardDeletionStatusMsg{DashboardID: "a", Summary: []string{"Session s: removed=false trust cleanup failed"}})
+		if !strings.Contains(v.View(), "trust cleanup failed") {
+			t.Fatal("per-item failure not shown")
+		}
+		v.Update(tea.KeyPressMsg{Code: key})
+		if retried != "a" {
+			t.Fatalf("retried %q", retried)
+		}
 	}
-	v.Update(messages.DashboardDeletionStatusMsg{DashboardID: "a", Summary: []string{"Session s: removed=false trust cleanup failed"}})
-	if !strings.Contains(v.View(), "trust cleanup failed") {
-		t.Fatal("per-item failure not shown")
-	}
-	v.Update(tea.KeyPressMsg{Text: "r", Code: 'r'})
-	if retried != "a" {
-		t.Fatalf("retried %q", retried)
+}
+
+func TestDashboardListRetriesDeletionWithTheDeleteKey(t *testing.T) {
+	for _, key := range []rune{tea.KeyDelete, tea.KeyBackspace} {
+		var preflights, retries int
+		callbacks := views.DashboardListCallbacks{
+			PreflightDelete: func(id string) tea.Cmd {
+				if id != "a" {
+					t.Fatalf("preflight targeted %q", id)
+				}
+				preflights++
+				return nil
+			},
+			RetryDelete: func(id string) tea.Cmd {
+				if id != "a" {
+					t.Fatalf("retry targeted %q", id)
+				}
+				retries++
+				return nil
+			},
+		}
+		v := views.NewDashboardList(callbacks)
+		v.SetSize(80, 24)
+		v.SetDashboards([]config.Dashboard{{ID: "a", Name: "A", State: config.DashboardActive}})
+		v.Update(tea.KeyPressMsg{Code: key})
+		v.Update(messages.DashboardDeletionPreparedMsg{DashboardID: "a", Err: errors.New("prepare failed")})
+		v.Update(tea.KeyPressMsg{Code: key})
+		if preflights != 2 {
+			t.Fatalf("delete did not retry failed preparation: %d calls", preflights)
+		}
+		v.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+		v.SetDashboards([]config.Dashboard{{ID: "a", Name: "A", State: config.DashboardDeleting}})
+		v.Update(tea.KeyPressMsg{Text: "r", Code: 'r'})
+		if retries != 0 {
+			t.Fatal("obsolete retry binding remains active")
+		}
+		v.Update(tea.KeyPressMsg{Code: key})
+		if retries != 1 || preflights != 2 {
+			t.Fatalf("delete did not resume deletion: retries=%d preflights=%d", retries, preflights)
+		}
+		if !strings.Contains(v.View(), "Delete: retry") || strings.Contains(v.View(), "r: retry") {
+			t.Fatal("retry legend does not match the delete action")
+		}
 	}
 }

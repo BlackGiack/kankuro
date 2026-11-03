@@ -34,9 +34,7 @@ func assertBannerShown(t *testing.T, coord *app.Coordinator, want error, context
 	}
 }
 
-// TestErrorSurvivesNavigationInEitherOrder pins tech_debt_act_2.md §3a:
-// navigation must not clear the error banner, whichever order tea.Batch
-// delivers an ErrorMsg and a NavigateMsg in.
+// Navigation must preserve an error regardless of batch delivery order.
 func TestErrorSurvivesNavigationInEitherOrder(t *testing.T) {
 	bannerErr := errors.New("persist failed: disk on fire")
 

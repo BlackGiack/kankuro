@@ -16,7 +16,7 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/layout"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
@@ -43,7 +43,7 @@ func (r *countingRepo) ListSkillSources() ([]string, error) {
 func newCountingCoordinator(t *testing.T) (*Coordinator, *countingRepo, *config.FileRepository) {
 	t.Helper()
 	root := t.TempDir()
-	if err := layout.PrepareStartup(root); err != nil {
+	if err := configstartup.PrepareStartup(root); err != nil {
 		t.Fatal(err)
 	}
 	base, err := config.NewFileRepository(root)
@@ -221,7 +221,7 @@ func TestFullRefreshSeedsFingerprintBaseline(t *testing.T) {
 		t.Fatal("expected the tick right after a mutation refresh to see an unchanged baseline")
 	}
 	if tickMsg.stamps != nil {
-		t.Fatal("expected an unchanged result to carry nil stamps (review_dp_5_2.md finding 1)")
+		t.Fatal("expected an unchanged result to carry nil stamps")
 	}
 	if repo.cardListCalls != callsAfterMutation {
 		t.Fatalf("expected no additional ListIDCards call from the tick, got %d (was %d)",
@@ -229,13 +229,7 @@ func TestFullRefreshSeedsFingerprintBaseline(t *testing.T) {
 	}
 }
 
-// TestUnchangedTickResultDoesNotClobberNewerBaseline pins
-// review_dp_5_2.md finding 1: an "unchanged" configFingerprintMsg (nil
-// stamps) delivered after a newer baseline was already adopted must not
-// reset that baseline. This can happen when a tick's fingerprint check and a
-// mutation's refreshDataSeeded are both in flight and the tick's (stale)
-// result is delivered last - without the fix, it would stomp the newer
-// baseline and force one extra full reload on the following tick.
+// An unchanged tick result must not overwrite a newer baseline from a mutation refresh.
 func TestUnchangedTickResultDoesNotClobberNewerBaseline(t *testing.T) {
 	c, _, _ := newCountingCoordinator(t)
 
@@ -261,7 +255,7 @@ func TestUnchangedTickResultDoesNotClobberNewerBaseline(t *testing.T) {
 // SessionLaunchCompletedMsg) rather than launching capability-less.
 func TestLaunchCardAbortsOnRegistryReadError(t *testing.T) {
 	root := t.TempDir()
-	if err := layout.PrepareStartup(root); err != nil {
+	if err := configstartup.PrepareStartup(root); err != nil {
 		t.Fatal(err)
 	}
 	base, err := config.NewFileRepository(root)

@@ -101,14 +101,7 @@ func TestApp_CurrentConstructor(t *testing.T) {
 	}
 }
 
-// TestInitDisablesKittyProtocolAtStartup pins finding 2 from review_dp_4.md:
-// moving the Kitty keyboard protocol disable sequence out of Dashboard.View()
-// closed the "navigate back to dashboard" and "detach a PTY" transitions, but
-// left a third one open - cold start, where nothing navigates and
-// Coordinator.Init never ran the initial view's own Init(). A terminal left
-// with the protocol enabled by a previous run that died mid-attach used to
-// get cleaned up by the very first frame; this pins that Coordinator.Init()
-// alone (before any Update) emits the disable sequence.
+// Cold-start initialization must disable Kitty keyboard reporting before the first update.
 func TestInitDisablesKittyProtocolAtStartup(t *testing.T) {
 	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)

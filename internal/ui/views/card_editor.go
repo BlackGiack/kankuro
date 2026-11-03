@@ -246,7 +246,7 @@ func (e *CardEditor) SetSettings(settings config.AppSettings) {
 	//
 	// Guard on the list having items rather than the selection being
 	// non-empty: SelectedIDs() only returns IDs whose items are currently
-	// loaded (finding #17), so before SetData has populated the list,
+	// loaded, so before SetData has populated the list,
 	// "nothing selected" is indistinguishable from "list not populated yet"
 	// and must not wipe a real selection. Checking Items() makes that
 	// distinction, so a genuine deselect-everything edit on a populated list
@@ -340,14 +340,8 @@ func (e *CardEditor) Reset() {
 	e.setFocus(0)
 }
 
-// SetData sets the available options. Per messages.DataLoadedMsg's contract,
-// a nil field means "that registry could not be read this round" - not "the
-// caller has no data" - so each field is only replaced when non-nil,
-// preserving whatever the editor already has (and, critically, whatever is
-// currently selected in the capability lists) across a transient read
-// failure. See review_dp_4.md finding 1: this used to assign unconditionally,
-// which meant a corrupt skills.yaml wiped the editor's skill selection on the
-// next refresh and a save would then persist the card with none.
+// SetData replaces successfully loaded registries and preserves existing options
+// and capability selections when an incoming field is nil.
 func (e *CardEditor) SetData(msg messages.DataLoadedMsg) {
 	if msg.Workspaces != nil {
 		e.workspaces = msg.Workspaces

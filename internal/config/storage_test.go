@@ -53,14 +53,7 @@ func TestWriteAtomicMode(t *testing.T) {
 	}
 }
 
-// TestFingerprintMissingFileRecordsStableStamp pins review_dp_5_2.md finding
-// 3: a missing registry file (EnsureFiles only runs at startup, so a
-// hand-delete while the app is running is possible) must not fail the whole
-// Fingerprint call. It should record a stable zero stamp instead - one that
-// compares equal to itself across repeated calls, so the idle-tick
-// optimization keeps working (rather than silently falling back to a full
-// reload every tick for the rest of the session) - and differs the moment
-// the file reappears.
+// A missing registry records a stable zero fingerprint until the file reappears.
 func TestFingerprintMissingFileRecordsStableStamp(t *testing.T) {
 	dir := t.TempDir()
 	repo, err := config.NewFileRepository(dir)

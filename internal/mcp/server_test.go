@@ -13,7 +13,7 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/layout"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/mcp"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/google/uuid"
@@ -329,7 +329,7 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	config.SetBuiltinKankuroPuppetSkillContent(puppetContent)
 	t.Cleanup(func() { config.SetBuiltinMCPCLISkillContent(nil); config.SetBuiltinKankuroPuppetSkillContent(nil) })
 	configDir := t.TempDir()
-	if setupErr := layout.PrepareStartup(configDir); setupErr != nil {
+	if setupErr := configstartup.PrepareStartup(configDir); setupErr != nil {
 		t.Fatal(setupErr)
 	}
 	t.Setenv("KANKURO_TMP_DIR", filepath.Join(configDir, "tmp"))

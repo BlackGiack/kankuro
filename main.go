@@ -18,8 +18,8 @@ import (
 	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/driver"
-	"github.com/BlackGiack/kankuro/internal/layout"
 	"github.com/BlackGiack/kankuro/internal/mcp"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -58,12 +58,12 @@ func run(registry driver.Registry) (returnErr error) {
 	if err != nil {
 		return err
 	}
-	layoutLock, err := layout.AcquireLock(configRoot)
+	configLock, err := configstartup.AcquireLock(configRoot)
 	if err != nil {
 		return err
 	}
-	defer func() { returnErr = errors.Join(returnErr, layoutLock.Close()) }()
-	if startupErr := layout.PrepareStartup(configRoot); startupErr != nil {
+	defer func() { returnErr = errors.Join(returnErr, configLock.Close()) }()
+	if startupErr := configstartup.PrepareStartup(configRoot); startupErr != nil {
 		return startupErr
 	}
 

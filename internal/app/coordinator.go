@@ -48,12 +48,8 @@ type Coordinator struct {
 	dashboardViews       map[string]*views.Dashboard
 	editingCard          config.IDCard
 
-	// configFingerprint is the mtime+size marker of every registry file as
-	// of the last config load, used by the idle tick to skip re-reading
-	// unchanged YAML - see maybeRefreshConfig and debt_impl_plan_5.md step
-	// 1. Seeded by refreshDataSeeded (Init and every mutation path), so it
-	// is nil only until that first result arrives, or if Fingerprint itself
-	// failed. maybeRefreshConfig hands it to the refresher by value.
+	// configFingerprint tracks the last loaded registry stamps. Seeded refreshes
+	// update the baseline; idle ticks skip configuration reads when it is unchanged.
 	configFingerprint map[string]config.FileStamp
 
 	// --- safe from any goroutine: concurrency-safe handles, and helpers that
@@ -118,14 +114,7 @@ func (c *Coordinator) Err() error {
 }
 
 func (c *Coordinator) Init() tea.Cmd {
-	// Also run the initial view's own Init (the dashboard's, at startup):
-	// navigating between views already does this via navigateTo, but
-	// nothing previously ran it for the view Coordinator starts on, so
-	// Dashboard.Init's transition-only work (disabling the Kitty keyboard
-	// protocol left on by a previous run that died mid-attach; see
-	// review_dp_4.md finding 2) never fired at cold start. This also
-	// belatedly runs cardList/sessionList/preview.Init(), which had the same
-	// gap.
+	// Initialize the entry view so terminal setup runs before the first frame.
 	var initialViewCmd tea.Cmd
 	if view, ok := c.views[c.currentView]; ok {
 		initialViewCmd = view.Init()
@@ -181,9 +170,8 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, nil
 
 	case tickMsg:
-		// Sessions (in-memory) refresh every tick; config (YAML on disk)
-		// only refreshes when maybeRefreshConfig's mtime check says a
-		// registry file actually changed - see debt_impl_plan_5.md step 1.
+		// Refresh scoped sessions every tick; reread configuration only when its
+		// fingerprint changes.
 		var listCmd tea.Cmd
 		if c.currentView == ViewDashboardList {
 			listCmd = c.refreshDashboardList()

@@ -11,7 +11,7 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/layout"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/mcp"
 	"github.com/BlackGiack/kankuro/internal/session"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -36,7 +36,7 @@ func TestDashboardScopeOverHTTP(t *testing.T) {
 	}
 	root := t.TempDir()
 	t.Setenv("KANKURO_TMP_DIR", filepath.Join(root, "tmp"))
-	if err := layout.PrepareStartup(root); err != nil {
+	if err := configstartup.PrepareStartup(root); err != nil {
 		t.Fatal(err)
 	}
 	repo, err := config.NewFileRepository(root)

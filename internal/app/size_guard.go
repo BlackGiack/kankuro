@@ -34,7 +34,7 @@ func (c *Coordinator) tooSmall() bool {
 func (c *Coordinator) guardKey(msg tea.Msg) (bool, tea.Cmd) {
 	switch m := msg.(type) {
 	case tea.KeyPressMsg:
-		if s := m.String(); s == "q" || s == "ctrl+c" {
+		if s := m.String(); s == "q" || (s == "ctrl+c" && c.currentView != ViewDashboardList) {
 			return true, tea.Quit
 		}
 		return true, nil

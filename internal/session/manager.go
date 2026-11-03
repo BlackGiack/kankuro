@@ -63,11 +63,8 @@ type Session struct {
 	ActivationToken         string
 	ExpectedConversationID  string
 	Driver                  driver.AgentDriver
-	// PTY is the raw pseudo-terminal file, used only for ioctl-based resize
-	// (Attach hands it out as AttachHandle.PTY). Keystrokes must NOT be
-	// written directly to this fd - it races Kill, which closes and nils the
-	// driver's own copy under lock. Use Driver.SendInputBytes for writes; see
-	// debt_impl_plan_4.md step 4 and session/attach.go's driverInputWriter.
+	// PTY is the raw pseudo-terminal file, exposed for ioctl-based resize.
+	// Write input through Driver.SendInputBytes, which synchronizes with Kill.
 	PTY         *os.File
 	Output      <-chan []byte
 	Done        <-chan struct{}

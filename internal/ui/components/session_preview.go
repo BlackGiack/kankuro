@@ -598,10 +598,7 @@ func handleStateESC(b byte) (parserState, []byte) {
 func (p *SessionPreview) handleStateCSI(b byte, escBuf []byte) (parserState, []byte) {
 	escBuf = append(escBuf, b)
 	if b >= 0x40 && b <= 0x7e {
-		// CSI sequence terminated; discard. Previously the 'u' terminator was
-		// translated to printable text (Kitty keyboard protocol), but that
-		// produced noisy strings like "^K" / "<backspace>" in the preview, so
-		// we now drop these silently.
+		// Consume the complete CSI sequence without leaking its terminator into text.
 		return stateNormal, nil
 	}
 	return stateCSI, escBuf

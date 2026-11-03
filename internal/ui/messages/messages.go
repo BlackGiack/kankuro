@@ -257,12 +257,8 @@ type ClearErrorMsg struct{}
 // MCPServerFailedMsg reports an unexpected failure of the local MCP endpoint.
 type MCPServerFailedMsg struct{ Err error }
 
-// DataLoadedMsg contains a full data snapshot from the repository. It always
-// represents a complete refresh: fields left nil mean "that registry could
-// not be read this round, keep whatever the receiver already has" (see Err),
-// never "this update doesn't concern that field". Partial, preview-only
-// updates use PreviewDataMsg instead - see debt_impl_plan_4.md step 2b for why
-// mixing the two in one message type caused silent data loss.
+// DataLoadedMsg contains a full repository snapshot. Nil fields indicate failed reads
+// and preserve receiver data. Preview-only updates use PreviewDataMsg.
 type DataLoadedMsg struct {
 	DashboardID string
 	Generation  uint64
@@ -294,14 +290,8 @@ type DataReceiver interface {
 	SetData(msg DataLoadedMsg)
 }
 
-// SessionsRefreshedMsg carries just the (in-memory) session list plus the
-// current preview session ID/scrollback - the idle tick's sessions-only
-// refresh. It is deliberately a distinct type from DataLoadedMsg, not a
-// DataLoadedMsg with only Sessions set: broadcasting the latter to every
-// DataReceiver used to reach config-registry views (e.g. the source
-// managers), whose SetData unconditionally reloads their source files from
-// disk - see debt_impl_plan_5.md review finding 1. This message is instead
-// routed only to the dashboard, the sole consumer of Sessions.
+// SessionsRefreshedMsg carries scoped cards, sessions and preview data with the
+// originating dashboard and generation. Only their consumers receive this update.
 type SessionsRefreshedMsg struct {
 	DashboardID       string
 	Generation        uint64

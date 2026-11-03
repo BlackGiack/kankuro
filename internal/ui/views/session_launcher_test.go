@@ -45,8 +45,7 @@ func TestSessionLauncher_LaunchFlow(t *testing.T) {
 	}
 }
 
-// TestSessionLauncher_PersistFailureStillOffersAttach pins the Finding-1
-// fix: a session.ErrPersistFailed result means the agent process is
+// A session.ErrPersistFailed result means the agent process is
 // running and the session is fully usable, so the view must not render the
 // hard "Launch failed" dead end (Esc-only), and Enter must still submit the
 // name and attach - unlike a genuine launch failure, which must not.

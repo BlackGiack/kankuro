@@ -1,5 +1,5 @@
-// Package layout owns the current configuration layout and its runtime fence.
-package layout
+// Package configstartup prepares and validates configuration for application startup.
+package configstartup
 
 import (
 	"errors"
@@ -11,14 +11,10 @@ import (
 )
 
 const (
-	MarkerFilename     = "layout-version"
-	UsedMarkerFilename = ".dashboard-layout-used"
-	CurrentMarker      = "2-ready\n"
-	layoutMarker       = MarkerFilename
-	layoutUsedMarker   = UsedMarkerFilename
-	jsonExtension      = ".json"
-	currentMarker      = CurrentMarker
-	privateFileMode    = 0o600
+	layoutMarker    = "layout-version"
+	currentMarker   = "2-ready\n"
+	jsonExtension   = ".json"
+	privateFileMode = 0o600
 )
 
 // PrepareStartup validates a current layout or initializes a genuinely empty root.
@@ -26,10 +22,7 @@ const (
 func PrepareStartup(dir string) error {
 	_, err := os.Lstat(filepath.Join(dir, layoutMarker))
 	if err == nil {
-		if err = ValidateLayout(dir); err != nil {
-			return err
-		}
-		return MarkLayoutUsed(dir)
+		return ValidateLayout(dir)
 	}
 	if !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -41,7 +34,7 @@ func PrepareStartup(dir string) error {
 	for _, entry := range entries {
 		if entry.Name() != ".dashboard-layout.lock" {
 			return errors.New(
-				"configuration has no completed layout marker; migrate a legacy root offline or repair an interrupted initialization",
+				"configuration has no current layout marker; select an empty config directory or restore a complete current-format configuration",
 			)
 		}
 	}
@@ -59,29 +52,5 @@ func PrepareStartup(dir string) error {
 	if err = fsutil.WriteFileAtomic(filepath.Join(dir, layoutMarker), []byte(currentMarker), privateFileMode); err != nil {
 		return err
 	}
-	if err = ValidateLayout(dir); err != nil {
-		return err
-	}
-	return MarkLayoutUsed(dir)
-}
-
-// MarkLayoutUsed permanently prevents rollback after a current layout is used.
-func MarkLayoutUsed(dir string) error {
-	path := filepath.Join(dir, layoutUsedMarker)
-	if info, err := os.Lstat(path); err == nil {
-		if !info.Mode().IsRegular() {
-			return errors.New("invalid dashboard layout use marker")
-		}
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-		if string(data) != "used\n" {
-			return errors.New("invalid dashboard layout use marker")
-		}
-		return nil
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	return fsutil.WriteFileAtomic(path, []byte("used\n"), privateFileMode)
+	return ValidateLayout(dir)
 }

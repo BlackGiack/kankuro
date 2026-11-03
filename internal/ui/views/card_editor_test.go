@@ -116,7 +116,7 @@ func TestCardEditor_Card(t *testing.T) {
 }
 
 // TestCardEditorPreservesUnmanagedFields fails when a new IDCard field is
-// added that the editor neither edits nor preserves (finding #1: Card() used
+// added that the editor neither edits nor preserves (Card() used
 // to rebuild config.IDCard{} from scratch, silently dropping
 // SystemInstruction and Env on every save).
 func TestCardEditorPreservesUnmanagedFields(t *testing.T) {
@@ -158,7 +158,7 @@ func TestCardEditorPreservesUnmanagedFields(t *testing.T) {
 
 	e := views.NewCardEditor(views.CardEditorCallbacks{})
 	// CapabilityList.SelectedIDs() only returns IDs present in its current
-	// items (see finding #17), so the lists must know about s1/p1/m1 before
+	// items, so the lists must know about s1/p1/m1 before
 	// SetCard's selection can round-trip through Card().
 	e.SetData(messages.DataLoadedMsg{
 		Skills:   []config.Skill{{ID: "s1", Name: "Skill 1"}},

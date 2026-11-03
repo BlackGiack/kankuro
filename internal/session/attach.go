@@ -8,12 +8,7 @@ import (
 	"github.com/BlackGiack/kankuro/internal/driver"
 )
 
-// driverInputWriter adapts a driver.AgentDriver to [io.Writer] by routing
-// writes through its locked SendInputBytes, instead of a raw [os.File] PTY
-// handle. Writing directly to the PTY (the previous behavior) raced Kill,
-// which closes and nils that same fd under the driver's own lock - a
-// keystroke landing during a kill could hit a closed fd and be silently
-// dropped. See debt_impl_plan_4.md step 4.
+// driverInputWriter routes attach input through the driver lock shared with Kill.
 type driverInputWriter struct {
 	driver driver.AgentDriver
 }

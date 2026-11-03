@@ -232,8 +232,7 @@ func TestKillPersistsTerminatedDespiteDriverError(t *testing.T) {
 	}
 }
 
-// TestLaunchWrapsErrPersistFailedButSessionStaysUsable pins the Finding-1
-// fix: a persist failure after a successful spawn must be reported as
+// A persist failure after a successful spawn must be reported as
 // ErrPersistFailed (distinguishable via [errors.Is] from "never started"),
 // while the process keeps running and the session stays fully usable.
 func TestLaunchWrapsErrPersistFailedButSessionStaysUsable(t *testing.T) {

@@ -5,8 +5,7 @@ const (
 	defaultPuppetStyle = "kankuro"
 )
 
-// Smallest terminal the UI is laid out for. Below it the coordinator shows a
-// "terminal too small" screen instead of a view (impl_plan_5.md B3).
+// Smallest supported terminal size; smaller terminals show a size notice.
 const (
 	MinTerminalWidth  = 80
 	MinTerminalHeight = 24

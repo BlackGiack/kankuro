@@ -99,11 +99,8 @@ type AgentDriver interface {
 	SetSession(conversationID string) []string
 	SubmitPrompt(ctx context.Context, messageID, senderSessionID, text string) (SubmissionEvidence, error)
 
-	// SendInput and SendInputBytes both write into the active PTY session,
-	// synchronized against Kill via the driver's own lock. This is the only
-	// safe way to write attach input: writing directly to a raw *os.File
-	// PTY handle (as the session package used to) races Kill, which closes
-	// and nils that same fd under lock. See debt_impl_plan_4.md step 4.
+	// SendInput and SendInputBytes synchronize PTY writes with Kill.
+	// Attach input must use these methods rather than writing to the raw PTY.
 	SendInput(data string) error
 	SendInputBytes(data []byte) (int, error)
 

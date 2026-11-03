@@ -13,17 +13,8 @@ import (
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
-// Contract (impl_plan_5.md B3): below views.MinTerminalWidth x MinTerminalHeight
-// the coordinator's View() is a "Terminal too small" notice that is EXACT: every
-// line is the terminal's width and there are exactly as many lines as the
-// terminal has rows, at every size from 1x1 up to just under the minimum. Every
-// keypress except quit is dropped, so a blind keypress cannot launch or delete
-// anything, and the notice gives way to the view as soon as the terminal grows.
-//
-// Seen to fail: the shape sweep against the unguarded coordinator (the dashboard
-// renders a different size and its preview width goes negative under ~62
-// columns); the key test with the guard's early return removed (n opens the card
-// editor).
+// Below the minimum size, render an exact terminal-sized notice and ignore action keys.
+// Resizing to a supported size restores the active view.
 
 func newSizedCoordinator(t *testing.T, w, h int) *app.Coordinator {
 	t.Helper()

@@ -9,7 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/layout"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
@@ -19,7 +19,7 @@ func TestScopedRefreshPreservesDataOnInventoryFailure(t *testing.T) {
 	for _, kind := range []string{"full", "sessions", "config"} {
 		t.Run(kind, func(t *testing.T) {
 			root := t.TempDir()
-			if err := layout.PrepareStartup(root); err != nil {
+			if err := configstartup.PrepareStartup(root); err != nil {
 				t.Fatal(err)
 			}
 			repo, err := config.NewFileRepository(root)
@@ -101,7 +101,7 @@ func TestScopedRefreshPreservesDataOnInventoryFailure(t *testing.T) {
 
 func TestScopedRefreshReturnsExplicitEmptyInventory(t *testing.T) {
 	root := t.TempDir()
-	if err := layout.PrepareStartup(root); err != nil {
+	if err := configstartup.PrepareStartup(root); err != nil {
 		t.Fatal(err)
 	}
 	repo, err := config.NewFileRepository(root)

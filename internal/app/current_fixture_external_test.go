@@ -6,13 +6,13 @@ import (
 	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/layout"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
 func newCurrentRepository(dir string) (*config.FileRepository, error) {
-	if err := layout.PrepareStartup(dir); err != nil {
+	if err := configstartup.PrepareStartup(dir); err != nil {
 		return nil, err
 	}
 	return config.NewFileRepository(dir)

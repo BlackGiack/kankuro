@@ -31,7 +31,7 @@ func (i dashboardItem) Title() string { return components.DisplayText(i.dashboar
 func (i dashboardItem) Description() string {
 	description := components.DisplayText(i.dashboard.Description)
 	if i.dashboard.State == config.DashboardDeleting {
-		return "Deleting — retry required. " + description
+		return "Deleting — Delete to retry. " + description
 	}
 	return description
 }
@@ -89,6 +89,7 @@ func NewDashboardList(callbacks DashboardListCallbacks) *DashboardList {
 	l.SetShowStatusBar(false)
 	l.SetShowHelp(false)
 	l.SetFilteringEnabled(false)
+	l.DisableQuitKeybindings()
 	v := &DashboardList{list: l, callbacks: callbacks, viewport: viewport.New()}
 	v.inputs[0], v.inputs[1] = textinput.New(), textinput.New()
 	v.inputs[0].Placeholder, v.inputs[1].Placeholder = "Name (required)", "Description"
@@ -140,9 +141,6 @@ func (v *DashboardList) SetSize(width, height int) {
 
 //nolint:gocognit,gocyclo,cyclop,funlen // All modal states are handled in this state machine.
 func (v *DashboardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
-	if key, ok := msg.(tea.KeyPressMsg); ok && key.String() == "ctrl+c" {
-		return v, tea.Quit
-	}
 	if status, ok := msg.(messages.DashboardDeletionStatusMsg); ok {
 		if v.mode != dashboardListModePreparing || !v.preparingStatus || status.DashboardID != v.pending.DashboardID {
 			return v, nil
@@ -214,11 +212,8 @@ func (v *DashboardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 				v.preparingStatus = false
 				return v, v.callbacks.PreflightDelete(dashboard.ID)
 			}
-		case key.Text == "r" && selected && dashboard.State == config.DashboardDeleting:
-			if v.callbacks.RetryDelete != nil {
-				v.err = nil
-				return v, v.callbacks.RetryDelete(dashboard.ID)
-			}
+		case (key.Code == tea.KeyDelete || key.Code == tea.KeyBackspace) && selected && dashboard.State == config.DashboardDeleting:
+			return v, v.retryDeletion(dashboard.ID)
 		case key.Text == "q":
 			return v, tea.Quit
 		}
@@ -273,13 +268,8 @@ func (v *DashboardList) updateConfirmation(msg tea.Msg) (component.Model, tea.Cm
 			v.mode, v.pending = dashboardListModeList, messages.DashboardDeletionPreparedMsg{}
 			return v, nil
 		}
-		if key.Text == "r" && v.mode == dashboardListModeStatus {
-			id := v.pending.DashboardID
-			v.mode, v.pending = dashboardListModeList, messages.DashboardDeletionPreparedMsg{}
-			if v.callbacks.RetryDelete != nil {
-				return v, v.callbacks.RetryDelete(id)
-			}
-			return v, nil
+		if (key.Code == tea.KeyDelete || key.Code == tea.KeyBackspace) && v.mode == dashboardListModeStatus {
+			return v, v.retryDeletion(v.pending.DashboardID)
 		}
 		if key.Code == tea.KeyEnter && v.mode == dashboardListModeConfirm {
 			if v.pending.RequiresForeignConfirmation {
@@ -309,6 +299,14 @@ func (v *DashboardList) confirmDeletion(foreign bool) (component.Model, tea.Cmd)
 	return v, nil
 }
 
+func (v *DashboardList) retryDeletion(id string) tea.Cmd {
+	v.mode, v.pending, v.err = dashboardListModeList, messages.DashboardDeletionPreparedMsg{}, nil
+	if v.callbacks.RetryDelete != nil {
+		return v.callbacks.RetryDelete(id)
+	}
+	return nil
+}
+
 func (v *DashboardList) View() string {
 	width := max(1, v.Width)
 	if v.mode == dashboardListModeForm {
@@ -323,7 +321,7 @@ func (v *DashboardList) View() string {
 		return v.renderPage("Preparing deletion impact…", "", "Esc: cancel")
 	}
 	if v.mode == dashboardListModeStatus {
-		return v.renderPage("Dashboard deletion progress", v.viewport.View(), "r: retry  Esc: back  ↑/↓: scroll")
+		return v.renderPage("Dashboard deletion progress", v.viewport.View(), "Delete: retry  Esc: back  ↑/↓: scroll")
 	}
 	if v.mode == dashboardListModeForeign {
 		return v.renderPage("Foreign sessions reference owned cards.",
@@ -348,8 +346,11 @@ func (v *DashboardList) View() string {
 	if v.err != nil {
 		items.SetHeight(max(1, items.Height()-1))
 	}
-	return v.renderPage("Dashboards", body+items.View()+"\n"+styles.HelpStyle.Render(detail),
-		"Enter: open  n: new  e: edit  Delete: remove  r: retry  q: quit")
+	help := "Enter: open  n: new  e: edit  Delete: remove  q: quit"
+	if dashboard.State == config.DashboardDeleting {
+		help = "Enter: details  Delete: retry  n: new  q: quit"
+	}
+	return v.renderPage("Dashboards", body+items.View()+"\n"+styles.HelpStyle.Render(detail), help)
 }
 
 func (v *DashboardList) renderPage(title, body, help string) string {

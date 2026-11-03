@@ -42,15 +42,8 @@ func collectMsgs(t *testing.T, cmd tea.Cmd) []tea.Msg {
 	return []tea.Msg{msg}
 }
 
-// drive executes cmd (recursing into tea.BatchMsg via collectMsgs) and feeds
-// every resulting leaf message through coord.Update exactly once. It does
-// NOT recurse into whatever Cmd those Update calls in turn return - like
-// collectMsgs, on purpose: some of those (e.g. an actual PTY attach, or a
-// preview subscription's blocking channel read) are exactly the kind of
-// thing a unit test must not execute. This is enough to observe a callback's
-// deferred side effect (debt_impl_plan_4.md step 3B moved several of these
-// from synchronous calls into a returned tea.Cmd) without turning the test
-// into a full Bubble Tea runtime.
+// drive executes the command batch and delivers each leaf message once. It does not
+// execute commands returned by Update, which may block on a PTY or subscription.
 func drive(t *testing.T, coord *app.Coordinator, cmd tea.Cmd) {
 	t.Helper()
 	for _, msg := range collectMsgs(t, cmd) {
@@ -59,9 +52,7 @@ func drive(t *testing.T, coord *app.Coordinator, cmd tea.Cmd) {
 }
 
 // permute calls fn once for every permutation of msgs (Heap's algorithm).
-// tea.Batch makes no delivery-order guarantee, so a fix that only happens to
-// work for one arrival order isn't actually fixed - this is what makes the
-// test below catch Finding 4 instead of getting lucky on a single order.
+// Exercise every delivery order because tea.Batch does not guarantee one.
 func permute(msgs []tea.Msg, fn func([]tea.Msg)) {
 	n := len(msgs)
 	cur := make([]tea.Msg, n)
@@ -84,13 +75,7 @@ func permute(msgs []tea.Msg, fn func([]tea.Msg)) {
 	generate(n)
 }
 
-// TestPersistFailureWarningReachesViewOnBothPaths pins findings 4 and 5 from
-// review_dp_2_2.md: a session.ErrPersistFailed outcome must reach the
-// coordinator's error banner (via SessionAttachRequestedMsg.Warning) on
-// *both* the relaunch path and the agent-switch path, not just one of them.
-// Before the Finding-4 fix, the switch path batched a separate ErrorMsg
-// beside a NavigateMsg, which unconditionally clears c.err - so whether the
-// warning survived depended on tea.Batch's unspecified delivery order.
+// Persistence warnings must reach the error banner on both relaunch and switch.
 func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 	t.Run("relaunch", func(t *testing.T) {
 		repo, sm, sessionsDir := newPersistFailureFixture(t)
@@ -181,16 +166,8 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 	})
 }
 
-// TestAgentSwitchDoesNotClobberDashboardView pins Finding 6 from
-// review_dp_2_3.md: switching an agent through the real event loop must not
-// leave c.views[ViewDashboard] holding the AgentSwitchView. That regression
-// lived entirely in Coordinator.Update's write-back (updateCurrentView's
-// caller stores the returned model under c.currentView right after the view
-// itself is updated), which callback-level tests like
-// TestPersistFailureWarningReachesViewOnBothPaths cannot exercise, because
-// they call the callback's returned Cmd directly and never go through
-// Update. This test drives the switch through coord.Update using the same
-// messages the real TUI would send.
+// Switching through the event loop must preserve the dashboard model. Callback-only
+// tests cannot exercise the coordinator's model write-back.
 func TestAgentSwitchDoesNotClobberDashboardView(t *testing.T) {
 	repo, sm, _ := newPersistFailureFixture(t)
 	wd := t.TempDir()
@@ -240,16 +217,6 @@ func TestAgentSwitchDoesNotClobberDashboardView(t *testing.T) {
 		t.Fatalf("expected to be on ViewAgentSwitch, got %v", coord.CurrentView())
 	}
 	coord.Update(coord.RefreshData()())
-	// Refresh twice: the dashboard auto-selects a preview session on first
-	// data load, which makes the coordinator immediately broadcast a
-	// second, cards-less DataLoadedMsg (handlePreviewRequest) to fetch its
-	// scrollback - and every DataReceiver, including AgentSwitchView,
-	// overwrites its card list unconditionally on every SetData call. That
-	// wipes the list we just populated. This is a pre-existing quirk
-	// unrelated to Finding 6/7 (broadcastData has no notion of a partial
-	// update); the second refresh's preview id matches what's already
-	// stored, so it does not re-trigger the wipe, and the list survives.
-	coord.Update(coord.RefreshData()())
 
 	// Cards are listed alphabetically by name (repo.ListIDCards), so
 	// "clobber-a" (the session's current card) sits at index 0. Move down
@@ -257,12 +224,7 @@ func TestAgentSwitchDoesNotClobberDashboardView(t *testing.T) {
 	// make SwitchAgent's CardID assertion below trivially true.
 	coord.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
-	// Real OnSwitch, through Update: this is what exercises the
-	// updateCurrentView write-back that Finding 6 lived in. OnSwitch now
-	// defers the actual switch into the returned Cmd (debt_impl_plan_4.md
-	// step 3B), so drive() must run that Cmd - and everything it in turn
-	// produces - for the switch to actually happen, the same way a real
-	// Bubble Tea program's runtime would.
+	// Run the actual switch command and its resulting messages through the event loop.
 	_, cmd := coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	drive(t, coord, cmd)
 
@@ -325,7 +287,7 @@ func makeSessionsDirReadOnly(t *testing.T, sessionsDir string) func() {
 // against a fresh Coordinator each time, and requires the persist-failure
 // warning to be visible after every single ordering. tea.Batch gives no
 // delivery-order guarantee, so anything less than "every order" leaves the
-// warning's visibility down to luck - which is exactly the bug in Finding 4.
+// warning vulnerable to command scheduling.
 func assertWarningSurvivesEveryOrder(t *testing.T, repo config.Repository, sm *session.Manager, msgs []tea.Msg, label string) {
 	t.Helper()
 	if len(msgs) == 0 {

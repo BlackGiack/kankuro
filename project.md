@@ -3,31 +3,21 @@
 Read this first. It covers what the project does, how it is built, where everything
 lives, the rules the code relies on, and which files to open for a given kind of task.
 `kankuro_specs.md` describes what the product should do; this file describes how the
-code actually does it. Feature 5 was independently accepted at `b95b853` and
-Feature 6 is accepted per the user. Feature 7's second-review implementation is
-ready for review; evidence and limits are in `feature_7_handoff.md`. Startup holds an exclusive config-root
-lock, initializes a fresh dashboard layout, and refuses legacy layouts until an
-offline migration is performed. With Kankuro stopped, run
-`go run ./cmd/migrate-dashboards -config-dir <path>` for a dry run, add `-apply`
-to migrate or resume publication, or `-rollback` to restore before first use.
-Migration retains a backup and journal in the config root; interrupted work must
-be resumed or rolled back before startup. Runtime layout validation lives in
-`internal/layout` and does not need completed migration backups or staging. The
-offline command and `internal/dashboardmigration` can be retired together after
-all supported old roots have been migrated; retain `internal/layout` and its lock
-and first-use fence. The runtime reads only schema-2 cards and sessions with
-explicit dashboard membership. The only UI constructor starts on the dashboard
-list, and UI and MCP share the same scoped service;
-dashboard and card deletion use durable manifests/tombstones and retryable cleanup.
-Deleting a dashboard deletes all cards it owns globally, including shared cards,
-after confirmation of references from other dashboards. See `feature_7.md` and
-`impl_plan.md` for invariants and remaining verification.
+code actually does it. Startup holds an exclusive config-root lock, initializes
+an empty directory directly in the current format, and validates existing data
+before starting the UI or MCP endpoint. `internal/configstartup` owns this validation
+and initialization. The runtime reads only schema-2 cards and sessions with
+explicit dashboard membership. The UI starts on the dashboard list, and UI and
+MCP share the same scoped service. Dashboard and card deletion use durable
+manifests/tombstones and retryable cleanup. Deleting a dashboard deletes every
+card it owns globally, including shared cards, after confirmation of references
+from other dashboards. Foreign sessions and global registries survive.
 
 Dashboard membership is persisted before an activation is published. The session
 manager serializes admission and reference checks, then the repository performs
 short metadata writes; do not hold the repository lock while entering manager
 admission. A deletion manifest closes admission before cancelling and draining
-pending activations. Each cleanup effect is checkpointed, and `r` on the list
+pending activations. Each cleanup effect is checkpointed, and Delete/Backspace on the list
 retries incomplete work, including after restart. Card tombstones retain identity
 without executable settings, so a surviving foreign session can be stopped,
 attached while running, or switched to another card but cannot relaunch the deleted
@@ -69,8 +59,7 @@ LLM controller, a notification stack).
   standard `GOTOOLCHAIN=auto` behavior, a compatible Go command can automatically
   download/select the required toolchain declared by `go.mod`.
 - TUI: **Bubble Tea v2**, **Lip Gloss v2**, **Bubbles v2** (`charm.land/*/v2`), plus
-  `charmbracelet/x/ansi` and `x/term`. `impl_plan.md` and `review.md` contain Feature 4
-  planning and review history; they are not the Bubble Tea migration record.
+  `charmbracelet/x/ansi` and `x/term`.
 - PTY: `creack/pty`. Terminal width of wide runes: `mattn/go-runewidth`.
 - Storage: YAML (`gopkg.in/yaml.v3`) for config, JSON for session records, operation
   journals, and bounded messaging history (`<config>/messaging/history.json`).
@@ -111,6 +100,7 @@ internal/
     callbacks.go             #   wiring: every view's callbacks (the one place closures can still reach `c`)
     attach.go                #   raw-PTY attach/detach (releases Bubble Tea, forwards stdin, detects Ctrl+K)
     size_guard.go            #   below 80x24: the "too small" notice, and keys dropped except quit
+  configstartup/             # current-format validation, fresh initialization and config-root locking
   config/                    # YAML repository for everything the user configures
     repository.go            #   FileRepository (one mutex for all read-modify-write), interfaces, app settings
     storage.go               #   WriteAtomic (temp file + fsync + rename), Fingerprint (mtime+size per registry)
@@ -133,8 +123,7 @@ internal/
     watch.go io.go           #   per-activation goroutines: status polling, output tracking and scrollback
     attach.go                #   AttachHandle (input routed through the driver's locked writer)
     storage.go workspace.go  #   session JSON load/save (optional per-card conversation bindings); temporary-workspace creation
-    workspace_launcher.go    #   shared IDE/terminal workspace command execution
-    ide_launcher.go          #   IDE compatibility wrapper
+    ide_launcher.go          #   shared IDE/terminal workspace command parsing and execution
   ui/
     messages/messages.go     #   every tea.Msg the app exchanges — read this before adding one
     views/                    #   full screens: dashboard, card_editor, mcp_form, source_manager, settings,
@@ -142,7 +131,7 @@ internal/
     components/              #   reusable pieces: card_list, session_list, session_preview, capability_list,
                              #   source_list, modal, filter (generic search), renderer (puppets),
                              #   text (DisplayText, TruncateHead, TruncateTail)
-    component/ styles/       #   base component type; the colour palette (see crow_puppet_theme.md)
+    component/ styles/       #   base component type and shared colour palette
   testenv/                   # test-only: private TMPDIR root + leak guard for TestMain (session, app)
   ascii/                     # canvas and built-in puppet/face art (cat, darth, default, kankuro, strawhat, totoro)
 ```
@@ -845,7 +834,6 @@ skill and places its current endpoint/credential in the workspace MCP config.
 | Change MCP protocol/security/lifetime | `internal/mcp/server.go`; `main.go` owns listener startup and shutdown order |
 | Change the conversation picker | `ui/views/conversation_choice.go`, `app/coordinator.go` message routing, `app/callbacks.go` command construction |
 | Change the preview subscription | `preview.go` (`previewSub`) and `handlers.go` (`handlePreviewRequest`, `handleSessionOutput`) |
-| Pick up known debt | `tech_debt_act_2.md` |
 
 ---
 
@@ -871,8 +859,6 @@ skill and places its current endpoint/credential in the workspace MCP config.
   workspace picker): `query[:len(query)-1]`. Deleting the last rune of a multi-byte character
   leaves invalid UTF-8 in the query. Display is safe (`DisplayText` / `TruncateTail`); the
   editing is not fixed.
-- **The `commands` package and `app/wiring.go` are gone.** Older documents still mention
-  them; they were dead code.
 
 ---
 

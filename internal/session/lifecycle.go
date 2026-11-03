@@ -66,7 +66,6 @@ func (m *Manager) syncDriverFiles(
 	instructionMode driver.InstructionSyncMode,
 ) (driver.AgentDriver, bool, error) {
 	if clearTmp {
-		// TODO: if other names become relevant, implement a more elegant way of handling this
 		agentDirs := []string{".agents", ".claude"}
 		if d.GetAgentFolder() != agentDirs[0] && d.GetAgentFolder() != agentDirs[1] {
 			agentDirs = append(agentDirs, d.GetAgentFolder())
@@ -871,13 +870,8 @@ func (m *Manager) persistSessionLockedErr(s *Session) error {
 	return nil
 }
 
-// persistSessionLocked is the background-safe variant: failures cannot
-// propagate to a caller (e.g. the watch ticker), so they are logged instead
-// of discarded. See debt_impl_plan_2.md step 3 for the logging decision:
-// callers must never log unconditionally to stderr (it corrupts the
-// rendered TUI frame), so this goes through the Manager's injected logger
-// (WithLogger), which main.go points at the debug log file, or discards
-// entirely when --debug is not set.
+// persistSessionLocked logs background persistence failures through the injected logger.
+// This keeps diagnostics off stderr while the TUI owns the terminal.
 func (m *Manager) persistSessionLocked(s *Session) {
 	if err := m.persistSessionLockedErr(s); err != nil {
 		m.logger.Warn("session persist failed", "session_id", s.ID, "error", err)

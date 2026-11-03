@@ -49,13 +49,7 @@ func TestSessionAttachReplay(t *testing.T) {
 	}
 }
 
-// TestAttachInputSurvivesConcurrentKill pins finding #14 from
-// tech_debt_founding.md: attach input must be routed through the driver's
-// locked SendInputBytes, not written directly to the raw PTY file, so a
-// keystroke racing Kill (which closes and nils the pty under the driver's
-// own lock) cannot land on an already-closed fd. Run with -race: the fix is
-// the RLock/Lock pairing between SendInputBytes and Kill in
-// internal/driver/driver.go, not just the absence of a torn read/write.
+// TestAttachInputSurvivesConcurrentKill exercises the driver lock shared by input and Kill.
 func TestAttachInputSurvivesConcurrentKill(t *testing.T) {
 	repo, _ := config.NewFileRepository(t.TempDir())
 	wd := t.TempDir()

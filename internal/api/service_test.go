@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/driver"
-	"github.com/BlackGiack/kankuro/internal/layout"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/testenv"
 	"github.com/google/uuid"
@@ -80,7 +80,7 @@ func (r *testRepository) ListMCPs() ([]config.MCPServer, error) {
 func newServiceFixture(t *testing.T, managerOptions ...session.Option) (*Service, *testRepository, *session.Manager, string, string) {
 	t.Helper()
 	repoDir := t.TempDir()
-	lock, err := layout.AcquireLock(repoDir)
+	lock, err := configstartup.AcquireLock(repoDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func newServiceFixture(t *testing.T, managerOptions ...session.Option) (*Service
 			t.Error(closeErr)
 		}
 	})
-	if err = layout.PrepareStartup(repoDir); err != nil {
+	if err = configstartup.PrepareStartup(repoDir); err != nil {
 		t.Fatal(err)
 	}
 	base, err := config.NewFileRepository(repoDir)

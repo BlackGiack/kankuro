@@ -10,23 +10,15 @@ import (
 	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/layout"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
-// TestRefreshDataSurfacesErrorAndKeepsPreviousCards pins the app half of
-// finding #8 from tech_debt_founding.md: refreshData used to discard every
-// registry read error (`cards, _ := ...`), so one corrupt YAML file rendered
-// as a silently empty list - which a subsequent save could then persist,
-// destroying real data. debt_impl_plan_4.md step 5 requires that a read
-// error (a) reaches the coordinator's error banner and (b) does not blank a
-// receiver's existing data: DataLoadedMsg.Cards is left nil on error, and
-// Dashboard.SetData's `if msg.Cards != nil` guard means the previous cards
-// stay in place.
+// A failed registry read must surface an error while preserving previously loaded cards.
 func TestRefreshDataSurfacesErrorAndKeepsPreviousCards(t *testing.T) {
 	root := t.TempDir()
-	lock, errLock := layout.AcquireLock(root)
+	lock, errLock := configstartup.AcquireLock(root)
 	if errLock != nil {
 		t.Fatal(errLock)
 	}
@@ -35,7 +27,7 @@ func TestRefreshDataSurfacesErrorAndKeepsPreviousCards(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	if err := layout.PrepareStartup(root); err != nil {
+	if err := configstartup.PrepareStartup(root); err != nil {
 		t.Fatal(err)
 	}
 	repo, errRepo := config.NewFileRepository(root)

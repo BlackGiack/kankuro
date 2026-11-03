@@ -36,16 +36,8 @@ func (c *Coordinator) maybeRefreshConfig() tea.Cmd {
 	return c.refresh.scopedConfigIfChanged(c.actions.service, c.activeDashboard, c.viewGeneration, c.configFingerprint)
 }
 
-// handleConfigFingerprint applies a config-fingerprint check's result. It
-// only adopts m.stamps when non-nil: maybeRefreshConfig's "unchanged" branch
-// sends a nil stamps map specifically so it does NOT touch the baseline (see
-// debt_impl_plan_5.md review finding 1 in review_dp_5_2.md). Without this, an
-// in-flight "unchanged" tick result racing a refreshDataSeeded from a
-// mutation could stomp the newer baseline the mutation just set, costing one
-// redundant full reload on the following tick - not a correctness bug (data
-// stays right), just the exact double-parse finding 2 (in review_dp_5.md)
-// removed. A nil m.data means either "nothing changed" or "Fingerprint
-// itself failed", so it never feeds a data reload either way.
+// handleConfigFingerprint adopts non-nil stamps and data. An unchanged result
+// must not overwrite a newer baseline from an overlapping mutation refresh.
 func (c *Coordinator) handleConfigFingerprint(m configFingerprintMsg) tea.Cmd {
 	if m.data != nil &&
 		(m.data.DashboardID != c.activeDashboard || m.data.Generation != c.viewGeneration) {
@@ -95,10 +87,8 @@ func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
 	return c.maybeSubscribeAutoSelectedPreview()
 }
 
-// handleSessionsRefreshed applies the idle tick's sessions-only refresh: it
-// updates only the dashboard (the sole consumer of Sessions), not every
-// DataReceiver - see refreshSessions and debt_impl_plan_5.md review finding
-// 1.
+// handleSessionsRefreshed applies scoped cards, sessions and preview data to their
+// consumers without reloading unrelated configuration views.
 func (c *Coordinator) handleSessionsRefreshed(m messages.SessionsRefreshedMsg) tea.Cmd {
 	if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
 		return nil

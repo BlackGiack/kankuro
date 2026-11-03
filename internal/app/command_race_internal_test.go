@@ -48,7 +48,7 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/layout"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
@@ -65,7 +65,7 @@ type raceFixture struct {
 func newRaceFixture(t *testing.T, killSession bool) raceFixture {
 	t.Helper()
 	root := t.TempDir()
-	if err := layout.PrepareStartup(root); err != nil {
+	if err := configstartup.PrepareStartup(root); err != nil {
 		t.Fatal(err)
 	}
 	repo, err := config.NewFileRepository(root)

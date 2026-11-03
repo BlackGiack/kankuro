@@ -1,4 +1,4 @@
-package layout
+package configstartup
 
 import (
 	"encoding/json"
@@ -13,20 +13,14 @@ import (
 
 // ValidateLayout reads the membership-bearing v2 layout without normalizing it.
 //
-//nolint:gocognit,gocyclo,cyclop,funlen // Validate all membership domains before startup.
+//nolint:gocognit,funlen // Validate all membership domains before startup.
 func ValidateLayout(dir string) error {
 	marker, err := os.ReadFile(filepath.Join(dir, layoutMarker))
 	if err != nil {
 		return errors.New("dashboard layout marker is missing or unsupported")
 	}
 	if string(marker) != currentMarker {
-		if string(marker) != "2\n" {
-			return errors.New("unsupported dashboard layout marker")
-		}
-		used, usedErr := os.ReadFile(filepath.Join(dir, layoutUsedMarker))
-		if usedErr != nil || string(used) != "used\n" {
-			return errors.New("legacy migration may be incomplete; run migrate-dashboards -apply")
-		}
+		return errors.New("unsupported dashboard layout marker")
 	}
 	for _, name := range []string{"id_cards.yaml", config.DashboardsFilename, config.CardTombstonesFilename, config.DashboardTombstonesFilename} {
 		info, statErr := os.Lstat(filepath.Join(dir, name))
@@ -86,7 +80,7 @@ func ValidateLayout(dir string) error {
 		return err
 	}
 	if cardFile.SchemaVersion != config.CardSchemaVersion {
-		return errors.New("dashboard card schema is not migrated")
+		return errors.New("unsupported dashboard card schema")
 	}
 	cards := make(map[string]config.IDCard)
 	for _, card := range cardFile.IDCards {

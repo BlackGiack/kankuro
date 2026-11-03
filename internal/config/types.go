@@ -1,7 +1,5 @@
 package config
 
-// TODO: Split this file declaring each type in the file it's used
-
 import (
 	"time"
 )
