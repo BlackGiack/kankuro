@@ -1,0 +1,352 @@
+# Appedia impact review
+
+Reviewed against the current working tree on 2026-11-04. All 348 items have a disposition; the accepted baseline remains unchanged.
+
+- [x] `concept:Activation` — **updated**: Reviewed current sources and refreshed concept:Activation for the scoped dashboard runtime; references are build-validated.
+- [x] `concept:Conversation binding` — **updated**: Reviewed current sources and refreshed concept:Conversation binding for the scoped dashboard runtime; references are build-validated.
+- [x] `concept:ID card` — **updated**: Reviewed current sources and refreshed concept:ID card for the scoped dashboard runtime; references are build-validated.
+- [x] `concept:Message and reply` — **updated**: Reviewed current sources and refreshed concept:Message and reply for the scoped dashboard runtime; references are build-validated.
+- [x] `concept:Session` — **updated**: Reviewed current sources and refreshed concept:Session for the scoped dashboard runtime; references are build-validated.
+- [x] `concept:Shared service` — **removed**: The old content entry was replaced by the current dashboard concepts, flow or task; its obsolete wording is not retained.
+- [x] `flow:attach` — **updated**: Reviewed current sources and refreshed flow:attach for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:card-delete` — **updated**: Reviewed current sources and refreshed flow:card-delete for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:control` — **updated**: Reviewed current sources and refreshed flow:control for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:dashboard` — **updated**: Reviewed current sources and refreshed flow:dashboard for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:editcard` — **updated**: Reviewed current sources and refreshed flow:editcard for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:ide` — **updated**: Reviewed current sources and refreshed flow:ide for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:launch` — **updated**: Reviewed current sources and refreshed flow:launch for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:mcp` — **updated**: Reviewed current sources and refreshed flow:mcp for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:mcp-config` — **updated**: Reviewed current sources and refreshed flow:mcp-config for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:mutation` — **updated**: Reviewed current sources and refreshed flow:mutation for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:operations` — **updated**: Reviewed current sources and refreshed flow:operations for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:picker-refresh` — **updated**: Reviewed current sources and refreshed flow:picker-refresh for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:preview` — **updated**: Reviewed current sources and refreshed flow:preview for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:quit` — **updated**: Reviewed current sources and refreshed flow:quit for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:readiness` — **updated**: Reviewed current sources and refreshed flow:readiness for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:recovery` — **updated**: Reviewed current sources and refreshed flow:recovery for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:registration` — **updated**: Reviewed current sources and refreshed flow:registration for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:reports` — **updated**: Reviewed current sources and refreshed flow:reports for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:resize` — **updated**: Reviewed current sources and refreshed flow:resize for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:resume` — **updated**: Reviewed current sources and refreshed flow:resume for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:savecard` — **updated**: Reviewed current sources and refreshed flow:savecard for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:send` — **updated**: Reviewed current sources and refreshed flow:send for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:settings` — **updated**: Reviewed current sources and refreshed flow:settings for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:settings-edit` — **updated**: Reviewed current sources and refreshed flow:settings-edit for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:skill-filter` — **updated**: Reviewed current sources and refreshed flow:skill-filter for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:skills` — **updated**: Reviewed current sources and refreshed flow:skills for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:source` — **updated**: Reviewed current sources and refreshed flow:source for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:startup` — **updated**: Reviewed current sources and refreshed flow:startup for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:stop-delete` — **updated**: Reviewed current sources and refreshed flow:stop-delete for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:sub-clear` — **updated**: Reviewed current sources and refreshed flow:sub-clear for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:sub-picker` — **updated**: Reviewed current sources and refreshed flow:sub-picker for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:temporary-toggle` — **updated**: Reviewed current sources and refreshed flow:temporary-toggle for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:terminal` — **updated**: Reviewed current sources and refreshed flow:terminal for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:tick` — **updated**: Reviewed current sources and refreshed flow:tick for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:trust` — **updated**: Reviewed current sources and refreshed flow:trust for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:watch` — **updated**: Reviewed current sources and refreshed flow:watch for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:workspace` — **updated**: Reviewed current sources and refreshed flow:workspace for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:workspace-command-errors` — **updated**: Reviewed current sources and refreshed flow:workspace-command-errors for the scoped dashboard runtime; references are build-validated.
+- [x] `flow:workspace-sources` — **updated**: Reviewed current sources and refreshed flow:workspace-sources for the scoped dashboard runtime; references are build-validated.
+- [x] `package:api` — **updated**: Reviewed current sources and refreshed package:api for the scoped dashboard runtime; references are build-validated.
+- [x] `package:app` — **updated**: Reviewed current sources and refreshed package:app for the scoped dashboard runtime; references are build-validated.
+- [x] `package:components` — **updated**: Reviewed current sources and refreshed package:components for the scoped dashboard runtime; references are build-validated.
+- [x] `package:config` — **updated**: Reviewed current sources and refreshed package:config for the scoped dashboard runtime; references are build-validated.
+- [x] `package:driver` — **updated**: Reviewed current sources and refreshed package:driver for the scoped dashboard runtime; references are build-validated.
+- [x] `package:messages` — **updated**: Reviewed current sources and refreshed package:messages for the scoped dashboard runtime; references are build-validated.
+- [x] `package:root` — **updated**: Reviewed current sources and refreshed package:root for the scoped dashboard runtime; references are build-validated.
+- [x] `package:session` — **updated**: Reviewed current sources and refreshed package:session for the scoped dashboard runtime; references are build-validated.
+- [x] `package:views` — **updated**: Reviewed current sources and refreshed package:views for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:1` — **updated**: Reviewed current sources and refreshed rule:1 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:12` — **updated**: Reviewed current sources and refreshed rule:12 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:13` — **updated**: Reviewed current sources and refreshed rule:13 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:14` — **updated**: Reviewed current sources and refreshed rule:14 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:15` — **updated**: Reviewed current sources and refreshed rule:15 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:16` — **updated**: Reviewed current sources and refreshed rule:16 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:17` — **updated**: Reviewed current sources and refreshed rule:17 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:18` — **updated**: Reviewed current sources and refreshed rule:18 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:2` — **updated**: Reviewed current sources and refreshed rule:2 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:3` — **updated**: Reviewed current sources and refreshed rule:3 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:4` — **updated**: Reviewed current sources and refreshed rule:4 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:5` — **updated**: Reviewed current sources and refreshed rule:5 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:7` — **updated**: Reviewed current sources and refreshed rule:7 for the scoped dashboard runtime; references are build-validated.
+- [x] `rule:8` — **updated**: Reviewed current sources and refreshed rule:8 for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Add a config registry or source type` — **updated**: Reviewed current sources and refreshed task:Add a config registry or source type for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Add a field to ID cards` — **updated**: Reviewed current sources and refreshed task:Add a field to ID cards for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Add a message` — **updated**: Reviewed current sources and refreshed task:Add a message for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Add a new agent CLI` — **updated**: Reviewed current sources and refreshed task:Add a new agent CLI for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Add a screen` — **updated**: Reviewed current sources and refreshed task:Add a screen for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Add a session operation for TUI and MCP` — **updated**: Reviewed current sources and refreshed task:Add a session operation for TUI and MCP for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change attach / detach / keys during attach` — **updated**: Reviewed current sources and refreshed task:Change attach / detach / keys during attach for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change dashboard layout or keys` — **updated**: Reviewed current sources and refreshed task:Change dashboard layout or keys for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change how IDE or terminal windows open` — **updated**: Reviewed current sources and refreshed task:Change how IDE or terminal windows open for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change native conversation registration or resume` — **updated**: Reviewed current sources and refreshed task:Change native conversation registration or resume for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change prompt delivery or explicit report kinds` — **updated**: Reviewed current sources and refreshed task:Change prompt delivery or explicit report kinds for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change refresh behaviour` — **updated**: Reviewed current sources and refreshed task:Change refresh behaviour for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change retry, cancellation or restart behavior` — **updated**: Reviewed current sources and refreshed task:Change retry, cancellation or restart behavior for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change session lifecycle or status detection` — **updated**: Reviewed current sources and refreshed task:Change session lifecycle or status detection for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change session names or activation snapshots` — **updated**: Reviewed current sources and refreshed task:Change session names or activation snapshots for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change startup delay or workspace trust` — **updated**: Reviewed current sources and refreshed task:Change startup delay or workspace trust for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change the embedded skill or startup installation` — **updated**: Reviewed current sources and refreshed task:Change the embedded skill or startup installation for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change the minimum terminal size` — **updated**: Reviewed current sources and refreshed task:Change the minimum terminal size for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change the preview subscription` — **updated**: Reviewed current sources and refreshed task:Change the preview subscription for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change what gets written into a session's workspace` — **updated**: Reviewed current sources and refreshed task:Change what gets written into a session's workspace for the scoped dashboard runtime; references are build-validated.
+- [x] `task:Change workspace picking or the selected Skills view` — **updated**: Reviewed current sources and refreshed task:Change workspace picking or the selected Skills view for the scoped dashboard runtime; references are build-validated.
+- [x] `uncovered:api.cardConfirmation` — **updated**: Reviewed and associated with flow:card-delete.
+- [x] `uncovered:api.CardDeletionPreflight` — **updated**: Reviewed and associated with flow:card-delete.
+- [x] `uncovered:api.CardDeletionResult` — **updated**: Reviewed and associated with flow:card-delete.
+- [x] `uncovered:api.CardDiscovery` — **updated**: Reviewed and associated with flow:control.
+- [x] `uncovered:api.cardImpactDigest` — **updated**: Reviewed and associated with flow:card-delete, flow:card-recovery, package:api.
+- [x] `uncovered:api.cardPendingCleanup` — **updated**: Reviewed and associated with flow:card-delete, flow:card-recovery, package:api.
+- [x] `uncovered:api.dashboardConfirmation` — **updated**: Reviewed and associated with flow:delete-dashboard.
+- [x] `uncovered:api.DashboardData` — **updated**: Reviewed and associated with flow:caller-scope.
+- [x] `uncovered:api.DashboardDeletionPreflight` — **updated**: Reviewed and associated with flow:delete-dashboard.
+- [x] `uncovered:api.DashboardDeletionResult` — **updated**: Reviewed and associated with flow:cascade-recovery.
+- [x] `uncovered:api.dashboardDeletionWriter` — **updated**: Reviewed and associated with flow:cascade-recovery.
+- [x] `uncovered:api.dashboardImpactDigest` — **updated**: Reviewed and associated with flow:delete-dashboard, package:api.
+- [x] `uncovered:api.dashboardScopeLookup` — **removed**: Retired production declaration is absent from the current model. Current scoped APIs and test-only adapter separation replace its former role.
+- [x] `uncovered:api.DashboardScopeResolver` — **removed**: Retired production declaration is absent from the current model. Current scoped APIs and test-only adapter separation replace its former role.
+- [x] `uncovered:api.dashboardSessionAssigner` — **removed**: Retired production declaration is absent from the current model. Current scoped APIs and test-only adapter separation replace its former role.
+- [x] `uncovered:api.dashboardWriter` — **updated**: Reviewed and associated with flow:caller-scope.
+- [x] `uncovered:api.hasForeignCardReferences` — **updated**: Reviewed and associated with flow:caller-scope, flow:savecard, package:api.
+- [x] `uncovered:api.membershipInventory` — **updated**: Reviewed and associated with flow:caller-scope, package:api, task:Change dashboard ownership or shared-card availability.
+- [x] `uncovered:api.membershipInventory.activeDashboard` — **updated**: Reviewed and associated with flow:caller-scope, flow:savecard, package:api.
+- [x] `uncovered:api.membershipInventory.allowsCard` — **updated**: Reviewed and associated with flow:caller-scope, flow:savecard, package:api.
+- [x] `uncovered:api.membershipInventory.allowsSession` — **updated**: Reviewed and associated with flow:caller-scope, flow:savecard, package:api.
+- [x] `uncovered:api.membershipInventory.hasTombstone` — **updated**: Reviewed and associated with flow:caller-scope, flow:savecard, package:api.
+- [x] `uncovered:api.newMembershipInventory` — **updated**: Reviewed and associated with flow:caller-scope, flow:savecard, package:api.
+- [x] `uncovered:api.operationCardID` — **removed**: Retired production declaration is absent from the current model. Current scoped APIs and test-only adapter separation replace its former role.
+- [x] `uncovered:api.operationResult` — **updated**: Reviewed and associated with flow:operations.
+- [x] `uncovered:api.persistedDashboardScope` — **updated**: Reviewed and associated with flow:caller-scope, package:api, task:Change dashboard ownership or shared-card availability.
+- [x] `uncovered:api.persistedDashboardScope.AllowsCard` — **updated**: Reviewed and associated with flow:caller-scope, package:api.
+- [x] `uncovered:api.persistedDashboardScope.AllowsSession` — **updated**: Reviewed and associated with flow:caller-scope, package:api.
+- [x] `uncovered:api.persistedDashboardScope.DashboardForSession` — **updated**: Reviewed and associated with flow:caller-scope, package:api, rule:20.
+- [x] `uncovered:api.persistedDashboardScope.inventory` — **updated**: Reviewed and associated with flow:caller-scope, package:api.
+- [x] `uncovered:api.persistedDashboardScope.SessionDashboard` — **updated**: Reviewed and associated with flow:caller-scope, package:api.
+- [x] `uncovered:api.persistedDashboardScope.validateScopeInventory` — **updated**: Reviewed and associated with flow:caller-scope, package:api.
+- [x] `uncovered:api.Repository` — **updated**: Reviewed and associated with flow:control.
+- [x] `uncovered:api.scopedCardWriter` — **updated**: Reviewed and associated with flow:caller-scope.
+- [x] `uncovered:api.SessionDiscovery` — **updated**: Reviewed and associated with flow:control.
+- [x] `uncovered:api.sessionInDashboard` — **updated**: Reviewed and associated with flow:caller-scope, flow:savecard, package:api.
+- [x] `uncovered:api.sessionUsesCard` — **updated**: Reviewed and associated with flow:caller-scope, flow:savecard, package:api.
+- [x] `uncovered:api.singleDashboardScope` — **removed**: Retired production declaration is absent from the current model. Current scoped APIs and test-only adapter separation replace its former role.
+- [x] `uncovered:api.singleDashboardScope.AllowsCard` — **removed**: Retired production declaration is absent from the current model. Current scoped APIs and test-only adapter separation replace its former role.
+- [x] `uncovered:api.singleDashboardScope.AllowsSession` — **removed**: Retired production declaration is absent from the current model. Current scoped APIs and test-only adapter separation replace its former role.
+- [x] `uncovered:api.singleDashboardScope.DashboardForSession` — **removed**: Retired production declaration is absent from the current model. Current scoped APIs and test-only adapter separation replace its former role.
+- [x] `uncovered:api.tombstoneWriter` — **updated**: Reviewed and associated with flow:card-delete.
+- [x] `uncovered:app.cardDeletionPreflightCommand` — **updated**: Reviewed and associated with flow:delete-dashboard, flow:navigation, package:app.
+- [x] `uncovered:app.confirmCardDeletionCommand` — **updated**: Reviewed and associated with flow:delete-dashboard, flow:navigation, package:app.
+- [x] `uncovered:app.convertViewType` — **updated**: Reviewed and associated with flow:navigation, package:app.
+- [x] `uncovered:app.dashboardDeletionStatus` — **updated**: Reviewed and associated with flow:delete-dashboard, flow:navigation, package:app.
+- [x] `uncovered:app.dashboardDeletionSummary` — **updated**: Reviewed and associated with flow:delete-dashboard, flow:navigation, package:app.
+- [x] `uncovered:app.dashboardListCommand` — **updated**: Reviewed and associated with flow:delete-dashboard, flow:navigation, package:app.
+- [x] `uncovered:app.New` — **updated**: Reviewed and associated with flow:startup, package:app.
+- [x] `uncovered:app.NewCoordinator` — **updated**: Reviewed and associated with flow:navigation, package:app.
+- [x] `uncovered:app.retryCardDeletionCommand` — **updated**: Reviewed and associated with flow:delete-dashboard, flow:navigation, package:app.
+- [x] `uncovered:app.scopedAttachCommand` — **updated**: Reviewed and associated with flow:attach, flow:manual-session, package:app.
+- [x] `uncovered:code:relations` — **updated**: Regenerated package/type diagrams from current imports, fields, embeddings and method relationships; configstartup is included.
+- [x] `uncovered:components.Filter` — **updated**: Reviewed and associated with flow:savecard, package:components.
+- [x] `uncovered:config.CardDeletionPending` — **updated**: Reviewed and associated with flow:card-recovery.
+- [x] `uncovered:config.CardRepository` — **updated**: Reviewed and associated with flow:startup.
+- [x] `uncovered:config.CardTombstone` — **updated**: Reviewed and associated with flow:card-recovery, package:config.
+- [x] `uncovered:config.cardTombstonesFile` — **updated**: Reviewed and associated with flow:card-recovery.
+- [x] `uncovered:config.Dashboard` — **updated**: Reviewed and associated with concept:Dashboard, flow:dashboard-details, package:config.
+- [x] `uncovered:config.DashboardDeletion` — **updated**: Reviewed and associated with concept:Deletion manifest, flow:cascade-recovery, package:config.
+- [x] `uncovered:config.DashboardDeletionCard` — **updated**: Reviewed and associated with flow:cascade-recovery.
+- [x] `uncovered:config.dashboardDeletionFilename` — **updated**: Reviewed and associated with flow:cascade-recovery, package:config.
+- [x] `uncovered:config.DashboardDeletionPending` — **updated**: Reviewed and associated with flow:cascade-recovery.
+- [x] `uncovered:config.DashboardDeletionReference` — **updated**: Reviewed and associated with flow:cascade-recovery.
+- [x] `uncovered:config.DashboardDeletionSession` — **updated**: Reviewed and associated with flow:cascade-recovery.
+- [x] `uncovered:config.DashboardRepository` — **updated**: Reviewed and associated with flow:startup.
+- [x] `uncovered:config.dashboardsFile` — **updated**: Reviewed and associated with flow:dashboard-details.
+- [x] `uncovered:config.DashboardTombstone` — **updated**: Reviewed and associated with flow:delete-dashboard.
+- [x] `uncovered:config.dashboardTombstonesFile` — **updated**: Reviewed and associated with flow:delete-dashboard.
+- [x] `uncovered:config.OpenExistingFileRepository` — **updated**: Reviewed and associated with flow:startup, package:config.
+- [x] `uncovered:config.ResolveDirectory` — **updated**: Reviewed and associated with flow:startup, package:config.
+- [x] `uncovered:config.validateCardMembershipFormat` — **updated**: Reviewed and associated with flow:savecard, package:config.
+- [x] `uncovered:config.validateDashboard` — **updated**: Reviewed and associated with flow:dashboard-details, package:config.
+- [x] `uncovered:config.validateDashboardDeletion` — **updated**: Reviewed and associated with flow:cascade-recovery, package:config.
+- [x] `uncovered:config.validateNewCardPending` — **updated**: Reviewed and associated with flow:card-recovery, package:config.
+- [x] `uncovered:config.validTemporaryIdentity` — **updated**: Reviewed and associated with flow:cascade-recovery, package:config.
+- [x] `uncovered:configstartup` — **updated**: Reviewed and associated with package:configstartup.
+- [x] `uncovered:configstartup.AcquireLock` — **updated**: Reviewed and associated with flow:startup, package:configstartup, task:Change configuration startup.
+- [x] `uncovered:configstartup.jsonValue` — **updated**: Reviewed and associated with flow:startup, package:configstartup.
+- [x] `uncovered:configstartup.Lock` — **updated**: Reviewed and associated with flow:startup, package:configstartup.
+- [x] `uncovered:configstartup.Lock.Close` — **updated**: Reviewed and associated with flow:startup, package:configstartup.
+- [x] `uncovered:configstartup.PrepareStartup` — **updated**: Reviewed and associated with flow:startup, package:configstartup, rule:19.
+- [x] `uncovered:configstartup.validateJSON` — **updated**: Reviewed and associated with flow:startup, package:configstartup.
+- [x] `uncovered:configstartup.ValidateLayout` — **updated**: Reviewed and associated with flow:startup, package:configstartup, task:Change configuration startup.
+- [x] `uncovered:configstartup.validateLayoutHistory` — **updated**: Reviewed and associated with flow:startup, package:configstartup.
+- [x] `uncovered:configstartup.validateLayoutSessions` — **updated**: Reviewed and associated with flow:startup, package:configstartup.
+- [x] `uncovered:file:AGENTS.md` — **unchanged**: Reviewed repository documentation or local planning input; retained as provenance rather than represented as a runtime component.
+- [x] `uncovered:file:feature_7_handoff.md` — **unchanged**: Reviewed repository documentation or local planning input; retained as provenance rather than represented as a runtime component.
+- [x] `uncovered:file:feature_7.md` — **unchanged**: Reviewed repository documentation or local planning input; retained as provenance rather than represented as a runtime component.
+- [x] `uncovered:file:feature.md` — **unchanged**: Reviewed repository documentation or local planning input; retained as provenance rather than represented as a runtime component.
+- [x] `uncovered:file:impl_plan.md` — **unchanged**: Reviewed repository documentation or local planning input; retained as provenance rather than represented as a runtime component.
+- [x] `uncovered:file:internal/api/card_cleanup_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/api/card_confirmation.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/api/dashboard_confirmation.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/api/dashboard_deletion_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/api/dashboard_deletion.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/api/membership_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/api/membership.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/api/messaging_review_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/api/persisted_scope.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/api/service_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/conversation_choice_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/coordinator_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/current_fixture_external_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/dashboard_list_keys_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/dashboard_list.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/delete_card_guard_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/export_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/integration_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/main_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/multi_dashboard_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/navigation_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/preview_broadcast_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/preview_integration_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/refresh_cadence_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/refresh_error_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/scoped_refresh_error_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/scoped_refresh.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/session_actions_registry_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/session_warning_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/size_guard_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/source_save_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/app/source_sync_warning_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/config/card_tombstones_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/config/card_tombstones.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/config/dashboard_deletions_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/config/dashboard_deletions.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/config/dashboard_tombstones.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/config/dashboards_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/config/dashboards.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/config/id_cards_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/config/refactor_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/config/repository_concurrency_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/config/repository_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/config/storage_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/configstartup/json.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/configstartup/lock.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/configstartup/startup_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/configstartup/startup.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/configstartup/validate_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/configstartup/validate.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/mcp/dashboard_scope_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/mcp/server_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/attach_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/claude_resume_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/conversation_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/dashboard_admission_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/dashboard_admission.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/dashboard_history_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/dashboard_launch_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/dashboard_membership_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/delete_reservation_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/io_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/lifecycle_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/mapping_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/mapping_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/messaging_review_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/messaging_watch_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/relaunch_mcp_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/residual_cleanup_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/residual_cleanup.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/scoped_helpers_external_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/scoped_helpers_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/shutdown_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/startup_integration_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/startup_replacement_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/storage_schema_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/storage_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/tmp_workspace_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/trust_removal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/watch_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/workspace_mcp_concurrency_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/workspace_mcp_exit_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/workspace_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/session/workspace_validation_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/ui/components/capability_list_layout_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/ui/components/session_list_layout_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/ui/components/session_list_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/ui/components/session_preview_layout_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/ui/views/card_editor_internal_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/ui/views/conversation_choice_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/ui/views/dashboard_card_deletion_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/ui/views/dashboard_list_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/ui/views/dashboard_list.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/ui/views/modals_layout_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:internal/ui/views/session_launcher_test.go` — **unchanged**: Reviewed implementation/regression input. Current behavior is described by the owning package, current flow sources and validation/keyboard test facts; no separate sequence is needed for this file.
+- [x] `uncovered:file:ireview.md` — **unchanged**: Reviewed repository documentation or local planning input; retained as provenance rather than represented as a runtime component.
+- [x] `uncovered:file:review_2.md` — **unchanged**: Reviewed repository documentation or local planning input; retained as provenance rather than represented as a runtime component.
+- [x] `uncovered:file:review_3.md` — **unchanged**: Reviewed repository documentation or local planning input; retained as provenance rather than represented as a runtime component.
+- [x] `uncovered:file:review_4.md` — **unchanged**: Reviewed repository documentation or local planning input; retained as provenance rather than represented as a runtime component.
+- [x] `uncovered:file:review.md` — **unchanged**: Reviewed repository documentation or local planning input; retained as provenance rather than represented as a runtime component.
+- [x] `uncovered:file:startup_impl_plan.md` — **removed**: The source file is absent in the current tree; its retired entry point is not retained in the appedia.
+- [x] `uncovered:messages.AgentSwitchedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.AgentSwitchRequestedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.AttachFinishedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.CardDeletionPreparedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.CardSavedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.ConversationChoiceRequestedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.DashboardDeletionPreparedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.DashboardDeletionStatusMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.DashboardListLoadedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.DashboardListRequestedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.DashboardMutationFinishedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.DashboardOpenRequestedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.IDELaunchedMsg` — **removed**: Retired production declaration is absent from the current model. Current scoped APIs and test-only adapter separation replace its former role.
+- [x] `uncovered:messages.MCPSavedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.NavigateMsg` — **removed**: Retired production declaration is absent from the current model. Current scoped APIs and test-only adapter separation replace its former role.
+- [x] `uncovered:messages.ScopedActionFinishedMsg` — **updated**: Reviewed and associated with flow:terminal, flow:tick, flow:workspace-command-errors.
+- [x] `uncovered:messages.ScopedAttachReadyMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.ScopedNavigateMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.ScopedSessionNamedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.SessionAttachRequestedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.SessionLaunchCompletedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:messages.SettingsSavedMsg` — **updated**: Reviewed and associated with flow:tick.
+- [x] `uncovered:session.activationAuthority` — **updated**: Reviewed and associated with flow:registration.
+- [x] `uncovered:session.AdmissionSnapshot` — **updated**: Reviewed and associated with flow:delete-dashboard.
+- [x] `uncovered:session.CallerIdentity` — **updated**: Reviewed and associated with flow:registration.
+- [x] `uncovered:session.CardPendingReference` — **updated**: Reviewed and associated with flow:launch.
+- [x] `uncovered:session.CardReferenceImpact` — **updated**: Reviewed and associated with flow:launch, package:session.
+- [x] `uncovered:session.cardReservation` — **updated**: Reviewed and associated with flow:launch.
+- [x] `uncovered:session.CardSessionReference` — **updated**: Reviewed and associated with flow:launch.
+- [x] `uncovered:session.Data` — **updated**: Reviewed and associated with flow:recovery, package:session.
+- [x] `uncovered:session.driverInputWriter` — **updated**: Reviewed and associated with flow:attach.
+- [x] `uncovered:session.NewIDELauncher` — **removed**: Retired production declaration is absent from the current model. Current scoped APIs and test-only adapter separation replace its former role.
+- [x] `uncovered:session.RegistrationResult` — **updated**: Reviewed and associated with flow:registration.
+- [x] `uncovered:session.savedTemporaryRoot` — **updated**: Reviewed and associated with flow:resume.
+- [x] `uncovered:session.saveSession` — **updated**: Reviewed and associated with flow:recovery, flow:tick, package:session.
+- [x] `uncovered:session.Session.data` — **updated**: Reviewed and associated with flow:caller-scope, flow:launch, package:session.
+- [x] `uncovered:session.sessionInstructionOwnership` — **removed**: Retired production declaration is absent from the current model. Current scoped APIs and test-only adapter separation replace its former role.
+- [x] `uncovered:views.AgentSwitchView.handleKey` — **updated**: Reviewed and associated with flow:resume.
+- [x] `uncovered:views.AgentSwitchView.SetData` — **updated**: Reviewed and associated with flow:resume.
+- [x] `uncovered:views.CardEditorCallbacks` — **updated**: Reviewed and associated with flow:savecard.
+- [x] `uncovered:views.dashboardItem` — **updated**: Reviewed and associated with flow:navigation.
+- [x] `uncovered:views.dashboardItem.Description` — **updated**: Reviewed and associated with flow:list-errors, flow:navigation, package:views.
+- [x] `uncovered:views.dashboardItem.FilterValue` — **updated**: Reviewed and associated with flow:list-errors, flow:navigation, package:views.
+- [x] `uncovered:views.dashboardItem.Title` — **updated**: Reviewed and associated with flow:list-errors, flow:navigation, package:views.
+- [x] `uncovered:views.DashboardList` — **updated**: Reviewed and associated with flow:cascade-recovery, flow:dashboard-details, flow:delete-dashboard.
+- [x] `uncovered:views.DashboardList.confirmDeletion` — **updated**: Reviewed and associated with flow:list-errors, flow:navigation, package:views.
+- [x] `uncovered:views.DashboardList.Init` — **updated**: Reviewed and associated with flow:list-errors, flow:navigation, package:views.
+- [x] `uncovered:views.DashboardList.openForm` — **updated**: Reviewed and associated with flow:list-errors, flow:navigation, package:views.
+- [x] `uncovered:views.DashboardList.renderPage` — **updated**: Reviewed and associated with flow:navigation, package:views, task:Change dashboard layout or keys.
+- [x] `uncovered:views.DashboardList.retryDeletion` — **updated**: Reviewed and associated with flow:cascade-recovery, flow:list-errors, flow:navigation.
+- [x] `uncovered:views.DashboardList.selected` — **updated**: Reviewed and associated with flow:list-errors, flow:navigation, package:views.
+- [x] `uncovered:views.DashboardList.SetDashboards` — **updated**: Reviewed and associated with flow:dashboard-details, flow:list-errors, flow:navigation.
+- [x] `uncovered:views.DashboardList.SetSize` — **updated**: Reviewed and associated with flow:list-errors, flow:navigation, package:views.
+- [x] `uncovered:views.DashboardList.Update` — **updated**: Reviewed and associated with flow:cascade-recovery, flow:dashboard-details, flow:delete-dashboard.
+- [x] `uncovered:views.DashboardList.updateConfirmation` — **updated**: Reviewed and associated with flow:list-errors, flow:navigation, package:views.
+- [x] `uncovered:views.DashboardList.updateForm` — **updated**: Reviewed and associated with flow:dashboard-details, flow:list-errors, flow:navigation.
+- [x] `uncovered:views.DashboardList.View` — **updated**: Reviewed and associated with flow:list-errors, flow:navigation, package:views.
+- [x] `uncovered:views.DashboardListCallbacks` — **updated**: Reviewed and associated with flow:navigation.
+- [x] `uncovered:views.dashboardListMode` — **updated**: Reviewed and associated with flow:navigation.
+- [x] `uncovered:views.focusTargetTable` — **updated**: Reviewed and associated with flow:savecard, package:views.
+- [x] `uncovered:views.NewDashboardList` — **updated**: Reviewed and associated with flow:list-errors, flow:navigation, package:views.
+- [x] `uncovered:views.SessionLauncher` — **updated**: Reviewed and associated with flow:launch, flow:manual-session.
+- [x] `uncovered:views.SessionLauncher.handleNameSubmit` — **updated**: Reviewed and associated with flow:launch, flow:manual-session, package:views.
+- [x] `uncovered:views.SessionLauncher.Reset` — **updated**: Reviewed and associated with flow:launch, flow:manual-session, package:views.
+- [x] `uncovered:views.SessionLauncher.SetNameResult` — **updated**: Reviewed and associated with flow:launch, flow:manual-session, package:views.
+- [x] `uncovered:views.SessionLauncherCallbacks` — **updated**: Reviewed and associated with flow:launch.
+- [x] `uncovered:views.SettingsCallbacks` — **updated**: Reviewed and associated with flow:settings-edit.

@@ -1,40 +1,27 @@
 # KANKURO appedia
 
-An interactive map of this codebase: packages, class diagrams, the real code,
-39 sequence-diagram flows, the rules the code relies on, and where to start for
-common changes.
+Open **index.html** directly in a browser; no server is needed. The site falls
+back to system fonts when offline.
 
-This snapshot covers the current working tree on `feat/claude-resume` at
-`34cdb18`, including the Claude delayed-Enter submission override (2026-11-02).
-It includes the local MCP control plane, shared application service,
-native conversation bindings, explicit progress/completion replies, named sessions,
-workspace trust, immediate human attachment and the separate MCP startup gate.
+Updated from the working tree on 2026-11-04, based on commit `32f4cec` and the
+current dashboard keyboard changes. It covers 18 application packages, 48 flows,
+24 rules and 28 common-change entry points.
 
-The existing human UI, settings, workspace selection, copy ownership, refresh,
-preview and external IDE/terminal flows are retained. Package roles and new flows
-reuse the reviewed appediff where applicable; change-only and removed-code steps
-were converted to current-state descriptions. The appediff remains a separate
-historical comparison under `tmp/appediff/`.
+The explanations cover dashboard ownership and sharing, scoped UI and MCP
+operations, immutable session membership, durable deletion recovery, safe
+navigation and configuration startup through `internal/configstartup`.
+Retired dashboard migration tooling and legacy production paths are removed.
+The appediff under `tmp/appediff/` remains a separate change review.
 
-**Open `index.html` in a browser.** No server needed. Without network access
-the page still works; it falls back to system fonts.
+## Editing and refreshing
 
-## What to edit
+Edit `data/content.js` for explanations, flows, rules, tasks and the glossary.
+Models, diagrams and `data/content-index.json` are generated. Refresh impact
+reviews also require dispositions and reasons in the pending `impact.json`.
 
-Edit `data/content.js` for package roles, flows, rules, tasks, and the glossary.
-During a refresh, also review the generated impact report and record its
-dispositions in `.maintenance/pending/impact.json`. Models, the content index,
-renderer assets, and accepted baseline metadata are generated.
-
-## Rebuild after the code changes
-
-This refresh used the installed create-appedia skill at
-`.agents/skills/create-appedia`, with Node 20, Go 1.27.3 and Graphviz. That skill
-directory is ignored by git; another checkout needs the same skill installed,
-or `appedia_skill_dir` set to its actual location. The older bundled scripts under
-`kankuro_skills/create-appedia` do not include this refresh pipeline.
-
-From the repository root, use the same extraction settings:
+This refresh used the installed skill at `.agents/skills/create-appedia`, Node,
+Go and Graphviz. The skill directory is ignored by git; install the same skill
+in another checkout. From the repository root:
 
 ```bash
 appedia_skill_dir=.agents/skills/create-appedia
@@ -42,51 +29,30 @@ node "$appedia_skill_dir/scripts/appedia.mjs" --action prepare --repo . --lang g
   --exclude kankuro_skills/create-appedia,kankuro_skills/create-appediff,tmp,appedia,.agents,.kankuro
 ```
 
-Review `.maintenance/pending/impact.md`, update `data/content.js`, and mark every
-item in `impact.json` as `updated`, `unchanged`, or `removed` with a reason. Then:
+Review `.maintenance/pending/impact.md`, update `data/content.js`, and record
+every impact item's disposition and reason. Then rebuild:
 
 ```bash
 node "$appedia_skill_dir/scripts/appedia.mjs" --action rebuild --repo .
+```
+
+Rebuild validates references and regenerates the site. This update reviewed all
+348 impact items. The previous accepted maintenance baseline is preserved;
+the reviewed candidate is retained in `.maintenance/pending/`.
+
+For a future update where an exhaustive route check is wanted, finalization
+runs that check before accepting the candidate as the maintenance baseline:
+
+```bash
 npm install --prefix /tmp/appedia-smoke jsdom@24
 node "$appedia_skill_dir/scripts/appedia.mjs" --action finalize --repo . \
   --jsdom /tmp/appedia-smoke
 ```
 
-Rebuild validates references and regenerates diagrams. Finalize additionally
-checks every route in a simulated browser before accepting a baseline. Failed
-checks leave the previous baseline intact. The canonical bundled MCP-CLI asset
-is included in the input history; tool fixtures and generated sites are excluded.
-
-The first refresh established provenance for this legacy site, whose earlier
-snapshot had no accepted file history. `.maintenance/baseline.json` and
-`.maintenance/baseline-model.json` now support subsequent comparisons.
-
-To check an already built site without changing its baseline:
-
-```bash
-node "$appedia_skill_dir/scripts/smoke.mjs" --site appedia --jsdom /tmp/appedia-smoke
-```
-
-How it was made and how to make one for another project:
-the installed skill's `SKILL.md` and `references/content-guide.md`.
-
 ## Verification
 
-The staged code cleanup already passed focused driver regressions, full tests,
-race tests, build, vet and lint; evidence is in
-`.kankuro/remove-legacy-cleanup-verification/`. This documentation refresh does
-not repeat unchanged source tests. The finalization command above rebuilds and
-checks every appedia route before recording the new working-tree baseline.
-Browser captures are retained under `tmp/appedia-refresh/verification/`.
-Finalization passed on 2026-10-29: the build and exhaustive route smoke test
-succeeded, the accepted baseline includes the staged driver cleanup, and all
-12 light/dark browser captures were inspected. Runtime credentials and local
-verification artifacts are excluded from the source inventory.
-Live CLI workflows were not rerun for this refresh; Claude validation is ongoing
-in the user's other environment.
-
-Claude and Codex now use the same cancellable 500 ms pause between prompt text
-and Enter. The appedia delivery flow and driver entry points cover both overrides.
-Source verification for this update is retained under
-`.kankuro/claude-submission-verification/`; appedia refresh evidence is under
-`tmp/claude-appedia-refresh/`.
+The build, source consistency check and bounded 11-route browser-model check
+passed. Ten light/dark browser captures were generated and representative
+package, map and flow views were inspected. See [VERIFICATION.md](VERIFICATION.md).
+The exhaustive smoke test was not rerun, following the user's request to stop
+it; finalization and baseline acceptance are therefore not claimed.

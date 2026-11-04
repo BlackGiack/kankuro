@@ -61,64 +61,74 @@ window.APPEDIA_CONTENT = {
       "comes back through Bubble Tea's Update"
     ]
   },
-  "snapshot": "Working tree on feat/claude-resume at 34cdb18, including the Claude delayed-Enter submission override, 2026-11-02.",
-  "pitch": "Kankuro runs coding-agent CLIs in separate PTYs and lets humans and authenticated orchestrator sessions operate the same sessions. Cards select projects, models, skills, personas and MCP servers; orchestrators can create named sessions, switch cards, and exchange explicit reports.",
-  "pitch2": "Bubble Tea owns human interaction; a loopback MCP endpoint adapts tools to a shared application service. One session manager owns processes, activation identity, native conversation bindings, startup timers and message history. Factory workflow policy stays in user instructions.",
+  "snapshot": "Current working tree, 2026-11-04; Feature 7 dashboards and checked recovery controls.",
+  "pitch": "Organize agent configurations and sessions into independent dashboards. Share selected cards across dashboards while keeping each session, workspace identity and conversation binding in its creation dashboard.",
+  "pitch2": "The dashboard-list TUI and authenticated loopback MCP endpoint share one scoped service. The session manager owns processes, credentials and workspace preparation; repositories persist registries, membership and checkpointed recovery. Configstartup locks and validates configuration before runtime begins.",
   "concepts": [
     [
+      "Dashboard",
+      "Persistent ID, name and description owning sessions and card creation.",
+      "config.Dashboard"
+    ],
+    [
       "ID card",
-      "Saved project-scoped agent template and optional Dashboard Control permission.",
+      "Owned agent template; shared cards are available across dashboards.",
       "config.IDCard"
     ],
     [
       "Session",
-      "Persistent workspace identity and user name across successive CLI activations.",
+      "Immutable dashboard membership, workspace identity and per-card native bindings.",
       "session.Session"
     ],
     [
       "Activation",
-      "One process generation, credential and startup gate.",
+      "One process generation, deployed credential and message startup gate.",
       "session.Snapshot"
     ],
     [
-      "Shared service",
-      "Application operations used by human UI and local MCP.",
+      "Scoped service",
+      "Common membership policy for human UI and authenticated MCP.",
       "api.Service"
     ],
     [
       "Conversation binding",
-      "Saved native conversation for one card in one session.",
+      "Saved native CLI conversation within one session and card.",
       "session.ConversationBinding"
     ],
     [
       "Message and reply",
-      "Marked process input plus explicit correlated MCP reports.",
+      "Explicit delivery plus correlated progress, questions and completion.",
       "session.MessageRecord"
+    ],
+    [
+      "Deletion manifest",
+      "Durable cascade effects and cleanup checkpoints for retry.",
+      "config.DashboardDeletion"
     ]
   ],
   "path": [
     [
-      "See the shared service between UI, local MCP and process manager.",
+      "See the package boundaries and common UI/MCP service.",
       "map"
     ],
     [
-      "Trace a fresh session from preparation through publication.",
+      "Open a dashboard and return safely to the list.",
+      "flow-navigation"
+    ],
+    [
+      "Trace a scoped launch through admission and process publication.",
       "flow-launch"
     ],
     [
-      "Separate immediate human attachment from the message startup gate.",
-      "flow-readiness"
+      "See why MCP scope follows the caller session.",
+      "flow-caller-scope"
     ],
     [
-      "Follow registration and native conversation resume.",
-      "flow-registration"
-    ],
-    [
-      "Trace explicit messages and progress/completion reports.",
+      "Follow explicit messages and reports.",
       "flow-send"
     ],
     [
-      "Read invariants and entry points for future changes.",
+      "Read the invariants before changing lifecycle or recovery.",
       "rules"
     ]
   ],
@@ -268,14 +278,18 @@ window.APPEDIA_CONTENT = {
       "disk": [
         580,
         780
+      ],
+      "configstartup": [
+        580,
+        220
       ]
     }
   },
   "packages": {
     "app": {
-      "label": "internal/app",
-      "sub": "the coordinator",
-      "role": "Coordinates Bubble Tea views and captures immutable command inputs. Session actions delegate domain operations to api.Service; conversation-choice callbacks open an explicit new/resume picker.",
+      "label": "UI coordinator",
+      "sub": "commands and navigation",
+      "role": "Owns the opened dashboard and view generation. Builds asynchronous scoped commands and rejects stale results before changing views.",
       "files": {
         "coordinator.go": "the Coordinator struct, Update, message routing",
         "navigation.go": "navigateTo (rule 2), initViews, resizeAll, broadcasts",
@@ -286,31 +300,81 @@ window.APPEDIA_CONTENT = {
         "callbacks.go": "every view's callbacks",
         "attach.go": "raw-PTY attach/detach, Ctrl+K",
         "size_guard.go": "below 80×24: notice, keys dropped",
-        "app.go": "tea.Model wrapper"
+        "app.go": "tea.Model wrapper",
+        "dashboard_list.go": "dashboard inventory, scope-aware callbacks and cascade confirmation",
+        "scoped_refresh.go": "captured scope, generation and fingerprint-aware commands"
       },
       "notes": [
-        "Bubble Tea command closures run off the UI goroutine. Native-conversation choices are validated again by the session manager."
+        "Commands capture dashboard ID, view generation and settings before running off the coordinator goroutine.",
+        "Test-only adapters in export_test.go exercise the current scoped handlers."
       ],
       "rules": [],
       "key": [
         "Coordinator",
-        "refresher",
         "sessionActions",
-        "previewSub",
-        "attachExec"
+        "refresher"
       ],
       "sources": {
         "refs": [
+          "app.Coordinator.Init",
+          "app.Coordinator.agentSwitchCallbacks",
+          "app.Coordinator.cardEditorCallbacks",
+          "app.Coordinator.conversationChoiceCallbacks",
+          "app.Coordinator.dashboardCallbacks",
+          "app.Coordinator.dashboardListCallbacks",
+          "app.Coordinator.guardKey",
+          "app.Coordinator.handleAgentSwitched",
+          "app.Coordinator.handleConfigFingerprint",
+          "app.Coordinator.handleConversationChoiceRequested",
+          "app.Coordinator.handleDataLoaded",
+          "app.Coordinator.handlePreviewRequest",
+          "app.Coordinator.handleSessionMessages",
+          "app.Coordinator.handleSessionsRefreshed",
+          "app.Coordinator.handleSpecialMessages",
+          "app.Coordinator.launchCard",
+          "app.Coordinator.launchIDE",
+          "app.Coordinator.launchTerminal",
+          "app.Coordinator.maybeRefreshConfig",
+          "app.Coordinator.maybeSubscribeAutoSelectedPreview",
+          "app.Coordinator.mcpCallbacks",
+          "app.Coordinator.navigateTo",
+          "app.Coordinator.navigationCommand",
+          "app.Coordinator.refreshDashboardList",
+          "app.Coordinator.refreshDataSeeded",
+          "app.Coordinator.refreshSessions",
+          "app.Coordinator.requestAttach",
+          "app.Coordinator.requestRelaunch",
+          "app.Coordinator.requestSwitch",
+          "app.Coordinator.resizeAll",
+          "app.Coordinator.sessionLauncherCallbacks",
+          "app.Coordinator.settingsCallbacks",
+          "app.New",
+          "app.NewCoordinator",
+          "app.cardDeletionPreflightCommand",
+          "app.confirmCardDeletionCommand",
+          "app.convertViewType",
+          "app.dashboardDeletionStatus",
+          "app.dashboardDeletionSummary",
+          "app.dashboardListCommand",
+          "app.previewSub.unsubscribe",
+          "app.refresher.scopedConfigIfChanged",
+          "app.refresher.scopedFull",
+          "app.refresher.scopedSessions",
+          "app.retryCardDeletionCommand",
+          "app.scopedAttachCommand",
           "app.sessionActions.launch",
-          "app.sessionActions.relaunchWithChoice",
-          "app.sessionActions.switchAgentWithChoice"
+          "app.sessionActions.launchIDE",
+          "app.sessionActions.launchTerminal",
+          "app.sessionActions.launchWorkspace",
+          "app.sessionActions.relaunch",
+          "app.sessionActions.switchAgent"
         ]
       }
     },
     "views": {
-      "label": "ui/views",
-      "sub": "full screens",
-      "role": "Renders dashboard, card forms, switch picker and the new native-conversation picker. Humans explicitly choose a saved conversation or a new one when bindings exist.",
+      "label": "Terminal views",
+      "sub": "forms, lists and modals",
+      "role": "Renders the initial dashboard list, scoped card/session screens, shared-card editor and explicit cross-dashboard deletion confirmations.",
       "files": {
         "dashboard.go": "three panes, keys, search, footer",
         "card_editor.go": "card fields, one key switch, focused sub workspace clearing, source shortcuts, skills filter",
@@ -323,24 +387,95 @@ window.APPEDIA_CONTENT = {
         "puppet_selector_modal.go": "modal: choose a puppet",
         "agentsmd_editor_modal.go": "modal: AGENTS.md content or path",
         "constants.go": "MinTerminalWidth/Height, CoordinatorRows",
-        "source_type.go": "per-registry labels"
+        "source_type.go": "per-registry labels",
+        "dashboard_list.go": "list-first navigation, forms and delete/retry controls"
       },
       "notes": [
-        "Dashboard Control is a per-card opt-in; the selected MCP list determines whether it can take effect.",
-        "Existing session workspace identity survives card switches."
+        "The entry screen is the dashboard list. Escape cancels a dialog or stays on the list; q quits there.",
+        "Delete/Backspace resumes an incomplete dashboard deletion; Enter inspects its status."
       ],
       "rules": [],
       "key": [
+        "DashboardList",
         "Dashboard",
-        "CardEditor",
-        "ConversationChoiceView",
-        "AgentSwitchView"
-      ]
+        "CardEditor"
+      ],
+      "sources": {
+        "refs": [
+          "views.CardEditor.Card",
+          "views.CardEditor.Reset",
+          "views.CardEditor.SetCard",
+          "views.CardEditor.SetDashboardContext",
+          "views.CardEditor.SetData",
+          "views.CardEditor.SetSettings",
+          "views.CardEditor.Update",
+          "views.CardEditor.fieldBlocks",
+          "views.CardEditor.handleCtrlE",
+          "views.CardEditor.handleSpace",
+          "views.CardEditor.renderDashboardControlLine",
+          "views.CardEditor.renderSharedLine",
+          "views.CardEditor.renderTmpWorkspaceLine",
+          "views.CardEditor.renderWorkspaceLine",
+          "views.CardEditor.visibleFocusOrder",
+          "views.ConversationChoiceView.RefreshContext",
+          "views.ConversationChoiceView.SelectedBinding",
+          "views.ConversationChoiceView.Update",
+          "views.Dashboard.SetDashboardName",
+          "views.Dashboard.SetDashboardScope",
+          "views.Dashboard.SetSessions",
+          "views.Dashboard.SetSize",
+          "views.Dashboard.ShowCardDeletionImpact",
+          "views.Dashboard.Update",
+          "views.Dashboard.View",
+          "views.Dashboard.footerText",
+          "views.Dashboard.handleDeleteCard",
+          "views.Dashboard.handleEdit",
+          "views.Dashboard.handleEnter",
+          "views.Dashboard.handleKey",
+          "views.Dashboard.handleSessionEnter",
+          "views.Dashboard.handleSwitch",
+          "views.Dashboard.renderBase",
+          "views.Dashboard.renderPreviewPane",
+          "views.Dashboard.updateCardImpact",
+          "views.DashboardCallbacks",
+          "views.DashboardList.Init",
+          "views.DashboardList.SetDashboards",
+          "views.DashboardList.SetSize",
+          "views.DashboardList.Update",
+          "views.DashboardList.View",
+          "views.DashboardList.confirmDeletion",
+          "views.DashboardList.openForm",
+          "views.DashboardList.renderPage",
+          "views.DashboardList.retryDeletion",
+          "views.DashboardList.selected",
+          "views.DashboardList.updateConfirmation",
+          "views.DashboardList.updateForm",
+          "views.NewDashboardList",
+          "views.SessionLauncher.Reset",
+          "views.SessionLauncher.SetNameResult",
+          "views.SessionLauncher.handleNameSubmit",
+          "views.SettingsView.TerminalInput",
+          "views.SettingsView.renderDisplay",
+          "views.SettingsView.renderEdit",
+          "views.WorkspacePickerModal.SetExcludedID",
+          "views.WorkspacePickerModal.SetSelectedID",
+          "views.WorkspacePickerModal.SetSelectedIDs",
+          "views.WorkspacePickerModal.View",
+          "views.WorkspacePickerModal.restoreSingleSelection",
+          "views.WorkspacePickerModal.title",
+          "views.dashboardItem.Description",
+          "views.dashboardItem.FilterValue",
+          "views.dashboardItem.Title",
+          "views.editorKeyIdentity",
+          "views.focusTargetTable",
+          "views.workspaceItem.Title"
+        ]
+      }
     },
     "messages": {
-      "label": "ui/messages",
-      "sub": "every tea.Msg",
-      "role": "Defines typed messages crossing the Bubble Tea loop, including conversation-choice requests/results and MCP endpoint failures.",
+      "label": "UI messages",
+      "sub": "scoped async results",
+      "role": "Carries dashboard IDs and view generations between commands and the coordinator, alongside existing full and partial snapshots.",
       "files": {
         "messages.go": "all message types, DataReceiver, PreviewReceiver"
       },
@@ -348,17 +483,17 @@ window.APPEDIA_CONTENT = {
         "DataLoadedMsg is always a full snapshot; partial updates get their own type."
       ],
       "rules": [],
-      "key": [
-        "DataLoadedMsg",
-        "PreviewDataMsg",
-        "SessionsRefreshedMsg",
-        "DataReceiver"
-      ]
+      "key": [],
+      "sources": {
+        "refs": [
+          "messages.ScopedActionFinishedMsg"
+        ]
+      }
     },
     "session": {
-      "label": "internal/session",
-      "sub": "activations and messaging",
-      "role": "Owns PTYs, activation generations, saved workspace identity, conversation bindings, startup timers and explicit message history. It is shared by both frontends and enforces lifecycle reservations.",
+      "label": "Sessions",
+      "sub": "process and workspace owner",
+      "role": "Owns PTYs, immutable session membership, activation admission, saved conversations, temporary paths, messaging history and cleanup.",
       "files": {
         "manager.go": "Manager, Session, Snapshot",
         "lifecycle.go": "Launch, Relaunch, SwitchAgent, Kill, Remove, Shutdown",
@@ -367,7 +502,7 @@ window.APPEDIA_CONTENT = {
         "attach.go": "AttachHandle and the locked input writer",
         "storage.go": "session JSON, atomic",
         "workspace.go": "temporary workspace copies",
-        "ide_launcher.go": "Compatible IDE API and command parser",
+        "ide_launcher.go": "shared workspace-command parsing, startup and reaping",
         "sub_workspaces.go": "source resolution, ownership manifest, copy staging/publication, rollback",
         "workspace_launcher.go": "Shared path resolution, placeholder replacement, direct process spawn and asynchronous reaping",
         "conversation.go": "activation credentials and native conversation reports",
@@ -391,23 +526,64 @@ window.APPEDIA_CONTENT = {
       "key": [
         "Manager",
         "Session",
-        "Snapshot",
-        "MessageStore",
-        "MessageAdmission"
+        "Data",
+        "CardReferenceImpact"
       ],
       "sources": {
         "refs": [
-          "session.Manager.startSession",
-          "session.Manager.SwitchAgentWithChoiceContext",
-          "session.Manager.deliveryAvailableLocked",
-          "session.MessageStore"
+          "session.Data.restore",
+          "session.Manager.AttachChecked",
+          "session.Manager.CancelDashboardAdmissions",
+          "session.Manager.CancelPendingCardReferences",
+          "session.Manager.CardReferences",
+          "session.Manager.List",
+          "session.Manager.PublishMessageAdmission",
+          "session.Manager.RegisterConversation",
+          "session.Manager.RelaunchWithChoiceCheckedContext",
+          "session.Manager.RemoveResidual",
+          "session.Manager.ReserveCardDeletion",
+          "session.Manager.ReserveCardReferenceForDashboardWithCancel",
+          "session.Manager.ReserveDashboardDeletion",
+          "session.Manager.SetNameChecked",
+          "session.Manager.ShutdownStarted",
+          "session.Manager.SubmitMessage",
+          "session.Manager.TemporaryWorkspaceRoot",
+          "session.Manager.WaitCardReferences",
+          "session.Manager.WaitDashboardAdmissions",
+          "session.Manager.WithAdmissionSnapshot",
+          "session.Manager.WithCardReferencesAndSnapshot",
+          "session.Manager.activationAuthorityLocked",
+          "session.Manager.bindPendingWorkspace",
+          "session.Manager.cardReferencesLocked",
+          "session.Manager.cleanupNewTemporaryWorkspace",
+          "session.Manager.listLocked",
+          "session.Manager.notifyCardReferencesLocked",
+          "session.Manager.publishActivationLocked",
+          "session.Manager.reserveCardReference",
+          "session.Manager.resolveWorkspacePath",
+          "session.Manager.validateReportedConversationLocked",
+          "session.MessageStore.Recover",
+          "session.MessageStore.createIntent",
+          "session.MessageStore.evictLocked",
+          "session.NewManager",
+          "session.Session.data",
+          "session.Session.snapshot",
+          "session.SplitCommand",
+          "session.activationEnv",
+          "session.addConversationBinding",
+          "session.loadSessions",
+          "session.preparedSubWorkspaceDescriptors",
+          "session.saveSession",
+          "session.syncActivationMCPConfig",
+          "session.updateSessionOutputState",
+          "session.validateConversationChoice"
         ]
       }
     },
     "components": {
-      "label": "ui/components",
-      "sub": "reusable pieces",
-      "role": "Renders reusable TUI lists, previews, art and modals. Session phase/delivery hints and responsive preview metadata make activation state visible; narrow previews omit art when necessary.",
+      "label": "UI components",
+      "sub": "lists, text and previews",
+      "role": "Reusable terminal widgets; deleted-card sessions remain visible with an explanatory description.",
       "files": {
         "card_list.go": "ID-card rendering, pills, ClipBlock",
         "session_list.go": "sessions pane list",
@@ -426,43 +602,61 @@ window.APPEDIA_CONTENT = {
         "Selected-only mode changes visible items, not the full item collection or selection map. Normalize the cursor after registry and selection changes."
       ],
       "rules": [],
-      "key": [
-        "CardList",
-        "SessionList",
-        "SessionPreview",
-        "CapabilityList",
-        "ModalState"
-      ]
+      "key": [],
+      "sources": {
+        "refs": [
+          "components.CapabilityList.Deselect",
+          "components.CapabilityList.Select",
+          "components.CapabilityList.SelectedOnly",
+          "components.CapabilityList.SetCursor",
+          "components.CapabilityList.SetSelected",
+          "components.CapabilityList.Toggle",
+          "components.CapabilityList.normalizeCursor",
+          "components.DisplayText",
+          "components.Filter",
+          "components.SessionList.refreshItems",
+          "components.SessionListItem.Description",
+          "components.SessionPreview.handleStateCSI",
+          "components.TruncateHead",
+          "components.cardDelegate.Render",
+          "components.renderPreviewField",
+          "components.renderedBlockWidth",
+          "components.wrapPreviewWords"
+        ]
+      }
     },
     "component": {
-      "label": "ui/component",
-      "sub": "base type",
-      "role": "The Base type (Width, Height, SetSize) and the Model interface every view and component implements.",
+      "label": "View interface",
+      "sub": "layout contract",
+      "role": "Provides the common terminal component contract and sizing state.",
       "files": {
         "component.go": "Base, Model"
       },
       "notes": [],
       "rules": [],
-      "key": [
-        "Base",
-        "Model"
-      ]
+      "key": [],
+      "sources": {
+        "refs": []
+      }
     },
     "styles": {
-      "label": "ui/styles",
-      "sub": "palette",
-      "role": "The colour palette from crow_puppet_theme.md and shared lipgloss styles. Variables only, no types.",
+      "label": "Terminal theme",
+      "sub": "colours and spacing",
+      "role": "Defines shared terminal styling without domain state.",
       "files": {
         "styles.go": "colours and styles"
       },
       "notes": [],
       "rules": [],
-      "key": []
+      "key": [],
+      "sources": {
+        "refs": []
+      }
     },
     "driver": {
-      "label": "internal/driver",
-      "sub": "CLI adapters and trust",
-      "role": "Constructs a fresh driver per activation and owns process input serialization. Codex and Claude specialize resume, trust and delayed-Enter prompt submission; generic drivers support arbitrary executable commands.",
+      "label": "CLI drivers",
+      "sub": "trust, PTY and deployment",
+      "role": "Launches and resumes the configured CLI, prepares workspace files/trust and serializes input. Reused by dashboard-scoped lifecycle operations.",
       "files": {
         "driver.go": "GenericCLIDriver, ClaudeCodeDriver, Spawn, Kill, file sync, IsPromptLike",
         "registry.go": "name → constructor",
@@ -479,27 +673,28 @@ window.APPEDIA_CONTENT = {
         "13",
         "16"
       ],
-      "key": [
-        "AgentDriver",
-        "GenericCLIDriver",
-        "CodexCLIDriver",
-        "ClaudeCodeDriver"
-      ],
+      "key": [],
       "sources": {
         "refs": [
-          "driver.CodexCLIDriver.SetSession",
-          "driver.ClaudeCodeDriver.SetSession",
-          "driver.GenericCLIDriver.SubmitPrompt",
-          "driver.RemoveWorkspaceTrust",
           "driver.ClaudeCodeDriver.SubmitPrompt",
-          "driver.CodexCLIDriver.SubmitPrompt"
+          "driver.CodexCLIDriver.SubmitPrompt",
+          "driver.GenericCLIDriver.PrepareWorkspace",
+          "driver.GenericCLIDriver.submitPromptBytes",
+          "driver.MCPConfigPath",
+          "driver.ValidatePrompt",
+          "driver.classifySubmission",
+          "driver.trustJSONObject",
+          "driver.updateClaudeTrust",
+          "driver.updateCodexTrust",
+          "driver.writeInstructionFile",
+          "driver.writePromptPhases"
         ]
       }
     },
     "ascii": {
-      "label": "internal/ascii",
-      "sub": "text-art engine",
-      "role": "Canvas and shapes for drawing ASCII art.",
+      "label": "ASCII rendering",
+      "sub": "terminal canvas",
+      "role": "Supplies the canvas and drawing primitives used by puppet rendering.",
       "files": {
         "canvas.go": "drawing surface",
         "shape.go": "Shape interface",
@@ -507,15 +702,15 @@ window.APPEDIA_CONTENT = {
       },
       "notes": [],
       "rules": [],
-      "key": [
-        "Canvas",
-        "Shape"
-      ]
+      "key": [],
+      "sources": {
+        "refs": []
+      }
     },
     "characters": {
-      "label": "ascii/characters",
-      "sub": "puppets & faces",
-      "role": "Built-in puppets (cat, darth, default, kankuro, strawhat, totoro), faces, and user puppets loaded from .puppet files.",
+      "label": "Puppet artwork",
+      "sub": "faces and characters",
+      "role": "Defines built-in faces and puppet art; unchanged by dashboard membership.",
       "files": {
         "puppet.go": "built-in puppets",
         "face.go": "agent faces",
@@ -523,15 +718,15 @@ window.APPEDIA_CONTENT = {
       },
       "notes": [],
       "rules": [],
-      "key": [
-        "Face",
-        "TextPuppet"
-      ]
+      "key": [],
+      "sources": {
+        "refs": []
+      }
     },
     "config": {
-      "label": "internal/config",
-      "sub": "YAML repository",
-      "role": "Persists cards, registries and application settings as YAML. Adds per-card Dashboard Control permission and built-in Kankuro MCP / puppet-skill metadata; activation credentials stay runtime-only.",
+      "label": "Configuration",
+      "sub": "registries and recovery",
+      "role": "Persists dashboards, owned/shared cards, tombstones and deletion manifests atomically; capability and workspace registries remain global.",
       "files": {
         "repository.go": "FileRepository, interfaces, settings",
         "storage.go": "WriteAtomic, Fingerprint",
@@ -551,28 +746,63 @@ window.APPEDIA_CONTENT = {
         "errors.go": "SyncFailedError"
       },
       "notes": [
-        "Cards select Kankuro MCP and opt into Dashboard Control separately. The permission is captured at activation."
+        "Cards select Kankuro MCP and opt into Dashboard Control separately. The permission is captured at activation.",
+        "Cards retain creation ownership and an explicit shared flag. Tombstones retain deleted identities without executable configuration."
       ],
       "rules": [],
       "key": [
-        "FileRepository",
-        "Repository",
+        "Dashboard",
         "IDCard",
-        "AppSettings"
+        "CardTombstone",
+        "DashboardDeletion"
       ],
       "sources": {
         "refs": [
-          "config.AppSettings"
-        ],
-        "files": [
-          "internal/config/app_settings_test.go"
+          "config.BuiltinMCPs",
+          "config.BuiltinSkills",
+          "config.FileRepository.BeginCardDeletion",
+          "config.FileRepository.BeginCardDeletionWithPending",
+          "config.FileRepository.BeginDashboardDeletion",
+          "config.FileRepository.CreateDashboard",
+          "config.FileRepository.CreateIDCard",
+          "config.FileRepository.FinalizeDashboardDeletion",
+          "config.FileRepository.FinishCardDeletion",
+          "config.FileRepository.GetAppSettings",
+          "config.FileRepository.ListCardTombstones",
+          "config.FileRepository.ListDashboardDeletions",
+          "config.FileRepository.ListDashboardTombstones",
+          "config.FileRepository.ListDashboards",
+          "config.FileRepository.LoadIDCardsFile",
+          "config.FileRepository.SaveCardDeletionPending",
+          "config.FileRepository.SaveDashboardDeletion",
+          "config.FileRepository.UpdateDashboardDetails",
+          "config.FileRepository.UpdateIDCard",
+          "config.FileRepository.WriteIDCardsFile",
+          "config.FileRepository.checkCardNotTombstonedLocked",
+          "config.FileRepository.listDashboardDeletionsLocked",
+          "config.FileRepository.loadCardTombstonesLocked",
+          "config.FileRepository.loadDashboardTombstonesLocked",
+          "config.FileRepository.loadDashboardsLocked",
+          "config.FileRepository.retainDashboardTombstoneLocked",
+          "config.FileRepository.writeDashboardDeletionLocked",
+          "config.GetBuiltinSkillContent",
+          "config.NewFileRepository",
+          "config.OpenExistingFileRepository",
+          "config.ResolveDirectory",
+          "config.dashboardDeletionFilename",
+          "config.registryFiles",
+          "config.validTemporaryIdentity",
+          "config.validateCardMembershipFormat",
+          "config.validateDashboard",
+          "config.validateDashboardDeletion",
+          "config.validateNewCardPending"
         ]
       }
     },
     "fsutil": {
-      "label": "internal/fsutil",
-      "sub": "atomic writes",
-      "role": "WriteFileAtomic: temp file in the same directory, fsync, rename, cleanup on error. Used by config and session.",
+      "label": "Atomic file writes",
+      "sub": "shared storage primitive",
+      "role": "Writes restrictive temporary files, syncs and renames them for configuration, session and migration durability.",
       "files": {
         "atomic.go": "WriteFileAtomic"
       },
@@ -580,12 +810,15 @@ window.APPEDIA_CONTENT = {
         "A crash leaves at worst a .<name>.<rand>.tmp file, which loaders ignore."
       ],
       "rules": [],
-      "key": []
+      "key": [],
+      "sources": {
+        "refs": []
+      }
     },
     "root": {
-      "label": "kankuro",
-      "sub": "root main.go",
-      "role": "Embeds both built-in skills, opens the repository, creates one session manager and operation runner, starts authenticated loopback MCP, then runs Bubble Tea. Owns ordered shutdown and endpoint-failure reporting.",
+      "label": "Kankuro",
+      "sub": "application startup",
+      "role": "Acquires the configuration-root lock, validates startup, shares one scoped service between MCP and the dashboard-list TUI, and coordinates shutdown.",
       "files": {
         "main.go": "embed, config injection, flags, wiring, signals, shutdown"
       },
@@ -596,25 +829,15 @@ window.APPEDIA_CONTENT = {
       "key": [],
       "sources": {
         "refs": [
-          "root.main",
-          "root.run",
-          "root.logDir",
-          "root.stopSessions"
-        ],
-        "files": [
-          "main.go",
-          "main_test.go",
-          "go.mod",
-          "README.md",
-          "kankuro_skills/mcp-cli/SKILL.md"
+          "root.run"
         ]
       }
     },
     "uitest": {
-      "label": "ui/uitest",
-      "sub": "shape assertions",
+      "label": "UI assertions",
+      "sub": "test helpers",
       "test": true,
-      "role": "Test-only helpers for layout tests: exact/bounded shape assertions, regions, adversarial content.",
+      "role": "Checks rendered terminal bounds and visual structure in view tests.",
       "files": {
         "shape.go": "AssertExactRect, AssertWithin, Region, AdversarialNames"
       },
@@ -622,13 +845,16 @@ window.APPEDIA_CONTENT = {
         "Shape tests check fit; position tests check that elements stay put. A list-like component needs both."
       ],
       "rules": [],
-      "key": []
+      "key": [],
+      "sources": {
+        "refs": []
+      }
     },
     "testenv": {
-      "label": "internal/testenv",
-      "sub": "TestMain sandbox",
+      "label": "Test isolation",
+      "sub": "temporary-root guard",
       "test": true,
-      "role": "Isolates tests in private temporary/workspace/home directories so lifecycle and trust tests avoid real user configuration; checks temporary workspace leaks.",
+      "role": "Isolates test files and checks that session/app/API suites leave no temporary data behind.",
       "files": {
         "testenv.go": "Run(m, name)"
       },
@@ -636,7 +862,10 @@ window.APPEDIA_CONTENT = {
         "Session-launching tests build managers with newTestManager, which registers a Shutdown cleanup."
       ],
       "rules": [],
-      "key": []
+      "key": [],
+      "sources": {
+        "refs": []
+      }
     },
     "tea": {
       "label": "Bubble Tea",
@@ -671,43 +900,154 @@ window.APPEDIA_CONTENT = {
       "key": []
     },
     "api": {
-      "label": "internal/api",
-      "sub": "shared application service",
-      "role": "Resolves cards and capabilities for both TUI and MCP. Owns operation admission, request deduplication and safe response DTOs; the session manager still owns all processes.",
+      "label": "Application service",
+      "sub": "membership and operations",
+      "role": "Enforces dashboard membership for human commands and authenticated agents. Coordinates durable card/dashboard deletion without owning processes.",
       "key": [
         "Service",
-        "OperationRunner",
-        "OperationResult",
-        "SessionInspection"
+        "membershipInventory",
+        "persistedDashboardScope"
       ],
       "files": {
         "service.go": "shared lifecycle, discovery and inspection",
         "operations.go": "durable journal and bounded workers",
-        "messaging.go": "send, report and bounded reply reads"
+        "messaging.go": "send, report and bounded reply reads",
+        "membership.go": "scoped human operations and admission",
+        "persisted_scope.go": "authenticated caller membership",
+        "card_confirmation.go": "owner confirmation and foreign impact",
+        "dashboard_deletion.go": "checkpointed cascading cleanup"
       },
       "rules": [
         "14",
         "15",
         "17"
-      ]
+      ],
+      "sources": {
+        "refs": [
+          "api.New",
+          "api.Service.AttachInDashboard",
+          "api.Service.CheckSessionInDashboard",
+          "api.Service.ConfirmCardDeletion",
+          "api.Service.ConfirmDashboardDeletion",
+          "api.Service.CreateCardInDashboard",
+          "api.Service.CreateDashboard",
+          "api.Service.GetDashboardDeletion",
+          "api.Service.GetMessage",
+          "api.Service.GetSession",
+          "api.Service.LaunchInDashboard",
+          "api.Service.ListDashboards",
+          "api.Service.ListSessions",
+          "api.Service.PreflightCardDeletion",
+          "api.Service.PreflightDashboardDeletion",
+          "api.Service.ReadDashboardData",
+          "api.Service.RelaunchInDashboard",
+          "api.Service.RemoveInDashboard",
+          "api.Service.RenameInDashboard",
+          "api.Service.ResolveCaller",
+          "api.Service.RetryCardDeletion",
+          "api.Service.RetryDashboardDeletion",
+          "api.Service.StopInDashboard",
+          "api.Service.SwitchInDashboard",
+          "api.Service.UpdateCardInDashboard",
+          "api.Service.UpdateDashboardDetails",
+          "api.Service.authorizeExistingOperation",
+          "api.Service.availableDashboardCard",
+          "api.Service.cardOwnedBy",
+          "api.Service.cleanupCardPending",
+          "api.Service.dashboardAlreadyDeleted",
+          "api.Service.dashboardDeletion",
+          "api.Service.deleteDashboardCard",
+          "api.Service.deletedCardIDs",
+          "api.Service.inspectionFromScopedSnapshot",
+          "api.Service.launchDashboardWithID",
+          "api.Service.listCardTombstones",
+          "api.Service.listCardsForCaller",
+          "api.Service.loadMembershipInventory",
+          "api.Service.prepareDashboardDeletion",
+          "api.Service.removeDashboardSession",
+          "api.Service.runDashboardDeletion",
+          "api.Service.validateCardConfirmationLocked",
+          "api.Service.validateDeletionInventory",
+          "api.Service.validateDeletionOwner",
+          "api.cardImpactDigest",
+          "api.cardPendingCleanup",
+          "api.dashboardImpactDigest",
+          "api.hasForeignCardReferences",
+          "api.inspectionFromSnapshot",
+          "api.membershipInventory.activeDashboard",
+          "api.membershipInventory.allowsCard",
+          "api.membershipInventory.allowsSession",
+          "api.membershipInventory.hasTombstone",
+          "api.newMembershipInventory",
+          "api.persistedDashboardScope.AllowsCard",
+          "api.persistedDashboardScope.AllowsSession",
+          "api.persistedDashboardScope.DashboardForSession",
+          "api.persistedDashboardScope.SessionDashboard",
+          "api.persistedDashboardScope.inventory",
+          "api.persistedDashboardScope.validateScopeInventory",
+          "api.sessionInDashboard",
+          "api.sessionUsesCard"
+        ]
+      }
     },
     "mcp": {
-      "label": "internal/mcp",
-      "sub": "authenticated local endpoint",
-      "role": "Adapts Streamable HTTP MCP tools to the shared service. Validates loopback host, origin, request size and bearer identity; owns the endpoint lifetime, not agent processes.",
-      "key": [
-        "Runtime"
-      ],
+      "label": "MCP transport",
+      "sub": "loopback tools",
+      "role": "Authenticates incoming tools and delegates to the common service. Existing discovery envelopes expose the resolved caller dashboard.",
+      "key": [],
       "files": {
         "server.go": "registration, discovery, lifecycle and message tools"
       },
       "rules": [
         "14",
         "15"
-      ]
+      ],
+      "sources": {
+        "refs": []
+      }
+    },
+    "configstartup": {
+      "label": "Config startup",
+      "sub": "validation and root locking",
+      "role": "Prepares configuration for safe startup: exclusive root locking, direct initialization of empty directories and validation of complete current-format records.",
+      "key": [
+        "Lock"
+      ],
+      "files": {
+        "startup.go": "fresh initialization and current-format entry gate",
+        "validate.go": "strict cross-record membership validation",
+        "lock.go": "exclusive config-root process lock",
+        "json.go": "reject malformed durable JSON"
+      },
+      "sources": {
+        "refs": [
+          "configstartup.AcquireLock",
+          "configstartup.Lock.Close",
+          "configstartup.PrepareStartup",
+          "configstartup.ValidateLayout",
+          "configstartup.jsonValue",
+          "configstartup.validateJSON",
+          "configstartup.validateLayoutHistory",
+          "configstartup.validateLayoutSessions"
+        ]
+      }
     }
   },
   "flowGroups": [
+    {
+      "name": "Dashboard ownership and recovery",
+      "flows": [
+        "dashboard-details",
+        "navigation",
+        "caller-scope",
+        "manual-session",
+        "card-recovery",
+        "deleted-session",
+        "delete-dashboard",
+        "cascade-recovery",
+        "list-errors"
+      ]
+    },
     {
       "name": "Architecture and entry points",
       "flows": [
@@ -795,15 +1135,19 @@ window.APPEDIA_CONTENT = {
   ],
   "flows": {
     "startup": {
-      "title": "Boot the local control plane",
-      "summary": "The same Kankuro process now serves the TUI and authenticated MCP tools.",
+      "title": "Prepare configuration and start the control plane",
+      "summary": "Lock and validate configuration, wire one scoped service, then start loopback MCP and the dashboard-list TUI.",
       "participants": [
         [
-          "main",
+          "boot",
           "root.run"
         ],
         [
-          "cfg",
+          "setup",
+          "configstartup.PrepareStartup"
+        ],
+        [
+          "repo",
           "config.FileRepository"
         ],
         [
@@ -829,72 +1173,121 @@ window.APPEDIA_CONTENT = {
       ],
       "steps": [
         [
-          "main",
-          "main",
+          "boot",
+          "boot",
           "call",
-          "Embed and inject both skills",
-          "mcp-cli explains access; kankuro-puppet explains registration and explicit reports.",
+          "Inject built-in skills",
+          "Root main supplies the MCP CLI and puppet skill bytes.",
           "root.main"
         ],
         [
-          "main",
-          "cfg",
+          "boot",
+          "setup",
           "call",
-          "Open YAML repository",
+          "Lock configuration root",
+          "Held throughout startup and runtime.",
+          "configstartup.AcquireLock"
+        ],
+        [
+          "boot",
+          "setup",
+          "call",
+          "Initialize or validate",
+          "Empty roots initialize directly; existing roots require complete current-format records.",
+          "configstartup.PrepareStartup"
+        ],
+        [
+          "boot",
+          "repo",
+          "call",
+          "Open repository",
           "",
           "config.NewFileRepository"
         ],
         [
-          "main",
+          "boot",
+          "repo",
+          "call",
+          "Sync skill registry",
+          "",
+          "config.FileRepository.SyncSkillsFromSources"
+        ],
+        [
+          "boot",
           "mgr",
           "call",
-          "Load sessions and message history",
-          "Processes restore as terminated; unfinished message delivery becomes uncertain.",
+          "Restore sessions and history",
+          "Processes restore as terminated; unfinished submissions become uncertain.",
           "session.NewManager"
         ],
         [
-          "main",
+          "boot",
           "svc",
           "call",
-          "Create shared API service",
-          "",
+          "Create shared scoped service",
+          "The concrete persisted policy applies to both UI and MCP.",
           "api.New"
         ],
         [
-          "main",
+          "boot",
           "runner",
           "call",
-          "Load journal and start bounded workers",
-          "Four workers; interrupted operations are never replayed automatically.",
+          "Load durable operation journal",
+          "Bounded workers retain interrupted outcomes rather than replaying uncertain effects.",
           "api.NewOperationRunner"
         ],
         [
-          "main",
+          "boot",
+          "ui",
+          "call",
+          "Build list-first UI",
+          "",
+          "app.New"
+        ],
+        [
+          "boot",
           "http",
           "io",
-          "Bind authenticated loopback MCP",
-          "Host/origin checks and request limits wrap Streamable HTTP.",
+          "Start loopback MCP",
+          "Authenticated tools use the same service as the UI.",
           "mcp.Start"
         ],
         [
-          "main",
+          "boot",
           "mgr",
           "call",
-          "Set endpoint before any agent launches",
-          "",
+          "Set MCP endpoint",
+          "Set before any session activation.",
           "session.Manager.SetMCPEndpoint"
         ],
         [
-          "main",
+          "boot",
           "ui",
-          "call",
-          "Build coordinator and run Bubble Tea",
-          "TUI actions use a service backed by the same manager.",
-          "root.run"
+          "cmd",
+          "Initialize entry view and refresh",
+          "Bubble Tea starts from the dashboard list.",
+          "app.Coordinator.Init"
         ]
       ],
       "sources": {
-        "refs": []
+        "refs": [
+          "app.New",
+          "config.CardRepository",
+          "config.DashboardRepository",
+          "config.NewFileRepository",
+          "config.OpenExistingFileRepository",
+          "config.ResolveDirectory",
+          "configstartup.AcquireLock",
+          "configstartup.Lock",
+          "configstartup.Lock.Close",
+          "configstartup.PrepareStartup",
+          "configstartup.ValidateLayout",
+          "configstartup.jsonValue",
+          "configstartup.validateJSON",
+          "configstartup.validateLayoutHistory",
+          "configstartup.validateLayoutSessions",
+          "root.run"
+        ]
       }
     },
     "quit": {
@@ -1057,8 +1450,8 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "views.SettingsView.renderEdit",
-          "views.SettingsView.renderDisplay"
+          "views.SettingsView.renderDisplay",
+          "views.SettingsView.renderEdit"
         ],
         "files": [
           "internal/ui/views/settings_test.go",
@@ -1067,16 +1460,16 @@ window.APPEDIA_CONTENT = {
       }
     },
     "launch": {
-      "title": "Launch: one workspace, one fresh PTY",
-      "summary": "The TUI and MCP both prepare the chosen workspace, synchronize capabilities and spawn a fresh process through the shared manager.",
+      "title": "Launch with membership before publication",
+      "summary": "Human and MCP requests enter the same dashboard-scoped activation path.",
       "participants": [
         [
-          "user",
+          "u",
           "user"
         ],
         [
-          "act",
-          "app.sessionActions"
+          "c",
+          "app.Coordinator"
         ],
         [
           "svc",
@@ -1087,207 +1480,224 @@ window.APPEDIA_CONTENT = {
           "session.Manager"
         ],
         [
-          "drv",
+          "driver",
           "driver.GenericCLIDriver"
         ],
         [
-          "pty",
-          "pty"
+          "disk",
+          "disk"
         ]
       ],
       "steps": [
         [
-          "user",
-          "act",
-          "cmd",
-          "Launch from card",
-          "Blocking work runs inside a tea.Cmd.",
-          "app.sessionActions.launch"
-        ],
-        [
-          "act",
-          "svc",
-          "call",
-          "Launch(card)",
-          "Shared capability resolution and pending card reservation.",
-          "api.Service.Launch"
-        ],
-        [
-          "svc",
-          "mgr",
-          "call",
-          "Allocate new session / activation",
-          "No driver or PTY is reused by command name.",
-          "session.Manager.LaunchWithIDContext"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "io",
-          "Prepare main and sub workspaces",
-          "New sessions use the selected card; temporary copies are session-local.",
-          "session.Manager.prepareWorkspace"
-        ],
-        [
-          "mgr",
-          "drv",
-          "io",
-          "Sync files, skills and selected MCP config",
-          "No registration block is injected; the puppet skill supplies guidance.",
-          "session.Manager.syncDriverFiles"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "io",
-          "Prepare rotating activation credential",
+          "u",
+          "c",
+          "key",
+          "Launch selected card",
           "",
-          "session.Manager.prepareActivationMCPConfig"
+          "app.Coordinator.launchCard"
         ],
         [
-          "mgr",
-          "drv",
+          "c",
+          "svc",
           "call",
-          "Prepare exact workspace trust",
-          "Generic hook is a no-op; Codex/Claude update their own configuration.",
+          "LaunchInDashboard(capturedID, cardID)",
+          "",
+          "api.Service.LaunchInDashboard"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "ReserveCardReferenceForDashboardWithCancel",
+          "",
+          "session.Manager.ReserveCardReferenceForDashboardWithCancel"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "LaunchInDashboardWithIDContext",
+          "",
+          "session.Manager.LaunchInDashboardWithIDContext"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "call",
+          "bindPendingWorkspace before any copy",
+          "Newly added during review: exact paths survive later card edits.",
+          "session.Manager.bindPendingWorkspace"
+        ],
+        [
+          "mgr",
+          "driver",
+          "call",
+          "startSession: prepare workspace and spawn",
+          "",
           "session.Manager.startSession"
         ],
         [
-          "drv",
-          "pty",
+          "mgr",
+          "disk",
           "io",
-          "Spawn fresh process and PTY",
-          "Model and native resume arguments remain driver-owned.",
-          "driver.GenericCLIDriver.Spawn"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "self",
-          "Publish immediately; start timer and watchers",
-          "Humans can attach now; incoming MCP prompts remain gated.",
-          "session.Manager.startSession"
+          "publish + save with immutable dashboard_id",
+          "Revalidates card/dashboard under admission; rejects deletion races.",
+          "session.Session.data"
         ]
       ],
       "sources": {
-        "refs": []
+        "refs": [
+          "session.CardPendingReference",
+          "session.CardReferenceImpact",
+          "session.CardSessionReference",
+          "session.Manager.CancelPendingCardReferences",
+          "session.Manager.CardReferences",
+          "session.Manager.List",
+          "session.Manager.ReserveCardReferenceForDashboardWithCancel",
+          "session.Manager.SetNameChecked",
+          "session.Manager.ShutdownStarted",
+          "session.Manager.TemporaryWorkspaceRoot",
+          "session.Manager.WaitCardReferences",
+          "session.Manager.WithCardReferencesAndSnapshot",
+          "session.Manager.bindPendingWorkspace",
+          "session.Manager.cardReferencesLocked",
+          "session.Manager.listLocked",
+          "session.Manager.notifyCardReferencesLocked",
+          "session.Manager.reserveCardReference",
+          "session.NewManager",
+          "session.Session.data",
+          "session.Session.snapshot",
+          "session.cardReservation",
+          "views.SessionLauncher",
+          "views.SessionLauncher.Reset",
+          "views.SessionLauncher.SetNameResult",
+          "views.SessionLauncher.handleNameSubmit",
+          "views.SessionLauncherCallbacks"
+        ]
       }
     },
     "attach": {
-      "title": "Attach & detach",
-      "summary": "Bubble Tea hands the raw terminal to the agent until Ctrl+K.",
+      "title": "Attach and detach within the opened dashboard",
+      "summary": "Membership is checked before attachment; obsolete async handles are discarded after navigation.",
       "participants": [
         [
           "user",
           "user"
         ],
         [
-          "dash",
-          "views.Dashboard"
-        ],
-        [
-          "coord",
+          "ui",
           "app.Coordinator"
         ],
         [
-          "tea",
-          "tea"
-        ],
-        [
-          "exec",
-          "app.attachExec"
+          "svc",
+          "api.Service"
         ],
         [
           "mgr",
           "session.Manager"
         ],
         [
-          "pty",
-          "pty"
+          "exec",
+          "app.attachExec"
         ]
       ],
       "steps": [
         [
           "user",
-          "dash",
+          "ui",
           "key",
-          "a, or Enter on a running session",
+          "Attach selected session",
           "",
-          "views.Dashboard.handleAttach"
+          "app.Coordinator.requestAttach"
         ],
         [
-          "dash",
-          "coord",
+          "ui",
+          "svc",
+          "cmd",
+          "AttachInDashboard",
+          "Capture dashboard and view generation before asynchronous work.",
+          "api.Service.AttachInDashboard"
+        ],
+        [
+          "svc",
+          "mgr",
           "call",
-          "OnAttach(id) → attachSession",
-          "",
-          "app.Coordinator.attachSession"
+          "AttachChecked",
+          "Validate ownership while creating the subscription.",
+          "session.Manager.AttachChecked"
         ],
         [
-          "coord",
-          "tea",
-          "return",
-          "tea.Exec(attachExec)",
-          "Bubble Tea releases the terminal to the exec command.",
-          "app.Coordinator.attachSession"
+          "mgr",
+          "ui",
+          "msg",
+          "ScopedAttachReadyMsg",
+          "Discard handles from an obsolete view generation.",
+          "app.Coordinator.handleSessionMessages"
         ],
         [
-          "tea",
+          "ui",
           "exec",
-          "call",
-          "Run()",
+          "cmd",
+          "Release UI terminal; run attach",
+          "",
+          "app.scopedAttachCommand"
+        ],
+        [
+          "exec",
+          "exec",
+          "io",
+          "Prepare raw terminal and output",
           "",
           "app.attachExec.Run"
         ],
         [
           "exec",
-          "mgr",
-          "call",
-          "Attach(id) → AttachHandle",
-          "Scrollback, a one-shot header, the output channel and an input writer.",
-          "session.Manager.Attach"
-        ],
-        [
           "exec",
-          "exec",
-          "self",
-          "replay scrollback, then pumpOutput",
+          "go",
+          "Pump process output",
           "",
           "app.attachExec.pumpOutput"
         ],
         [
-          "user",
           "exec",
-          "key",
-          "keystrokes",
+          "exec",
+          "call",
+          "Pump terminal input",
           "",
           "app.attachExec.pumpInput"
         ],
         [
           "exec",
-          "pty",
-          "io",
-          "forwardInput → SendInputBytes",
-          "Through the driver's locked writer, never the raw fd: that would race Kill.",
+          "exec",
+          "call",
+          "Forward through locked driver input",
+          "",
           "app.attachExec.forwardInput"
         ],
         [
-          "user",
           "exec",
-          "key",
-          "Ctrl+K",
-          "Recognised as the legacy byte or as a Kitty keyboard-protocol sequence.",
+          "exec",
+          "call",
+          "Recognize detach key",
+          "Restore terminal state on return.",
           "app.detectKittyDetach"
         ],
         [
           "exec",
-          "coord",
+          "ui",
           "msg",
           "AttachFinishedMsg",
-          "Bubble Tea takes the terminal back; a refresh follows.",
+          "Only matching scope/generation may update the view.",
           "app.Coordinator.handleSessionMessages"
         ]
-      ]
+      ],
+      "sources": {
+        "refs": [
+          "app.scopedAttachCommand",
+          "session.driverInputWriter"
+        ]
+      }
     },
     "watch": {
       "title": "Observe process exit and invalidate message waits",
@@ -1362,15 +1772,15 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "session.updateSessionOutputState",
+          "session.Manager.RegisterConversation",
           "session.Session.snapshot",
-          "session.Manager.RegisterConversation"
+          "session.updateSessionOutputState"
         ]
       }
     },
     "ide": {
       "title": "Open in IDE",
-      "summary": "Press o in Sessions to start the configured IDE in the selected session’s actual workspace through shared command execution.",
+      "summary": "Press o in Sessions to start the configured IDE in the selected session’s actual workspace through shared command execution. Commands capture dashboard identity, generation and command settings.",
       "participants": [
         [
           "user",
@@ -1394,7 +1804,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "ide",
-          "session.IDELauncher"
+          "session.LaunchWorkspaceCommand"
         ],
         [
           "launch",
@@ -1442,18 +1852,18 @@ window.APPEDIA_CONTENT = {
         [
           "act",
           "act",
-          "self",
-          "launchWorkspaceCommand",
-          "Look up the session at execution time; validate WorkingDir and configuration. Temporary sessions use their copies.",
-          "app.sessionActions.launchWorkspaceCommand"
+          "call",
+          "Check captured membership",
+          "Validate the session against the dashboard captured by the command.",
+          "api.Service.CheckSessionInDashboard"
         ],
         [
           "act",
           "ide",
           "call",
-          "IDELauncher.Launch(WorkingDir)",
-          "Compatibility wrapper preserves ErrIDENotConfigured.",
-          "session.IDELauncher.Launch"
+          "Use saved WorkingDir",
+          "Resolve the existing session workspace after authorization.",
+          "app.sessionActions.launchWorkspaceCommand"
         ],
         [
           "ide",
@@ -1483,9 +1893,9 @@ window.APPEDIA_CONTENT = {
           "coord",
           "coord",
           "self",
-          "Apply result without navigation",
-          "Errors become the existing banner.",
-          "app.Coordinator.handleWorkspaceCommandResult"
+          "Apply scoped completion",
+          "Reject stale dashboard/generation results; display current errors without navigation.",
+          "app.Coordinator.handleSessionMessages"
         ]
       ],
       "sources": {
@@ -1493,34 +1903,30 @@ window.APPEDIA_CONTENT = {
           "session.SplitCommand"
         ],
         "files": [
-          "internal/session/workspace_launcher.go",
+          "internal/session/ide_launcher.go",
           "internal/session/ide_launcher_test.go"
         ]
       }
     },
     "tick": {
-      "title": "The 2-second tick",
-      "summary": "Sessions refresh from memory every tick; config re-reads only when a file changed.",
+      "title": "Refresh only the opened dashboard",
+      "summary": "A single seeded refresh captures dashboard and generation; global capability registries remain global.",
       "participants": [
         [
-          "tea",
+          "loop",
           "tea"
         ],
         [
-          "coord",
+          "c",
           "app.Coordinator"
         ],
         [
-          "ref",
+          "refresh",
           "app.refresher"
         ],
         [
-          "mgr",
-          "session.Manager"
-        ],
-        [
-          "repo",
-          "config.FileRepository"
+          "svc",
+          "api.Service"
         ],
         [
           "dash",
@@ -1529,78 +1935,104 @@ window.APPEDIA_CONTENT = {
       ],
       "steps": [
         [
-          "tea",
-          "coord",
+          "loop",
+          "c",
           "msg",
-          "tickMsg",
-          "",
+          "Refresh tick",
+          "tick requests sessions/config refresh.",
           "app.Coordinator.handleSpecialMessages"
         ],
         [
-          "coord",
-          "coord",
-          "self",
-          "snapshot preview ID + fingerprint",
-          "Plain values: the commands below never see the coordinator (rule 1).",
-          "app.Coordinator.refreshSessions"
-        ],
-        [
-          "tea",
-          "ref",
-          "cmd",
-          "sessionsOnly(previewID)",
-          "",
-          "app.refresher.sessionsOnly"
-        ],
-        [
-          "ref",
-          "mgr",
+          "c",
+          "c",
           "call",
-          "List(), GetScrollback(id)",
-          "Memory only, no disk.",
-          "session.Manager.List"
+          "Seed baseline",
+          "Seed refresh fingerprint baseline.",
+          "app.Coordinator.refreshDataSeeded"
         ],
         [
-          "ref",
-          "coord",
+          "c",
+          "refresh",
+          "call",
+          "scopedFull",
+          "No seeded flag or unseeded production branch. Failed reads preserve previous data; successful empty reads clear it. Scoped refresh; fingerprint envelope.",
+          "app.refresher.scopedFull"
+        ],
+        [
+          "refresh",
+          "svc",
+          "call",
+          "Read scope",
+          "ReadDashboardData(capturedID).",
+          "api.Service.ReadDashboardData"
+        ],
+        [
+          "refresh",
+          "c",
           "msg",
-          "SessionsRefreshedMsg",
-          "Applied to the dashboard only.",
+          "Apply if current",
+          "Ignores results from another dashboard or an obsolete generation. handleDataLoaded checks scope/generation.",
+          "app.Coordinator.handleDataLoaded"
+        ],
+        [
+          "c",
+          "dash",
+          "call",
+          "Apply scoped sessions",
+          "handleSessionsRefreshed applies partial data.",
           "app.Coordinator.handleSessionsRefreshed"
         ],
         [
-          "tea",
-          "ref",
-          "cmd",
-          "configIfChanged(baseline)",
-          "",
-          "app.refresher.configIfChanged"
-        ],
-        [
-          "ref",
-          "repo",
+          "c",
+          "c",
           "call",
-          "Fingerprint(): stat each registry",
-          "No parsing. Only if a stamp changed are the registries re-read.",
-          "config.FileRepository.Fingerprint"
-        ],
-        [
-          "ref",
-          "coord",
-          "msg",
-          "configFingerprintMsg",
-          "A new baseline, plus a full DataLoadedMsg when something changed.",
-          "app.Coordinator.handleConfigFingerprint"
-        ],
-        [
-          "coord",
-          "dash",
-          "call",
-          "broadcastData → SetData",
-          "Every DataReceiver gets it; a nil field means keep what you have (rule 3).",
-          "app.Coordinator.broadcastData"
+          "Owned preview",
+          "preview subscription only for owned selection.",
+          "app.Coordinator.handlePreviewRequest"
         ]
-      ]
+      ],
+      "sources": {
+        "refs": [
+          "app.Coordinator.handleConfigFingerprint",
+          "app.Coordinator.handleDataLoaded",
+          "app.Coordinator.handlePreviewRequest",
+          "app.Coordinator.handleSessionsRefreshed",
+          "app.Coordinator.maybeRefreshConfig",
+          "app.Coordinator.maybeSubscribeAutoSelectedPreview",
+          "app.Coordinator.refreshDataSeeded",
+          "app.Coordinator.refreshSessions",
+          "app.previewSub.unsubscribe",
+          "app.refresher.scopedConfigIfChanged",
+          "app.refresher.scopedFull",
+          "app.refresher.scopedSessions",
+          "components.SessionPreview.handleStateCSI",
+          "config.registryFiles",
+          "messages.AgentSwitchRequestedMsg",
+          "messages.AgentSwitchedMsg",
+          "messages.AttachFinishedMsg",
+          "messages.CardDeletionPreparedMsg",
+          "messages.CardSavedMsg",
+          "messages.ConversationChoiceRequestedMsg",
+          "messages.DashboardDeletionPreparedMsg",
+          "messages.DashboardDeletionStatusMsg",
+          "messages.DashboardListLoadedMsg",
+          "messages.DashboardListRequestedMsg",
+          "messages.DashboardMutationFinishedMsg",
+          "messages.DashboardOpenRequestedMsg",
+          "messages.MCPSavedMsg",
+          "messages.ScopedActionFinishedMsg",
+          "messages.ScopedAttachReadyMsg",
+          "messages.ScopedNavigateMsg",
+          "messages.ScopedSessionNamedMsg",
+          "messages.SessionAttachRequestedMsg",
+          "messages.SessionLaunchCompletedMsg",
+          "messages.SettingsSavedMsg",
+          "session.Data.restore",
+          "session.loadSessions",
+          "session.saveSession",
+          "views.Dashboard.SetSessions"
+        ]
+      }
     },
     "preview": {
       "title": "Live preview",
@@ -1754,9 +2186,9 @@ window.APPEDIA_CONTENT = {
           "tea",
           "ref",
           "cmd",
-          "fullSeeded(previewID)",
-          "Reads everything, plus the new fingerprint baseline so the next tick does not reload it again.",
-          "app.refresher.fullSeeded"
+          "scopedFull(scope, generation, previewID)",
+          "Load global capabilities and scoped cards/sessions, then seed the fingerprint baseline.",
+          "app.refresher.scopedFull"
         ],
         [
           "ref",
@@ -1771,7 +2203,7 @@ window.APPEDIA_CONTENT = {
           "views",
           "call",
           "handleDataLoaded → broadcastData",
-          "",
+          "Reject obsolete dashboard/generation data; nil failed fields preserve previous values.",
           "app.Coordinator.handleDataLoaded"
         ],
         [
@@ -1793,7 +2225,7 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "app.Coordinator.handleWorkspaceCommandResult"
+          "app.Coordinator.handleSessionMessages"
         ],
         "files": [
           "internal/app/terminal_launch_test.go"
@@ -1877,8 +2309,8 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "views.CardEditor.SetCard",
           "views.CardEditor.Reset",
+          "views.CardEditor.SetCard",
           "views.CardEditor.fieldBlocks",
           "views.editorKeyIdentity"
         ],
@@ -1888,101 +2320,154 @@ window.APPEDIA_CONTENT = {
       }
     },
     "savecard": {
-      "title": "Save an ID card",
-      "summary": "Validate and write id_cards.yaml off the UI goroutine.",
+      "title": "Configure exclusive or shared cards",
+      "summary": "Only the immutable owner edits a card; consumers can use shared cards.",
       "participants": [
         [
-          "user",
+          "u",
           "user"
         ],
         [
-          "ed",
+          "edit",
           "views.CardEditor"
         ],
         [
-          "tea",
-          "tea"
+          "c",
+          "app.Coordinator"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
         ],
         [
           "repo",
           "config.FileRepository"
-        ],
-        [
-          "disk",
-          "disk"
-        ],
-        [
-          "coord",
-          "app.Coordinator"
         ]
       ],
       "steps": [
         [
-          "user",
-          "ed",
+          "u",
+          "edit",
           "key",
-          "Enter",
+          "Shared toggle; owner/read-only context",
           "",
-          "views.CardEditor.handleSubmit"
+          "views.CardEditor.SetDashboardContext"
         ],
         [
-          "ed",
-          "ed",
-          "self",
-          "Card(): overlay the form on the loaded card",
-          "Overlay the boolean temporary toggle and cloned sub workspace IDs; preserve unmanaged fields and selected capabilities.",
+          "edit",
+          "edit",
+          "call",
+          "Card overlays loaded configuration",
+          "Preserves fields outside the form.",
           "views.CardEditor.Card"
         ],
         [
-          "ed",
-          "tea",
-          "return",
-          "OnSave(card) command",
+          "edit",
+          "c",
+          "cmd",
+          "OnSave captures expected card revision",
           "",
           "app.Coordinator.cardEditorCallbacks"
         ],
         [
-          "tea",
+          "c",
+          "svc",
+          "call",
+          "CreateCardInDashboard for new cards",
+          "",
+          "api.Service.CreateCardInDashboard"
+        ],
+        [
+          "c",
+          "svc",
+          "call",
+          "UpdateCardInDashboard for saved cards",
+          "",
+          "api.Service.UpdateCardInDashboard"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "WithCardReferencesAndSnapshot",
+          "Serializes owner, revision and foreign-reference checks with activation admission.",
+          "session.Manager.WithCardReferencesAndSnapshot"
+        ],
+        [
+          "svc",
           "repo",
-          "cmd",
-          "CreateIDCard / UpdateIDCard",
+          "call",
+          "UpdateIDCard validates tombstones",
           "",
           "config.FileRepository.UpdateIDCard"
-        ],
-        [
-          "repo",
-          "repo",
-          "self",
-          "ValidateCard",
-          "Read main/sub workspace references from one registry snapshot; reject unknown, duplicate and main-as-sub IDs. Skills, personas and MCP references must also exist.",
-          "config.FileRepository.ValidateCard"
-        ],
-        [
-          "repo",
-          "disk",
-          "io",
-          "WriteAtomic(id_cards.yaml)",
-          "Under the repository mutex.",
-          "config.FileRepository.WriteAtomic"
-        ],
-        [
-          "repo",
-          "coord",
-          "msg",
-          "CardSavedMsg",
-          "Error: banner, stay. Success: refresh and back to the dashboard.",
-          "app.Coordinator.handleSpecialMessages"
         ]
       ],
       "sources": {
         "refs": [
-          "config.IDCard",
+          "api.Service.AttachInDashboard",
+          "api.Service.CheckSessionInDashboard",
+          "api.Service.CreateCardInDashboard",
+          "api.Service.CreateDashboard",
+          "api.Service.LaunchInDashboard",
+          "api.Service.ListDashboards",
+          "api.Service.ReadDashboardData",
+          "api.Service.RelaunchInDashboard",
+          "api.Service.RemoveInDashboard",
+          "api.Service.RenameInDashboard",
+          "api.Service.StopInDashboard",
+          "api.Service.SwitchInDashboard",
+          "api.Service.UpdateCardInDashboard",
+          "api.Service.UpdateDashboardDetails",
+          "api.Service.availableDashboardCard",
+          "api.Service.launchDashboardWithID",
+          "api.Service.listCardTombstones",
+          "api.Service.loadMembershipInventory",
+          "api.hasForeignCardReferences",
+          "api.membershipInventory.activeDashboard",
+          "api.membershipInventory.allowsCard",
+          "api.membershipInventory.allowsSession",
+          "api.membershipInventory.hasTombstone",
+          "api.newMembershipInventory",
+          "api.sessionInDashboard",
+          "api.sessionUsesCard",
+          "app.Coordinator.agentSwitchCallbacks",
+          "app.Coordinator.cardEditorCallbacks",
+          "app.Coordinator.conversationChoiceCallbacks",
+          "app.Coordinator.dashboardCallbacks",
+          "app.Coordinator.launchCard",
+          "app.Coordinator.launchIDE",
+          "app.Coordinator.launchTerminal",
+          "app.Coordinator.mcpCallbacks",
+          "app.Coordinator.navigationCommand",
+          "app.Coordinator.requestRelaunch",
+          "app.Coordinator.requestSwitch",
+          "app.Coordinator.sessionLauncherCallbacks",
+          "app.Coordinator.settingsCallbacks",
+          "components.Filter",
+          "config.FileRepository.CreateIDCard",
+          "config.FileRepository.LoadIDCardsFile",
+          "config.FileRepository.UpdateIDCard",
+          "config.FileRepository.WriteIDCardsFile",
+          "config.validateCardMembershipFormat",
           "views.CardEditor.Card",
-          "config.FileRepository.ValidateCard"
-        ],
-        "files": [
-          "internal/config/types.go",
-          "internal/config/validation.go"
+          "views.CardEditor.Reset",
+          "views.CardEditor.SetCard",
+          "views.CardEditor.SetDashboardContext",
+          "views.CardEditor.SetData",
+          "views.CardEditor.SetSettings",
+          "views.CardEditor.Update",
+          "views.CardEditor.fieldBlocks",
+          "views.CardEditor.handleSpace",
+          "views.CardEditor.renderDashboardControlLine",
+          "views.CardEditor.renderSharedLine",
+          "views.CardEditor.renderTmpWorkspaceLine",
+          "views.CardEditor.visibleFocusOrder",
+          "views.CardEditorCallbacks",
+          "views.focusTargetTable"
         ]
       }
     },
@@ -2332,8 +2817,8 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "views.CardEditor.renderWorkspaceLine",
-          "views.CardEditor.handleCtrlE"
+          "views.CardEditor.handleCtrlE",
+          "views.CardEditor.renderWorkspaceLine"
         ],
         "files": []
       }
@@ -2435,12 +2920,12 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "components.CapabilityList.Select",
           "components.CapabilityList.Deselect",
-          "components.CapabilityList.Toggle",
-          "components.CapabilityList.SetSelected",
+          "components.CapabilityList.Select",
           "components.CapabilityList.SelectedOnly",
           "components.CapabilityList.SetCursor",
+          "components.CapabilityList.SetSelected",
+          "components.CapabilityList.Toggle",
           "components.CapabilityList.normalizeCursor"
         ],
         "files": [
@@ -2477,6 +2962,14 @@ window.APPEDIA_CONTENT = {
           "renderTmpWorkspaceLine: [x] or [ ]",
           "Focus highlights the checkbox row.",
           "views.CardEditor.renderTmpWorkspaceLine"
+        ],
+        [
+          "user",
+          "ed",
+          "key",
+          "Enter submits the form",
+          "The toggle is persisted only when the card is saved.",
+          "views.CardEditor.handleSubmit"
         ],
         [
           "ed",
@@ -2591,9 +3084,9 @@ window.APPEDIA_CONTENT = {
         "refs": [
           "views.WorkspacePickerModal.SetExcludedID",
           "views.WorkspacePickerModal.SetSelectedID",
+          "views.WorkspacePickerModal.View",
           "views.WorkspacePickerModal.restoreSingleSelection",
           "views.WorkspacePickerModal.title",
-          "views.WorkspacePickerModal.View",
           "views.workspaceItem.Title"
         ],
         "files": [
@@ -2748,10 +3241,10 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "views.editorKeyIdentity",
           "views.CardEditor.SetCard",
           "views.CardEditor.handleSpace",
-          "views.WorkspacePickerModal.SetSelectedIDs"
+          "views.WorkspacePickerModal.SetSelectedIDs",
+          "views.editorKeyIdentity"
         ],
         "files": [
           "internal/ui/views/card_editor.go",
@@ -2765,7 +3258,7 @@ window.APPEDIA_CONTENT = {
     },
     "terminal": {
       "title": "Open the selected session in a terminal",
-      "summary": "Press t in the Sessions pane to launch an independently configured terminal in the actual session workspace.",
+      "summary": "Press t in the Sessions pane to launch an independently configured terminal in the actual session workspace. Commands capture dashboard identity, generation and command settings.",
       "participants": [
         [
           "user",
@@ -2840,18 +3333,18 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "act",
-          "mgr",
+          "act",
           "call",
-          "List current session snapshots",
-          "Find the selected ID when the command executes, not the card registry path.",
-          "session.Manager.List"
+          "Check captured dashboard/session",
+          "The selected session must still belong to the captured dashboard.",
+          "api.Service.CheckSessionInDashboard"
         ],
         [
           "act",
           "launch",
           "call",
           "Launch command in session.WorkingDir",
-          "Temporary sessions use their copy; OriginalDir must not be substituted.",
+          "Use the saved session WorkingDir after the membership check.",
           "app.sessionActions.launchWorkspaceCommand"
         ],
         [
@@ -2866,7 +3359,7 @@ window.APPEDIA_CONTENT = {
           "act",
           "coord",
           "msg",
-          "TerminalLaunchedMsg{Err}",
+          "ScopedActionFinishedMsg{Err}",
           "Reports process startup, not the external application’s eventual exit.",
           "app.Coordinator.handleSpecialMessages"
         ],
@@ -2874,20 +3367,20 @@ window.APPEDIA_CONTENT = {
           "coord",
           "coord",
           "self",
-          "Apply completion result",
-          "An error becomes the existing banner; success stays on the dashboard.",
-          "app.Coordinator.handleWorkspaceCommandResult"
+          "Apply scoped completion",
+          "Reject stale dashboard/generation results; display current errors without navigation.",
+          "app.Coordinator.handleSessionMessages"
         ]
       ],
       "sources": {
         "refs": [
-          "messages.TerminalLaunchedMsg",
+          "messages.ScopedActionFinishedMsg",
           "views.DashboardCallbacks"
         ],
         "files": [
           "internal/app/terminal_launch_test.go",
           "internal/ui/views/dashboard_test.go",
-          "internal/session/workspace_launcher.go"
+          "internal/session/ide_launcher.go"
         ]
       }
     },
@@ -2918,9 +3411,9 @@ window.APPEDIA_CONTENT = {
           "act",
           "act",
           "self",
-          "Validate selected session and workspace",
-          "A session removed before command execution becomes session-not-found.",
-          "app.sessionActions.launchWorkspaceCommand"
+          "Check scope and session",
+          "Membership must still be valid when the command executes.",
+          "api.Service.CheckSessionInDashboard"
         ],
         [
           "act",
@@ -2942,17 +3435,17 @@ window.APPEDIA_CONTENT = {
           "act",
           "coord",
           "msg",
-          "TerminalLaunchedMsg{Err}",
+          "ScopedActionFinishedMsg{Err}",
           "The event carries the startup error back into Update.",
-          "messages.TerminalLaunchedMsg"
+          "messages.ScopedActionFinishedMsg"
         ],
         [
           "coord",
           "coord",
           "self",
-          "handleWorkspaceCommandResult(error)",
-          "Stores the error in coordinator-owned state without navigation.",
-          "app.Coordinator.handleWorkspaceCommandResult"
+          "Apply matching scoped error",
+          "Only a result for the current dashboard/generation changes the banner.",
+          "app.Coordinator.handleSessionMessages"
         ],
         [
           "user",
@@ -2965,7 +3458,7 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "messages.TerminalLaunchedMsg"
+          "messages.ScopedActionFinishedMsg"
         ],
         "files": [
           "internal/app/terminal_launch_test.go",
@@ -3066,9 +3559,10 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "views.SettingsView.TerminalInput",
           "components.DisplayText",
-          "components.TruncateHead"
+          "components.TruncateHead",
+          "views.SettingsView.TerminalInput",
+          "views.SettingsCallbacks"
         ],
         "files": [
           "internal/ui/views/settings_test.go"
@@ -3117,9 +3611,9 @@ window.APPEDIA_CONTENT = {
           "ui",
           "mgr",
           "call",
-          "Attach while phase is starting",
-          "Human observation does not pause orchestration.",
-          "session.Manager.Attach"
+          "Checked immediate attachment",
+          "Membership and published process are required; the MCP timer does not delay human attachment.",
+          "session.Manager.AttachChecked"
         ],
         [
           "mgr",
@@ -3235,10 +3729,13 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
+          "session.CallerIdentity",
           "session.Manager.activationAuthorityLocked",
+          "session.Manager.publishActivationLocked",
           "session.Manager.validateReportedConversationLocked",
-          "session.addConversationBinding",
-          "session.Manager.publishActivationLocked"
+          "session.RegistrationResult",
+          "session.activationAuthority",
+          "session.addConversationBinding"
         ]
       }
     },
@@ -3269,6 +3766,10 @@ window.APPEDIA_CONTENT = {
         [
           "drv",
           "driver.AgentDriver"
+        ],
+        [
+          "snap",
+          "session.Manager"
         ]
       ],
       "steps": [
@@ -3282,11 +3783,11 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "ui",
-          "svc",
+          "snap",
           "call",
-          "Load bindings for destination card",
-          "",
-          "api.Service.Conversations"
+          "Read per-card saved bindings",
+          "Bindings belong to the existing session; even one binding requires explicit choice.",
+          "session.Manager.GetSession"
         ],
         [
           "ui",
@@ -3308,16 +3809,16 @@ window.APPEDIA_CONTENT = {
           "ui",
           "svc",
           "cmd",
-          "RelaunchWithChoice / SwitchAgentWithChoice",
-          "Do not substitute the destination card workspace for the saved one.",
-          "api.Service.SwitchAgentWithChoice"
+          "RelaunchInDashboard / SwitchInDashboard",
+          "Pass the captured dashboard, existing session and explicit choice.",
+          "api.Service.SwitchInDashboard"
         ],
         [
           "svc",
           "mgr",
           "call",
-          "Reserve activation and validate binding",
-          "Choice belongs to this Kankuro session, destination card and driver.",
+          "Reserve and validate activation",
+          "Recheck session/card availability and native binding before publication.",
           "session.Manager.reserveForActivation"
         ],
         [
@@ -3356,25 +3857,28 @@ window.APPEDIA_CONTENT = {
           "mgr",
           "mgr",
           "self",
-          "Publish fresh activation in same workspace",
-          "Relaunch preserves deployment; explicit switch reapplies selected card configuration.",
-          "session.Manager.SwitchAgentWithChoiceContext"
+          "Publish checked activation",
+          "Preserve dashboard membership and saved workspace identity.",
+          "session.Manager.SwitchAgentWithChoiceCheckedContext"
         ]
       ],
       "sources": {
         "refs": [
-          "app.Coordinator.requestSwitch",
           "app.Coordinator.handleConversationChoiceRequested",
+          "app.Coordinator.requestSwitch",
+          "session.savedTemporaryRoot",
+          "session.validateConversationChoice",
+          "views.AgentSwitchView.SetData",
+          "views.AgentSwitchView.handleKey",
           "views.ConversationChoiceView.RefreshContext",
           "views.ConversationChoiceView.SelectedBinding",
-          "views.ConversationChoiceView.Update",
-          "session.validateConversationChoice"
+          "views.ConversationChoiceView.Update"
         ]
       }
     },
     "control": {
       "title": "Authenticated discovery and session control",
-      "summary": "An ordinary orchestrator session opts into dashboard control and manages other sessions.",
+      "summary": "An authenticated activation with deployed Dashboard Control manages available cards and sessions inside its creation dashboard.",
       "participants": [
         [
           "o",
@@ -3450,13 +3954,17 @@ window.APPEDIA_CONTENT = {
           "svc",
           "mgr",
           "call",
-          "Launch selected existing project card",
-          "Orchestrator writes feature/plan files itself using exposed paths.",
-          "api.Service.launchReservedSession"
+          "Launch in caller dashboard",
+          "Caller scope comes from immutable session membership, never human navigation.",
+          "api.Service.launchDashboardWithID"
         ]
       ],
       "sources": {
-        "refs": []
+        "refs": [
+          "api.CardDiscovery",
+          "api.Repository",
+          "api.SessionDiscovery"
+        ]
       }
     },
     "operations": {
@@ -3543,7 +4051,9 @@ window.APPEDIA_CONTENT = {
         ]
       ],
       "sources": {
-        "refs": []
+        "refs": [
+          "api.operationResult"
+        ]
       }
     },
     "send": {
@@ -3655,14 +4165,14 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "session.Manager.PublishMessageAdmission",
-          "session.Manager.SubmitMessage",
-          "driver.ValidatePrompt",
-          "driver.GenericCLIDriver.submitPromptBytes",
-          "driver.writePromptPhases",
-          "driver.classifySubmission",
+          "driver.ClaudeCodeDriver.SubmitPrompt",
           "driver.CodexCLIDriver.SubmitPrompt",
-          "driver.ClaudeCodeDriver.SubmitPrompt"
+          "driver.GenericCLIDriver.submitPromptBytes",
+          "driver.ValidatePrompt",
+          "driver.classifySubmission",
+          "driver.writePromptPhases",
+          "session.Manager.PublishMessageAdmission",
+          "session.Manager.SubmitMessage"
         ]
       }
     },
@@ -3755,10 +4265,10 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "session.MessageStore.createIntent",
-          "session.MessageStore.evictLocked",
+          "api.Service.GetMessage",
           "session.MessageStore.Recover",
-          "api.Service.GetMessage"
+          "session.MessageStore.createIntent",
+          "session.MessageStore.evictLocked"
         ]
       }
     },
@@ -3843,20 +4353,28 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "driver.updateCodexTrust",
-          "driver.updateClaudeTrust",
+          "driver.GenericCLIDriver.PrepareWorkspace",
           "driver.trustJSONObject",
-          "driver.GenericCLIDriver.PrepareWorkspace"
+          "driver.updateClaudeTrust",
+          "driver.updateCodexTrust"
         ]
       }
     },
     "card-delete": {
-      "title": "Protect cards during concurrent activation",
-      "summary": "Card deletion now shares the activation admission lock across TUI and MCP services.",
+      "title": "Confirm global deletion from the card owner",
+      "summary": "Foreign current, saved and pending references require explicit human consent.",
       "participants": [
         [
-          "ui",
-          "app.sessionActions"
+          "u",
+          "user"
+        ],
+        [
+          "dash",
+          "views.Dashboard"
+        ],
+        [
+          "c",
+          "app.Coordinator"
         ],
         [
           "svc",
@@ -3867,54 +4385,77 @@ window.APPEDIA_CONTENT = {
           "session.Manager"
         ],
         [
-          "cfg",
+          "repo",
           "config.FileRepository"
         ]
       ],
       "steps": [
         [
-          "ui",
-          "svc",
-          "call",
-          "DeleteCard(cardID)",
-          "The shared manager serializes card deletion with activation admission.",
-          "api.Service.DeleteCard"
-        ],
-        [
-          "svc",
-          "mgr",
-          "call",
-          "Reserve current card before preparation",
-          "Existence validation and pending reference admission share the manager lock.",
-          "session.Manager.ReserveCardReference"
-        ],
-        [
-          "mgr",
-          "mgr",
-          "self",
-          "Reject pending and durable references",
-          "Includes stopped sessions and saved native bindings.",
-          "session.Manager.DeleteCardIfUnreferenced"
-        ],
-        [
-          "mgr",
-          "cfg",
-          "io",
-          "Delete unreferenced card under admission lock",
+          "u",
+          "dash",
+          "key",
+          "Delete owned card; review impact",
           "",
-          "config.FileRepository.DeleteIDCard"
+          "views.Dashboard.handleDeleteCard"
+        ],
+        [
+          "c",
+          "svc",
+          "call",
+          "PreflightCardDeletion inventories references",
+          "",
+          "api.Service.PreflightCardDeletion"
         ],
         [
           "svc",
           "mgr",
+          "call",
+          "WithCardReferencesAndSnapshot",
+          "",
+          "session.Manager.WithCardReferencesAndSnapshot"
+        ],
+        [
+          "svc",
+          "dash",
           "return",
-          "Release pending reference after publish/rollback",
-          "Separate api.Service objects still coordinate through one manager.",
-          "api.Service.reserveCardReference"
+          "ShowCardDeletionImpact for foreign refs",
+          "",
+          "views.Dashboard.ShowCardDeletionImpact"
+        ],
+        [
+          "u",
+          "svc",
+          "key",
+          "ConfirmCardDeletion(token, consent)",
+          "Rechecks owner, revision, expiry and reference-set digest before effects.",
+          "api.Service.ConfirmCardDeletion"
+        ],
+        [
+          "svc",
+          "repo",
+          "call",
+          "BeginCardDeletionWithPending atomically",
+          "Tombstone closes admission and retains unpublished temporary cleanup identities.",
+          "config.FileRepository.BeginCardDeletionWithPending"
+        ],
+        [
+          "svc",
+          "svc",
+          "call",
+          "RetryCardDeletion drains then cleans",
+          "",
+          "api.Service.RetryCardDeletion"
         ]
       ],
       "sources": {
-        "refs": []
+        "refs": [
+          "api.CardDeletionPreflight",
+          "api.CardDeletionResult",
+          "api.cardConfirmation",
+          "api.cardImpactDigest",
+          "api.cardPendingCleanup",
+          "api.tombstoneWriter"
+        ]
       }
     },
     "stop-delete": {
@@ -4080,12 +4621,15 @@ window.APPEDIA_CONTENT = {
         ]
       ],
       "sources": {
-        "refs": []
+        "refs": [
+          "session.Data",
+          "session.saveSession"
+        ]
       }
     },
     "dashboard": {
-      "title": "Understand sessions on the existing dashboard",
-      "summary": "The dashboard gains conversation choice, control opt-in and clearer bounded metadata.",
+      "title": "Render owned sessions and available cards",
+      "summary": "The opened dashboard shows its owned sessions and exclusive/shared available cards, with native conversation choice and bounded metadata.",
       "participants": [
         [
           "user",
@@ -4152,11 +4696,11 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
+          "components.SessionList.refreshItems",
+          "components.cardDelegate.Render",
           "components.renderPreviewField",
           "components.renderedBlockWidth",
           "components.wrapPreviewWords",
-          "components.SessionList.refreshItems",
-          "components.cardDelegate.Render",
           "views.Dashboard.renderPreviewPane"
         ]
       }
@@ -4230,10 +4774,10 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "session.preparedSubWorkspaceDescriptors",
+          "session.Manager.RelaunchWithChoiceCheckedContext",
           "session.Manager.cleanupNewTemporaryWorkspace",
           "session.Manager.resolveWorkspacePath",
-          "session.Manager.RelaunchWithChoiceContext"
+          "session.preparedSubWorkspaceDescriptors"
         ]
       }
     },
@@ -4307,8 +4851,8 @@ window.APPEDIA_CONTENT = {
       "sources": {
         "refs": [
           "driver.MCPConfigPath",
-          "session.syncActivationMCPConfig",
-          "session.activationEnv"
+          "session.activationEnv",
+          "session.syncActivationMCPConfig"
         ]
       }
     },
@@ -4381,10 +4925,1015 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "config.BuiltinSkills",
           "config.BuiltinMCPs",
+          "config.BuiltinSkills",
           "config.GetBuiltinSkillContent",
           "driver.writeInstructionFile"
+        ]
+      }
+    },
+    "dashboard-details": {
+      "title": "Create or edit a dashboard",
+      "summary": "The initial list owns name/description forms and immutable selection IDs.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "list",
+          "views.DashboardList"
+        ],
+        [
+          "c",
+          "app.Coordinator"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "repo",
+          "config.FileRepository"
+        ]
+      ],
+      "steps": [
+        [
+          "u",
+          "list",
+          "key",
+          "n / e; edit name and description",
+          "",
+          "views.DashboardList.Update"
+        ],
+        [
+          "list",
+          "list",
+          "call",
+          "updateForm: validate nonempty name",
+          "",
+          "views.DashboardList.updateForm"
+        ],
+        [
+          "list",
+          "c",
+          "cmd",
+          "Save callback captures view generation",
+          "",
+          "app.Coordinator.dashboardListCallbacks"
+        ],
+        [
+          "c",
+          "svc",
+          "call",
+          "CreateDashboard / UpdateDashboardDetails",
+          "",
+          "api.Service.CreateDashboard"
+        ],
+        [
+          "svc",
+          "repo",
+          "call",
+          "UpdateDashboardDetails: active owner only",
+          "",
+          "config.FileRepository.UpdateDashboardDetails"
+        ],
+        [
+          "c",
+          "svc",
+          "call",
+          "ListDashboards includes recovery entries",
+          "",
+          "api.Service.ListDashboards"
+        ],
+        [
+          "c",
+          "list",
+          "call",
+          "SetDashboards preserves selected ID",
+          "",
+          "views.DashboardList.SetDashboards"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "config.Dashboard",
+          "config.FileRepository.CreateDashboard",
+          "config.FileRepository.ListDashboards",
+          "config.FileRepository.UpdateDashboardDetails",
+          "config.FileRepository.loadDashboardsLocked",
+          "config.dashboardsFile",
+          "config.validateDashboard"
+        ]
+      }
+    },
+    "navigation": {
+      "title": "Open a dashboard and return to the list",
+      "summary": "Enter opens its card/session view; Esc returns without stopping sessions.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "list",
+          "views.DashboardList"
+        ],
+        [
+          "c",
+          "app.Coordinator"
+        ],
+        [
+          "dash",
+          "views.Dashboard"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ]
+      ],
+      "steps": [
+        [
+          "u",
+          "list",
+          "key",
+          "Enter on active dashboard",
+          "",
+          "views.DashboardList.Update"
+        ],
+        [
+          "list",
+          "c",
+          "msg",
+          "DashboardOpenRequestedMsg",
+          "Captures dashboard identity and increments view generation.",
+          "app.Coordinator.handleSpecialMessages"
+        ],
+        [
+          "c",
+          "dash",
+          "call",
+          "SetDashboardScope and cached view",
+          "",
+          "views.Dashboard.SetDashboardScope"
+        ],
+        [
+          "c",
+          "svc",
+          "call",
+          "ReadDashboardData(openedID)",
+          "",
+          "api.Service.ReadDashboardData"
+        ],
+        [
+          "u",
+          "dash",
+          "key",
+          "Esc requests dashboard list",
+          "",
+          "views.Dashboard.handleKey"
+        ],
+        [
+          "dash",
+          "c",
+          "msg",
+          "DashboardListRequestedMsg",
+          "Drops the preview subscription and invalidates old scoped results.",
+          "app.Coordinator.handleSpecialMessages"
+        ],
+        [
+          "u",
+          "list",
+          "key",
+          "Esc stays; q quits",
+          "Default Bubbles quit bindings are disabled. Forms and confirmations retain Escape cancellation.",
+          "views.DashboardList.Update"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "app.Coordinator.Init",
+          "app.Coordinator.dashboardListCallbacks",
+          "app.Coordinator.guardKey",
+          "app.Coordinator.handleAgentSwitched",
+          "app.Coordinator.handleConversationChoiceRequested",
+          "app.Coordinator.handleSessionMessages",
+          "app.Coordinator.handleSpecialMessages",
+          "app.Coordinator.navigateTo",
+          "app.Coordinator.refreshDashboardList",
+          "app.Coordinator.resizeAll",
+          "app.NewCoordinator",
+          "app.cardDeletionPreflightCommand",
+          "app.confirmCardDeletionCommand",
+          "app.convertViewType",
+          "app.dashboardDeletionStatus",
+          "app.dashboardDeletionSummary",
+          "app.dashboardListCommand",
+          "app.retryCardDeletionCommand",
+          "views.Dashboard.SetDashboardName",
+          "views.Dashboard.SetDashboardScope",
+          "views.Dashboard.SetSize",
+          "views.Dashboard.ShowCardDeletionImpact",
+          "views.Dashboard.Update",
+          "views.Dashboard.View",
+          "views.Dashboard.footerText",
+          "views.Dashboard.handleDeleteCard",
+          "views.Dashboard.handleEdit",
+          "views.Dashboard.handleEnter",
+          "views.Dashboard.handleKey",
+          "views.Dashboard.handleSessionEnter",
+          "views.Dashboard.handleSwitch",
+          "views.Dashboard.renderBase",
+          "views.Dashboard.updateCardImpact",
+          "views.DashboardList",
+          "views.DashboardList.Init",
+          "views.DashboardList.SetDashboards",
+          "views.DashboardList.SetSize",
+          "views.DashboardList.Update",
+          "views.DashboardList.View",
+          "views.DashboardList.confirmDeletion",
+          "views.DashboardList.openForm",
+          "views.DashboardList.renderPage",
+          "views.DashboardList.retryDeletion",
+          "views.DashboardList.selected",
+          "views.DashboardList.updateConfirmation",
+          "views.DashboardList.updateForm",
+          "views.DashboardListCallbacks",
+          "views.NewDashboardList",
+          "views.dashboardItem",
+          "views.dashboardItem.Description",
+          "views.dashboardItem.FilterValue",
+          "views.dashboardItem.Title",
+          "views.dashboardListMode"
+        ]
+      }
+    },
+    "caller-scope": {
+      "title": "Derive MCP scope from the live caller",
+      "summary": "A shared card never shares the sessions launched from it.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "mcp",
+          "mcp.Runtime"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "scope",
+          "api.persistedDashboardScope"
+        ]
+      ],
+      "steps": [
+        [
+          "u",
+          "mcp",
+          "io",
+          "list_cards / list_sessions / get_session",
+          "",
+          "mcp.addDiscoveryTools"
+        ],
+        [
+          "mcp",
+          "svc",
+          "call",
+          "ResolveCaller(token)",
+          "",
+          "api.Service.ResolveCaller"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "ResolveDashboardCaller(token)",
+          "",
+          "session.Manager.ResolveDashboardCaller"
+        ],
+        [
+          "svc",
+          "scope",
+          "call",
+          "DashboardForSession: persisted membership",
+          "",
+          "api.persistedDashboardScope.DashboardForSession"
+        ],
+        [
+          "svc",
+          "scope",
+          "call",
+          "AllowsCard: owner match or shared",
+          "",
+          "api.persistedDashboardScope.AllowsCard"
+        ],
+        [
+          "svc",
+          "scope",
+          "call",
+          "AllowsSession: exact session dashboard",
+          "",
+          "api.persistedDashboardScope.AllowsSession"
+        ],
+        [
+          "svc",
+          "mcp",
+          "return",
+          "Discovery includes dashboard/card state",
+          "Human navigation is absent from caller authority.",
+          "api.Service.ListSessions"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "api.DashboardData",
+          "api.New",
+          "api.Service.GetSession",
+          "api.Service.ListSessions",
+          "api.Service.ResolveCaller",
+          "api.Service.authorizeExistingOperation",
+          "api.Service.deletedCardIDs",
+          "api.Service.inspectionFromScopedSnapshot",
+          "api.Service.listCardsForCaller",
+          "api.dashboardWriter",
+          "api.hasForeignCardReferences",
+          "api.inspectionFromSnapshot",
+          "api.membershipInventory",
+          "api.membershipInventory.activeDashboard",
+          "api.membershipInventory.allowsCard",
+          "api.membershipInventory.allowsSession",
+          "api.membershipInventory.hasTombstone",
+          "api.newMembershipInventory",
+          "api.persistedDashboardScope",
+          "api.persistedDashboardScope.AllowsCard",
+          "api.persistedDashboardScope.AllowsSession",
+          "api.persistedDashboardScope.DashboardForSession",
+          "api.persistedDashboardScope.SessionDashboard",
+          "api.persistedDashboardScope.inventory",
+          "api.persistedDashboardScope.validateScopeInventory",
+          "api.scopedCardWriter",
+          "api.sessionInDashboard",
+          "api.sessionUsesCard",
+          "session.Manager.List",
+          "session.Manager.SetNameChecked",
+          "session.Manager.ShutdownStarted",
+          "session.Manager.listLocked",
+          "session.NewManager",
+          "session.Session.data",
+          "session.Session.snapshot"
+        ]
+      }
+    },
+    "manual-session": {
+      "title": "Attach, rename, stop or remove an owned session",
+      "summary": "Human actions are checked against the dashboard captured when invoked.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "c",
+          "app.Coordinator"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "launch",
+          "views.SessionLauncher"
+        ]
+      ],
+      "steps": [
+        [
+          "u",
+          "c",
+          "key",
+          "Attach selected session",
+          "",
+          "app.Coordinator.requestAttach"
+        ],
+        [
+          "c",
+          "svc",
+          "call",
+          "AttachInDashboard checks at subscription",
+          "",
+          "api.Service.AttachInDashboard"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "AttachChecked returns handle",
+          "",
+          "session.Manager.AttachChecked"
+        ],
+        [
+          "c",
+          "c",
+          "call",
+          "ScopedAttachReadyMsg rejects stale handles",
+          "",
+          "app.Coordinator.handleSessionMessages"
+        ],
+        [
+          "launch",
+          "svc",
+          "call",
+          "RenameInDashboard after async name submit",
+          "",
+          "api.Service.RenameInDashboard"
+        ],
+        [
+          "c",
+          "svc",
+          "call",
+          "StopInDashboard validates owned target",
+          "",
+          "api.Service.StopInDashboard"
+        ],
+        [
+          "c",
+          "svc",
+          "call",
+          "RemoveInDashboard retains removal guards",
+          "",
+          "api.Service.RemoveInDashboard"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "app.Coordinator.requestAttach",
+          "app.scopedAttachCommand",
+          "app.sessionActions.launch",
+          "app.sessionActions.launchIDE",
+          "app.sessionActions.launchTerminal",
+          "app.sessionActions.launchWorkspace",
+          "app.sessionActions.relaunch",
+          "app.sessionActions.switchAgent",
+          "session.Manager.AttachChecked",
+          "views.SessionLauncher.Reset",
+          "views.SessionLauncher.SetNameResult",
+          "views.SessionLauncher.handleNameSubmit"
+        ]
+      }
+    },
+    "card-recovery": {
+      "title": "Retry failed unpublished-workspace cleanup",
+      "summary": "A cancelled launch can fail to remove its temporary copy or trust entries.",
+      "participants": [
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "repo",
+          "config.FileRepository"
+        ],
+        [
+          "disk",
+          "disk"
+        ]
+      ],
+      "steps": [
+        [
+          "svc",
+          "mgr",
+          "call",
+          "ReserveCardDeletion prevents parallel retry",
+          "",
+          "session.Manager.ReserveCardDeletion"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "CancelPendingCardReferences; wait",
+          "",
+          "session.Manager.CancelPendingCardReferences"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "WaitCardReferences drains launch cleanup",
+          "",
+          "session.Manager.WaitCardReferences"
+        ],
+        [
+          "svc",
+          "svc",
+          "call",
+          "cleanupCardPending reads durable paths",
+          "",
+          "api.Service.cleanupCardPending"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "RemoveResidual at the recorded path",
+          "Does not touch workspaces belonging to already-published sessions.",
+          "session.Manager.RemoveResidual"
+        ],
+        [
+          "svc",
+          "repo",
+          "call",
+          "SaveCardDeletionPending(error or cleaned)",
+          "",
+          "config.FileRepository.SaveCardDeletionPending"
+        ],
+        [
+          "svc",
+          "repo",
+          "call",
+          "FinishCardDeletion only after all cleaned",
+          "",
+          "config.FileRepository.FinishCardDeletion"
+        ],
+        [
+          "repo",
+          "disk",
+          "io",
+          "Keep non-executable tombstone for history",
+          "",
+          "config.CardTombstone"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "api.Service.ConfirmCardDeletion",
+          "api.Service.PreflightCardDeletion",
+          "api.Service.RetryCardDeletion",
+          "api.Service.cardOwnedBy",
+          "api.Service.cleanupCardPending",
+          "api.Service.validateCardConfirmationLocked",
+          "api.Service.validateDeletionInventory",
+          "api.Service.validateDeletionOwner",
+          "api.cardImpactDigest",
+          "api.cardPendingCleanup",
+          "config.CardDeletionPending",
+          "config.CardTombstone",
+          "config.FileRepository.BeginCardDeletion",
+          "config.FileRepository.BeginCardDeletionWithPending",
+          "config.FileRepository.FinishCardDeletion",
+          "config.FileRepository.ListCardTombstones",
+          "config.FileRepository.SaveCardDeletionPending",
+          "config.FileRepository.checkCardNotTombstonedLocked",
+          "config.FileRepository.loadCardTombstonesLocked",
+          "config.cardTombstonesFile",
+          "config.validateNewCardPending",
+          "session.Manager.RemoveResidual"
+        ]
+      }
+    },
+    "deleted-session": {
+      "title": "Continue using a session after its card is deleted",
+      "summary": "Existing foreign activations survive; a stopped session can switch to a different card.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "c",
+          "app.Coordinator"
+        ],
+        [
+          "dash",
+          "views.Dashboard"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ]
+      ],
+      "steps": [
+        [
+          "svc",
+          "c",
+          "return",
+          "ReadDashboardData includes CardDeleted",
+          "",
+          "api.Service.ReadDashboardData"
+        ],
+        [
+          "c",
+          "dash",
+          "call",
+          "Session description names deleted card",
+          "",
+          "components.SessionListItem.Description"
+        ],
+        [
+          "u",
+          "dash",
+          "key",
+          "Enter blocks deleted-card relaunch",
+          "",
+          "views.Dashboard.handleSessionEnter"
+        ],
+        [
+          "u",
+          "svc",
+          "key",
+          "Stop and select a different available card",
+          "",
+          "api.Service.SwitchInDashboard"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "Switch preserves session dashboard and files",
+          "",
+          "session.Manager.SwitchAgentWithChoiceCheckedContext"
+        ],
+        [
+          "mgr",
+          "mgr",
+          "call",
+          "Data.restore keeps saved bindings on restart",
+          "",
+          "session.Data.restore"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "components.SessionListItem.Description"
+        ]
+      }
+    },
+    "delete-dashboard": {
+      "title": "Delete owned sessions and cards as a recoverable cascade",
+      "summary": "Deleting the owner also deletes its shared cards globally after foreign-impact confirmation.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "list",
+          "views.DashboardList"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "repo",
+          "config.FileRepository"
+        ]
+      ],
+      "steps": [
+        [
+          "u",
+          "list",
+          "key",
+          "Delete dashboard; review cascade summary",
+          "",
+          "views.DashboardList.Update"
+        ],
+        [
+          "list",
+          "svc",
+          "call",
+          "PreflightDashboardDeletion",
+          "",
+          "api.Service.PreflightDashboardDeletion"
+        ],
+        [
+          "svc",
+          "svc",
+          "call",
+          "prepareDashboardDeletion captures all effects",
+          "",
+          "api.Service.prepareDashboardDeletion"
+        ],
+        [
+          "u",
+          "svc",
+          "key",
+          "ConfirmDashboardDeletion with consent",
+          "",
+          "api.Service.ConfirmDashboardDeletion"
+        ],
+        [
+          "svc",
+          "repo",
+          "call",
+          "BeginDashboardDeletion before teardown",
+          "",
+          "config.FileRepository.BeginDashboardDeletion"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "CancelDashboardAdmissions for owned scope",
+          "",
+          "session.Manager.CancelDashboardAdmissions"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "WaitDashboardAdmissions without locks",
+          "",
+          "session.Manager.WaitDashboardAdmissions"
+        ],
+        [
+          "svc",
+          "svc",
+          "call",
+          "runDashboardDeletion applies checkpoints",
+          "",
+          "api.Service.runDashboardDeletion"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "api.DashboardDeletionPreflight",
+          "api.Service.PreflightDashboardDeletion",
+          "api.Service.prepareDashboardDeletion",
+          "api.dashboardConfirmation",
+          "api.dashboardImpactDigest",
+          "app.Coordinator.dashboardListCallbacks",
+          "app.Coordinator.refreshDashboardList",
+          "app.cardDeletionPreflightCommand",
+          "app.confirmCardDeletionCommand",
+          "app.dashboardDeletionStatus",
+          "app.dashboardDeletionSummary",
+          "app.dashboardListCommand",
+          "app.retryCardDeletionCommand",
+          "config.DashboardTombstone",
+          "config.dashboardTombstonesFile",
+          "session.AdmissionSnapshot",
+          "session.Manager.CancelDashboardAdmissions",
+          "session.Manager.ReserveCardDeletion",
+          "session.Manager.ReserveDashboardDeletion",
+          "session.Manager.WaitDashboardAdmissions",
+          "session.Manager.WithAdmissionSnapshot"
+        ]
+      }
+    },
+    "cascade-recovery": {
+      "title": "Recover partial dashboard cleanup after restart",
+      "summary": "The durable manifest survives removed memory rows and failed writes. Delete or Backspace resumes its checkpointed effects.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "list",
+          "views.DashboardList"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "repo",
+          "config.FileRepository"
+        ],
+        [
+          "store",
+          "session.MessageStore"
+        ]
+      ],
+      "steps": [
+        [
+          "u",
+          "list",
+          "key",
+          "Delete / Backspace retries",
+          "The dashboard is already deleting, so resume its durable manifest without repeating initial confirmation.",
+          "views.DashboardList.Update"
+        ],
+        [
+          "list",
+          "list",
+          "call",
+          "Clear error; resume deletion",
+          "",
+          "views.DashboardList.retryDeletion"
+        ],
+        [
+          "list",
+          "svc",
+          "call",
+          "RetryDashboardDeletion loads manifest",
+          "",
+          "api.Service.RetryDashboardDeletion"
+        ],
+        [
+          "svc",
+          "svc",
+          "call",
+          "removeDashboardSession checks identity",
+          "",
+          "api.Service.removeDashboardSession"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "RemoveDetailed after process teardown",
+          "",
+          "session.Manager.RemoveDetailed"
+        ],
+        [
+          "svc",
+          "mgr",
+          "call",
+          "RemoveResidual if row already disappeared",
+          "",
+          "session.Manager.RemoveResidual"
+        ],
+        [
+          "svc",
+          "repo",
+          "call",
+          "SaveDashboardDeletion after each effect",
+          "",
+          "config.FileRepository.SaveDashboardDeletion"
+        ],
+        [
+          "svc",
+          "svc",
+          "call",
+          "deleteDashboardCard retains tombstone",
+          "",
+          "api.Service.deleteDashboardCard"
+        ],
+        [
+          "svc",
+          "store",
+          "call",
+          "DeleteDashboard removes scoped history",
+          "",
+          "session.MessageStore.DeleteDashboard"
+        ],
+        [
+          "svc",
+          "repo",
+          "call",
+          "FinalizeDashboardDeletion removes record last",
+          "",
+          "config.FileRepository.FinalizeDashboardDeletion"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "api.DashboardDeletionResult",
+          "api.Service.ConfirmDashboardDeletion",
+          "api.Service.GetDashboardDeletion",
+          "api.Service.RetryDashboardDeletion",
+          "api.Service.dashboardAlreadyDeleted",
+          "api.Service.dashboardDeletion",
+          "api.Service.deleteDashboardCard",
+          "api.Service.removeDashboardSession",
+          "api.Service.runDashboardDeletion",
+          "api.dashboardDeletionWriter",
+          "config.DashboardDeletion",
+          "config.DashboardDeletionCard",
+          "config.DashboardDeletionPending",
+          "config.DashboardDeletionReference",
+          "config.DashboardDeletionSession",
+          "config.FileRepository.BeginDashboardDeletion",
+          "config.FileRepository.FinalizeDashboardDeletion",
+          "config.FileRepository.ListDashboardDeletions",
+          "config.FileRepository.ListDashboardTombstones",
+          "config.FileRepository.SaveDashboardDeletion",
+          "config.FileRepository.listDashboardDeletionsLocked",
+          "config.FileRepository.loadDashboardTombstonesLocked",
+          "config.FileRepository.retainDashboardTombstoneLocked",
+          "config.FileRepository.writeDashboardDeletionLocked",
+          "config.dashboardDeletionFilename",
+          "config.validTemporaryIdentity",
+          "config.validateDashboardDeletion"
+        ]
+      }
+    },
+    "list-errors": {
+      "title": "Show deletion preparation and recovery errors",
+      "summary": "Preflight or status-inspection errors must explain why a list action failed.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "list",
+          "views.DashboardList"
+        ],
+        [
+          "c",
+          "app.Coordinator"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ]
+      ],
+      "steps": [
+        [
+          "u",
+          "list",
+          "key",
+          "Delete active / Enter deleting dashboard",
+          "",
+          "views.DashboardList.Update"
+        ],
+        [
+          "list",
+          "c",
+          "cmd",
+          "PreflightDelete / InspectDelete command",
+          "",
+          "app.Coordinator.dashboardListCallbacks"
+        ],
+        [
+          "c",
+          "svc",
+          "call",
+          "GetDashboardDeletion or preflight",
+          "",
+          "api.Service.GetDashboardDeletion"
+        ],
+        [
+          "c",
+          "list",
+          "call",
+          "Result sets safe visible error in list mode",
+          "",
+          "views.DashboardList.Update"
+        ],
+        [
+          "list",
+          "list",
+          "call",
+          "View clips and sanitizes error text",
+          "Errors are visible even when the refreshed list becomes empty.",
+          "views.DashboardList.View"
+        ],
+        [
+          "u",
+          "list",
+          "key",
+          "Delete retries after an error",
+          "Preparation failures restart preflight; partially completed deletions resume their durable manifest.",
+          "views.DashboardList.Update"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "views.DashboardList.Init",
+          "views.DashboardList.SetDashboards",
+          "views.DashboardList.SetSize",
+          "views.DashboardList.Update",
+          "views.DashboardList.View",
+          "views.DashboardList.confirmDeletion",
+          "views.DashboardList.openForm",
+          "views.DashboardList.retryDeletion",
+          "views.DashboardList.selected",
+          "views.DashboardList.updateConfirmation",
+          "views.DashboardList.updateForm",
+          "views.NewDashboardList",
+          "views.dashboardItem.Description",
+          "views.dashboardItem.FilterValue",
+          "views.dashboardItem.Title"
         ]
       }
     }
@@ -4395,7 +5944,7 @@ window.APPEDIA_CONTENT = {
       "title": "No tea.Cmd closure touches coordinator state",
       "ref": "app.Coordinator",
       "why": "A command's closure runs on its own goroutine. Reading or writing c.views, c.preview, c.currentView, c.err or c.settings there is a concurrent access that can crash the app. Snapshot what you need before returning the closure.",
-      "check": "grep -n \"c.refreshData()\" internal/app/callbacks.go must be empty; TestCommandClosuresDoNotRaceCoordinator under -race (a backstop, not a proof). Terminal and IDE launch wrappers snapshot their command strings before building tea.Cmd closures.",
+      "check": "Capture IDs, generation and settings by value. Run the coordinator command-closure race regression; external test adapters call the real scoped route.",
       "flows": [
         "tick",
         "launch",
@@ -4447,7 +5996,7 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "app.Coordinator.handleWorkspaceCommandResult"
+          "app.Coordinator.handleSessionMessages"
         ],
         "files": [
           "internal/app/error_banner_test.go",
@@ -4487,7 +6036,7 @@ window.APPEDIA_CONTENT = {
     {
       "n": "8",
       "title": "\"Started, but the record didn't save\" is not a failure",
-      "ref": "session.Manager.Launch",
+      "ref": "session.Manager.LaunchInDashboardWithIDContext",
       "why": "Launch, Relaunch and SwitchAgent wrap a post-spawn persist error in ErrPersistFailed. The agent is running; the UI still offers attach and shows a warning.",
       "check": "Callers use errors.Is(err, session.ErrPersistFailed).",
       "flows": [
@@ -4568,7 +6117,7 @@ window.APPEDIA_CONTENT = {
       "n": "14",
       "title": "Dashboard access comes from deployed activation permission",
       "ref": "session.Manager.ResolveDashboardCaller",
-      "why": "Caller-supplied session IDs are not identity. Dashboard Control requires a live published credential and selected Kankuro MCP; recipients can report without controller permission.",
+      "why": "Dashboard Control requires a live deployed credential and selected Kankuro MCP. Persisted session membership determines the caller dashboard; human navigation and caller-supplied IDs cannot widen access.",
       "check": "service and MCP tests cover omitted permission, revoked credentials and scoped discovery/control.",
       "flows": [
         "control",
@@ -4602,13 +6151,14 @@ window.APPEDIA_CONTENT = {
     },
     {
       "n": "17",
-      "title": "Delete cards only under the shared reference guard",
-      "ref": "session.Manager.DeleteCardIfUnreferenced",
-      "why": "A card can be referenced by a pending launch/switch before it appears in session listings. Serialize existence checks, pending references and deletion across TUI/MCP service instances.",
-      "check": "Pending-card cross-service create/switch and deletion-first regression tests.",
+      "title": "Card ownership and deletion share admission",
+      "ref": "api.Service.ConfirmCardDeletion",
+      "why": "Only the immutable owner edits or deletes a card. Unsharing refuses foreign references; confirmed global deletion preserves existing foreign sessions while blocking new use. Persist exact pending cleanup paths before cancelling activations.",
+      "check": "Owner/foreign-reference tests, pending-activation cleanup failures, durable tombstone restart/retry tests.",
       "flows": [
         "card-delete",
-        "launch"
+        "card-recovery",
+        "deleted-session"
       ]
     },
     {
@@ -4620,6 +6170,72 @@ window.APPEDIA_CONTENT = {
       "flows": [
         "send",
         "reports"
+      ]
+    },
+    {
+      "n": "19",
+      "title": "Prepare configuration before runtime",
+      "ref": "configstartup.PrepareStartup",
+      "why": "Initialize an empty root directly; existing roots require complete current-format records. Hold the root lock throughout runtime.",
+      "check": "Fresh/restart/partial-root and cross-record validation tests in internal/configstartup.",
+      "flows": [
+        "startup"
+      ]
+    },
+    {
+      "n": "20",
+      "title": "Session membership never moves",
+      "ref": "api.persistedDashboardScope.DashboardForSession",
+      "why": "Sharing a card never shares sessions. Resolve human and MCP operations against immutable session dashboard membership.",
+      "check": "Scoped UI, service and MCP tests; checked manager launch/switch/relaunch tests.",
+      "flows": [
+        "caller-scope",
+        "launch",
+        "resume"
+      ]
+    },
+    {
+      "n": "21",
+      "title": "Dashboard cascades are resumable",
+      "ref": "api.Service.RetryDashboardDeletion",
+      "why": "Save intent before teardown and checkpoint each effect. Preserve foreign sessions and global registries; do not finalize while cleanup remains.",
+      "check": "Deletion failure, removed-row recovery, restart and foreign-impact regressions.",
+      "flows": [
+        "delete-dashboard",
+        "cascade-recovery"
+      ]
+    },
+    {
+      "n": "22",
+      "title": "Ignore obsolete asynchronous UI results",
+      "ref": "app.Coordinator.handleDataLoaded",
+      "why": "Capture dashboard and generation before commands. Late refresh, attachment and workspace-command results must not retarget the current view.",
+      "check": "Scoped refresh, attachment and coordinator command-race tests.",
+      "flows": [
+        "navigation",
+        "tick",
+        "attach"
+      ]
+    },
+    {
+      "n": "23",
+      "title": "Escape never quits the dashboard list",
+      "ref": "views.DashboardList.Update",
+      "why": "Escape returns from a dashboard or cancels a dialog. Repeated Escape on the list stays there. Disable the list widget default quit bindings; q is the explicit quit key.",
+      "check": "Dashboard-list keyboard regression at supported and small terminal sizes; real terminal check.",
+      "flows": [
+        "navigation"
+      ]
+    },
+    {
+      "n": "24",
+      "title": "Retry deletion with its original key",
+      "ref": "views.DashboardList.retryDeletion",
+      "why": "Delete/Backspace starts deletion for an active dashboard and resumes its durable manifest after partial failure. The status screen uses the same retry keys.",
+      "check": "Both key regressions, preparation failure and actual permission-failure/repaired-retry terminal check.",
+      "flows": [
+        "cascade-recovery",
+        "list-errors"
       ]
     }
   ],
@@ -4689,11 +6305,11 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Add a message",
-      "a": "Declare it in messages.go, handle it in handleSpecialMessages or handleSessionMessages. Partial data gets its own type (rule 3). TerminalLaunchedMsg is an example of a completion result carrying an error.",
+      "a": "Declare it in messages.go and route it through the coordinator. Partial data gets its own type; async view results carry dashboard ID and generation.",
       "refs": [
         "app.Coordinator.handleSpecialMessages",
         "app.Coordinator.handleSessionMessages",
-        "messages.TerminalLaunchedMsg"
+        "messages.ScopedActionFinishedMsg"
       ]
     },
     {
@@ -4713,10 +6329,12 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Change dashboard layout or keys",
-      "a": "dashboard.go (footerText for the footer), then the key tables in project.md §4 and kankuro_specs.md. Preserve the compact Sessions legend at the 80-column minimum when adding shortcuts.",
+      "a": "Dashboard panes use dashboard.go; the entry list, forms and deletion/status controls use dashboard_list.go. Keep the legend visible and Escape safe on return.",
       "refs": [
         "views.Dashboard.handleKey",
-        "views.Dashboard.footerText"
+        "views.Dashboard.footerText",
+        "views.DashboardList.Update",
+        "views.DashboardList.renderPage"
       ],
       "sources": {
         "files": [
@@ -4772,13 +6390,10 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Change how IDE or terminal windows open",
-      "a": "Settings provides independent commands. Coordinator wrappers capture strings; sessionActions chooses the selected session’s WorkingDir, and LaunchWorkspaceCommand handles path replacement, parsing, Dir, spawn and reaping. Keep IDELauncher compatibility and temporary-workspace regression coverage.",
+      "a": "Capture settings and scope, check session membership, then launch the configured command in the saved WorkingDir. Completion stays tied to its originating view.",
       "refs": [
-        "config.AppSettings",
-        "app.Coordinator.launchTerminal",
-        "app.sessionActions.launchWorkspaceCommand",
-        "session.LaunchWorkspaceCommand",
-        "session.IDELauncher"
+        "app.sessionActions.launchWorkspace",
+        "session.LaunchWorkspaceCommand"
       ],
       "flow": "terminal",
       "sources": {
@@ -4882,11 +6497,66 @@ window.APPEDIA_CONTENT = {
         "api.SafeRejection"
       ],
       "flow": "operations"
+    },
+    {
+      "q": "Change dashboard ownership or shared-card availability",
+      "a": "Start in the shared service membership inventory and persisted caller policy. Preserve immutable session membership, card creation ownership and common UI/MCP access.",
+      "refs": [
+        "api.membershipInventory",
+        "api.persistedDashboardScope",
+        "config.Dashboard",
+        "config.IDCard"
+      ],
+      "flow": "caller-scope"
+    },
+    {
+      "q": "Change card or dashboard deletion recovery",
+      "a": "Keep consent, admission closure, exact pending cleanup paths and per-effect durable checkpoints together. Delete/Backspace resumes the existing cascade.",
+      "refs": [
+        "api.Service.ConfirmCardDeletion",
+        "api.Service.runDashboardDeletion",
+        "views.DashboardList.retryDeletion"
+      ],
+      "flow": "cascade-recovery"
+    },
+    {
+      "q": "Change configuration startup",
+      "a": "Use configstartup for the root lock, fresh initialization and strict current-record validation. Runtime does not convert old formats.",
+      "refs": [
+        "configstartup.AcquireLock",
+        "configstartup.PrepareStartup",
+        "configstartup.ValidateLayout"
+      ],
+      "flow": "startup"
     }
   ],
   "storage": {
     "root": "~/.config/kankuro/",
     "tree": [
+      [
+        "layout-version",
+        "completed current-format marker"
+      ],
+      [
+        ".dashboard-layout.lock",
+        "exclusive configuration-root writer lock"
+      ],
+      [
+        "dashboards.yaml",
+        "dashboard identity, description and state"
+      ],
+      [
+        "card_tombstones.yaml",
+        "deleted-card identities and pending cleanup"
+      ],
+      [
+        "dashboard_tombstones.yaml",
+        "deleted dashboard identities"
+      ],
+      [
+        "dashboard_deletions/<id>.json",
+        "resumable cascade manifest"
+      ],
       [
         "id_cards.yaml",
         ""
@@ -4960,14 +6630,18 @@ window.APPEDIA_CONTENT = {
       "When running the app by hand, point KANKURO_CONFIG_DIR and KANKURO_TMP_DIR at a throwaway directory. Reading the real config is fine; writing to it is not.",
       "Sub workspace copies live at <session working directory>/tmp/<registered source basename>, separate from the configuration directory’s tmp/<session-id>/ main-workspace copies.",
       "Ownership is recorded at <session working directory>/.kankuro/sub-workspaces.json. Matching managed copies retain edits on relaunch/switch/restart; deselection retains folders and metadata.",
-      "With temporary mode off, sub copies and metadata are written to the original workspace. Destination conflicts abort activation; separate running application instances are not serialized by one manager mutex.",
       "o and t work only with Sessions focused and a selected session. Both use session.WorkingDir, including temporary copies; live and terminated sessions qualify.",
       "TerminalCommand (terminal_command) defaults empty: users choose an emulator command that opens a separate window. Both commands substitute $PATH; quote \"$PATH\" for spaces. Commands execute directly with the workspace as Dir and no implicit shell expansion.",
       "External application completion means process startup, not eventual exit. No command is inferred; launch failures use the normal error banner without navigation.",
       "Codex trust is stored under ~/.codex/config.toml projects[path].trust_level; Claude trust uses ~/.claude.json projects[path].hasTrustDialogAccepted. Exact temporary-path trust is removed on deletion; a config cleanup failure retains the session for repair/retry.",
       "Temporary workspaces isolate MCP configs. Sessions sharing an original workspace intentionally accept last-writer server/credential identity. Older cleanup removes only its matching credential.",
       "Message history is bounded by 64 MiB or 10,000 whole messages per dashboard. Reports are capped at 16 KiB and 128/message; reply pages cap at 100 reports/256 KiB, with at most ten-second waits. Compact send receipts outlive content eviction.",
-      "Startup phase is runtime-only. Sessions restore terminated; bindings and reports persist; unfinished operation effects are interrupted and message submissions become uncertain."
+      "Startup phase is runtime-only. Sessions restore terminated; bindings and reports persist; unfinished operation effects are interrupted and message submissions become uncertain.",
+      "Cards and sessions require schema 2 and explicit dashboard membership. Global capability/workspace registries remain shared.",
+      "Use separate dedicated config and temporary-workspace directories. An empty config root initializes directly; unrelated artifacts in an uninitialized directory cause startup rejection.",
+      "Configuration locking serializes writers for one config root; applications using different roots can still target a shared workspace.",
+      "Confirmed shared-card deletion removes availability globally but preserves foreign sessions, workspace paths and saved bindings.",
+      "Dashboard deletion removes owned sessions and owned cards after foreign-impact consent; each incomplete effect remains retryable after restart."
     ]
   },
   "gates": [
@@ -4996,8 +6670,9 @@ window.APPEDIA_CONTENT = {
     "Terminal launch integration records a helper process’s real working directory and arguments. Substituting OriginalDir for WorkingDir must make TestTerminalLaunchThroughDashboard fail; shared-launcher tests cover repeated quoted placeholders and commands without one.",
     "Terminal action routing covers running, waiting and terminated selections, search, empty selections and nil callbacks. Settings tests cover independent buffers, save/cancel, display sanitization and bounded layout; the coordinator race harness includes terminal launch.",
     "Trust and lifecycle tests isolate HOME; do not run native agent experiments against live factory workspaces. Claude runtime validation is taking place in the user’s separate environment.",
-    "The latest cleanup removal passed focused driver regressions, build, vet, full normal/race suites and lint (0 issues). Evidence: .kankuro/remove-legacy-cleanup-verification/. Those source checks are not native CLI compatibility tests.",
-    "Claude now shares Codex’s 500 ms text/Enter separation. The registry-dispatched cancellation regression covers both overrides. The user reports this workaround succeeded on their Claude environment; no local real-Claude run is claimed for this refresh."
+    "Claude now shares Codex’s 500 ms text/Enter separation. The registry-dispatched cancellation regression covers both overrides. The user reports this workaround succeeded on their Claude environment; no local real-Claude run is claimed for this refresh.",
+    "Keyboard regression coverage checks Delete/Backspace retries and repeated Escape after navigating back. Actual terminal permission failure/recovery was verified.",
+    "This documentation refresh uses fresh extraction, reference/build checks, focused navigation and representative screenshots. The full every-route smoke was not rerun following the user request to stop it."
   ],
   "glossary": [
     [
@@ -5034,7 +6709,7 @@ window.APPEDIA_CONTENT = {
     ],
     [
       "CoordinatorRows",
-      "Rows the coordinator keeps back before sizing a view (4); one definition in views/constants.go."
+      "Four rows reserved for content views; the dashboard compensates to fill the terminal, while the dashboard list receives full terminal height."
     ],
     [
       "Driver files",
@@ -5091,6 +6766,26 @@ window.APPEDIA_CONTENT = {
     [
       "Operation journal",
       "Durable request identity, arguments fingerprint and observed outcome for retry/recovery."
+    ],
+    [
+      "Dashboard membership",
+      "Immutable session creation dashboard; the basis of both human checks and authenticated caller scope."
+    ],
+    [
+      "Shared card",
+      "A card usable across dashboards whose creation owner alone can edit or delete it."
+    ],
+    [
+      "View generation",
+      "Counter captured with dashboard identity to reject late asynchronous UI results."
+    ],
+    [
+      "Tombstone",
+      "Retained deleted identity and recovery state, without executable settings."
+    ],
+    [
+      "Config startup",
+      "Root locking, direct fresh initialization and current-format validation before the app serves UI or MCP."
     ]
   ]
 };
