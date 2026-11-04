@@ -68,7 +68,7 @@ func (d *stubKillDriver) SetSession(id string) []string {
 }
 func (d *stubKillDriver) SendInput(_ string) error             { return nil }
 func (d *stubKillDriver) SendInputBytes(_ []byte) (int, error) { return 0, nil }
-func (d *stubKillDriver) SubmitPrompt(_ context.Context, _, _, _ string) (driver.SubmissionEvidence, error) {
+func (d *stubKillDriver) SubmitPrompt(_ context.Context, _ driver.PromptEnvelope) (driver.SubmissionEvidence, error) {
 	return driver.SubmissionEvidence{State: driver.SubmissionNoBytes}, nil
 }
 func (d *stubKillDriver) GetAgentFolder() string         { return ".agents" }
@@ -611,7 +611,7 @@ func (d *gateDriver) SetSession(id string) []string {
 }
 func (d *gateDriver) SendInput(_ string) error             { return nil }
 func (d *gateDriver) SendInputBytes(_ []byte) (int, error) { return 0, nil }
-func (d *gateDriver) SubmitPrompt(_ context.Context, _, _, _ string) (driver.SubmissionEvidence, error) {
+func (d *gateDriver) SubmitPrompt(_ context.Context, _ driver.PromptEnvelope) (driver.SubmissionEvidence, error) {
 	return driver.SubmissionEvidence{State: driver.SubmissionNoBytes}, nil
 }
 func (d *gateDriver) GetAgentFolder() string         { return ".agents" }

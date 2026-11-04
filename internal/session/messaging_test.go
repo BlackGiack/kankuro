@@ -1,11 +1,93 @@
 package session_test
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/google/uuid"
 )
+
+func TestLegacyReportsDoNotCreateNotifications(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "messaging")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(
+		map[string]any{
+			"messages": []session.MessageRecord{
+				{ID: "old", DashboardID: "dash", Replies: []session.MessageReply{{ID: "reply", Kind: "completed", Sequence: 1}}},
+			},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(dir, "history.json"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store, err := session.NewMessageStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pending := store.Notifications(); len(pending) != 0 {
+		t.Fatalf("legacy report generated notifications: %#v", pending)
+	}
+	page, err := store.GetReplies("dash", "old", "", 0)
+	if err != nil || len(page.Items) != 1 || page.Items[0].Notification != nil {
+		t.Fatalf("legacy report = %#v, %v", page, err)
+	}
+}
+
+//nolint:gocognit // The table covers distinct durable outcomes and their retry semantics.
+func TestReportNotificationInitialStateIsDurableAndIdempotent(t *testing.T) {
+	for _, tc := range []struct {
+		kind  string
+		state session.NotificationState
+	}{
+		{"completed", "pending"}, {"blocked", "pending"}, {"question", "pending"}, {"progress", "not_required"},
+	} {
+		t.Run(tc.kind, func(t *testing.T) {
+			root := t.TempDir()
+			store, err := session.NewMessageStore(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			message := session.MessageRecord{
+				ID:                    uuid.NewString(),
+				DashboardID:           "dash",
+				SenderSessionID:       "sender",
+				SenderActivationID:    "sa",
+				RecipientSessionID:    "worker",
+				RecipientActivationID: "wa",
+				Text:                  "task",
+			}
+			if _, err = store.CreateIntent(message, uuid.NewString(), session.SendFingerprint("worker", "wa", "task")); err != nil {
+				t.Fatal(err)
+			}
+			request := uuid.NewString()
+			reply, err := store.RecordReply("worker", "wa", request, message.ID, tc.kind, "report")
+			if err != nil || reply.Notification == nil || reply.Notification.State != tc.state {
+				t.Fatalf("reply = %#v, %v", reply, err)
+			}
+			reopened, err := session.NewMessageStore(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			retry, err := reopened.RecordReply("worker", "wa", request, message.ID, tc.kind, "report")
+			if err != nil || retry.ID != reply.ID || retry.Notification == nil || retry.Notification.State != tc.state {
+				t.Fatalf("retry = %#v, %v", retry, err)
+			}
+			page, err := reopened.GetReplies("dash", message.ID, "", 0)
+			if err != nil || len(page.Items) != 1 || page.Items[0].Notification == nil || page.Items[0].Notification.State != tc.state {
+				t.Fatalf("page = %#v, %v", page, err)
+			}
+		})
+	}
+}
 
 func TestMessageStorePersistsAndDeduplicatesReplies(t *testing.T) {
 	root := t.TempDir()
@@ -172,5 +254,71 @@ func TestProgressRepliesPersistBeforeCompletion(t *testing.T) {
 	page, err := store.GetReplies("dash", message.ID, "", 0)
 	if err != nil || len(page.Items) != 2 || page.Items[0].Kind != "progress" || page.Items[1].Kind != "completed" {
 		t.Fatalf("reports: %+v %v", page, err)
+	}
+}
+
+func TestRestartMarksAdmittedNotificationUncertain(t *testing.T) {
+	root := t.TempDir()
+	store, err := session.NewMessageStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := session.MessageRecord{
+		ID:                    "task",
+		DashboardID:           "dash",
+		SenderSessionID:       "controller",
+		SenderActivationID:    "ca",
+		RecipientSessionID:    "worker",
+		RecipientActivationID: "wa",
+		Text:                  "task",
+	}
+	if _, err = store.CreateIntent(original, uuid.NewString(), "task-fingerprint"); err != nil {
+		t.Fatal(err)
+	}
+	reply, err := store.RecordReply("worker", "wa", uuid.NewString(), original.ID, "completed", "done")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := uuid.NewString()
+	if err = store.UpdateNotification(
+		original.ID,
+		reply.ID,
+		0,
+		session.NotificationPending,
+		func(n *session.ReplyNotification) { n.RequestID = request },
+	); err != nil {
+		t.Fatal(err)
+	}
+	intent := session.MessageRecord{
+		ID:                    "notification",
+		Kind:                  "report_notification",
+		OriginalMessageID:     original.ID,
+		ReplyID:               reply.ID,
+		ReportKind:            reply.Kind,
+		DashboardID:           "dash",
+		SenderSessionID:       "worker",
+		SenderActivationID:    "wa",
+		RecipientSessionID:    "controller",
+		RecipientActivationID: "ca",
+		Text:                  "report notification",
+	}
+	if _, err = store.CreateIntentWithAdmission(intent, request, "fingerprint", func() error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := session.NewMessageStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = reopened.Recover(map[string]*session.Session{"worker": {ID: "worker"}, "controller": {ID: "controller"}}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := reopened.GetMessage(intent.ID)
+	if err != nil || loaded.Delivery != session.MessageUncertain {
+		t.Fatalf("recovered notification = %#v, %v", loaded, err)
+	}
+	pending := reopened.Notifications()
+	if len(pending) != 1 || pending[0].Reply.Notification.State != session.NotificationAccepted ||
+		pending[0].Reply.Notification.RequestID != request {
+		t.Fatalf("recovered obligation = %#v", pending)
 	}
 }

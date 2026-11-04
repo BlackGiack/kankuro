@@ -349,7 +349,7 @@ func addMessagingTools(server *sdk.Server, service messagingService) {
 		server,
 		&sdk.Tool{
 			Name:        "report_reply",
-			Description: "Persist an explicit completed, question, blocked, or progress report for a message assigned to this activation. Progress is informational and does not complete a workflow. Use a stable request UUID for retries.",
+			Description: "Persist a report for a message assigned to this activation. Completed, blocked, and question reports automatically notify the original sender; progress is silent. Use a stable request UUID for retries. Notification submission means prompt bytes and Enter were written, not that the sender processed them.",
 		},
 		func(ctx context.Context, _ *sdk.CallToolRequest, input reportReplyInput) (*sdk.CallToolResult, any, error) {
 			result, err := service.ReportReply(callerToken(ctx), input.RequestID, input.MessageID, input.Kind, input.Text)
@@ -363,7 +363,7 @@ func addMessagingTools(server *sdk.Server, service messagingService) {
 		server,
 		&sdk.Tool{
 			Name:        "get_replies",
-			Description: "Retrieve explicit correlated reports with a bounded cursor page. Empty results and timeouts do not imply completion; cursor gaps may repeat retained reply IDs.",
+			Description: "Retrieve explicit correlated reports and notification delivery status with a bounded cursor page. Empty results and timeouts do not imply completion; cursor gaps may repeat retained reply IDs.",
 		},
 		func(ctx context.Context, _ *sdk.CallToolRequest, input repliesInput) (*sdk.CallToolResult, any, error) {
 			result, err := service.GetReplies(

@@ -119,11 +119,30 @@ func operationResult(operation Operation) OperationResult {
 type operationKey struct{ caller, request string }
 type operationTask struct {
 	operationID string
-	token       string
+	authority   taskAuthority
 	ctx         context.Context
 	cancel      context.CancelFunc
 	apply       func(context.Context, Operation) (json.RawMessage, error)
 	onCancel    func(Operation)
+}
+
+type taskAuthority interface {
+	validate(Operation) error
+	monitor(Operation) error
+}
+
+type controllerAuthority struct {
+	service *Service
+	token   string
+}
+
+func (a controllerAuthority) validate(operation Operation) error {
+	return a.service.validateOperationScope(a.token, operation)
+}
+
+func (a controllerAuthority) monitor(Operation) error {
+	_, err := a.service.ResolveCaller(a.token)
+	return err
 }
 
 // OperationRunner serializes durable request acceptance and bounds lifecycle work.
@@ -139,6 +158,8 @@ type OperationRunner struct {
 	closed          bool
 	loadErr         error
 	workers         sync.WaitGroup
+	dispatcher      sync.WaitGroup
+	dispatchCancel  context.CancelFunc
 }
 
 type ConversationRequest struct {
@@ -526,7 +547,7 @@ func (r *OperationRunner) submit(
 		target,
 		encoded,
 		fingerprint,
-		token,
+		controllerAuthority{service: r.service, token: token},
 		apply,
 		onCancel,
 		beforeAccept,
@@ -607,7 +628,7 @@ func (r *OperationRunner) Replay(ctx context.Context, token, requestID, kind, ta
 
 func (r *OperationRunner) accept(
 	callerID, dashboardID string, key operationKey, requestID, kind, target string, encoded []byte,
-	fingerprint, token string,
+	fingerprint string, authority taskAuthority,
 	apply func(context.Context, Operation) (json.RawMessage, error),
 	onCancel func(Operation),
 	beforeAccept func(func() error) error,
@@ -647,7 +668,7 @@ func (r *OperationRunner) accept(
 	r.records[key], r.byID[op.ID] = op, key
 	opCtx, cancel := context.WithTimeout(context.Background(), operationTimeout)
 	r.running[op.ID] = cancel
-	r.queue <- operationTask{operationID: op.ID, token: token, ctx: opCtx, cancel: cancel, apply: apply, onCancel: onCancel}
+	r.queue <- operationTask{operationID: op.ID, authority: authority, ctx: opCtx, cancel: cancel, apply: apply, onCancel: onCancel}
 	return cloneOperation(op), true, nil
 }
 
@@ -730,6 +751,12 @@ func (r *OperationRunner) Cancel(token, operationID string) (Operation, error) {
 // Shutdown stops admission, cancels queued/preparing work, and joins workers.
 func (r *OperationRunner) Shutdown() {
 	r.mu.Lock()
+	if r.dispatchCancel != nil {
+		r.dispatchCancel()
+	}
+	r.mu.Unlock()
+	r.dispatcher.Wait()
+	r.mu.Lock()
 	if !r.closed {
 		r.closed = true
 		for _, cancel := range r.running {
@@ -770,7 +797,7 @@ func (r *OperationRunner) execute(task operationTask) {
 		task.cancel()
 		return
 	}
-	if err := r.service.validateOperationScope(task.token, *op); err != nil {
+	if err := task.authority.validate(*op); err != nil {
 		snapshot := cloneOperation(op)
 		op.State = OperationCancelled
 		op.ErrorCode = "caller_revoked"
@@ -792,7 +819,7 @@ func (r *OperationRunner) execute(task operationTask) {
 	monitorDone := make(chan struct{})
 	go func() {
 		defer close(monitorDone)
-		r.monitorCaller(task)
+		r.monitorCaller(task, snapshot)
 	}()
 	result, err := task.apply(task.ctx, snapshot)
 	r.mu.Lock()
@@ -802,7 +829,7 @@ func (r *OperationRunner) execute(task operationTask) {
 	<-monitorDone
 }
 
-func (r *OperationRunner) monitorCaller(task operationTask) {
+func (r *OperationRunner) monitorCaller(task operationTask, operation Operation) {
 	ticker := time.NewTicker(operationCallerPoll)
 	defer ticker.Stop()
 	for {
@@ -810,7 +837,7 @@ func (r *OperationRunner) monitorCaller(task operationTask) {
 		case <-task.ctx.Done():
 			return
 		case <-ticker.C:
-			if _, err := r.service.ResolveCaller(task.token); err != nil {
+			if err := task.authority.monitor(operation); err != nil {
 				task.cancel()
 				return
 			}

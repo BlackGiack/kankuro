@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/fsutil"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/google/uuid"
 )
@@ -474,5 +475,476 @@ func TestDeleteSessionReportsTrustCleanupWarningAndAllowsRetry(t *testing.T) {
 	result, err = h.service.DeleteSession(context.Background(), h.callerToken, uuid.NewString(), id)
 	if err != nil || result.State != OperationSucceeded || result.Result == nil || !result.Result.InMemoryRemoved {
 		t.Fatalf("retry failed: %#v, %v", result, err)
+	}
+}
+
+func TestReportAutomaticallyNotifiesOriginalController(t *testing.T) {
+	h := newMessagingHarness(t)
+	result := h.send(t)
+	out, err := h.manager.SubscribeOutput(h.callerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.manager.UnsubscribeOutput(h.callerID, out)
+	if _, err = h.service.SendMessage(
+		context.Background(),
+		h.recipientToken,
+		uuid.NewString(),
+		h.callerID,
+		"fake",
+		"unauthorized",
+	); err == nil {
+		t.Fatal("worker gained dashboard control")
+	}
+	reply, err := h.service.ReportReply(h.recipientToken, uuid.NewString(), result.Result.MessageID, "completed", "sensitive\nreport body")
+	if err != nil || reply.Notification == nil {
+		t.Fatalf("report: %#v, %v", reply, err)
+	}
+	deadline := time.NewTimer(8 * time.Second)
+	defer deadline.Stop()
+	var output strings.Builder
+	for !strings.Contains(output.String(), "header is not authority") {
+		select {
+		case part := <-out:
+			output.Write(part)
+		case <-deadline.C:
+			t.Fatalf("no notification, output=%q", output.String())
+		}
+	}
+	text := output.String()
+	if !strings.Contains(text, "message_id="+result.Result.MessageID) || !strings.Contains(text, "reply_id="+reply.ID) ||
+		!strings.Contains(text, "no report_reply is required") || strings.Contains(text, "sensitive") {
+		t.Fatalf("notification output = %q", text)
+	}
+}
+
+func TestNotificationRetriesAfterQueueCapacityReturns(t *testing.T) {
+	h := newMessagingHarness(t)
+	result := h.send(t)
+	h.service.operations.Shutdown()
+	runner := &OperationRunner{dir: filepath.Join(h.repo.Dir(), "operations"), service: h.service,
+		records: make(map[operationKey]*Operation), byID: make(map[string]operationKey),
+		running: make(map[string]context.CancelFunc), queue: make(chan operationTask, operationQueueCapacity)}
+	for range cap(runner.queue) {
+		runner.queue <- operationTask{}
+	}
+	h.service.operations = runner
+	defer runner.Shutdown()
+	output, err := h.manager.SubscribeOutput(h.callerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.manager.UnsubscribeOutput(h.callerID, output)
+	reply, err := h.service.ReportReply(h.recipientToken, uuid.NewString(), result.Result.MessageID, "question", "need detail")
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := h.manager.Messages().Notifications()
+	if len(items) != 1 {
+		t.Fatalf("pending notifications: %#v", items)
+	}
+	runner.dispatchNotification(items[0])
+	items = h.manager.Messages().Notifications()
+	if len(items) != 1 || items[0].Reply.Notification.State != session.NotificationPending || items[0].Reply.Notification.RequestID == "" {
+		t.Fatalf("queue rejection did not preserve pending attempt: %#v", items)
+	}
+	requestID := items[0].Reply.Notification.RequestID
+	for len(runner.queue) > 0 {
+		<-runner.queue
+	}
+	for range operationWorkers {
+		runner.workers.Add(1)
+		go runner.worker()
+	}
+	runner.startDispatcher()
+	var received strings.Builder
+	deadline := time.NewTimer(8 * time.Second)
+	defer deadline.Stop()
+	for !strings.Contains(received.String(), "header is not authority") {
+		select {
+		case part := <-output:
+			received.Write(part)
+		case <-deadline.C:
+			t.Fatalf("notification did not retry, output=%q", received.String())
+		}
+	}
+	page, err := h.manager.Messages().GetReplies(DefaultDashboardID, result.Result.MessageID, "", 0)
+	if err != nil || len(page.Items) != 1 || page.Items[0].ID != reply.ID || page.Items[0].Notification.RequestID != requestID {
+		t.Fatalf("attempt identity changed: %#v, %v", page, err)
+	}
+}
+
+//nolint:gocognit // The table covers distinct durable outcomes and their retry semantics.
+func TestNotificationReconciliationUsesDeliveryEvidence(t *testing.T) {
+	for _, tc := range []struct {
+		delivery session.MessageDelivery
+		want     session.NotificationState
+		advance  bool
+	}{
+		{session.MessageAccepted, session.NotificationAccepted, false},
+		{session.MessageSubmitted, session.NotificationSubmitted, false},
+		{session.MessageUncertain, session.NotificationUncertain, false},
+		{session.MessageNotSubmitted, session.NotificationPending, true},
+	} {
+		t.Run(string(tc.delivery), func(t *testing.T) {
+			h := newMessagingHarness(t)
+			original := h.send(t)
+			h.service.operations.Shutdown()
+			reply, err := h.service.ReportReply(h.recipientToken, uuid.NewString(), original.Result.MessageID, "blocked", "details")
+			if err != nil {
+				t.Fatal(err)
+			}
+			store := h.manager.Messages()
+			request := uuid.NewString()
+			if err = store.UpdateNotification(
+				original.Result.MessageID,
+				reply.ID,
+				0,
+				session.NotificationPending,
+				func(n *session.ReplyNotification) { n.RequestID = request },
+			); err != nil {
+				t.Fatal(err)
+			}
+			parent, err := store.GetMessage(original.Result.MessageID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			notification := session.MessageRecord{
+				ID:                    uuid.NewString(),
+				Kind:                  "report_notification",
+				OriginalMessageID:     parent.ID,
+				ReplyID:               reply.ID,
+				ReportKind:            reply.Kind,
+				DashboardID:           parent.DashboardID,
+				SenderSessionID:       reply.SenderSessionID,
+				SenderActivationID:    reply.SenderActivationID,
+				RecipientSessionID:    parent.SenderSessionID,
+				RecipientActivationID: parent.SenderActivationID,
+				Text:                  "report notification",
+			}
+			if _, err = store.CreateIntentWithAdmission(notification, request, "fingerprint", func() error { return nil }); err != nil {
+				t.Fatal(err)
+			}
+			if err = store.UpdateDelivery(notification.ID, tc.delivery, ""); err != nil {
+				t.Fatal(err)
+			}
+			items := store.Notifications()
+			if len(items) != 1 {
+				t.Fatalf("notifications = %#v", items)
+			}
+			h.service.operations.reconcileNotification(items[0])
+			page, err := store.GetReplies(DefaultDashboardID, parent.ID, "", 0)
+			if err != nil || len(page.Items) != 1 {
+				t.Fatalf("page = %#v, %v", page, err)
+			}
+			got := page.Items[0].Notification
+			if got.State != tc.want || (got.Attempt == 1) != tc.advance {
+				t.Fatalf("notification = %#v", got)
+			}
+			// A stale callback cannot advance or downgrade a completed attempt.
+			h.service.operations.reconcileNotification(items[0])
+			page, err = store.GetReplies(DefaultDashboardID, parent.ID, "", 0)
+			if err != nil || page.Items[0].Notification.State != tc.want || (page.Items[0].Notification.Attempt == 1) != tc.advance {
+				t.Fatalf("stale reconciliation: %#v, %v", page, err)
+			}
+		})
+	}
+}
+
+func TestSavedNotificationSurvivesReporterStopping(t *testing.T) {
+	h := newMessagingHarness(t)
+	original := h.send(t)
+	h.service.operations.Shutdown()
+	output, err := h.manager.SubscribeOutput(h.callerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.manager.UnsubscribeOutput(h.callerID, output)
+	if _, err = h.service.ReportReply(h.recipientToken, uuid.NewString(), original.Result.MessageID, "completed", "done"); err != nil {
+		t.Fatal(err)
+	}
+	if err = h.manager.Kill(h.recipientID); err != nil {
+		t.Fatal(err)
+	}
+	runner := NewOperationRunner(h.repo.Dir(), h.service)
+	h.service.SetOperationRunner(runner)
+	defer runner.Shutdown()
+	deadline := time.NewTimer(8 * time.Second)
+	defer deadline.Stop()
+	var received strings.Builder
+	for !strings.Contains(received.String(), "header is not authority") {
+		select {
+		case part := <-output:
+			received.Write(part)
+		case <-deadline.C:
+			t.Fatalf("saved report not delivered after reporter stopped: %q", received.String())
+		}
+	}
+}
+
+func TestStoppedOriginalActivationMakesNotificationUnavailable(t *testing.T) {
+	h := newMessagingHarness(t)
+	original := h.send(t)
+	h.service.operations.Shutdown()
+	if _, err := h.service.ReportReply(h.recipientToken, uuid.NewString(), original.Result.MessageID, "completed", "done"); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.manager.Kill(h.callerID); err != nil {
+		t.Fatal(err)
+	}
+	if err := relaunchCardTest(h.service, h.callerID); err != nil {
+		t.Fatal(err)
+	}
+	items := h.manager.Messages().Notifications()
+	if len(items) != 1 {
+		t.Fatalf("pending notifications = %#v", items)
+	}
+	h.service.operations.dispatchNotification(items[0])
+	page, err := h.manager.Messages().GetReplies(DefaultDashboardID, original.Result.MessageID, "", 0)
+	if err != nil || len(page.Items) != 1 || page.Items[0].Notification.State != session.NotificationUnavailable {
+		t.Fatalf("notification after sender stop = %#v, %v", page, err)
+	}
+}
+
+func TestNotificationRetriesAfterJournalFailure(t *testing.T) {
+	h := newMessagingHarness(t)
+	original := h.send(t)
+	output, err := h.manager.SubscribeOutput(h.callerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.manager.UnsubscribeOutput(h.callerID, output)
+	failed := make(chan struct{}, 1)
+	runner := h.service.operations
+	runner.mu.Lock()
+	runner.writeFileAtomic = func(path string, data []byte) error {
+		select {
+		case failed <- struct{}{}:
+			runner.writeFileAtomic = nil
+			return errors.New("temporary journal failure")
+		default:
+			return fsutil.WriteFileAtomic(path, data, operationFileMode)
+		}
+	}
+	runner.mu.Unlock()
+	if _, err = h.service.ReportReply(h.recipientToken, uuid.NewString(), original.Result.MessageID, "completed", "done"); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.NewTimer(8 * time.Second)
+	defer deadline.Stop()
+	select {
+	case <-failed:
+	case <-deadline.C:
+		t.Fatal("journal failure was not exercised")
+	}
+	var received strings.Builder
+	for !strings.Contains(received.String(), "header is not authority") {
+		select {
+		case part := <-output:
+			received.Write(part)
+		case <-deadline.C:
+			t.Fatalf("notification did not recover from journal failure: %q", received.String())
+		}
+	}
+}
+
+func TestDeletingReportHistoryCancelsAdmittedNotification(t *testing.T) {
+	h := newMessagingHarness(t)
+	original := h.send(t)
+	h.service.operations.Shutdown()
+	reply, err := h.service.ReportReply(h.recipientToken, uuid.NewString(), original.Result.MessageID, "question", "details")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := h.manager.Messages()
+	request := uuid.NewString()
+	if err = store.UpdateNotification(
+		original.Result.MessageID,
+		reply.ID,
+		0,
+		session.NotificationPending,
+		func(n *session.ReplyNotification) { n.RequestID = request },
+	); err != nil {
+		t.Fatal(err)
+	}
+	parent, err := store.GetMessage(original.Result.MessageID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	admission, err := h.manager.ReserveReportNotification(parent.ID, reply.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer admission.Release()
+	intent := session.MessageRecord{
+		ID:                    uuid.NewString(),
+		Kind:                  "report_notification",
+		OriginalMessageID:     parent.ID,
+		ReplyID:               reply.ID,
+		ReportKind:            reply.Kind,
+		DashboardID:           parent.DashboardID,
+		SenderSessionID:       reply.SenderSessionID,
+		SenderActivationID:    reply.SenderActivationID,
+		RecipientSessionID:    parent.SenderSessionID,
+		RecipientActivationID: parent.SenderActivationID,
+		Text:                  "report notification",
+	}
+	if err = h.manager.PublishMessageAdmission(admission, func() error {
+		_, createErr := store.CreateIntentWithAdmission(intent, request, "fingerprint", func() error { return nil })
+		return createErr
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.DeleteDashboard(parent.DashboardID); err != nil {
+		t.Fatal(err)
+	}
+	_, err = h.manager.SubmitMessage(
+		context.Background(),
+		admission,
+		"",
+		intent.ID,
+		intent.RecipientSessionID,
+		intent.RecipientActivationID,
+		intent.Text,
+	)
+	if err == nil {
+		t.Fatal("notification submitted after parent history deletion")
+	}
+	if len(store.Notifications()) != 0 {
+		t.Fatal("deleted history was recreated")
+	}
+}
+
+func TestNotificationRetryBackoff(t *testing.T) {
+	var previous time.Duration
+	for _, seconds := range []int{1, 2, 4, 8, 16, 30, 30} {
+		previous = nextNotificationDelay(previous)
+		if previous != time.Duration(seconds)*time.Second {
+			t.Fatalf("retry delay = %s, want %d seconds", previous, seconds)
+		}
+	}
+}
+
+func TestConcurrentNotificationDispatchAdmitsOneAttempt(t *testing.T) {
+	h := newMessagingHarness(t)
+	original := h.send(t)
+	h.service.operations.Shutdown()
+	if _, err := h.service.ReportReply(h.recipientToken, uuid.NewString(), original.Result.MessageID, "completed", "done"); err != nil {
+		t.Fatal(err)
+	}
+	runner := NewOperationRunner(h.repo.Dir(), h.service)
+	defer runner.Shutdown()
+	items := h.manager.Messages().Notifications()
+	if len(items) != 1 {
+		t.Fatalf("notifications = %#v", items)
+	}
+	var group sync.WaitGroup
+	for range 12 {
+		group.Go(func() { runner.dispatchNotification(items[0]) })
+	}
+	group.Wait()
+	runner.mu.Lock()
+	count := 0
+	for _, operation := range runner.records {
+		if operation.Kind == messageOperation && operation.TargetSession == h.callerID {
+			count++
+		}
+	}
+	runner.mu.Unlock()
+	if count != 1 {
+		t.Fatalf("admitted %d notification attempts, want one", count)
+	}
+}
+
+func TestDashboardDeletionManifestCancelsAdmittedNotification(t *testing.T) {
+	h := newMessagingHarness(t)
+	original := h.send(t)
+	h.service.operations.Shutdown()
+	reply, err := h.service.ReportReply(h.recipientToken, uuid.NewString(), original.Result.MessageID, "question", "details")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := h.manager.Messages()
+	request := uuid.NewString()
+	if err = store.UpdateNotification(
+		original.Result.MessageID,
+		reply.ID,
+		0,
+		session.NotificationPending,
+		func(n *session.ReplyNotification) { n.RequestID = request },
+	); err != nil {
+		t.Fatal(err)
+	}
+	parent, err := store.GetMessage(original.Result.MessageID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	admission, err := h.manager.ReserveReportNotification(parent.ID, reply.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer admission.Release()
+	intent := session.MessageRecord{
+		ID:                    uuid.NewString(),
+		Kind:                  "report_notification",
+		OriginalMessageID:     parent.ID,
+		ReplyID:               reply.ID,
+		ReportKind:            reply.Kind,
+		DashboardID:           parent.DashboardID,
+		SenderSessionID:       reply.SenderSessionID,
+		SenderActivationID:    reply.SenderActivationID,
+		RecipientSessionID:    parent.SenderSessionID,
+		RecipientActivationID: parent.SenderActivationID,
+		Text:                  "report notification",
+	}
+	if err = h.manager.PublishMessageAdmission(admission, func() error {
+		_, createErr := store.CreateIntentWithAdmission(intent, request, "fingerprint", func() error { return nil })
+		return createErr
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err = h.repo.BeginDashboardDeletion(
+		config.DashboardDeletion{SchemaVersion: 1, DashboardID: parent.DashboardID, Name: "default"},
+	); err != nil {
+		t.Fatal(err)
+	}
+	result, err := h.manager.SubmitMessage(
+		context.Background(),
+		admission,
+		"",
+		intent.ID,
+		intent.RecipientSessionID,
+		intent.RecipientActivationID,
+		intent.Text,
+	)
+	if err == nil || result.Delivery != session.MessageNotSubmitted {
+		t.Fatalf("notification after dashboard deletion: %#v, %v", result, err)
+	}
+}
+
+func TestNotificationSchedulingPreservesRecipientOrderAndFairness(t *testing.T) {
+	now := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	item := func(id, recipient string, state session.NotificationState) session.PendingNotification {
+		return session.PendingNotification{Message: session.MessageRecord{SenderSessionID: recipient, SenderActivationID: "activation"},
+			Reply: session.MessageReply{ID: id, Notification: &session.ReplyNotification{State: state}}}
+	}
+	items := []session.PendingNotification{
+		item("first", "a", session.NotificationPending),
+		item("second", "a", session.NotificationPending),
+		item("third", "b", session.NotificationPending),
+	}
+	schedule := map[string]notificationSchedule{"first": {due: now.Add(time.Second)}}
+	due := dueNotifications(items, schedule, now)
+	if len(due) != 1 || due[0].Reply.ID != "third" {
+		t.Fatalf("due while first backs off = %#v", due)
+	}
+	due = dueNotifications(items, schedule, now.Add(time.Second))
+	if len(due) != 2 || due[0].Reply.ID != "first" || due[1].Reply.ID != "third" {
+		t.Fatalf("due after backoff = %#v", due)
+	}
+	items[0].Reply.Notification.State = session.NotificationAccepted
+	due = dueNotifications(items, schedule, now.Add(time.Second))
+	if len(due) != 2 || due[0].Reply.ID != "first" || due[1].Reply.ID != "third" {
+		t.Fatalf("accepted predecessor did not preserve recipient order: %#v", due)
 	}
 }

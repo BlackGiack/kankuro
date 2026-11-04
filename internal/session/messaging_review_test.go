@@ -33,17 +33,17 @@ type promptCountingDriver struct {
 	calls atomic.Int32
 }
 
-func (d *promptCountingDriver) SubmitPrompt(context.Context, string, string, string) (driver.SubmissionEvidence, error) {
+func (d *promptCountingDriver) SubmitPrompt(context.Context, driver.PromptEnvelope) (driver.SubmissionEvidence, error) {
 	d.calls.Add(1)
 	return driver.SubmissionEvidence{State: driver.SubmissionComplete}, nil
 }
 
 func (d *failAfterPromptDriver) SubmitPrompt(
 	ctx context.Context,
-	messageID, senderSessionID, text string,
+	prompt driver.PromptEnvelope,
 ) (driver.SubmissionEvidence, error) {
 	d.calls++
-	evidence, err := d.AgentDriver.SubmitPrompt(ctx, messageID, senderSessionID, text)
+	evidence, err := d.AgentDriver.SubmitPrompt(ctx, prompt)
 	if d.calls == 1 {
 		d.backupPath = d.path + ".review-backup"
 		if renameErr := os.Rename(d.path, d.backupPath); renameErr != nil {

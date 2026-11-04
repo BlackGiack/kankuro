@@ -44,6 +44,10 @@ const (
 // MessageRecord is retained history for one orchestrator prompt.
 type MessageRecord struct {
 	ID                    string          `json:"message_id"`
+	Kind                  string          `json:"kind,omitempty"`
+	OriginalMessageID     string          `json:"original_message_id,omitempty"`
+	ReplyID               string          `json:"reply_id,omitempty"`
+	ReportKind            string          `json:"report_kind,omitempty"`
 	DashboardID           string          `json:"dashboard_id"`
 	SenderSessionID       string          `json:"sender_session_id"`
 	SenderActivationID    string          `json:"sender_activation_id"`
@@ -60,14 +64,44 @@ type MessageRecord struct {
 
 // MessageReply is an explicit report from the pinned recipient activation.
 type MessageReply struct {
-	ID                 string    `json:"reply_id"`
-	MessageID          string    `json:"message_id"`
-	SenderSessionID    string    `json:"sender_session_id"`
-	SenderActivationID string    `json:"sender_activation_id"`
-	Kind               string    `json:"kind"`
-	Text               string    `json:"text"`
-	CreatedAt          time.Time `json:"created_at"`
-	Sequence           uint64    `json:"sequence"`
+	ID                 string             `json:"reply_id"`
+	MessageID          string             `json:"message_id"`
+	SenderSessionID    string             `json:"sender_session_id"`
+	SenderActivationID string             `json:"sender_activation_id"`
+	Kind               string             `json:"kind"`
+	Text               string             `json:"text"`
+	CreatedAt          time.Time          `json:"created_at"`
+	Sequence           uint64             `json:"sequence"`
+	Notification       *ReplyNotification `json:"notification,omitempty"`
+}
+
+// NotificationState describes delivery evidence for a report wake-up.
+type NotificationState string
+
+const (
+	NotificationPending     NotificationState = "pending"
+	NotificationAccepted    NotificationState = "accepted"
+	NotificationSubmitted   NotificationState = "submitted"
+	NotificationUncertain   NotificationState = "uncertain"
+	NotificationUnavailable NotificationState = "unavailable"
+	NotificationNotRequired NotificationState = "not_required"
+)
+
+// ReplyNotification tracks delivery of a wake-up independently from the report.
+type ReplyNotification struct {
+	State          NotificationState `json:"state"`
+	MessageID      string            `json:"message_id,omitempty"`
+	OperationID    string            `json:"operation_id,omitempty"`
+	FailureCode    string            `json:"failure_code,omitempty"`
+	FailureMessage string            `json:"failure_message,omitempty"`
+	Attempt        uint64            `json:"attempt,omitempty"`
+	RequestID      string            `json:"request_id,omitempty"`
+}
+
+// PendingNotification binds a retained report to the original delivery identity.
+type PendingNotification struct {
+	Message MessageRecord
+	Reply   MessageReply
 }
 
 type sendReceipt struct {
@@ -126,6 +160,8 @@ type MessageAdmission struct {
 	publishing            bool
 	published             bool
 	released              bool
+	reportMessageID       string
+	reportReplyID         string
 }
 
 // Release drops the lifecycle reservation. It is safe to call more than once.
@@ -287,7 +323,7 @@ func (s *MessageStore) CreateIntentWithAdmission(
 	return s.createIntent(record, requestID, fingerprint, persistAcceptance)
 }
 
-//nolint:gocognit // Persistence and operation admission are one rollback-capable history transaction.
+//nolint:gocognit,funlen // Persistence and operation admission are one rollback-capable history transaction.
 func (s *MessageStore) createIntent(
 	record MessageRecord,
 	requestID, fingerprint string,
@@ -326,6 +362,30 @@ func (s *MessageStore) createIntent(
 	old, cloneErr := cloneMessageData(s.data)
 	if cloneErr != nil {
 		return MessageRecord{}, cloneErr
+	}
+	if record.Kind == driver.PromptReportNotification {
+		found := false
+		for i := range s.data.Messages {
+			parent := &s.data.Messages[i]
+			if parent.ID != record.OriginalMessageID || parent.DashboardID != record.DashboardID ||
+				parent.SenderSessionID != record.RecipientSessionID || parent.SenderActivationID != record.RecipientActivationID {
+				continue
+			}
+			for j := range parent.Replies {
+				reply := &parent.Replies[j]
+				if reply.ID == record.ReplyID && reply.Kind == record.ReportKind && reply.SenderSessionID == record.SenderSessionID &&
+					reply.SenderActivationID == record.SenderActivationID && reply.Notification != nil &&
+					reply.Notification.State == NotificationPending && reply.Notification.RequestID == requestID {
+					reply.Notification.State = NotificationAccepted
+					reply.Notification.MessageID = record.ID
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			return MessageRecord{}, messagingError("history_unavailable", "report notification is no longer eligible", nil)
+		}
 	}
 	s.data.Sequence++
 	record.Sequence = s.data.Sequence
@@ -459,7 +519,7 @@ func (s *MessageStore) RecordReply(recipientID, activationID, requestID, message
 			}
 			for _, reply := range s.data.Messages[messageIndex].Replies {
 				if reply.ID == receipt.ReplyID {
-					return reply, nil
+					return cloneReply(reply), nil
 				}
 			}
 			return MessageReply{}, messagingError(
@@ -486,6 +546,11 @@ func (s *MessageStore) RecordReply(recipientID, activationID, requestID, message
 	s.data.Sequence++
 	reply := MessageReply{ID: uuid.NewString(), MessageID: messageID, SenderSessionID: recipientID,
 		SenderActivationID: activationID, Kind: kind, Text: text, CreatedAt: time.Now().UTC(), Sequence: s.data.Sequence}
+	state := NotificationPending
+	if kind == "progress" {
+		state = NotificationNotRequired
+	}
+	reply.Notification = &ReplyNotification{State: state}
 	message.Replies = append(message.Replies, reply)
 	s.data.Reports = append(s.data.Reports, reportReceipt{RecipientSessionID: recipientID, RecipientActivationID: activationID,
 		MessageID: messageID, RequestID: requestID, Fingerprint: fingerprint, ReplyID: reply.ID})
@@ -496,7 +561,15 @@ func (s *MessageStore) RecordReply(recipientID, activationID, requestID, message
 	}
 	s.pruneRuntimeDeliveryLocked()
 	s.signalLocked()
-	return reply, nil
+	return cloneReply(reply), nil
+}
+
+func cloneReply(reply MessageReply) MessageReply {
+	if reply.Notification != nil {
+		notification := *reply.Notification
+		reply.Notification = &notification
+	}
+	return reply
 }
 
 // GetMessage returns a retained message or a clear unavailable error.
@@ -505,6 +578,10 @@ func (s *MessageStore) GetMessage(id string) (MessageRecord, error) {
 	defer s.mu.Unlock()
 	for _, message := range s.data.Messages {
 		if message.ID == id {
+			message.Replies = append([]MessageReply(nil), message.Replies...)
+			for i := range message.Replies {
+				message.Replies[i] = cloneReply(message.Replies[i])
+			}
 			if outcome, found := s.runtimeDelivery[id]; found {
 				message.Delivery = outcome.state
 				message.Warning = outcome.warning
@@ -577,7 +654,9 @@ func (s *MessageStore) GetReplies(dashboardID, messageID, cursor string, limit i
 	all := make([]MessageReply, 0)
 	for _, message := range s.data.Messages {
 		if message.DashboardID == dashboardID && (messageID == "" || message.ID == messageID) {
-			all = append(all, message.Replies...)
+			for _, reply := range message.Replies {
+				all = append(all, cloneReply(reply))
+			}
 		}
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].Sequence < all[j].Sequence })
@@ -946,11 +1025,15 @@ func (m *Manager) PublishMessageAdmission(admission *MessageAdmission, publish f
 		return messagingError("lifecycle_conflict", "message admission is no longer available", nil)
 	}
 	m.mu.Lock()
-	if admission.invalidated || admission.released || admission.published || admission.publishing || m.closed ||
-		m.sessions[admission.senderID] != admission.sender || m.sessions[admission.recipientID] != admission.recipient ||
+	invalidSender := admission.reportReplyID == "" && (m.sessions[admission.senderID] != admission.sender ||
 		admission.sender.stopping || admission.sender.deleting || admission.sender.Status == StatusTerminated ||
-		!m.deliveryAvailableLocked(admission.recipient) ||
-		admission.sender.ActivationID != admission.senderActivationID || admission.recipient.ActivationID != admission.recipientActivationID {
+		admission.sender.ActivationID != admission.senderActivationID)
+	if admission.reportReplyID != "" {
+		invalidSender = !m.reportAdmissionValidLocked(admission)
+	}
+	if admission.invalidated || admission.released || admission.published || admission.publishing || m.closed || invalidSender ||
+		m.sessions[admission.recipientID] != admission.recipient || !m.deliveryAvailableLocked(admission.recipient) ||
+		admission.recipient.ActivationID != admission.recipientActivationID {
 		m.mu.Unlock()
 		return messagingError("lifecycle_conflict", "message admission was canceled before intent publication", nil)
 	}
@@ -964,8 +1047,12 @@ func (m *Manager) PublishMessageAdmission(admission *MessageAdmission, publish f
 	if err == nil {
 		admission.published = true
 	}
-	if m.closed || admission.sender.stopping || admission.sender.deleting || admission.sender.Status == StatusTerminated ||
-		admission.recipient.stopping || admission.recipient.deleting || admission.recipient.Status == StatusTerminated {
+	senderUnavailable := admission.sender != nil &&
+		(admission.sender.stopping || admission.sender.deleting || admission.sender.Status == StatusTerminated)
+	if m.closed || senderUnavailable ||
+		admission.recipient.stopping ||
+		admission.recipient.deleting ||
+		admission.recipient.Status == StatusTerminated {
 		admission.invalidated = true
 		m.releaseMessageAdmissionLocked(admission)
 	}
@@ -973,6 +1060,7 @@ func (m *Manager) PublishMessageAdmission(admission *MessageAdmission, publish f
 	return err
 }
 
+//nolint:gocyclo,cyclop // Both authorization paths revalidate their lifecycle reservations at the write boundary.
 func (m *Manager) beginMessageSubmission(admission *MessageAdmission, token, recipientID, activationID string) (driver.AgentDriver, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -982,6 +1070,14 @@ func (m *Manager) beginMessageSubmission(admission *MessageAdmission, token, rec
 		return nil, false
 	}
 	sender, recipient := admission.sender, admission.recipient
+	if admission.reportReplyID != "" {
+		if !m.reportAdmissionValidLocked(admission) || recipient == nil ||
+			m.closed || m.sessions[recipientID] != recipient || !m.deliveryAvailableLocked(recipient) || recipient.ActivationID != activationID {
+			return nil, false
+		}
+		admission.started = true
+		return recipient.Driver, recipient.Driver != nil
+	}
 	if m.closed || sender == nil || recipient == nil || sender.stopping || sender.deleting || recipient.stopping ||
 		recipient.deleting || sender.Status == StatusTerminated || recipient.Status == StatusTerminated ||
 		m.sessions[sender.ID] != sender || m.sessions[recipientID] != recipient || !m.deliveryAvailableLocked(recipient) ||
@@ -997,6 +1093,8 @@ func (m *Manager) beginMessageSubmission(admission *MessageAdmission, token, rec
 }
 
 // SubmitMessage admits a prompt against a pinned live recipient activation.
+//
+//nolint:funlen // Submission preserves ordering, cancellation, and delivery evidence in one path.
 func (m *Manager) SubmitMessage(
 	ctx context.Context,
 	admission *MessageAdmission,
@@ -1054,7 +1152,22 @@ func (m *Manager) SubmitMessage(
 		updated, getErr := m.messages.GetMessage(messageID)
 		return updated, errors.Join(context.Canceled, persistErr, getErr)
 	}
-	evidence, submitErr := d.SubmitPrompt(submissionCtx, messageID, caller.SessionID, text)
+	envelope := driver.PromptEnvelope{MessageID: messageID, SenderSessionID: caller.SessionID, Text: text}
+	if record.Kind == driver.PromptReportNotification {
+		envelope.Kind = record.Kind
+		envelope.MessageID = record.OriginalMessageID
+		envelope.ReplyID = record.ReplyID
+		envelope.ReportKind = record.ReportKind
+		envelope.BeforeWrite = func() error {
+			m.mu.RLock()
+			defer m.mu.RUnlock()
+			if !m.reportAdmissionValidLocked(admission) || !m.deliveryAvailableLocked(admission.recipient) {
+				return errors.New("report notification is no longer authorized")
+			}
+			return nil
+		}
+	}
+	evidence, submitErr := d.SubmitPrompt(submissionCtx, envelope)
 	state := MessageDelivery(evidence.State)
 	warning := ""
 	if state == MessageUncertain {

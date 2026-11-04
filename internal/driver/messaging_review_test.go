@@ -43,7 +43,7 @@ func TestSubmitPromptCanceledBeforeOrWhileWaitingWritesNoBytes(t *testing.T) {
 			started := make(chan struct{})
 			go func() {
 				close(started)
-				_, submitErr := d.SubmitPrompt(ctx, "message", "sender", "do not execute")
+				_, submitErr := d.SubmitPrompt(ctx, PromptEnvelope{MessageID: "message", SenderSessionID: "sender", Text: "do not execute"})
 				done <- submitErr
 			}()
 			if test.occupyGate {
@@ -96,7 +96,7 @@ func checkPromptCancellationBetweenTextAndEnter(t *testing.T, name string) {
 		err      error
 	}, 1)
 	go func() {
-		evidence, submitErr := d.SubmitPrompt(ctx, "message", "sender", "prompt text")
+		evidence, submitErr := d.SubmitPrompt(ctx, PromptEnvelope{MessageID: "message", SenderSessionID: "sender", Text: "prompt text"})
 		result <- struct {
 			evidence SubmissionEvidence
 			err      error
@@ -183,7 +183,11 @@ func TestCodexPromptPauseSerializesAttachedInput(t *testing.T) {
 
 	submission := make(chan error, 1)
 	go func() {
-		evidence, submitErr := d.submitPrompt(context.Background(), "message", "sender", "prompt text", 250*time.Millisecond)
+		evidence, submitErr := d.submitPrompt(
+			context.Background(),
+			PromptEnvelope{MessageID: "message", SenderSessionID: "sender", Text: "prompt text"},
+			250*time.Millisecond,
+		)
 		if submitErr == nil && evidence.State != SubmissionComplete {
 			submitErr = errors.New("prompt was not completely submitted")
 		}

@@ -113,7 +113,12 @@ func New(repo Repository, sessions *session.Manager) *Service {
 }
 
 // SetOperationRunner wires the durable lifecycle operation coordinator before MCP starts.
-func (s *Service) SetOperationRunner(runner *OperationRunner) { s.operations = runner }
+func (s *Service) SetOperationRunner(runner *OperationRunner) {
+	s.operations = runner
+	if runner != nil {
+		runner.startDispatcher()
+	}
+}
 
 // RegisterConversation delegates an authenticated activation report to the
 // manager, which validates that the credential still owns a live activation.

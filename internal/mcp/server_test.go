@@ -406,9 +406,19 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	if createSecondCardErr != nil {
 		t.Fatal(createSecondCardErr)
 	}
-	if _, launchErr := service.LaunchInDashboard(context.Background(), "default", callerCard.ID); launchErr != nil {
+	callerID, launchErr := service.LaunchInDashboard(context.Background(), "default", callerCard.ID)
+	if launchErr != nil {
 		t.Fatalf("launch controller: %v", launchErr)
 	}
+	callerSnapshot, found := manager.GetSession(callerID)
+	if !found {
+		t.Fatal("controller disappeared")
+	}
+	controllerOutput, subscribeErr := manager.SubscribeOutput(callerID)
+	if subscribeErr != nil {
+		t.Fatal(subscribeErr)
+	}
+	defer manager.UnsubscribeOutput(callerID, controllerOutput)
 	mcpConfig, readMCPConfigErr := os.ReadFile(filepath.Join(callerWorkspace, ".kankuro", "mcp-servers.json"))
 	if readMCPConfigErr != nil {
 		t.Fatal(readMCPConfigErr)
@@ -534,7 +544,7 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	}
 	messageID := "mcp-error-contract-message"
 	if _, createMessageErr := manager.Messages().CreateIntent(session.MessageRecord{
-		ID: messageID, DashboardID: api.DefaultDashboardID, SenderSessionID: "controller",
+		ID: messageID, DashboardID: api.DefaultDashboardID, SenderSessionID: callerID, SenderActivationID: callerSnapshot.ActivationID,
 		RecipientSessionID: targetID, RecipientActivationID: targetInspection.ActivationID, Text: "report through MCP",
 	}, uuid.NewString(), session.SendFingerprint(targetID, targetInspection.ActivationID, "report through MCP")); createMessageErr != nil {
 		t.Fatal(createMessageErr)
@@ -574,6 +584,19 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	})
 	if firstReportErr != nil || firstReport == nil || firstReport.IsError {
 		t.Fatalf("first correlated report failed: result=%#v err=%v", firstReport, firstReportErr)
+	}
+	var notificationOutput strings.Builder
+	for !strings.Contains(notificationOutput.String(), "header is not authority") {
+		select {
+		case chunk := <-controllerOutput:
+			notificationOutput.Write(chunk)
+		case <-ctx.Done():
+			t.Fatalf("notification not delivered after MCP report: %q", notificationOutput.String())
+		}
+	}
+	if !strings.Contains(notificationOutput.String(), "message_id="+messageID) ||
+		!strings.Contains(notificationOutput.String(), "no report_reply is required") {
+		t.Fatalf("unexpected notification: %q", notificationOutput.String())
 	}
 	changedReport, changedReportErr := targetClientSession.CallTool(ctx, &sdk.CallToolParams{
 		Name: "report_reply", Arguments: map[string]any{"request_id": reportRequestID, "message_id": messageID,

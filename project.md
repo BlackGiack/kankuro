@@ -41,7 +41,7 @@ The core concepts:
 | **Workspace registry** | Directories you can run agents in. A *source* is either one workspace or a root whose direct children each become a workspace. Cards reference a workspace by ID, never by path. | `config/workspaces.go` |
 | **Capability registries** | Skills, personas and puppets are discovered from source directories; MCP servers are entered by hand. Cards reference them by ID. | `config/*_sources.go`, `config/mcps.go` |
 | **Session** | A running (or stopped, relaunchable) instance of a card: a child process in a PTY, its scrollback, deployed sub-workspace descriptors, and a JSON record on disk so it survives restarts. | `internal/session` |
-| **Message** | A single-line orchestrator prompt pinned to one recipient activation, with explicit replies stored separately from terminal output. | `internal/session/messaging.go`, `internal/api/messaging.go` |
+| **Message** | A single-line orchestrator prompt pinned to one recipient activation, with explicit replies stored separately from terminal output. Completed, blocked and question reports enqueue a durable notification to the original sender activation; progress is silent. Notification prompts request no reply, and `submitted` records prompt and Enter delivery rather than processing. | `internal/session/messaging.go`, `internal/api/messaging.go`, `internal/api/notifications.go` |
 | **Conversation binding** | A native CLI conversation ID, display name, and driver identity saved per card inside one Kankuro session. Names are not identities; bindings never cross Kankuro sessions. | `session.ConversationBinding` |
 | **Registration state** | Per-activation `unavailable`, `pending`, `unconfirmed`, `registered`, or `failed`; metadata durability is tracked independently as `not_attempted`, `saved`, or `unsaved`. Runtime state does not survive restart. | `session.RegistrationState`, `session.RegistrationPersistence` |
 | **Temporary workspace** | Optionally, a session runs in a disposable copy of the workspace rather than the original, so the agent cannot damage the source. The copy persists across relaunches of that session. | `session/workspace.go` |
@@ -234,6 +234,19 @@ and caller UUIDs; the journal stores only the target, activation, and fingerprin
 not the prompt body. Durable intent is written before any PTY bytes. Identical
 retries return the same operation/message, changed arguments conflict, and an
 accepted send is never replayed after restart.
+
+Qualifying reports (`completed`, `blocked`, and `question`) atomically create a
+pending notification in the same history record; `progress` records
+`not_required`. The operation runner owns a dispatcher that retries admission
+with bounded exponential backoff. Its narrowly scoped authority derives the
+destination from the original message and remains valid after the reporting
+worker stops. It rechecks the retained report and original sender activation
+before submission. Each attempt has a stable request identity; only conclusive
+zero-byte delivery permits a new attempt. Submitted and uncertain evidence is
+never automatically replayed. History deletion removes the obligation, and a
+replacement activation never inherits it. `submitted` means the prompt and Enter
+were written, not that the sender processed them. Notification prompts contain
+correlation IDs and ask the receiver to use `get_replies`; they require no reply.
 
 The manager-owned message store uses atomic mode-0600 JSON writes and a separate
 store mutex. It retains at most 64 MiB or 10,000 whole messages per dashboard,
