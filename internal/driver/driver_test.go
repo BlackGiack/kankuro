@@ -303,14 +303,6 @@ func TestClaudeCodeDriver(t *testing.T) {
 	}
 }
 
-func TestNewCLIDriverClaude(t *testing.T) {
-	r := driver.NewBuiltinRegistry()
-	d := r.Get("claude")
-	if _, ok := d.(*driver.ClaudeCodeDriver); !ok {
-		t.Fatalf("expected ClaudeCodeDriver")
-	}
-}
-
 func TestSetSkillsBuiltinSkill(t *testing.T) {
 	fixture := []byte("---\nname: mcp-cli\n---\n# MCP-CLI\ntest fixture\n")
 	setBuiltinSkillFixture(t, fixture)

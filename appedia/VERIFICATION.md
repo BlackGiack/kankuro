@@ -1,81 +1,75 @@
-# Appedia verification — 2026-11-07
+# Verification — 2026-11-09 OpenCode fixture refresh
 
-The site describes commit `60e5808` and the current working tree. This refresh
-changes documentation and generated appedia assets only.
+## Fixture and checks
 
-## Results
+Current OpenCode credentials are exported/imported through the installed CLI
+and integration/value/active metadata is compared in memory. Credential values
+are never printed or published. The conversation database is not copied.
+Service configuration is excluded; the fixture uses and stops its own service
+on a separate loopback port.
 
-- Reloaded the installed create-appedia `SKILL.md` and content guide, then used
-  its prepare/rebuild pipeline with the existing extraction settings.
-- Build and reference validation passed without warnings.
-- All 18 application packages have current roles; all 1,491 source symbols match
-  fresh extraction, the served browser model and the working-tree source files.
-- Content covers 55 current-state flows, 28 rules and 31 common-change tasks.
-  Every flow has 4–13 steps with valid code references.
-- All 367 impact items have reviewed dispositions and reasons. The prior
-  dashboard review was retained where the wake-up feature does not change the
-  documented behavior; new messaging and startup/shutdown associations were
-  updated. Retired declarations remain excluded from current explanations.
-- Focused simulated-browser navigation passed: 142 routes, no errors. Covers
-  every flow entry, detailed messaging/retry/recovery steps, five package pages,
-  key code, one- and two-hop preparedDelivery isolation, rules, tasks and reference.
-- Twelve Chrome captures were generated at 1600 × 1100 in light/dark themes.
-  Inspected representative map, API package, preparedDelivery.publish code,
-  preparedDelivery isolation, report persistence and notification-retry views.
+The requested model is openrouter/openrouter/free (Free Models Router).
+Its visible model label is asserted before the task is submitted.
+Every E2E Go source has the e2e build tag.
 
-## Limits and maintenance state
+The capture-glyph preflight passed using tui-test Go and an installed
+Noto Sans Symbols2 fallback for U+2B1D. It creates only a temporary PNG and runs
+before model calls. Direct-process exit checks read State.Exited, as required
+for Run processes.
 
-The exhaustive every-route smoke was not rerun, following the user's earlier
-request to stop that long-running test. Finalize was therefore not run and no
-new accepted baseline is claimed. The reviewed candidate and impact report
-remain in `.maintenance/pending/`; `.maintenance/baseline.json` and the accepted
-baseline model are unchanged.
+Fresh ordinary tests passed with package-local atomic coverage: 7,897 /
+10,760 statements (73.4%). Tagged vet and lint passed.
+The prior cleanup's production build/vet/race results remain historical checks;
+this refresh changes test support and documentation, not production behavior.
 
-No application tests were rerun for this documentation-only refresh. The wake-up
-implementation passed the previously completed code review, including full Go
-tests/vet/lint, API race checks and real MCP/PTY notification integration tests.
-No new external agent CLI acceptance result is claimed.
+## Actual native run
 
-The installation README now agrees with the Go version declared by `go.mod`.
+    go test -tags=e2e ./tests/e2e -run '^TestNativeAgentJourney$' -count=1 -timeout=10m -v
 
-## Dependencies tab addition
+Started 2026-11-09T22:38:19.351021609Z; finished 2026-11-09T22:42:26.268507608Z.
+Result: failed; final stage: register.
+Environment: Linux/amd64, OpenCode 2.2.6, tui-test Go v0.1.1, 120×40 cells,
+isolated HOME/config/workspace/service and the configured OpenRouter credential.
 
-The updated skill's collector queried all 12 direct module declarations through
-`go list -m -u -json`, with read-only module settings. All used/latest values were
-resolved; the snapshot reports 7 newer releases and 5 current declarations. No
-project dependencies were installed or upgraded. Confirmed source import paths
-were checked against each module prefix, including test usage.
+The run launched and attached with the requested model, but no conversation binding was saved within the four-minute registration wait. Detach/restoration and resume were not reached.
 
-The snapshot is retained at `.maintenance/pending/dependencies.json` and embedded
-in `data/model.js`. The rebuild regenerated the shell, artifact entry point,
-renderer and styles with the Dependencies tab. Authored content, module files,
-accepted baseline and the git index were unchanged by this addition.
+Read-only native-session diagnostics during this attempt showed a completed
+assistant turn without a tool call for the explicit registration task.
+A prior router attempt loaded the registration skill, then stopped without
+registering. Model inference was responding; this is not evidence of a failed
+HTTP connection. The router may choose different backing models.
 
-The focused check was rerun against the updated renderer: 143 routes, no errors.
-It additionally verifies all 12 dependency table rows against the snapshot and
-checks that clicking the tab navigates to `#dependencies`. Four new light/dark
-Chrome captures show Dependencies and the map; both dependency-table themes were
-inspected. The exhaustive route smoke remains unrun.
+The current PNGs and result.json are embedded in data/test-evidence.json and
+the normalized model. The failure capture preserves the terminal at the
+registration checkpoint. No registration, Ctrl+K restoration, resume or
+image-baseline comparison is claimed for this failed run.
 
-Dependency-specific evidence is in `tmp/appedia-dependencies-refresh/`:
-`collection.log`, `build.log`, `focused-smoke.mjs`, `focused-smoke.log`,
-`screenshots.log` and `screenshots/`. The dependency snapshot was collected
-separately rather than resetting the existing reviewed impact report.
+The initial Big Pickle quota screenshot came from incomplete fixture setup.
+It does not describe the user's account state and is superseded. The later
+NVIDIA timeouts are also historical attempts; the current evidence uses the
+router confirmed by the user.
 
-## Evidence
+## Provenance and assessments
 
-Repeatable local scripts and detailed logs are in `tmp/appedia-awake-refresh/`:
-`update-content.py`, `review-impact.py`, `check-model.py`, `focused-smoke.mjs`,
-`prepare.log`, `build.log`, `model-check.log`, `focused-smoke.log`,
-`source-hashes.json`, `screenshots.log`, `screenshots-isolated.log`,
-`screenshots/` and `screenshots-isolated/`. This local evidence directory is
-ignored by git. Asset hashes and verification status are retained in
-`.maintenance/pending/verification.json`.
+Source fingerprint: 22ce60949b80ba3d6d306b85a4c88683bf040372efe7dbbff5d879030f24365a
+Revision: WORKTREE.
 
-```bash
-python3 tmp/appedia-awake-refresh/check-model.py
-timeout 55s node tmp/appedia-awake-refresh/focused-smoke.mjs \
-  --site appedia --jsdom /tmp/appedia-smoke
-```
+The ordinary profile, native result and collected endpoint match. The snapshot
+contains the raw profile, source hashes and actual execution metadata. Curated
+ordinary results come from the run's JSONL events, separate from the failed E2E
+result. No earlier profile was relabeled as current and no coverage delta is
+claimed.
 
-No commit was made and the git index was not changed.
+There are 28 features, 69 scenarios and 94 reviewed evidence records:
+61 tested and 8 partial. Temporary-workspace
+input/save is tested. The native journey remains partial with actual reached
+assertions, implemented later checkpoints, and explicit limits.
+
+Finalization passed reference/evidence validation and the all-route smoke
+check. The refreshed baseline was accepted at 2026-11-09T22:46:01.092Z.
+Eight Chrome captures covered feature, source, failure-image and coverage pages
+in both themes; the feature and failure-image pages were visually inspected.
+Those documentation checks are separate from terminal E2E proof.
+The accepted impact review is retained in
+.maintenance/opencode-fixture-review.json. Prior cleanup reviews remain history.
+No commits were made.

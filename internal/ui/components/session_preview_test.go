@@ -4,9 +4,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"unicode/utf8"
-
-	"github.com/mattn/go-runewidth"
 
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
@@ -282,61 +279,6 @@ func TestStripAllControlCodes(t *testing.T) {
 			result := components.StripAllControlCodes(tt.input)
 			if result != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, result)
-			}
-		})
-	}
-}
-
-func TestTruncatePath(t *testing.T) {
-	tests := []struct {
-		name     string
-		path     string
-		limit    int
-		expected string
-	}{
-		{
-			name:     "short path unchanged",
-			path:     "/home/user/project",
-			limit:    25,
-			expected: "/home/user/project",
-		},
-		{
-			name:     "long path truncated",
-			path:     "/home/user/very/long/path/to/some/project",
-			limit:    20,
-			expected: "...h/to/some/project",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := components.TruncatePath(tt.path, tt.limit)
-			if result != tt.expected {
-				t.Errorf("Expected %q, got %q", tt.expected, result)
-			}
-		})
-	}
-}
-
-func TestTruncatePath_MultibyteRuneSafety(t *testing.T) {
-	tests := []struct {
-		name  string
-		path  string
-		limit int
-	}{
-		{"CJK path", "/家/项目/很长的路径/名字/文件夹/子目录", 12},
-		{"combining marks", "/home/usér/proje\u0301ct/nested/deep/path", 15},
-		{"emoji", "/home/👍🎉🚀/project/deep/nested/path", 12},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := components.TruncatePath(tt.path, tt.limit)
-			if !utf8.ValidString(result) {
-				t.Fatalf("result is not valid UTF-8: %q", result)
-			}
-			if w := runewidth.StringWidth(result); w > tt.limit {
-				t.Errorf("result width %d exceeds limit %d: %q", w, tt.limit, result)
 			}
 		})
 	}

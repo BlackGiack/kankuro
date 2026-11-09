@@ -32,8 +32,8 @@ func NewPuppet(opts ...ascii.Option) ascii.Shape {
 	style := config.GetString("style", "default")
 	for _, def := range BuiltinPuppetLines() {
 		if def.Name == style {
-			return NewTextPuppet(def.Lines, opts...)
+			return NewTextPuppet(def.Lines)
 		}
 	}
-	return NewTextPuppet(BuiltinPuppetLines()[0].Lines, opts...)
+	return NewTextPuppet(BuiltinPuppetLines()[0].Lines)
 }

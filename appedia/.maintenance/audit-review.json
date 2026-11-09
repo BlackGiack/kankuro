@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "changes": [],
+  "files": [
+    {
+      "file": "tests_to_remove.md",
+      "status": "changed"
+    }
+  ],
+  "items": [
+    {
+      "id": "uncovered:file:tests_to_remove.md",
+      "reasons": [
+        "uncovered changed file: changed"
+      ],
+      "disposition": "updated",
+      "note": "Completed audit follow-up: added unused canvas drawing/accessor findings after checking all production call sites. Excluded the additional containing test file from published evidence; 15 files omitted, 119 retained. Curated 37 tests and source/coverage fingerprints are unchanged."
+    }
+  ]
+}

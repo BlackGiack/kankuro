@@ -1,3 +1,5 @@
 .agents
 /kankuro
 tmp/
+
+/tests/e2e/artifacts/

@@ -1,39 +1,68 @@
 package app_test
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 func TestFullSessionLaunchFlow(t *testing.T) {
-	repo, _ := newCurrentRepository(t.TempDir())
-	sm := newTestManager(t, repo.Dir(), repo)
-
-	wd := t.TempDir()
-	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
-
-	_, _ = createCurrentCard(repo, config.IDCard{
-		Name:   "Test Card",
-		Driver: "echo",
-		Model:  "test",
-	})
-
-	coord := newOpenedCoordinator(repo, sm)
-	msg := coord.RefreshData()()
-	coord.Update(msg)
-
-	if coord.CurrentView() != app.ViewDashboard {
-		t.Errorf("Expected ViewDashboard, got %v", coord.CurrentView())
+	repo, err := newCurrentRepository(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	if len(coord.Views()) != 12 {
-		t.Errorf("Expected 12 views, got %d", len(coord.Views()))
+	sm := newTestManager(t, repo.Dir(), repo)
+	workspace := t.TempDir()
+	if err = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: workspace}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, err := repo.ListWorkspaces()
+	if err != nil || len(workspaces) != 1 {
+		t.Fatalf("workspaces: %v %v", workspaces, err)
+	}
+	card, err := createCurrentCard(repo, config.IDCard{Name: "Launch test", Driver: "cat", WorkspaceID: workspaces[0].ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	coord := newOpenedCoordinator(repo, sm)
+	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	coord.Update(coord.RefreshData()())
+	_, cmd := coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	var launch messages.SessionLaunchCompletedMsg
+	for _, msg := range collectMsgs(t, cmd) {
+		if result, ok := msg.(messages.SessionLaunchCompletedMsg); ok {
+			launch = result
+		}
+		coord.Update(msg)
+	}
+	if launch.Err != nil || launch.SessionID == "" {
+		t.Fatalf("launch did not succeed: %+v", launch)
+	}
+	snap, ok := sm.GetSession(launch.SessionID)
+	if !ok || snap.CardID != card.ID || snap.WorkingDir != workspace || !snap.ProcessStarted || snap.Status != session.StatusRunning ||
+		snap.PID <= 0 {
+		t.Fatalf("missing live activation: %+v", snap)
+	}
+	bytes, err := os.ReadFile(filepath.Join(repo.Dir(), "sessions", launch.SessionID+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var persisted session.Data
+	if err = json.Unmarshal(bytes, &persisted); err != nil {
+		t.Fatal(err)
+	}
+	if persisted.ID != launch.SessionID || persisted.CardID != card.ID || persisted.DashboardID != "default" ||
+		persisted.WorkingDir != workspace {
+		t.Fatalf("persisted wrong session: %+v", persisted)
 	}
 }
 
@@ -80,28 +109,32 @@ func TestCardCRUDFlow(t *testing.T) {
 }
 
 func TestSourceManagementFlow(t *testing.T) {
-	repo, _ := newCurrentRepository(t.TempDir())
-	sm := newTestManager(t, repo.Dir(), repo)
-
-	coord := newOpenedCoordinator(repo, sm)
-	coord.Init()
-
-	coord.NavigateTo(app.ViewSourceManagerSkills)
-	sourceManager := coord.Views()[app.ViewSourceManagerSkills].(*views.SourceManager)
-
-	// In the original test it was sourceManager.SetData() but it requires an argument.
-	// We'll use the coordinator's DataLoadedMsg propagation.
-	msg := coord.RefreshData()()
-	coord.Update(msg)
-
-	// Check if sourceManager received data (indirectly)
-	if sourceManager == nil {
-		t.Fatal("SourceManager view not found")
+	repo, err := newCurrentRepository(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	sources, _ := repo.ListSkillSources()
-	if len(sources) != 0 {
-		t.Errorf("Expected 0 skill sources, got %d", len(sources))
+	sm := newTestManager(t, repo.Dir(), repo)
+	coord := newOpenedCoordinator(repo, sm)
+	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	drive(t, coord, coord.NavigateTo(app.ViewSourceManagerSkills))
+	manager := coord.Views()[app.ViewSourceManagerSkills].(*views.SourceManager)
+	if len(manager.SourceList().Items) != 0 {
+		t.Fatal("expected empty initial list")
+	}
+	if err = repo.SaveSkillSources([]string{"/first/source", "/second/source"}); err != nil {
+		t.Fatal(err)
+	}
+	coord.Update(coord.RefreshData()())
+	items := manager.SourceList().Items
+	if len(items) != 2 || items[0].Display() != "/first/source" || items[1].Display() != "/second/source" {
+		t.Fatalf("refresh was not propagated to source view: %v", items)
+	}
+	if err = repo.SaveSkillSources(nil); err != nil {
+		t.Fatal(err)
+	}
+	coord.Update(coord.RefreshData()())
+	if len(manager.SourceList().Items) != 0 {
+		t.Fatal("refresh did not clear removed sources")
 	}
 }
 
@@ -352,29 +385,41 @@ func TestCoordinatorErrorHandling(t *testing.T) {
 }
 
 func TestCoordinatorDataPropagation(t *testing.T) {
-	repo, _ := newCurrentRepository(t.TempDir())
+	repo, err := newCurrentRepository(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	sm := newTestManager(t, repo.Dir(), repo)
-
-	wd := t.TempDir()
-	repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
-	workspaces, _ := repo.ListWorkspaces()
-
-	_, _ = createCurrentCard(repo, config.IDCard{
-		Name:        "Test",
-		Driver:      "claude",
-		Model:       "opus",
-		WorkspaceID: workspaces[0].ID,
-	})
-
 	coord := newOpenedCoordinator(repo, sm)
-	coord.Init()
-
-	msg := coord.RefreshData()()
-	coord.Update(msg)
-
-	cards, _ := repo.ListIDCards()
-	if len(cards) != 1 {
-		t.Errorf("Expected 1 card in repo, got %d", len(cards))
+	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	dashboard := coord.Views()[app.ViewDashboard].(*views.Dashboard)
+	coord.Update(coord.RefreshData()())
+	if len(dashboard.Cards()) != 0 {
+		t.Fatal("expected initially empty dashboard")
+	}
+	if err = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: t.TempDir()}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, err := repo.ListWorkspaces()
+	if err != nil || len(workspaces) != 1 {
+		t.Fatalf("workspaces: %v %v", workspaces, err)
+	}
+	card, err := createCurrentCard(repo, config.IDCard{Name: "Propagated", Driver: "cat", WorkspaceID: workspaces[0].ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	coord.Update(coord.RefreshData()())
+	cards := dashboard.Cards()
+	if len(cards) != 1 || cards[0].ID != card.ID || cards[0].Name != "Propagated" {
+		t.Fatalf("dashboard cards: %+v", cards)
+	}
+	card.Name = "Updated"
+	if _, err = repo.UpdateIDCard(card); err != nil {
+		t.Fatal(err)
+	}
+	coord.Update(coord.RefreshData()())
+	if got := dashboard.Cards(); len(got) != 1 || got[0].Name != "Updated" {
+		t.Fatalf("stale dashboard cards: %+v", got)
 	}
 }
 

@@ -263,12 +263,6 @@ func TestIDEErrors_Is(t *testing.T) {
 		want   bool
 	}{
 		{
-			name:   "same error",
-			err:    session.ErrIDENotConfigured,
-			target: session.ErrIDENotConfigured,
-			want:   true,
-		},
-		{
 			name:   "different error",
 			err:    session.ErrIDENotConfigured,
 			target: session.ErrWorkspacePathEmpty,

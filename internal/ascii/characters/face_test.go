@@ -57,11 +57,3 @@ func TestFaceThinkingStyle(t *testing.T) {
 		t.Errorf("expected %q, got %q", expected, result)
 	}
 }
-
-func TestFaceCustomWidth(t *testing.T) {
-	face := characters.NewFace(ascii.WithWidth(7))
-	width, _ := face.Bounds()
-	if width != 7 {
-		t.Errorf("expected width 7, got %d", width)
-	}
-}

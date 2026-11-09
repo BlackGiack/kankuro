@@ -1,43 +1,12 @@
 package session_test
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 )
-
-// TestSnapshotCoversPersistedFields is a divergence guard: it fails when a
-// field is added to Data without updating the mapping functions next to
-// Session/Snapshot/Data (session.snapshot(), session.data(), Data.restore()).
-// Add a field to Data, run this test, and watch it fail; that failure is the
-// whole point of the exercise.
-func TestSnapshotCoversPersistedFields(t *testing.T) {
-	// fieldsExcludedFromSnapshot lists Data fields that deliberately have no
-	// counterpart on Snapshot, with the reason why. Keep this list explicit
-	// and short: anything not listed here must exist on both Session and
-	// Snapshot.
-	fieldsExcludedFromSnapshot := map[string]string{"SchemaVersion": "disk format metadata, not session state"}
-
-	dataType := reflect.TypeFor[session.Data]()
-	sessionType := reflect.TypeFor[session.Session]()
-	snapshotType := reflect.TypeFor[session.Snapshot]()
-
-	for field := range dataType.Fields() {
-		if _, excluded := fieldsExcludedFromSnapshot[field.Name]; excluded {
-			continue
-		}
-
-		if _, ok := sessionType.FieldByName(field.Name); !ok {
-			t.Errorf("Data.%s has no matching field on Session; update Data.restore()", field.Name)
-		}
-		if _, ok := snapshotType.FieldByName(field.Name); !ok {
-			t.Errorf("Data.%s has no matching field on Snapshot; update Session.snapshot()", field.Name)
-		}
-	}
-}
 
 // TestSessionRoundTripSurvivesPersistence builds a Session, persists it via
 // saveSession (through the public Manager API), reloads it via a fresh

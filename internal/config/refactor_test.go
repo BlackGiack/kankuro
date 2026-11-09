@@ -3,6 +3,7 @@ package config_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -205,42 +206,36 @@ func TestValidateCardRefactored(t *testing.T) {
 }
 
 func TestValidateCardRegistryIntegrity(t *testing.T) {
+	for _, filename := range []string{config.SkillsFilename, config.PersonasFilename, config.MCPsFilename} {
+		t.Run(filename, func(t *testing.T) {
+			repo, card := newRegistryIntegrityFixture(t)
+			var err error
+			if err = repo.ValidateCard(card); err != nil {
+				t.Fatalf("valid baseline: %v", err)
+			}
+			if err = os.WriteFile(filepath.Join(repo.Dir(), filename), []byte("invalid: yaml: :"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			err = repo.ValidateCard(card)
+			if err == nil || !strings.Contains(err.Error(), filename) {
+				t.Fatalf("corrupt %s: got %v, want error naming registry", filename, err)
+			}
+		})
+	}
+}
+
+func newRegistryIntegrityFixture(t *testing.T) (*config.FileRepository, config.IDCard) {
+	t.Helper()
 	repo, err := config.NewFileRepository(t.TempDir())
 	if err != nil {
-		t.Fatalf("new repo: %v", err)
+		t.Fatal(err)
 	}
-
-	wd := t.TempDir()
-	_ = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd, IsRoot: false}})
-	workspaces, _ := repo.ListWorkspaces()
-	wsID := workspaces[0].ID
-
-	card := config.IDCard{Name: "N", Driver: "D", WorkspaceID: wsID}
-
-	corruptFile := func(filename string) {
-		path := filepath.Join(repo.Dir(), filename)
-		if wErr := os.WriteFile(path, []byte("invalid: yaml: :"), 0o600); wErr != nil {
-			t.Fatalf("corrupt %s: %v", filename, wErr)
-		}
+	if err = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: t.TempDir()}}); err != nil {
+		t.Fatal(err)
 	}
-
-	// Corrupt Skills
-	corruptFile(config.SkillsFilename)
-	if vErr := repo.ValidateCard(card); vErr == nil {
-		t.Fatal("expected error with corrupt skills.yaml")
+	workspaces, err := repo.ListWorkspaces()
+	if err != nil || len(workspaces) != 1 {
+		t.Fatalf("workspaces: %v, %v", workspaces, err)
 	}
-	_ = repo.EnsureFiles() // restore
-
-	// Corrupt Personas
-	corruptFile(config.PersonasFilename)
-	if vErr := repo.ValidateCard(card); vErr == nil {
-		t.Fatal("expected error with corrupt personas.yaml")
-	}
-	_ = repo.EnsureFiles() // restore
-
-	// Corrupt MCPs
-	corruptFile(config.MCPsFilename)
-	if vErr := repo.ValidateCard(card); vErr == nil {
-		t.Fatal("expected error with corrupt mcps.yaml")
-	}
+	return repo, config.IDCard{Name: "N", Driver: "D", WorkspaceID: workspaces[0].ID}
 }

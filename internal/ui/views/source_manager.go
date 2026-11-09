@@ -2,8 +2,6 @@ package views
 
 import (
 	"errors"
-	"fmt"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -33,8 +31,6 @@ type SourceManager struct {
 	sourceType SourceType
 	typeConfig SourceTypeConfig
 	callbacks  SourceManagerCallbacks
-
-	err error
 }
 
 // NewSourceManager creates a new source manager for the given type.
@@ -159,9 +155,6 @@ func (m *SourceManager) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 
 // View renders the manager.
 func (m *SourceManager) View() string {
-	if m.err != nil {
-		return m.sourceList.View() + "\n\nError: " + m.err.Error()
-	}
 	return m.sourceList.View()
 }
 
@@ -184,14 +177,4 @@ func (m *SourceManager) TypeConfig() SourceTypeConfig {
 // SourceList returns the underlying source list component.
 func (m *SourceManager) SourceList() *components.SourceList {
 	return m.sourceList
-}
-
-// SetError sets the current error.
-func (m *SourceManager) SetError(err error) {
-	m.err = err
-}
-
-// GenerateID creates a new unique ID for workspace sources.
-func GenerateID() string {
-	return fmt.Sprintf("ws-%d", time.Now().UnixNano())
 }

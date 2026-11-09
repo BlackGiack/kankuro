@@ -1,6 +1,7 @@
 package ascii_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/BlackGiack/kankuro/internal/ascii"
@@ -8,11 +9,9 @@ import (
 
 func TestCanvasCreation(t *testing.T) {
 	c := ascii.NewCanvas(10, 5)
-	if c.Width() != 10 {
-		t.Errorf("expected width 10, got %d", c.Width())
-	}
-	if c.Height() != 5 {
-		t.Errorf("expected height 5, got %d", c.Height())
+	want := strings.TrimSuffix(strings.Repeat(strings.Repeat(" ", 10)+"\n", 5), "\n")
+	if got := c.String(); got != want {
+		t.Fatalf("blank canvas = %q, want %q", got, want)
 	}
 }
 
@@ -28,15 +27,6 @@ func TestCanvasDrawText(t *testing.T) {
 	c := ascii.NewCanvas(10, 2)
 	c.DrawText(0, 0, "Hello")
 	expected := "Hello     \n          "
-	if result := c.String(); result != expected {
-		t.Errorf("expected %q, got %q", expected, result)
-	}
-}
-
-func TestCanvasFill(t *testing.T) {
-	c := ascii.NewCanvas(5, 3)
-	c.Fill(ascii.Rect{X: 0, Y: 0, Width: 5, Height: 3}, '#')
-	expected := "#####\n#####\n#####"
 	if result := c.String(); result != expected {
 		t.Errorf("expected %q, got %q", expected, result)
 	}

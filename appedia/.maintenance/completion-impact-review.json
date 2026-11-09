@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "changes": [],
+  "files": [
+    {
+      "file": "tests_to_remove.md",
+      "status": "changed"
+    }
+  ],
+  "items": [
+    {
+      "id": "uncovered:file:tests_to_remove.md",
+      "reasons": [
+        "uncovered changed file: changed"
+      ],
+      "disposition": "updated",
+      "note": "Added missing settings-error oracle and tautological errors.Is identity subcase findings (29 total). Excluded reported tests from curated evidence and full raw source. Useful neighboring settings/launcher tests use original hash+local-line metadata only, without flagged source bodies."
+    },
+    {
+      "id": "content",
+      "reasons": [
+        "appedia content changed since the accepted baseline"
+      ],
+      "disposition": "updated",
+      "note": "Completed all 22 deferred scenario assessments using direct code/assertion review: 54 tested, 7 partial and 2 not-found; 82 retained-test records with actual matching-endpoint execution provenance. Added explicit gap searches/priorities and corrected stale IDE completion text. No unassessed scenario remains."
+    }
+  ]
+}

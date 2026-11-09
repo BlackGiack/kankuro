@@ -9,37 +9,17 @@ import (
 type TextPuppet struct {
 	ascii.BaseShape
 
-	lines     []string
-	style     string
-	useColors bool
+	lines []string
 }
 
-// NewTextPuppet creates a TextPuppet from the provided lines. Width/Height can be
-// overridden via ascii.Option; otherwise they default to the first line length and
-// number of lines.
-func NewTextPuppet(lines []string, opts ...ascii.Option) ascii.Shape {
-	config := ascii.NewConfig()
-	for _, opt := range opts {
-		opt(config)
-	}
+// NewTextPuppet creates a TextPuppet sized to its first line and line count.
+func NewTextPuppet(lines []string) ascii.Shape {
+	p := &TextPuppet{lines: lines}
 
-	p := &TextPuppet{
-		lines:     lines,
-		style:     config.GetString("style", "default"),
-		useColors: config.GetBool("useColor", false),
-	}
-
-	if l := config.GetInt("width", 0); l != 0 {
-		p.BaseShape.Width = l
-	} else if len(lines) > 0 {
+	if len(lines) > 0 {
 		p.BaseShape.Width = len(lines[0])
 	}
-
-	if h := config.GetInt("height", 0); h != 0 {
-		p.BaseShape.Height = h
-	} else {
-		p.BaseShape.Height = len(lines)
-	}
+	p.BaseShape.Height = len(lines)
 
 	return p
 }

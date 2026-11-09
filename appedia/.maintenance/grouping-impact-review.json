@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "changes": [],
+  "files": [],
+  "items": [
+    {
+      "id": "content",
+      "reasons": [
+        "appedia content changed since the accepted baseline"
+      ],
+      "disposition": "updated",
+      "note": "Replaced Additional application flows backlog group with product/lifecycle feature groups and moved matching scenarios into existing editor/source/deletion/notification groups. All 63 scenario verdicts, evidence records and flow associations are unchanged; no deferred assessment introduced. Current route moves are recorded in test-feature-moves.json."
+    }
+  ]
+}

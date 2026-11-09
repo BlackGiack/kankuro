@@ -54,9 +54,6 @@ func TestTruncateKeepsTheRightEnd(t *testing.T) {
 	if got, want := components.TruncateHead(in, 20), "/home/user/very/l..."; got != want {
 		t.Errorf("TruncateHead = %q, want %q", got, want)
 	}
-	if got := components.TruncatePath(in, 20); got != components.TruncateTail(in, 20) {
-		t.Errorf("TruncatePath = %q, want TruncateTail's result", got)
-	}
 }
 
 func TestTruncateBelowEllipsisWidth(t *testing.T) {

@@ -287,6 +287,16 @@ installation and PATH setup are documented in `README.md`.
 
 Testing practices:
 
+- Native-agent E2E tests live in `tests/e2e` behind the `e2e` build tag. Before
+  model-driven runs, ask the user which provider/model to use and confirm a
+  total token budget covering the intended runs and retries. Explain estimated
+  input/output usage first, report measured usage when available, and label
+  estimates as estimates. The initial full-journey estimate is 20k–100k input
+  and 1k–5k output tokens per successful run; tool context, resume and retries
+  can change it. A saved default is not standing approval, while an existing
+  explicit approval covering the current scope should be honored. See
+  `tests/e2e/AGENTS.md` and `tests/e2e/README.md`. Ordinary tests and the
+  model-free screenshot preflight do not require model/budget confirmation.
 - Reuse the package's lifecycle fixtures. Session/app tests provide
   `newTestManager`; API tests provide `newServiceFixture` and messaging fixtures.
   If constructing a manager or runner directly, register shutdown cleanup and

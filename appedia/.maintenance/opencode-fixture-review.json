@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "changes": [],
+  "files": [
+    {
+      "file": "tests/e2e/capture_test.go",
+      "status": "added"
+    },
+    {
+      "file": "tests/e2e/environment_test.go",
+      "status": "changed"
+    },
+    {
+      "file": "tests/e2e/native_agent_test.go",
+      "status": "changed"
+    },
+    {
+      "file": "tests/e2e/opencode_test.go",
+      "status": "added"
+    },
+    {
+      "file": "tests/e2e/README.md",
+      "status": "changed"
+    }
+  ],
+  "items": [
+    {
+      "id": "test-feature:terminal-journeys",
+      "reasons": [
+        "source file added: tests/e2e/capture_test.go",
+        "source file added: tests/e2e/opencode_test.go",
+        "source file changed: tests/e2e/README.md",
+        "source file changed: tests/e2e/environment_test.go",
+        "source file changed: tests/e2e/native_agent_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reviewed current E2E code and captured result: supported credential transfer with equality checks, isolated service port, OpenRouter Free Models Router, explicit native-ID/MCP instructions, capture preflight/fonts and correct direct-process exit checks. Fresh source/ordinary results match the native endpoint. The run failed at registration without tool execution; the native scenario stays partial and supersedes the old quota explanation."
+    },
+    {
+      "id": "test-scenario:terminal-journeys/native-agent",
+      "reasons": [
+        "source file added: tests/e2e/capture_test.go",
+        "source file added: tests/e2e/opencode_test.go",
+        "source file changed: tests/e2e/README.md",
+        "source file changed: tests/e2e/environment_test.go",
+        "source file changed: tests/e2e/native_agent_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reviewed current E2E code and captured result: supported credential transfer with equality checks, isolated service port, OpenRouter Free Models Router, explicit native-ID/MCP instructions, capture preflight/fonts and correct direct-process exit checks. Fresh source/ordinary results match the native endpoint. The run failed at registration without tool execution; the native scenario stays partial and supersedes the old quota explanation."
+    },
+    {
+      "id": "content",
+      "reasons": [
+        "appedia content changed since the accepted baseline"
+      ],
+      "disposition": "updated",
+      "note": "Reviewed current E2E code and captured result: supported credential transfer with equality checks, isolated service port, OpenRouter Free Models Router, explicit native-ID/MCP instructions, capture preflight/fonts and correct direct-process exit checks. Fresh source/ordinary results match the native endpoint. The run failed at registration without tool execution; the native scenario stays partial and supersedes the old quota explanation."
+    }
+  ]
+}

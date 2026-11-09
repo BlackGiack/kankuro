@@ -1,0 +1,353 @@
+{
+  "reviewedAt": "2026-11-08",
+  "scope": "Completion of all 22 formerly deferred scenarios plus direct registration/resume/attachment and settings layout boundaries.",
+  "endpointFingerprint": "ecc0917913d5467aa5a9754824be6e94e1e92b87eec70a5529f7d3c81a88de11",
+  "assessmentCounts": {
+    "tested": 54,
+    "not-found": 2,
+    "partial": 7
+  },
+  "reviews": [
+    {
+      "id": "terminal-journeys/native-agent",
+      "status": "not-found",
+      "conclusion": "No project-owned test was found that drives the complete terminal journey against an installed Codex/Claude CLI.",
+      "limit": "Searched all Go test/support files, build tags, mcp-cli/native-resume fixtures, attachment code and repository test tooling. Related evidence uses shell/cat processes, captured drivers or manager attachment handles. No complete installed-agent journey, raw Ctrl+K restoration assertion or UI capture/baseline was found.",
+      "evidence": [
+        "m-c-p-c-l-i-registers-conversation-for-live-activation",
+        "claude-resume-lifecycle-uses-selected-native-i-d",
+        "session-attach-replay"
+      ],
+      "suggestion": "Add an explicit project-owned terminal E2E test using isolated HOME/config/workspaces and an installed agent; assert launch, registration, attach/detach restoration and selected native resume.",
+      "reason": "External CLI behavior and terminal mode restoration cannot be established by fake Spawn or manager-handle tests."
+    },
+    {
+      "id": "terminal-journeys/registration-fixture",
+      "status": "tested",
+      "conclusion": "The shell-agent interoperability test exercises the deployed endpoint/credential and report persistence/retry through an installed mcp-cli.",
+      "limit": "Shell/cat agent rather than Codex/Claude; does not establish native agent task execution.",
+      "evidence": [
+        "m-c-p-c-l-i-registers-conversation-for-live-activation"
+      ],
+      "suggestion": null,
+      "reason": null
+    },
+    {
+      "id": "terminal-journeys/resume-driver",
+      "status": "tested",
+      "conclusion": "Capture-driver assertions cover explicit saved/new choices and per-card IDs while retaining the original workspace.",
+      "limit": "Spawn is overridden; these are actual manager lifecycle and argument assertions, not a native CLI run.",
+      "evidence": [
+        "claude-resume-lifecycle-uses-selected-native-i-d"
+      ],
+      "suggestion": null,
+      "reason": null
+    },
+    {
+      "id": "terminal-journeys/attachment-handle",
+      "status": "tested",
+      "conclusion": "Real cat attachment replays the exact input bytes after closing and reopening the handle.",
+      "limit": "Does not exercise attachExec terminal mode, Ctrl+K or SIGWINCH.",
+      "evidence": [
+        "session-attach-replay"
+      ],
+      "suggestion": null,
+      "reason": null
+    },
+    {
+      "id": "workspace-commands/ide",
+      "status": "partial",
+      "conclusion": "The o key targets the selected session; shared command execution validates cwd and argument substitution.",
+      "limit": "No retained test drives a successful o command through the coordinator and asserts the actual IDE child cwd/argv. The real child test covers the common launcher, and the IDE callback is directly tested for missing configuration.",
+      "evidence": [
+        "dashboard_-launch-terminal-routing",
+        "launch-workspace-command-executes-in-workspace",
+        "terminal-launch-reports-configuration-and-lookup-errors"
+      ],
+      "suggestion": "Drive o with an isolated helper executable configured as IDECommand and assert the child cwd/argv and scoped completion.",
+      "reason": "Terminal and IDE settings are independent; shared-launcher coverage does not prove successful IDE wiring.",
+      "previousId": "remaining-flows/ide"
+    },
+    {
+      "id": "application-settings/settings",
+      "status": "partial",
+      "conclusion": "Retained tests establish edited callback payloads and exact repository round trips; successful SettingsSavedMsg application is exercised by terminal launch tests.",
+      "limit": "No direct retained assertion links a save key through the real settings callback, durable YAML, refreshed editor visibility and return navigation as one journey; no genuine failed settings save is asserted.",
+      "evidence": [
+        "settings-view_-save-in-edit-mode",
+        "settings-view_-terminal-command-focus-save-and-cancel",
+        "settings-view_-toggle-rows",
+        "app-settings-persistence",
+        "terminal-launch-through-dashboard"
+      ],
+      "suggestion": "Exercise the settings callback through save completion, assert persisted values/editor visibility/navigation, then inject a real save failure and assert the error path.",
+      "reason": "The reported error test never executes its error command; failed persistence must not look like a successful save.",
+      "previousId": "remaining-flows/settings"
+    },
+    {
+      "id": "registry-refresh/workspace-sources",
+      "status": "partial",
+      "conclusion": "Repository callbacks preserve workspace-source identity and reject malformed registry mutations. Search reviewed: internal/ui/views/{card_editor*,workspace_picker*,source_manager*}_test.go and internal/app/{navigation,integration,source_save,source_sync_warning}_test.go; Ctrl+E/OnOpenWorkspaces call sites.",
+      "limit": "Searched editor/navigation/source tests: no direct assertion of Ctrl+E from both Workspace/Sub Workspaces, source edit, Esc return and preservation of the unsaved card was found.",
+      "evidence": [
+        "workspace-source-i-d-assigned-and-preserved-on-edit",
+        "save-workspace-source-aborts-on-malformed-registry",
+        "delete-workspace-source-aborts-on-malformed-registry"
+      ],
+      "suggestion": "Drive Ctrl+E from each workspace field, save a source, return with Esc and compare the unsaved card/focus.",
+      "reason": "Cross-view refresh can overwrite unsaved editor state even when repository callbacks work.",
+      "previousId": "remaining-flows/workspace-sources"
+    },
+    {
+      "id": "card-editor/skill-filter",
+      "status": "partial",
+      "conclusion": "The retained regression verifies selected-only filtering/cursor behavior across a registry refresh and toggles the visible selection.",
+      "limit": "No direct Ctrl+S assertion, selected-only header assertion or selected-only/search/save round trip was found in editor and capability-list tests.",
+      "evidence": [
+        "selected-only-skill-cursor-normalizes-after-registry-refresh"
+      ],
+      "suggestion": "Send Ctrl+S on Skills and outside Skills; check header, search subset, saved selections and second-toggle restoration.",
+      "reason": "SetSelectedOnly coverage alone cannot detect a broken keyboard binding.",
+      "previousId": "remaining-flows/skill-filter"
+    },
+    {
+      "id": "card-editor/temporary-toggle",
+      "status": "not-found",
+      "conclusion": "No direct test was found that focuses Use Tmp Workspace, sends Space and asserts false\u2192true\u2192false plus the saved value. Search reviewed: all 134 Go test/support files, especially card_editor_test.go/layout/setsize, capability-list tests and temporary-workspace lifecycle fixtures; CardEditor.handleKey/handleSpace/Card traced.",
+      "limit": "Repository-wide Test/fixture search reviewed FocusUseTmp, useTmpWorkspace, UseTmpWorkspace and key handling. Existing round-trip/lifecycle tests seed this boolean directly; they establish preservation or workspace behavior, not this input action.",
+      "evidence": [],
+      "suggestion": "Add a model-level key test that focuses Use Tmp Workspace, checks both Space transitions and submits the expected card flag.",
+      "reason": "A broken toggle can launch into an original workspace when the user intended an isolated copy.",
+      "previousId": "remaining-flows/temporary-toggle"
+    },
+    {
+      "id": "workspace-selection/sub-picker",
+      "status": "tested",
+      "conclusion": "The keyboard-level view test covers multiple checks across searches, unresolved entries, cancel/confirm and returning to single-selection main mode.",
+      "limit": "Form callback payload and view text only; source copying is a separate runtime flow.",
+      "evidence": [
+        "sub-workspace-picker-multiple-unresolved-and-main-modes"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/sub-picker"
+    },
+    {
+      "id": "workspace-selection/picker-refresh",
+      "status": "tested",
+      "conclusion": "The editor/picker regression directly checks missing rows, cancellation, explicit deselection and retaining a checked ID absent at confirmation.",
+      "limit": "Controlled DataLoadedMsg refreshes in the model; no screenshot or source-registry race claim.",
+      "evidence": [
+        "sub-workspace-new-selection-survives-registry-refresh"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/picker-refresh"
+    },
+    {
+      "id": "workspace-commands/terminal",
+      "status": "tested",
+      "conclusion": "A coordinator key journey launches a real helper child in the temporary session workspace and checks its arguments and successful scoped completion.",
+      "limit": "The child is a test executable, not a graphical terminal emulator; only one configured command template is exercised here.",
+      "evidence": [
+        "terminal-launch-through-dashboard",
+        "dashboard_-launch-terminal-routing",
+        "launch-workspace-command-executes-in-workspace"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/terminal"
+    },
+    {
+      "id": "workspace-commands/workspace-command-errors",
+      "status": "tested",
+      "conclusion": "Tests check command/path failures and delivery of a spawn failure to the coordinator error banner.",
+      "limit": "Checks the listed API/callback cases and banner presence; not exact error copy or external app startup errors after exec succeeds.",
+      "evidence": [
+        "terminal-launch-reports-configuration-and-lookup-errors",
+        "launch-workspace-command-errors"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/workspace-command-errors"
+    },
+    {
+      "id": "application-settings/settings-edit",
+      "status": "tested",
+      "conclusion": "View-level assertions cover field focus, independent text, trimming on save and restoration on cancel.",
+      "limit": "Tests use in-memory callbacks; durable saving is assessed separately.",
+      "evidence": [
+        "settings-view_-terminal-command-focus-save-and-cancel",
+        "settings-view_-save-in-edit-mode",
+        "settings-view_-toggle-rows"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/settings-edit"
+    },
+    {
+      "id": "activation-readiness/readiness",
+      "status": "tested",
+      "conclusion": "Manager tests separately assert immediate attachment, delayed delivery, registration independence and inspection snapshot preservation.",
+      "limit": "Controlled startup timers and local processes; delivery eligibility still does not prove an AI agent can process a task.",
+      "evidence": [
+        "activation-published-before-startup-delay",
+        "startup-admission-and-registration-are-independent",
+        "inspection-conversion-preserves-activation-snapshot"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/readiness"
+    },
+    {
+      "id": "dashboard-control/control",
+      "status": "tested",
+      "conclusion": "Retained service and real-HTTP tests assert controller authority, registration-only denial, scoped listings and idempotent scoped creation.",
+      "limit": "HTTP test directly covers list_sessions; the broader lifecycle authorization checks use the shared service. No arbitrary credential fuzzing.",
+      "evidence": [
+        "dashboard-scope-over-h-t-t-p",
+        "operation-runner-creates-once-and-replays-request",
+        "unauthenticated-discovery-is-denied"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/control"
+    },
+    {
+      "id": "durable-operations/operations",
+      "status": "tested",
+      "conclusion": "Assertions cover concurrent duplicate requests, conflicting fingerprints, bounded queues, disconnected waits, late cancellation, post-effect journal warnings and interrupted/corrupt recovery.",
+      "limit": "Controlled local runner/real cat fixtures and constructed durable records; no OS crash or exhaustive scheduling proof.",
+      "evidence": [
+        "operation-runner-creates-once-and-replays-request",
+        "final-journal-write-failure-returns-outcome-and-recovers-interrupted",
+        "operation-queue-bound-and-disconnected-wait-return-promptly",
+        "operation-journal-recovers-interrupted-and-fails-closed-on-corruption"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/operations"
+    },
+    {
+      "id": "task-messaging/send",
+      "status": "tested",
+      "conclusion": "Retained tests assert activation-pinned submission, replay conflict behavior, journal rollback and capacity recovery without leaked admission.",
+      "limit": "Submission/history invariants under local fixtures; no AI-agent task-processing or external client UX claim.",
+      "evidence": [
+        "messaging-operations-pin-activations-and-persist-explicit-reports",
+        "ordinary-message-journal-rejection-rolls-back-history-and-retries",
+        "ordinary-message-queue-rejection-releases-reservation-and-preserves-replay"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/send"
+    },
+    {
+      "id": "session-actions/stop-delete",
+      "status": "tested",
+      "conclusion": "The service lifecycle test asserts stop/switch/relaunch/delete and stable replay; removal tests check running guards/temp cleanup and messaging tests check recipient history deletion.",
+      "limit": "Local cat processes; no proof every descendant process group is killed. UI confirmations are a separate interaction boundary.",
+      "evidence": [
+        "operation-runner-creates-once-and-replays-request",
+        "service-remove-session-delegates-guards-cleanup-and-manager-errors",
+        "messaging-operations-pin-activations-and-persist-explicit-reports"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/stop-delete"
+    },
+    {
+      "id": "protocol-skills/skills",
+      "status": "tested",
+      "conclusion": "Capability assertions cover conditional/deduplicated access+puppet selection; root tests compare actual deployed bytes with the embedded content.",
+      "limit": "Embedded file/selection contract only. No end-to-end assertion that an AI agent follows registration/report instructions.",
+      "evidence": [
+        "resolve-capabilities-adds-m-c-p-access-skill-only-when-kankuro-m-c-p-selected",
+        "embedded-m-c-p-c-l-i-skill-deploys-through-config",
+        "embedded-kankuro-puppet-skill-deploys-through-config"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/skills"
+    },
+    {
+      "id": "dashboard-management/dashboard-details",
+      "status": "partial",
+      "conclusion": "The create form validates name and callback payload; the service test checks create/update inventory equality and immutable identity.",
+      "limit": "No direct retained assertion was found for e-driven edit form, selection preservation across SetDashboards reorder, or the whole callback/generation/save-refresh journey.",
+      "evidence": [
+        "dashboard-list-creates-named-dashboard",
+        "dashboard-details-through-service"
+      ],
+      "suggestion": "Select a dashboard, edit with e, save and reorder/refresh inventory; assert name/description, immutable selected ID and scoped completion.",
+      "reason": "Name sorting changes can move the cursor to a different dashboard even when saved IDs remain valid.",
+      "previousId": "remaining-flows/dashboard-details"
+    },
+    {
+      "id": "session-actions/manual-session",
+      "status": "partial",
+      "conclusion": "Manager/service tests assert attachment replay, remove guards/cleanup and naming failure; the launcher checks pending/retry behavior and the command harness drives captured actions.",
+      "limit": "No retained test establishes a complete dashboard-key\u2192scoped-service\u2192persisted rename/stop/remove journey or raw attachExec detach/terminal restoration. Tests of the individual layers do not establish their full composition.",
+      "evidence": [
+        "session-attach-replay",
+        "service-remove-session-delegates-guards-cleanup-and-manager-errors",
+        "session-launcher-waits-for-name-result-and-allows-retry",
+        "set-name-propagates-persist-failure"
+      ],
+      "suggestion": "Drive owned/foreign session actions through coordinator commands, assert persisted name and removal effects, and add a project-owned terminal detach/restoration journey.",
+      "reason": "Scoped asynchronous actions and raw attachment cross ownership and terminal-state boundaries.",
+      "previousId": "remaining-flows/manual-session"
+    },
+    {
+      "id": "deletion-recovery/card-recovery",
+      "status": "tested",
+      "conclusion": "The recovery regression asserts durable failed-cleanup identity survives card edits and restart, then removes only the captured temporary root and clears its error.",
+      "limit": "Controlled copier and permissions; no general filesystem failure or power-loss claim.",
+      "evidence": [
+        "card-deletion-retries-pending-workspace-cleanup-after-restart"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/card-recovery"
+    },
+    {
+      "id": "dashboard-management/list-errors",
+      "status": "tested",
+      "conclusion": "Direct view assertions cover sanitized bounded preflight/status errors, cancellation/success clearing and long errors when no dashboards remain.",
+      "limit": "Layout and injected message interaction only; deletion effects are assessed separately.",
+      "evidence": [
+        "dashboard-list-shows-deletion-preparation-and-status-errors",
+        "dashboard-list-bounds-long-deletion-error-when-list-becomes-empty"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/list-errors"
+    },
+    {
+      "id": "notification-retries/notification-cancel",
+      "status": "partial",
+      "conclusion": "Queued notification cancellation asserts no terminal submission and released lifecycle reservation; deletion revokes saved authority and ordinary delivery shutdown is deadline-checked.",
+      "limit": "The notification case cancels captured authority directly. No dedicated retained assertion was found that runner.Shutdown itself cancels a notification queued or blocked at the PTY boundary and joins its dispatcher.",
+      "evidence": [
+        "queued-delivery-cancellation-releases-reservation-without-submitting",
+        "deleting-report-history-cancels-admitted-notification",
+        "queued-message-reservations-cannot-deadlock-stop-workers-or-shutdown"
+      ],
+      "suggestion": "Queue a real notification, call runner.Shutdown while it is gated, then assert dispatcher/workers finish, no bytes are written and the destination reservation is released.",
+      "reason": "Shutdown must not leave queued notification work or block application exit.",
+      "previousId": "remaining-flows/notification-cancel"
+    },
+    {
+      "id": "application-settings/settings-layout",
+      "status": "tested",
+      "conclusion": "Direct layout assertions cover display/edit modes, sanitized text, visible controls/help and width/height limits.",
+      "limit": "Two tested view sizes; no screenshot comparison or native terminal font guarantee.",
+      "evidence": [
+        "settings-view_-long-commands-stay-within-size"
+      ],
+      "suggestion": null,
+      "reason": null,
+      "previousId": "remaining-flows/settings-layout"
+    }
+  ]
+}

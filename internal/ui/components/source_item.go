@@ -56,14 +56,3 @@ func ToWorkspaceItems(sources []config.WorkspaceSource) []SourceItem {
 	}
 	return items
 }
-
-// FromSimpleItems extracts strings from SimpleSourceItem slice.
-func FromSimpleItems(items []SourceItem) []string {
-	sources := make([]string, 0, len(items))
-	for _, item := range items {
-		if s, ok := item.(SimpleSourceItem); ok {
-			sources = append(sources, string(s))
-		}
-	}
-	return sources
-}

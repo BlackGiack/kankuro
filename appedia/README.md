@@ -1,87 +1,67 @@
 # KANKURO appedia
 
-Open **index.html** directly in a browser; no server is needed. The site falls
-back to system fonts when offline.
+Open [index.html](index.html) directly in a browser. No server is needed.
 
-Updated against commit `60e5808` on 2026-11-07. The site covers 18 application
-packages, 55 flows, 28 rules and 31 common-change entry points.
+Refreshed 2026-11-09 against the current working tree. Covers 18 packages,
+55 flows, 28 rules and 31 common-change tasks. The Tests tab has 28 features,
+69 scenarios and 94 reviewed evidence records: 61 tested and
+8 partial. These are scoped assertion assessments, not a
+functional completeness percentage.
 
-It describes dashboard ownership and sharing, scoped UI and MCP operations,
-immutable session membership, durable deletion recovery, safe navigation and
-configuration startup through `internal/configstartup`. Messaging now includes
-automatic orchestrator wake-ups for completed, blocked and question reports,
-silent progress, shared delivery admission, exact-activation authorization,
-retry scheduling, byte evidence and notification recovery.
+All 29 cleanup findings and additional dead helpers remain resolved; see
+[the audit dispositions](../tests_to_remove.md). Temporary-workspace Space/save
+has direct Go regression coverage. Repaired tests and neighboring sources are
+published with current hashes; the historical audit filter is unused.
 
-The current create-appedia skill was reloaded from its installed `SKILL.md`;
-the refresh regenerated the model, diagrams and source associations. Appediff
-sites under `tmp/` remain separate change reviews.
+The native fixture transfers and verifies current OpenCode credentials through
+supported auth export/import, excludes service configuration and uses its own
+loopback port. User conversations are not copied. The selected model is
+OpenRouter's Free Models Router, openrouter/openrouter/free. The run launched and attached with the requested model, but no conversation binding was saved within the four-minute registration wait. Detach/restoration and resume were not reached.
 
-## Dependencies
+The old Big Pickle quota screen came from incomplete fixture setup and does not
+describe the user's configured environment. Current captures and the actual run
+record replace that snapshot. The screenshot preflight passes with the installed
+Noto Sans Symbols2 fallback and writes only a temporary probe.
 
-The Dependencies tab shows the 12 direct Go dependencies, selected versions,
-latest known releases and comparison status. Versions were queried through
-Go's package manager on 2026-11-07; the snapshot is embedded in `data/model.js`
-so it works offline. Latest does not imply compatibility, and collection does
-not install or update project dependencies.
+Ordinary-suite atomic coverage passed: 7,897 / 10,760 statements
+(73.4%), excluding E2E-tagged tests. The profile and separate
+native run match the current source fingerprint. Dependencies lists 12 direct
+Go declarations with versions queried through Go's package manager.
 
-Prepare now collects this snapshot automatically. To refresh only dependencies
-and rebuild the existing extracted model, run from the repository root:
+## Explicit terminal tests
 
-```bash
-python3 .agents/skills/create-appedia/scripts/dependencies.py \
-  --root . --lang go --out appedia/.maintenance/pending/dependencies.json \
-  --exclude kankuro_skills/create-appedia,kankuro_skills/create-appediff,tmp,appedia,.agents,.kankuro
-node .agents/skills/create-appedia/scripts/appedia.mjs --action rebuild --repo .
-```
+Every E2E Go source carries //go:build e2e. Ordinary tests and normal
+Appedia/Appediff collection do not launch agents or create screenshots.
 
-## Editing and refreshing
+    go test -tags=e2e ./tests/e2e -run '^TestNativeAgentJourney$' -count=1 -timeout=10m -v
 
-Edit `data/content.js` for explanations, flows, rules, tasks and the glossary.
-Models, diagrams and `data/content-index.json` are generated. Refresh impact
-reviews also require dispositions and reasons in the pending `impact.json`.
+See [the E2E instructions](../tests/e2e/README.md) for configuration, model, timeouts,
+fonts and artifact paths. Each explicit run replaces only known filenames;
+missing checkpoints remain missing. No image-baseline comparison is claimed.
 
-This refresh used the installed skill at `.agents/skills/create-appedia`, Node,
-Go and Graphviz. The skill directory is ignored by git; install the same skill
-in another checkout. From the repository root:
+## Reproducing a refresh
 
-```bash
-appedia_skill_dir=.agents/skills/create-appedia
-node "$appedia_skill_dir/scripts/appedia.mjs" --action prepare --repo . --lang go \
-  --exclude kankuro_skills/create-appedia,kankuro_skills/create-appediff,tmp,appedia,.agents,.kankuro
-```
+Edit data/content.js for explanations and assessments. Models, diagrams, source
+inventory and content index are generated. Requirements: Go 1.27.3, Node 18+,
+Python 3.9+, Graphviz, and jsdom for smoke checks.
 
-Review `.maintenance/pending/impact.md`, update `data/content.js`, and record
-every impact item's disposition and reason. Then rebuild:
+From the repository root:
 
-```bash
-node "$appedia_skill_dir/scripts/appedia.mjs" --action rebuild --repo .
-```
+    appedia_skill_dir=.agents/skills/create-appedia
+    appedia_exclusions=kankuro_skills/create-appedia,kankuro_skills/create-appediff,tmp,appedia,.agents,.kankuro
 
-Rebuild validates references and regenerates the site. This update reviewed all
-367 impact items. The previous accepted maintenance baseline is preserved;
-the reviewed candidate is retained in `.maintenance/pending/`.
+    python3 "$appedia_skill_dir/scripts/test-evidence.py" --root . --exclude "$appedia_exclusions" --revision WORKTREE --run-go-coverage --file tests/e2e/artifacts/native-agent/result.json --file tests/e2e/artifacts/native-agent/launched.png --file tests/e2e/artifacts/native-agent/failure.png --out /tmp/kankuro-router-evidence.json
+    node "$appedia_skill_dir/scripts/appedia.mjs" --action prepare --repo . --lang go --exclude "$appedia_exclusions"
+    node "$appedia_skill_dir/scripts/appedia.mjs" --action rebuild --repo . --test-evidence /tmp/kankuro-router-evidence.json
+    node "$appedia_skill_dir/scripts/appedia.mjs" --action finalize --repo . --jsdom /tmp/appedia-smoke --test-evidence /tmp/kankuro-router-evidence.json
 
-For a future update where an exhaustive route check is wanted, finalization
-runs that check before accepting the candidate as the maintenance baseline:
+Collect only artifacts produced by that explicit run. Prepare does not execute
+tests. Review every pending impact item before finalize. The explicit coverage
+flag executes the ordinary suite. For read-only collection, omit it and leave
+coverage uncollected or import a profile with its real metadata and matching
+fingerprint. This refresh imported its freshly executed ordinary profile and
+then collected existing terminal artifacts, without executing E2E again.
 
-```bash
-npm install --prefix /tmp/appedia-smoke jsdom@24
-node "$appedia_skill_dir/scripts/appedia.mjs" --action finalize --repo . \
-  --jsdom /tmp/appedia-smoke
-```
-
-## Verification
-
-Build and reference validation passed. All 1,491 source symbols agree with the
-fresh extraction and working tree. The focused navigation check covers 143
-routes, including every flow entry, the updated messaging steps, key code and
-isolated type views and dependency-table navigation/data checks. Sixteen
-light/dark Chrome captures were generated and
-representative map, package, code, isolated and flow views were inspected.
-See [VERIFICATION.md](VERIFICATION.md).
-
-The exhaustive smoke test was not rerun, following the user's earlier request
-to stop it. The accepted baseline remains intact; finalization and baseline
-acceptance are not claimed. All 367 pending impact items have reviewed
-reasons and dispositions. No application code or git index was changed.
+Appediff accepts the same source-bound snapshot through --test-evidence.
+See [VERIFICATION.md](VERIFICATION.md) for actual outcomes and limits.
+Prior audit/cleanup review artifacts remain as history. Nothing was committed.

@@ -1043,25 +1043,6 @@ func copyPersonaFile(source, dest string) error {
 	return nil
 }
 
-// SanitizeWorkingDir resolves and validates the session working directory.
-func SanitizeWorkingDir(path string) (string, error) {
-	if path == "" {
-		return "", errors.New("working directory is required")
-	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return "", err
-	}
-	st, errStat := os.Stat(abs)
-	if errStat != nil {
-		return "", errStat
-	}
-	if !st.IsDir() {
-		return "", fmt.Errorf("not a directory: %s", abs)
-	}
-	return abs, nil
-}
-
 // IsPromptLike applies a heuristic for "waiting for input" prompts.
 // It returns true if the last line ends with a prompt-like character,
 // or if no "words" (alphanumeric characters) have been received for more than 15 seconds.

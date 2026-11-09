@@ -1,7 +1,6 @@
 package views_test
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
@@ -272,23 +271,6 @@ func TestSettingsView_View_EditMode(t *testing.T) {
 	}
 	if !strings.Contains(view, "Show Personas In Card Editor") {
 		t.Error("should show personas toggle")
-	}
-}
-
-func TestSettingsView_OnSaveError(t *testing.T) {
-	v := views.NewSettingsView(views.SettingsCallbacks{
-		OnSave: func(_ config.AppSettings) tea.Cmd {
-			return func() tea.Msg { return messages.ErrorMsg{Err: errors.New("save failed")} }
-		},
-	})
-	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	v.Input().SetValue("test")
-
-	model, _ := v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	v = model.(*views.SettingsView)
-
-	if v.Mode() != views.SettingsModeDisplay {
-		t.Error("should return to display mode even on error")
 	}
 }
 

@@ -870,10 +870,10 @@
         "api.Service.CheckSessionInDashboard",
         "app.Coordinator",
         "app.Coordinator.handleSessionMessages",
-        "app.Coordinator.handleSpecialMessages",
         "app.Coordinator.launchIDE",
         "app.sessionActions",
         "app.sessionActions.launchIDE",
+        "app.sessionActions.launchWorkspace",
         "app.sessionActions.launchWorkspaceCommand",
         "session.LaunchWorkspaceCommand",
         "session.SplitCommand",
@@ -884,9 +884,9 @@
       "directRefs": [
         "api.Service.CheckSessionInDashboard",
         "app.Coordinator.handleSessionMessages",
-        "app.Coordinator.handleSpecialMessages",
         "app.Coordinator.launchIDE",
         "app.sessionActions.launchIDE",
+        "app.sessionActions.launchWorkspace",
         "app.sessionActions.launchWorkspaceCommand",
         "session.LaunchWorkspaceCommand",
         "views.Dashboard.handleKey",
@@ -911,7 +911,7 @@
         "internal/session/workspace_launcher.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "a7ead0e835448a51a041d4af92e8b8c1dc726012c42a55dea5e5d7317d461ac4"
+      "digest": "d0d9c21796572aa5059c005286d3e4aab2a095df7e3bb087c17c487fb865b13f"
     },
     {
       "kind": "flow",
@@ -3605,7 +3605,7 @@
         "internal/ascii/options.go",
         "internal/ascii/shape.go"
       ],
-      "digest": "4d68f8522dcef9ee07f85e8cfb152f3e22911327ab7e25e3ef147ef2ecb99d6b"
+      "digest": "c98ed1291cd1f90520d5fa29855b26ad141016e855104540b7280892d100a070"
     },
     {
       "kind": "package",
@@ -3623,7 +3623,7 @@
         "internal/ascii/characters/puppet.go",
         "internal/ascii/characters/text_puppet.go"
       ],
-      "digest": "9df5bcf76afb6aadc9b15a98301a0920f3e602a71226b5f75d800c2007ac9e62"
+      "digest": "d84c66e8906e77baac7ec6a2ffa38e863d9dbc1f434c622891a3ddda17369ece"
     },
     {
       "kind": "package",
@@ -3910,12 +3910,11 @@
       ],
       "files": [
         "internal/driver/driver.go",
-        "internal/driver/factory.go",
         "internal/driver/mcp_config.go",
         "internal/driver/registry.go",
         "internal/driver/trust.go"
       ],
-      "digest": "c07bf670e5482ee424a46b1b366dfc7f6768167ad4c84915a245e83619f14da9"
+      "digest": "d1e35cfb7b56d6359c7809cf4113bc3c70676b581a1ca5bb32086cb164248c16"
     },
     {
       "kind": "package",
@@ -5501,7 +5500,2412 @@
         "internal/ui/components/text.go"
       ],
       "digest": "5dba625e983465423e8c2f3de67b9f68ed98aa3951277334ead2259450baf16e"
+    },
+    {
+      "kind": "test-feature",
+      "id": "activation-readiness",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/inspection_runtime_test.go",
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/integration_test.go",
+        "internal/driver/driver.go",
+        "internal/session/attach.go",
+        "internal/session/card_references.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/startup_boundary_test.go",
+        "internal/session/startup_integration_test.go",
+        "internal/session/workspace.go",
+        "internal/ui/views/session_launcher.go"
+      ],
+      "digest": "5b706327a70d21432b7fad463122cf435131f9abb790eb9bc05305e1db318109"
+    },
+    {
+      "kind": "test-feature",
+      "id": "application-settings",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/app/settings_error_test.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/config/app_settings_test.go",
+        "internal/config/repository.go",
+        "internal/config/types.go",
+        "internal/ui/components/text.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/settings.go",
+        "internal/ui/views/settings_test.go"
+      ],
+      "digest": "82c546fccd39b91f50b63e2bb7b2fb6268447d900477f06e5ed5c346d1b067db"
+    },
+    {
+      "kind": "test-feature",
+      "id": "automatic-wakeups",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/messaging_review_test.go",
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/driver/driver.go",
+        "internal/driver/driver_test.go",
+        "internal/mcp/server.go",
+        "internal/mcp/server_test.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go",
+        "internal/session/messaging_review_test.go",
+        "internal/session/messaging_test.go",
+        "kankuro_skills/kankuro-puppet/SKILL.md"
+      ],
+      "digest": "3794e55ecc7034ea95fb9622cf989a5dee9762b26974cbbb13fb61186054f798"
+    },
+    {
+      "kind": "test-feature",
+      "id": "card-editor",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/config/id_cards.go",
+        "internal/config/repository.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/ui/components/capability_list.go",
+        "internal/ui/components/filter.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "b1952de9553a54017ff89848ce9d591d6f8af382a8d101b19ecc8203168e96be"
+    },
+    {
+      "kind": "test-feature",
+      "id": "configuration-startup",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/app/app.go",
+        "internal/app/coordinator.go",
+        "internal/config/repository.go",
+        "internal/config/skill_sources.go",
+        "internal/configstartup/json.go",
+        "internal/configstartup/lock.go",
+        "internal/configstartup/startup.go",
+        "internal/configstartup/startup_test.go",
+        "internal/configstartup/validate.go",
+        "internal/configstartup/validate_test.go",
+        "internal/mcp/server.go",
+        "internal/session/manager.go",
+        "main.go"
+      ],
+      "digest": "fd78c6809a1bbd834d63d9beb7aa5e0c7096741f2d960e05677f0d5d2fa2d341"
+    },
+    {
+      "kind": "test-feature",
+      "id": "conversation-choice",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go",
+        "internal/ui/views/conversation_choice_test.go"
+      ],
+      "digest": "6b62101ab92cd4e17294215942a4cb7411aa731d139e076eec8027f2397af138"
+    },
+    {
+      "kind": "test-feature",
+      "id": "dashboard-context",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/attach.go",
+        "internal/app/coordinator.go",
+        "internal/app/dashboard_list.go",
+        "internal/app/handlers.go",
+        "internal/app/multi_dashboard_internal_test.go",
+        "internal/app/navigation.go",
+        "internal/app/preview.go",
+        "internal/app/refresh.go",
+        "internal/app/refresh_cadence_internal_test.go",
+        "internal/app/scoped_refresh.go",
+        "internal/app/size_guard.go",
+        "internal/config/storage.go",
+        "internal/session/attach.go",
+        "internal/session/manager.go",
+        "internal/session/storage.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_list.go"
+      ],
+      "digest": "4e382a3934eacd65bb15e7107d2b140634ce2a53f668e16cf51cdacc7715ea6e"
+    },
+    {
+      "kind": "test-feature",
+      "id": "dashboard-control",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/mcp/dashboard_scope_test.go",
+        "internal/mcp/server.go",
+        "internal/session/conversation.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "2083d14c5e966398d6e86afd6561b5e6c64692feec3b893cb5717acec8d789cc"
+    },
+    {
+      "kind": "test-feature",
+      "id": "dashboard-management",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/dashboard_deletion.go",
+        "internal/api/membership.go",
+        "internal/api/membership_internal_test.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/app/dashboard_list.go",
+        "internal/config/dashboards.go",
+        "internal/config/repository.go",
+        "internal/ui/views/dashboard_list.go",
+        "internal/ui/views/dashboard_list_test.go"
+      ],
+      "digest": "dd302fb8811465823cccf8c57052c712c2d1b0a709be35ba5b4ab341ff9d2ace"
+    },
+    {
+      "kind": "test-feature",
+      "id": "dashboard-ownership",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_confirmation.go",
+        "internal/api/membership.go",
+        "internal/api/membership_internal_test.go",
+        "internal/api/persisted_scope.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/config/card_tombstones.go",
+        "internal/config/id_cards.go",
+        "internal/config/repository.go",
+        "internal/driver/driver.go",
+        "internal/mcp/server.go",
+        "internal/session/card_references.go",
+        "internal/session/conversation.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/storage.go",
+        "internal/session/workspace.go",
+        "internal/ui/components/card_list.go",
+        "internal/ui/components/filter.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go"
+      ],
+      "digest": "2343c9eba6cdd1d2080f222152d07252df33c9aafa2ccc84fd21af7db6cf6c64"
+    },
+    {
+      "kind": "test-feature",
+      "id": "deletion-recovery",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_cleanup_internal_test.go",
+        "internal/api/card_confirmation.go",
+        "internal/api/dashboard_confirmation.go",
+        "internal/api/dashboard_deletion.go",
+        "internal/api/dashboard_deletion_internal_test.go",
+        "internal/api/membership_internal_test.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/app/dashboard_list.go",
+        "internal/config/card_tombstones.go",
+        "internal/config/dashboard_deletions.go",
+        "internal/config/dashboard_tombstones.go",
+        "internal/config/repository.go",
+        "internal/session/card_references.go",
+        "internal/session/dashboard_admission.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go",
+        "internal/session/residual_cleanup.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_list.go"
+      ],
+      "digest": "0be42b033479c568ea885c68c2f9da0cf2bc9ffc34061f74bd0b2e0bb6aa1272"
+    },
+    {
+      "kind": "test-feature",
+      "id": "durable-operations",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "1585575fecb9a8e73cfb81b98197f0de6c99e1fe456110bf3eb56eb59df949fa"
+    },
+    {
+      "kind": "test-feature",
+      "id": "mcp-form",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/views/mcp_form.go",
+        "internal/ui/views/mcp_form_test.go"
+      ],
+      "digest": "f9725c0bd638e672484d96c75a9a3caf508616d07f9fca0672d2735c0abfa622"
+    },
+    {
+      "kind": "test-feature",
+      "id": "minimum-terminal",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/app/dashboard_list.go",
+        "internal/app/dashboard_list_keys_test.go",
+        "internal/app/navigation.go",
+        "internal/app/size_guard.go",
+        "internal/app/size_guard_test.go",
+        "internal/mcp/server.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_layout_test.go",
+        "internal/ui/views/dashboard_list.go",
+        "internal/ui/views/settings.go",
+        "internal/ui/views/settings_test.go",
+        "main.go"
+      ],
+      "digest": "a01cd60a47a620322f50838aa7cfc3b7c2f3c8422d7a127a57fab12c5fa9450a"
+    },
+    {
+      "kind": "test-feature",
+      "id": "notification-retries",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/messaging_review_test.go",
+        "internal/api/messaging_shared_delivery_test.go",
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go",
+        "internal/session/storage.go"
+      ],
+      "digest": "13ef47f09e844d77ac780592e4adf9df22baf30d7717e8c3b55076205e874049"
+    },
+    {
+      "kind": "test-feature",
+      "id": "protocol-skills",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/config/builtins.go",
+        "internal/config/repository.go",
+        "internal/driver/driver.go",
+        "main.go",
+        "main_test.go"
+      ],
+      "digest": "083b4f0ecdeec815c73628bd1a4219c3dfd036488af52706a003b12d202e326f"
+    },
+    {
+      "kind": "test-feature",
+      "id": "registry-refresh",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/integration_test.go",
+        "internal/app/navigation.go",
+        "internal/app/preview.go",
+        "internal/app/preview_broadcast_test.go",
+        "internal/app/refresh.go",
+        "internal/app/scoped_refresh.go",
+        "internal/app/source_save_test.go",
+        "internal/app/source_sync_warning_test.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/ascii/canvas_test.go",
+        "internal/config/id_cards.go",
+        "internal/config/refactor_test.go",
+        "internal/config/repository.go",
+        "internal/config/skill_sources.go",
+        "internal/config/workspaces.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/ui/components/filter.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/components/session_preview_integration_test.go",
+        "internal/ui/components/source_list_integration_test.go",
+        "internal/ui/components/source_list_test.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/source_manager.go",
+        "internal/ui/views/source_manager_test.go"
+      ],
+      "digest": "b884f4173133df08a0fe627782705f05fbd2e293c69ac5394f9b62cf0f8d0a3f"
+    },
+    {
+      "kind": "test-feature",
+      "id": "relaunch-mcp",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/driver/mcp_config.go",
+        "internal/session/conversation.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/relaunch_mcp_test.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go"
+      ],
+      "digest": "8c1e3d41f8f74cb53a842125b6447171be74a950869857abb2942acba6a8cb74"
+    },
+    {
+      "kind": "test-feature",
+      "id": "report-intent",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/mcp/server.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go",
+        "internal/session/messaging_review_test.go",
+        "internal/session/messaging_test.go",
+        "internal/session/storage.go",
+        "kankuro_skills/kankuro-puppet/SKILL.md"
+      ],
+      "digest": "2f11c4f0e1789be487204cb1f88800760a3391c5e104b5119c3941d2fbaf0d92"
+    },
+    {
+      "kind": "test-feature",
+      "id": "session-actions",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/app/attach.go",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/driver/driver.go",
+        "internal/session/attach.go",
+        "internal/session/attach_test.go",
+        "internal/session/conversation.go",
+        "internal/session/lifecycle.go",
+        "internal/session/lifecycle_test.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go",
+        "internal/ui/views/session_launcher.go",
+        "internal/ui/views/session_launcher_test.go"
+      ],
+      "digest": "470e2687a4d413f4e5b1a0b2376e679969a5a0f017a56260503c1410cd103551"
+    },
+    {
+      "kind": "test-feature",
+      "id": "session-mapping",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/session/conversation.go",
+        "internal/session/io.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/mapping_internal_test.go",
+        "internal/session/messaging.go",
+        "internal/session/watch.go"
+      ],
+      "digest": "a800d7ce050de871177e5de53209cb456362d27a22d7fafa1aa4597e79e864ed"
+    },
+    {
+      "kind": "test-feature",
+      "id": "shutdown",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/mcp/server.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/shutdown_test.go",
+        "internal/session/sub_workspaces.go",
+        "internal/session/workspace.go",
+        "main.go"
+      ],
+      "digest": "508a74a0a2048179f8e66945f6cd87b0dfaf5ee31b0a62241b1ff01ad67e9e7c"
+    },
+    {
+      "kind": "test-feature",
+      "id": "task-messaging",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/messaging_shared_delivery_test.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "9a28db47b81e130ef56a9c5ab1387a9f761e397f674447943e23b0b1dae21b76"
+    },
+    {
+      "kind": "test-feature",
+      "id": "terminal-journeys",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/attach.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/mcp/server.go",
+        "internal/session/attach.go",
+        "internal/session/attach_test.go",
+        "internal/session/card_references.go",
+        "internal/session/claude_resume_test.go",
+        "internal/session/conversation.go",
+        "internal/session/conversation_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/workspace.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/README.md",
+        "tests/e2e/artifacts/native-agent/failure.png",
+        "tests/e2e/artifacts/native-agent/launched.png",
+        "tests/e2e/capture_test.go",
+        "tests/e2e/environment_test.go",
+        "tests/e2e/native_agent_test.go",
+        "tests/e2e/opencode_test.go",
+        "tests/e2e/provenance_test.go"
+      ],
+      "digest": "6eccfcd4523a0290b7f03c489ed4a3d6a4536b30fdea82ad8fa50f4a975d01a2"
+    },
+    {
+      "kind": "test-feature",
+      "id": "workspace-commands",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/app/callbacks.go",
+        "internal/app/command_race_internal_test.go",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/session/ide_launcher.go",
+        "internal/session/ide_launcher_test.go",
+        "internal/session/manager.go",
+        "internal/session/workspace_launcher.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go"
+      ],
+      "digest": "8604d717e4ad5330c035b0c962c23741bc1ef58af569a312357087efffb77ad1"
+    },
+    {
+      "kind": "test-feature",
+      "id": "workspace-identity",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/sub_workspaces.go",
+        "internal/session/sub_workspaces_inspection_test.go",
+        "internal/session/workspace.go",
+        "internal/session/workspace_validation_test.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go"
+      ],
+      "digest": "5b6b1a8a45edfb5266ae39149228b2c44a4b10299a472a2819df183bb7277f11"
+    },
+    {
+      "kind": "test-feature",
+      "id": "workspace-selection",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/constants.go",
+        "internal/ui/views/workspace_picker_modal.go",
+        "internal/ui/views/workspace_picker_test.go",
+        "kankuro_specs.md",
+        "project.md"
+      ],
+      "digest": "29676dc6c4057b0621e6336a30831707af05372921c38e4afa04a28dfb6a0cfc"
+    },
+    {
+      "kind": "test-feature",
+      "id": "workspace-trust",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/driver/trust.go",
+        "internal/driver/trust_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "c5c00192d5ed33b5209d1c429cce3ced7db07183ca962ecd51815d17d70a2dac"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "activation-readiness/dashboard-launch",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/integration_test.go",
+        "internal/driver/driver.go",
+        "internal/session/card_references.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/workspace.go",
+        "internal/ui/views/session_launcher.go"
+      ],
+      "digest": "a3132151009af363fdaa47e2766110f7afba712d498330946e9a94dce32b681c"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "activation-readiness/readiness",
+      "refs": [
+        "session.Manager.AttachChecked",
+        "session.Manager.activateSessionLocked",
+        "session.Manager.deliveryAvailableLocked",
+        "session.Manager.snapshotLocked",
+        "session.Manager.startStartupLocked"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "session.Manager.AttachChecked",
+        "session.Manager.activateSessionLocked",
+        "session.Manager.deliveryAvailableLocked",
+        "session.Manager.snapshotLocked",
+        "session.Manager.startStartupLocked"
+      ],
+      "files": [
+        "internal/api/inspection_runtime_test.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/session/attach.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/startup_boundary_test.go",
+        "internal/session/startup_integration_test.go"
+      ],
+      "digest": "a9fcca3dd6fb0ea3da0909993c5073aa62c927513e8d8c2747ecc0dda3514588"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "application-settings/settings",
+      "refs": [
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.settingsCallbacks",
+        "config.AppSettings",
+        "config.FileRepository.SaveAppSettings",
+        "views.SettingsView.handleEditEnter"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.settingsCallbacks",
+        "config.AppSettings",
+        "config.FileRepository.SaveAppSettings",
+        "views.SettingsView.handleEditEnter"
+      ],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/app/settings_error_test.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/config/app_settings_test.go",
+        "internal/config/repository.go",
+        "internal/config/types.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/settings.go",
+        "internal/ui/views/settings_test.go"
+      ],
+      "digest": "a322b243c56523c14d3ce2c01c4a9979681879f47ae08573239b4790da3f4411"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "application-settings/settings-edit",
+      "refs": [
+        "views.NewSettingsView",
+        "views.SettingsView.SetSettings",
+        "views.SettingsView.startEdit",
+        "views.SettingsView.syncFocus",
+        "views.SettingsView.updateEdit"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "views.NewSettingsView",
+        "views.SettingsView.SetSettings",
+        "views.SettingsView.startEdit",
+        "views.SettingsView.syncFocus",
+        "views.SettingsView.updateEdit"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/ui/components/text.go",
+        "internal/ui/views/settings.go",
+        "internal/ui/views/settings_test.go"
+      ],
+      "digest": "a6cb63297dbbb0b5eb6b4f7a46b4584806bd74d6322ea8ec356d73b3805eafb3"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "application-settings/settings-layout",
+      "refs": [
+        "views.NewSettingsView",
+        "views.SettingsView.SetSettings",
+        "views.SettingsView.startEdit",
+        "views.SettingsView.syncFocus",
+        "views.SettingsView.updateEdit"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "views.NewSettingsView",
+        "views.SettingsView.SetSettings",
+        "views.SettingsView.startEdit",
+        "views.SettingsView.syncFocus",
+        "views.SettingsView.updateEdit"
+      ],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/config/app_settings_test.go",
+        "internal/config/repository.go",
+        "internal/config/types.go",
+        "internal/ui/components/text.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/settings.go",
+        "internal/ui/views/settings_test.go"
+      ],
+      "digest": "9d9e96f09747f5752fb49f5b7408b6f515494ec701079779fcdb59a4cf9c27fb"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "automatic-wakeups/controller-notified",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/messaging_review_test.go",
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/driver/driver.go",
+        "internal/driver/driver_test.go",
+        "internal/mcp/server.go",
+        "internal/mcp/server_test.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go",
+        "internal/session/messaging_review_test.go",
+        "internal/session/messaging_test.go",
+        "kankuro_skills/kankuro-puppet/SKILL.md"
+      ],
+      "digest": "468dedcd4970bec139882eac4d725efb4a953263a27bcba7e379da1992b22bac"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "automatic-wakeups/reporter-stop",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/messaging_review_test.go",
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "62f560887cba3616628441cad6e64a77f59fde6450a7d88ad2d415cd591904cf"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "automatic-wakeups/sender-replaced",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging_review_test.go",
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "35f590ded854b50d26a9b02302099a4a160a33a31b95369d654cd6ad42e93097"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "card-editor/control-toggle",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/config/id_cards.go",
+        "internal/config/repository.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/ui/components/filter.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_test.go"
+      ],
+      "digest": "ea05f4a78ef6b5c928d9cfea8ae196f702351bab1c3d537c41fff193b7790665"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "card-editor/focused-field",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "24d89856bcde578cd17491d2e6083f3d1bb3b2a5d9b76d974dc8a11405924b9e"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "card-editor/preserve-fields",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/config/id_cards.go",
+        "internal/config/repository.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/ui/components/filter.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "7e81d7d8767a49c68fa685e435e0e289bad97da1b77beaaf183a6fc010d5cbf0"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "card-editor/skill-filter",
+      "refs": [
+        "components.CapabilityList.FilteredItems",
+        "components.CapabilityList.SetSelectedOnly",
+        "components.CapabilityList.renderHeader",
+        "views.CardEditor.handleKey",
+        "views.CardEditor.handleSpace"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "components.CapabilityList.FilteredItems",
+        "components.CapabilityList.SetSelectedOnly",
+        "components.CapabilityList.renderHeader",
+        "views.CardEditor.handleKey",
+        "views.CardEditor.handleSpace"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/ui/components/capability_list.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_test.go"
+      ],
+      "digest": "8fb845c2ae6bb3f8e35fb92bbff988284d04727beebc7e2accd3745c7d581bf5"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "card-editor/temporary-toggle",
+      "refs": [
+        "views.CardEditor.Card",
+        "views.CardEditor.handleSpace",
+        "views.CardEditor.handleSubmit",
+        "views.CardEditor.renderTmpWorkspaceLine"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "views.CardEditor.Card",
+        "views.CardEditor.handleSpace",
+        "views.CardEditor.handleSubmit",
+        "views.CardEditor.renderTmpWorkspaceLine"
+      ],
+      "files": [
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_test.go"
+      ],
+      "digest": "d433d5e79c94494c7bf7fdd4e34dd983630c381821c476084805c49d18a7b79c"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "configuration-startup/exclusive-writer",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/app/app.go",
+        "internal/app/coordinator.go",
+        "internal/config/repository.go",
+        "internal/config/skill_sources.go",
+        "internal/configstartup/json.go",
+        "internal/configstartup/lock.go",
+        "internal/configstartup/startup.go",
+        "internal/configstartup/startup_test.go",
+        "internal/configstartup/validate.go",
+        "internal/mcp/server.go",
+        "internal/session/manager.go",
+        "main.go"
+      ],
+      "digest": "065384c5b8227807f197faa04779f2fec46d335de7b38220e81c58b268e401d4"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "configuration-startup/fresh-root",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/app/app.go",
+        "internal/app/coordinator.go",
+        "internal/config/repository.go",
+        "internal/config/skill_sources.go",
+        "internal/configstartup/json.go",
+        "internal/configstartup/lock.go",
+        "internal/configstartup/startup.go",
+        "internal/configstartup/startup_test.go",
+        "internal/configstartup/validate.go",
+        "internal/mcp/server.go",
+        "internal/session/manager.go",
+        "main.go"
+      ],
+      "digest": "fdb4354d8fa5968897175359d7c735d2bf388fff9e5d98033c81ac4a082e4cb7"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "configuration-startup/invalid-records",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/app/app.go",
+        "internal/app/coordinator.go",
+        "internal/config/repository.go",
+        "internal/config/skill_sources.go",
+        "internal/configstartup/json.go",
+        "internal/configstartup/lock.go",
+        "internal/configstartup/startup.go",
+        "internal/configstartup/validate.go",
+        "internal/configstartup/validate_test.go",
+        "internal/mcp/server.go",
+        "internal/session/manager.go",
+        "main.go"
+      ],
+      "digest": "61655daff7b360a858d8eca6cac495716e3f32a5eda5f985f8785405a1a12b82"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "conversation-choice/compatible-only",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go",
+        "internal/ui/views/conversation_choice_test.go"
+      ],
+      "digest": "768f43c4b5c17b517db4b28f31f826eb54d83f8f012b1bde619f4e8932202f1c"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "dashboard-context/fingerprints",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/preview.go",
+        "internal/app/refresh.go",
+        "internal/app/refresh_cadence_internal_test.go",
+        "internal/app/scoped_refresh.go",
+        "internal/config/storage.go",
+        "internal/session/storage.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "98379f9b2d69bd21e3c1f9a21ad9e0993e108991364b294fe8a0b88258bc6398"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "dashboard-context/stale-results",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/attach.go",
+        "internal/app/coordinator.go",
+        "internal/app/dashboard_list.go",
+        "internal/app/handlers.go",
+        "internal/app/multi_dashboard_internal_test.go",
+        "internal/app/navigation.go",
+        "internal/app/preview.go",
+        "internal/app/refresh.go",
+        "internal/app/scoped_refresh.go",
+        "internal/app/size_guard.go",
+        "internal/config/storage.go",
+        "internal/session/attach.go",
+        "internal/session/manager.go",
+        "internal/session/storage.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_list.go"
+      ],
+      "digest": "a025d3dc579bedbfa1a531dd690757e84020cced918308b37fb27e4f925f73fa"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "dashboard-control/control",
+      "refs": [
+        "api.Service.GetSession",
+        "api.Service.ResolveCaller",
+        "mcp.addDiscoveryTools",
+        "mcp.addLifecycleTools",
+        "session.Manager.ResolveDashboardCaller"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.GetSession",
+        "api.Service.ResolveCaller",
+        "mcp.addDiscoveryTools",
+        "mcp.addLifecycleTools",
+        "session.Manager.ResolveDashboardCaller"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/mcp/dashboard_scope_test.go",
+        "internal/mcp/server.go",
+        "internal/session/conversation.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "974f06d13c0b975a6d222e2c914b9edc209ebbe284b44210568534146a636b61"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "dashboard-management/dashboard-details",
+      "refs": [
+        "api.Service.CreateDashboard",
+        "app.Coordinator.dashboardListCallbacks",
+        "config.FileRepository.UpdateDashboardDetails",
+        "views.DashboardList.Update",
+        "views.DashboardList.updateForm"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.CreateDashboard",
+        "app.Coordinator.dashboardListCallbacks",
+        "config.FileRepository.UpdateDashboardDetails",
+        "views.DashboardList.Update",
+        "views.DashboardList.updateForm"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/membership_internal_test.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/app/dashboard_list.go",
+        "internal/config/dashboards.go",
+        "internal/config/repository.go",
+        "internal/ui/views/dashboard_list.go",
+        "internal/ui/views/dashboard_list_test.go"
+      ],
+      "digest": "054d158a4b012c01806a62882b6edde9ff0c342fb4684a5e12ce84662792dfa8"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "dashboard-management/list-errors",
+      "refs": [
+        "api.Service.GetDashboardDeletion",
+        "app.Coordinator.dashboardListCallbacks",
+        "views.DashboardList.Update",
+        "views.DashboardList.View"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.GetDashboardDeletion",
+        "app.Coordinator.dashboardListCallbacks",
+        "views.DashboardList.Update",
+        "views.DashboardList.View"
+      ],
+      "files": [
+        "internal/api/dashboard_deletion.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/app/dashboard_list.go",
+        "internal/ui/views/dashboard_list.go",
+        "internal/ui/views/dashboard_list_test.go"
+      ],
+      "digest": "ab914e513717a8de1953d3ae88f2eb42757d47ac6f3b04c033b5cd790809870c"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "dashboard-ownership/revalidate-launch",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/membership_internal_test.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/session/card_references.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/workspace.go",
+        "internal/ui/views/session_launcher.go"
+      ],
+      "digest": "82f0a3ad1d93e43de9ffdb07bf0a378276618978f05676b6feabf6d461ac10b5"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "dashboard-ownership/scoped-inventory",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_confirmation.go",
+        "internal/api/membership.go",
+        "internal/api/membership_internal_test.go",
+        "internal/api/persisted_scope.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/config/card_tombstones.go",
+        "internal/config/id_cards.go",
+        "internal/config/repository.go",
+        "internal/mcp/server.go",
+        "internal/session/card_references.go",
+        "internal/session/conversation.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/storage.go",
+        "internal/ui/components/card_list.go",
+        "internal/ui/components/filter.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "ddd708f9214df6a534ed1054432fad2b99f2f1a8aaedbdf98a2122f3bb6139b3"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "deletion-recovery/card-recovery",
+      "refs": [
+        "api.Service.cleanupCardPending",
+        "session.Manager.CancelPendingCardReferences",
+        "session.Manager.RemoveResidual",
+        "session.Manager.ReserveCardDeletion",
+        "session.Manager.WaitCardReferences"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.cleanupCardPending",
+        "session.Manager.CancelPendingCardReferences",
+        "session.Manager.RemoveResidual",
+        "session.Manager.ReserveCardDeletion",
+        "session.Manager.WaitCardReferences"
+      ],
+      "files": [
+        "internal/api/card_cleanup_internal_test.go",
+        "internal/api/card_confirmation.go",
+        "internal/api/service.go",
+        "internal/config/card_tombstones.go",
+        "internal/config/repository.go",
+        "internal/session/card_references.go",
+        "internal/session/dashboard_admission.go",
+        "internal/session/manager.go",
+        "internal/session/residual_cleanup.go"
+      ],
+      "digest": "d2d6378089410602d525b536ff1ffd046c2cfb676ee6ece9014d0fc3258dd1c1"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "deletion-recovery/pending-launch",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_confirmation.go",
+        "internal/api/membership_internal_test.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/config/card_tombstones.go",
+        "internal/config/repository.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "93ea324b7fc4e156a6823ec3d037bb48ea80c4782d914297a55b2922bae6b282"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "deletion-recovery/restart-cascade",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/dashboard_confirmation.go",
+        "internal/api/dashboard_deletion.go",
+        "internal/api/dashboard_deletion_internal_test.go",
+        "internal/api/service.go",
+        "internal/app/dashboard_list.go",
+        "internal/config/dashboard_deletions.go",
+        "internal/config/dashboard_tombstones.go",
+        "internal/config/repository.go",
+        "internal/session/dashboard_admission.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go",
+        "internal/session/residual_cleanup.go",
+        "internal/ui/views/dashboard_list.go"
+      ],
+      "digest": "d0d35e2ed74cb5f6777bd8c210469f85f12aad97edb9f50b2b89b7c2c9168f39"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "durable-operations/operations",
+      "refs": [
+        "api.OperationRunner.Replay",
+        "api.OperationRunner.accept",
+        "api.OperationRunner.execute",
+        "api.Service.CreateSession",
+        "api.controllerAuthority.validate"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.OperationRunner.Replay",
+        "api.OperationRunner.accept",
+        "api.OperationRunner.execute",
+        "api.Service.CreateSession",
+        "api.controllerAuthority.validate"
+      ],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "7de68974a9d13c11af9e791dbac33f69edb08273adb1fc96de3ced6659618788"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "mcp-form/all-fields",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/views/mcp_form.go",
+        "internal/ui/views/mcp_form_test.go"
+      ],
+      "digest": "6ec4b93e169d1716f288ee75e6244e9672ea68c8c155556cd1bd7f34768278b5"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "minimum-terminal/drop-input",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/app/size_guard.go",
+        "internal/app/size_guard_test.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_layout_test.go",
+        "internal/ui/views/settings.go",
+        "internal/ui/views/settings_test.go"
+      ],
+      "digest": "6ef84cfd38cdcbd7a28ec4b88aa05d3422011747f231cc5306e1652cddf53dfc"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "minimum-terminal/explicit-quit",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/app/dashboard_list.go",
+        "internal/app/dashboard_list_keys_test.go",
+        "internal/app/navigation.go",
+        "internal/app/size_guard.go",
+        "internal/mcp/server.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_layout_test.go",
+        "internal/ui/views/dashboard_list.go",
+        "internal/ui/views/settings.go",
+        "internal/ui/views/settings_test.go",
+        "main.go"
+      ],
+      "digest": "cb1b86f801506d9238e1a4c5793e995e77771b04d0cea700d5bcead8aea55566"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "minimum-terminal/notice-rectangle",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/app/size_guard.go",
+        "internal/app/size_guard_test.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_layout_test.go",
+        "internal/ui/views/settings.go",
+        "internal/ui/views/settings_test.go"
+      ],
+      "digest": "30014a314fe8b5b2f013cb20d50a9b74f190e835df54d90a4d518d0644ee2616"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "notification-retries/byte-evidence",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/messaging_review_test.go",
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go",
+        "internal/session/storage.go"
+      ],
+      "digest": "53642cf51ce59456b20e3140351d7d94ab92734cd761ca2a41130171678b1c66"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "notification-retries/fairness",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/messaging_review_test.go",
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "a11919e5feff037e0102672b98188cbf50a47f523bf936bdfd7b7ee7194e7cc4"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "notification-retries/notification-cancel",
+      "refs": [
+        "api.OperationRunner.Shutdown",
+        "api.preparedDelivery.cancel",
+        "session.MessageAdmission.Release",
+        "session.MessageStore.UpdateDelivery"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.OperationRunner.Shutdown",
+        "api.preparedDelivery.cancel",
+        "session.MessageAdmission.Release",
+        "session.MessageStore.UpdateDelivery"
+      ],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/messaging_review_test.go",
+        "internal/api/messaging_shared_delivery_test.go",
+        "internal/api/operations.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "bb1e8a79f0fa33b51daea1e1538817479a68afffea6f36bd1b41ee0201656733"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "notification-retries/queue-full",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/messaging_review_test.go",
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "47ad2175fe020f46037894a8d3f019e3dd87468598ee0fe7927214317285a651"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "notification-retries/single-admission",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/messaging_review_test.go",
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "6ac4182ba22732b1036726d253fcf45e064d481b32bb5a65e02b9a39552e221b"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "protocol-skills/skills",
+      "refs": [
+        "api.appendKankuroAccessSkill",
+        "config.SetBuiltinKankuroPuppetSkillContent",
+        "driver.GenericCLIDriver.SetSkills",
+        "driver.syncInstructionFile",
+        "driver.writeBuiltinSkill"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.appendKankuroAccessSkill",
+        "config.SetBuiltinKankuroPuppetSkillContent",
+        "driver.GenericCLIDriver.SetSkills",
+        "driver.syncInstructionFile",
+        "driver.writeBuiltinSkill"
+      ],
+      "files": [
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/config/builtins.go",
+        "internal/config/repository.go",
+        "internal/driver/driver.go",
+        "main.go",
+        "main_test.go"
+      ],
+      "digest": "a90ce9e140d04b823b195ba6d7d564f36090b4a910ab81a194ed5fedddfe7cb0"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "registry-refresh/blank-canvas",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/navigation.go",
+        "internal/app/preview.go",
+        "internal/ascii/canvas_test.go",
+        "internal/session/manager.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "f03a699e11cfca107939c84956557846ba90fb177401170ac334d7e6f53f12c4"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "registry-refresh/corrupt-registry",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/config/id_cards.go",
+        "internal/config/refactor_test.go",
+        "internal/config/repository.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/ui/components/filter.go",
+        "internal/ui/views/card_editor.go"
+      ],
+      "digest": "80bb616235181304afaa1bdb25d8dafa57db4051b52a3950aaaadba0c976fa7d"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "registry-refresh/destination-refresh",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/integration_test.go",
+        "internal/app/refresh.go",
+        "internal/app/scoped_refresh.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/config/repository.go",
+        "internal/config/skill_sources.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/source_manager.go"
+      ],
+      "digest": "4bcf92a3aad69ba079f19cf5e751545aee6db627be23349fbf3bc1b72ada36c8"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "registry-refresh/preview-broadcast",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/navigation.go",
+        "internal/app/preview.go",
+        "internal/app/preview_broadcast_test.go",
+        "internal/app/refresh.go",
+        "internal/app/scoped_refresh.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/session/manager.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "d9cec68c249fb6015f1ccf2e0ed7fc01e0b39e0031879d205ebe3c9e339742fa"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "registry-refresh/preview-sanitization",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/navigation.go",
+        "internal/app/preview.go",
+        "internal/session/manager.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/components/session_preview_integration_test.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "3d00f8e21044815d965e999341909e51b48b6a705b030efa5f8704573607020a"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "registry-refresh/source-crud",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/refresh.go",
+        "internal/app/scoped_refresh.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/config/repository.go",
+        "internal/config/skill_sources.go",
+        "internal/ui/components/source_list_integration_test.go",
+        "internal/ui/components/source_list_test.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/source_manager.go",
+        "internal/ui/views/source_manager_test.go"
+      ],
+      "digest": "607427903322131a17d9d6080e60245069d54cdcab4e9110bb9267da6fe9b838"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "registry-refresh/sync-warning",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/refresh.go",
+        "internal/app/scoped_refresh.go",
+        "internal/app/source_sync_warning_test.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/config/repository.go",
+        "internal/config/skill_sources.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/source_manager.go"
+      ],
+      "digest": "062778d621b6aa85a2532ae6202ea0bdc91549fede7527bfb7cdb48374175456"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "registry-refresh/workspace-sources",
+      "refs": [
+        "app.Coordinator.cardEditorCallbacks",
+        "app.Coordinator.navigateTo",
+        "config.FileRepository.UpdateWorkspaceSources",
+        "views.CardEditor.handleCtrlE",
+        "views.SourceManager.Update"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.cardEditorCallbacks",
+        "app.Coordinator.navigateTo",
+        "config.FileRepository.UpdateWorkspaceSources",
+        "views.CardEditor.handleCtrlE",
+        "views.SourceManager.Update"
+      ],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/app/source_save_test.go",
+        "internal/config/repository.go",
+        "internal/config/workspaces.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/source_manager.go"
+      ],
+      "digest": "dc862a70719318bcc25f1990d044f9d56ef3fe7ada1f89fb92af4e2cf62545df"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "relaunch-mcp/preserve-and-rotate",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/driver/mcp_config.go",
+        "internal/session/conversation.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/relaunch_mcp_test.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go"
+      ],
+      "digest": "cd3c78178897314be7ea2d472a9d0519cd0bf4d42bb649df8a27ff6d8ed90b4d"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "report-intent/durable-idempotent",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/mcp/server.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go",
+        "internal/session/messaging_review_test.go",
+        "internal/session/messaging_test.go",
+        "kankuro_skills/kankuro-puppet/SKILL.md"
+      ],
+      "digest": "73977997aa922b71da1d001816d88c723d43de59f51e44b562fca8a3a64d9cd0"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "report-intent/interrupted-attempt",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/notifications.go",
+        "internal/api/operations.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go",
+        "internal/session/messaging_test.go",
+        "internal/session/storage.go"
+      ],
+      "digest": "5457b8cbee156e3c8bc3b9964b1586b372fbb8264089891b0b6c0df83dbe7171"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "report-intent/progress-then-complete",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/service.go",
+        "internal/mcp/server.go",
+        "internal/session/manager.go",
+        "internal/session/message_notifications.go",
+        "internal/session/messaging.go",
+        "internal/session/messaging_test.go"
+      ],
+      "digest": "ddfef4eabbd9e9c719525da3f5be7d996facc4355c06c450baec1b70a41ed8a7"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-actions/manual-session",
+      "refs": [
+        "api.Service.AttachInDashboard",
+        "api.Service.RenameInDashboard",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.requestAttach",
+        "session.Manager.AttachChecked"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.AttachInDashboard",
+        "api.Service.RenameInDashboard",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.requestAttach",
+        "session.Manager.AttachChecked"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/app/attach.go",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/session/attach.go",
+        "internal/session/attach_test.go",
+        "internal/session/lifecycle_test.go",
+        "internal/session/manager.go",
+        "internal/ui/views/session_launcher.go",
+        "internal/ui/views/session_launcher_test.go"
+      ],
+      "digest": "1c768a9ddc545493f0c3ef0375ded7ee2a06db26e6135c71b4c0168773e1d588"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-actions/stop-delete",
+      "refs": [
+        "api.Service.DeleteSession",
+        "api.Service.StopSession",
+        "driver.GenericCLIDriver.Kill",
+        "session.Manager.killDetailed",
+        "session.Manager.revokeSessionActivationLocked"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.DeleteSession",
+        "api.Service.StopSession",
+        "driver.GenericCLIDriver.Kill",
+        "session.Manager.killDetailed",
+        "session.Manager.revokeSessionActivationLocked"
+      ],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/driver/driver.go",
+        "internal/session/conversation.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "e0d48b0a6889474e50ff3e8f9a4582dad3ea5e0139611ca6b3ece961a7184520"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-mapping/nonzero-values",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/session/conversation.go",
+        "internal/session/io.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/mapping_internal_test.go",
+        "internal/session/messaging.go",
+        "internal/session/watch.go"
+      ],
+      "digest": "fbb76be52a63f887f37ce25fef475fcfbff81e0353795086e2178d3cab56f979"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "shutdown/copy-boundary",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/app/coordinator.go",
+        "internal/mcp/server.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/shutdown_test.go",
+        "internal/session/sub_workspaces.go",
+        "internal/session/workspace.go",
+        "main.go"
+      ],
+      "digest": "c6f51d1bae0d4ac6d2aa5d7ecf9eb6172407f8ccfc03ae06a20739b83d51b666"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "shutdown/spawn-boundary",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/operations.go",
+        "internal/app/coordinator.go",
+        "internal/mcp/server.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/shutdown_test.go",
+        "main.go"
+      ],
+      "digest": "c7d3a133b130dc44683fa54d8e3f6d3b75fc7dbe9c18c2d38b903ec2fb192239"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "task-messaging/send",
+      "refs": [
+        "api.OperationRunner.SubmitWithAdmission",
+        "api.Service.SendMessage",
+        "api.preparedDelivery.publish",
+        "session.Manager.PublishMessageAdmission",
+        "session.Manager.ReserveMessageAdmission"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.OperationRunner.SubmitWithAdmission",
+        "api.Service.SendMessage",
+        "api.preparedDelivery.publish",
+        "session.Manager.PublishMessageAdmission",
+        "session.Manager.ReserveMessageAdmission"
+      ],
+      "files": [
+        "internal/api/messaging.go",
+        "internal/api/messaging_shared_delivery_test.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/session/manager.go",
+        "internal/session/messaging.go"
+      ],
+      "digest": "ca87779f035319ecb2d6272c1b6032ccc0609d131583fc445b4afd130948e261"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "terminal-journeys/attachment-handle",
+      "refs": [
+        "api.Service.AttachInDashboard",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.requestAttach",
+        "app.scopedAttachCommand",
+        "session.Manager.AttachChecked"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.AttachInDashboard",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.requestAttach",
+        "app.scopedAttachCommand",
+        "session.Manager.AttachChecked"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/attach.go",
+        "internal/app/coordinator.go",
+        "internal/session/attach.go",
+        "internal/session/attach_test.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "7412d07cc86d8dde4abdbedf539c413a97257d0d13a38d5662d5df8b95d3849b"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "terminal-journeys/native-agent",
+      "refs": [
+        "api.Service.LaunchInDashboard",
+        "app.Coordinator.launchCard",
+        "session.Manager.LaunchInDashboardWithIDContext",
+        "session.Manager.ReserveCardReferenceForDashboardWithCancel",
+        "session.Manager.bindPendingWorkspace"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.LaunchInDashboard",
+        "app.Coordinator.launchCard",
+        "session.Manager.LaunchInDashboardWithIDContext",
+        "session.Manager.ReserveCardReferenceForDashboardWithCancel",
+        "session.Manager.bindPendingWorkspace"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/attach.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/mcp/server.go",
+        "internal/session/attach.go",
+        "internal/session/attach_test.go",
+        "internal/session/card_references.go",
+        "internal/session/claude_resume_test.go",
+        "internal/session/conversation.go",
+        "internal/session/conversation_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/workspace.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/README.md",
+        "tests/e2e/artifacts/native-agent/failure.png",
+        "tests/e2e/artifacts/native-agent/launched.png",
+        "tests/e2e/capture_test.go",
+        "tests/e2e/environment_test.go",
+        "tests/e2e/native_agent_test.go",
+        "tests/e2e/opencode_test.go",
+        "tests/e2e/provenance_test.go"
+      ],
+      "digest": "ec7a155aaf5d74eba4aae2420bc4f296d68afcd2c71621fed7f56e793b067058"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "terminal-journeys/registration-fixture",
+      "refs": [
+        "api.Service.RegisterConversation",
+        "mcp.Start",
+        "mcp.authorize",
+        "session.Manager.RegisterConversation",
+        "session.Manager.registerConversationLocked"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.RegisterConversation",
+        "mcp.Start",
+        "mcp.authorize",
+        "session.Manager.RegisterConversation",
+        "session.Manager.registerConversationLocked"
+      ],
+      "files": [
+        "internal/api/service.go",
+        "internal/mcp/server.go",
+        "internal/session/conversation.go",
+        "internal/session/conversation_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "7a08006fe7384a9d2859017c6be8e65933e3d14f92bd9615b2de10b4ce5899c2"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "terminal-journeys/resume-driver",
+      "refs": [
+        "api.Service.SwitchInDashboard",
+        "app.Coordinator.conversationChoiceCallbacks",
+        "app.Coordinator.requestRelaunch",
+        "session.Manager.GetSession",
+        "views.ConversationChoiceView.SetContext"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.SwitchInDashboard",
+        "app.Coordinator.conversationChoiceCallbacks",
+        "app.Coordinator.requestRelaunch",
+        "session.Manager.GetSession",
+        "views.ConversationChoiceView.SetContext"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/session/claude_resume_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go"
+      ],
+      "digest": "37a22edd8088f710781329a5c501c190da34278fdbe2a279502429b2f0a5fa0c"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-commands/ide",
+      "refs": [
+        "api.Service.CheckSessionInDashboard",
+        "app.Coordinator.launchIDE",
+        "app.sessionActions.launchIDE",
+        "views.Dashboard.handleKey",
+        "views.Dashboard.handleLaunchSession"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.CheckSessionInDashboard",
+        "app.Coordinator.launchIDE",
+        "app.sessionActions.launchIDE",
+        "views.Dashboard.handleKey",
+        "views.Dashboard.handleLaunchSession"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/session/ide_launcher.go",
+        "internal/session/ide_launcher_test.go",
+        "internal/session/workspace_launcher.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go"
+      ],
+      "digest": "a19587e188186c386e101d6c1422cd134d3db44d2ad620929453d848c84c8995"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-commands/terminal",
+      "refs": [
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.launchTerminal",
+        "app.sessionActions.launchTerminal",
+        "views.Dashboard.handleKey",
+        "views.Dashboard.handleLaunchSession"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.launchTerminal",
+        "app.sessionActions.launchTerminal",
+        "views.Dashboard.handleKey",
+        "views.Dashboard.handleLaunchSession"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/session/ide_launcher.go",
+        "internal/session/ide_launcher_test.go",
+        "internal/session/manager.go",
+        "internal/session/workspace_launcher.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go"
+      ],
+      "digest": "24e7e9f18fc1329733ff2e70e1d9aafc639ea57e6b4904a60f292ac5398411d0"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-commands/workspace-command-errors",
+      "refs": [
+        "api.Service.CheckSessionInDashboard",
+        "app.Coordinator.handleSessionMessages",
+        "app.sessionActions.launchTerminal",
+        "messages.ScopedActionFinishedMsg",
+        "session.LaunchWorkspaceCommand"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.CheckSessionInDashboard",
+        "app.Coordinator.handleSessionMessages",
+        "app.sessionActions.launchTerminal",
+        "messages.ScopedActionFinishedMsg",
+        "session.LaunchWorkspaceCommand"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/app/command_race_internal_test.go",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/app/terminal_launch_test.go",
+        "internal/session/ide_launcher_test.go",
+        "internal/session/workspace_launcher.go",
+        "internal/ui/messages/messages.go"
+      ],
+      "digest": "da679cf4a8e519229d58ef16bd5a6b85fb5f3723951c487707e6a3bef3a1a49e"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-identity/inspect-only",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/service.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/sub_workspaces.go",
+        "internal/session/sub_workspaces_inspection_test.go",
+        "internal/session/workspace.go"
+      ],
+      "digest": "5c667666ccbd877cf21b7b7b7d228afc5187d2b4eb4e4d83518c1f3f42ad29f5"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-identity/unavailable-path",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/driver/driver.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/sub_workspaces.go",
+        "internal/session/workspace.go",
+        "internal/session/workspace_validation_test.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go"
+      ],
+      "digest": "949f3b290fe5cd73cfe5566244722ba5e4b0c20358bf44e71dd9c7ba3af8e67c"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-selection/clear-subworkspaces",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/constants.go",
+        "internal/ui/views/workspace_picker_modal.go",
+        "kankuro_specs.md",
+        "project.md"
+      ],
+      "digest": "68e63f9873fce66b4120d0e4da6835ba9a1024d2f43a08d48aa3ae69c4440175"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-selection/picker-refresh",
+      "refs": [
+        "views.CardEditor.SetData",
+        "views.WorkspacePickerModal.SetWorkspaces",
+        "views.WorkspacePickerModal.filterWorkspaces",
+        "views.WorkspacePickerModal.refreshItems",
+        "views.WorkspacePickerModal.rememberWorkspace"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "views.CardEditor.SetData",
+        "views.WorkspacePickerModal.SetWorkspaces",
+        "views.WorkspacePickerModal.filterWorkspaces",
+        "views.WorkspacePickerModal.refreshItems",
+        "views.WorkspacePickerModal.rememberWorkspace"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/workspace_picker_modal.go",
+        "internal/ui/views/workspace_picker_test.go"
+      ],
+      "digest": "3e2efaf309797bc2065ebc2da80c6326c11b6f002f5e1356280e012f0a227cb5"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-selection/sub-picker",
+      "refs": [
+        "views.CardEditor.handleSpace",
+        "views.WorkspacePickerModal.SetMultiple",
+        "views.WorkspacePickerModal.SetSelectedIDs",
+        "views.WorkspacePickerModal.Update",
+        "views.WorkspacePickerModal.rebuildList"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "views.CardEditor.handleSpace",
+        "views.WorkspacePickerModal.SetMultiple",
+        "views.WorkspacePickerModal.SetSelectedIDs",
+        "views.WorkspacePickerModal.Update",
+        "views.WorkspacePickerModal.rebuildList"
+      ],
+      "files": [
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/workspace_picker_modal.go",
+        "internal/ui/views/workspace_picker_test.go"
+      ],
+      "digest": "2c41b2e5885b3d4477cec0fd2a7a4ecd2139e39c14f98fa155f8285806d2291f"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-trust/preserve-invalid",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/driver/trust.go",
+        "internal/driver/trust_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "9b604ee1f64e13182417327ca84f286cf8e9ea59aabcba4777c111a27287e9ff"
     }
   ],
-  "digest": "89a5a088a341ed81e61d3ef0e4df76f659242ff721667201f895a9e82ba2d3dd"
+  "digest": "71d290fb310d54bde1940601b9ec7361c1e281bd15b36472cb0c13a331558564"
 }

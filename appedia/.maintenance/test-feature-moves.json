@@ -1,0 +1,28 @@
+{
+  "reason": "Replace assessment-backlog grouping with product and lifecycle feature boundaries. Scenario verdicts, evidence and flow associations are unchanged.",
+  "moves": {
+    "remaining-flows/skill-filter": "card-editor/skill-filter",
+    "remaining-flows/temporary-toggle": "card-editor/temporary-toggle",
+    "remaining-flows/workspace-sources": "registry-refresh/workspace-sources",
+    "remaining-flows/card-recovery": "deletion-recovery/card-recovery",
+    "remaining-flows/notification-cancel": "notification-retries/notification-cancel",
+    "remaining-flows/ide": "workspace-commands/ide",
+    "remaining-flows/terminal": "workspace-commands/terminal",
+    "remaining-flows/workspace-command-errors": "workspace-commands/workspace-command-errors",
+    "remaining-flows/settings": "application-settings/settings",
+    "remaining-flows/settings-edit": "application-settings/settings-edit",
+    "remaining-flows/settings-layout": "application-settings/settings-layout",
+    "remaining-flows/sub-picker": "workspace-selection/sub-picker",
+    "remaining-flows/picker-refresh": "workspace-selection/picker-refresh",
+    "remaining-flows/readiness": "activation-readiness/readiness",
+    "remaining-flows/control": "dashboard-control/control",
+    "remaining-flows/operations": "durable-operations/operations",
+    "remaining-flows/send": "task-messaging/send",
+    "remaining-flows/manual-session": "session-actions/manual-session",
+    "remaining-flows/stop-delete": "session-actions/stop-delete",
+    "remaining-flows/skills": "protocol-skills/skills",
+    "remaining-flows/dashboard-details": "dashboard-management/dashboard-details",
+    "remaining-flows/list-errors": "dashboard-management/list-errors",
+    "card-editor/clear-subworkspaces": "workspace-selection/clear-subworkspaces"
+  }
+}

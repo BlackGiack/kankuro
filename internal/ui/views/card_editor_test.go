@@ -640,3 +640,41 @@ func TestPuppetSelector_Navigation(t *testing.T) {
 		t.Errorf("Expected cursor 1, got %d", m.Cursor())
 	}
 }
+
+func TestTemporaryWorkspaceSpaceAndSave(t *testing.T) {
+	for _, want := range []bool{false, true} {
+		t.Run(fmt.Sprintf("save-%t", want), func(t *testing.T) {
+			original := config.IDCard{
+				ID:          "card",
+				Name:        "Temporary test",
+				Driver:      "codex",
+				WorkspaceID: "main",
+				Puppet:      "kankuro",
+				AgentsMD:    "instructions",
+			}
+			var saved config.IDCard
+			saves := 0
+			editor := views.NewCardEditor(views.CardEditorCallbacks{
+				OnSave: func(card config.IDCard) tea.Cmd { saved = card; saves++; return nil },
+			})
+			editor.SetData(messages.DataLoadedMsg{Workspaces: []config.Workspace{{ID: "main", Name: "Main"}}})
+			editor.SetCard(original)
+			original = editor.Card()
+			editor.CycleFocus(views.FocusUseTmp)
+			for _, expected := range []bool{true, false} {
+				editor.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+				if got := editor.Card().UseTmpWorkspace; got != expected {
+					t.Fatalf("Space: got %t, want %t", got, expected)
+				}
+			}
+			if want {
+				editor.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+			}
+			editor.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+			original.UseTmpWorkspace = want
+			if saves != 1 || !reflect.DeepEqual(saved, original) {
+				t.Fatalf("saves=%d saved=%+v, want %+v", saves, saved, original)
+			}
+		})
+	}
+}

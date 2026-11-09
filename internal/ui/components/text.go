@@ -59,12 +59,6 @@ func TruncateTail(s string, w int) string {
 	return out
 }
 
-// TruncatePath truncates a path with ellipsis, keeping the tail (the most
-// specific path segments) visible.
-func TruncatePath(path string, limit int) string {
-	return TruncateTail(path, limit)
-}
-
 // DisplayText makes user-provided text safe for a one-line slot: tabs and
 // line breaks become a space, other control bytes and all ANSI escape
 // sequences are dropped. A tab left in place is expanded by lipgloss to four

@@ -89,23 +89,6 @@ func BuiltinSkills() []Skill {
 	}
 }
 
-// IsBuiltinSkill returns true if the skill ID corresponds to a built-in skill.
-func IsBuiltinSkill(id string) bool {
-	return slices.ContainsFunc(BuiltinSkills(), func(s Skill) bool {
-		return s.ID == id
-	})
-}
-
-// GetBuiltinSkill returns the built-in skill by ID, or zero value if not found.
-func GetBuiltinSkill(id string) (Skill, bool) {
-	for _, s := range BuiltinSkills() {
-		if s.ID == id {
-			return s, true
-		}
-	}
-	return Skill{}, false
-}
-
 // GetBuiltinSkillContent returns the injected content for a built-in skill by name.
 func GetBuiltinSkillContent(name string) ([]byte, bool) {
 	switch name {

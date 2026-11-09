@@ -1,0 +1,37 @@
+{
+  "kind": "cleanup-maintenance-review-summary",
+  "acceptedAt": "2026-11-08T23:26:10.611Z",
+  "sourceFingerprint": "0b53ddb081a8f7cde92bcb147866b61cdffec128fa0c8773706321679b8ae405",
+  "reviewedItems": 127,
+  "groups": {
+    "flow": 18,
+    "package": 6,
+    "rule": 3,
+    "task": 11,
+    "test-feature": 17,
+    "test-scenario": 35,
+    "uncovered": 36,
+    "content": 1
+  },
+  "notes": [
+    "Summary of the reviewed pending impact report; finalize accepted the baseline and removed the pending directory.",
+    "Audited unused symbols and redundant test files were marked removed. Changed character constructors retained live built-in dimensions/rendering and their passing regressions.",
+    "Retained live flows, rules and task responsibilities were rechecked after helper/test removals; driver factory file and shape-bound notes were updated.",
+    "Affected test scenarios/features received fresh source hashes, locations and actual ordinary-suite results.",
+    "Temporary-workspace key/save coverage is now tested. Native journey remains partial: OpenCode launch/attach passed, registration failed at Free limit reached, later checkpoints were not reached.",
+    "E2E helpers, explicit-run documentation, ignored stable artifacts and pinned Go test dependencies were reviewed."
+  ],
+  "checks": {
+    "build": "passed",
+    "vet": "passed",
+    "ordinarySuite": "passed",
+    "raceSuite": "passed",
+    "ordinaryLint": "passed",
+    "e2eVetAndLint": "passed",
+    "nativeE2E": "failed: OpenCode Free limit reached during registration",
+    "appediaBuild": "passed",
+    "appediaSmoke": "passed: 2662 routes",
+    "baseline": "accepted"
+  },
+  "priorReview": "pre-cleanup-review.json"
+}

@@ -65,23 +65,6 @@ func TestToSimpleItems(t *testing.T) {
 	}
 }
 
-func TestFromSimpleItems(t *testing.T) {
-	items := []components.SourceItem{
-		components.SimpleSourceItem("/path1"),
-		components.SimpleSourceItem("/path2"),
-	}
-
-	sources := components.FromSimpleItems(items)
-
-	if len(sources) != 2 {
-		t.Fatalf("Expected 2 sources, got %d", len(sources))
-	}
-
-	if sources[0] != "/path1" || sources[1] != "/path2" {
-		t.Errorf("Sources not extracted correctly: %v", sources)
-	}
-}
-
 func TestSourceList_New(t *testing.T) {
 	config := components.SourceListConfig{
 		Title:      "Test Sources",
@@ -299,21 +282,28 @@ func TestSourceList_HandleDelete(t *testing.T) {
 	}
 }
 
-func TestSourceList_HandleDelete_CallbackError(_ *testing.T) {
-	config := components.SourceListConfig{Title: "Test", FormFields: 1}
-	callbacks := components.SourceListCallbacks{
-		OnDelete: func(_ int) (tea.Cmd, error) {
-			return nil, errors.New("delete failed")
+func TestSourceList_HandleDelete_CallbackError(t *testing.T) {
+	calls, refreshes, reloads := 0, 0, 0
+	sl := components.NewSourceList(components.SourceListConfig{Title: "Test", FormFields: 1}, components.SourceListCallbacks{
+		OnDelete: func(index int) (tea.Cmd, error) {
+			calls++
+			if index != 1 {
+				t.Errorf("delete index = %d, want 1", index)
+			}
+			return func() tea.Msg { t.Error("failed deletion command executed"); return nil }, errors.New("delete failed")
 		},
-		OnRefresh: func() tea.Cmd { return nil },
+		OnRefresh: func() tea.Cmd { refreshes++; return nil },
+		OnReload:  func() { reloads++ },
+	})
+	sl.SetItems(components.ToSimpleItems([]string{"/one", "/two"}))
+	sl.Cursor = 1
+	_, cmd := sl.Update(tea.KeyPressMsg{Text: "d"})
+	if cmd != nil || calls != 1 || refreshes != 0 || reloads != 0 {
+		t.Fatalf("failed delete: command=%v calls=%d refreshes=%d reloads=%d", cmd != nil, calls, refreshes, reloads)
 	}
-
-	sl := components.NewSourceList(config, callbacks)
-	sl.SetItems([]components.SourceItem{components.SimpleSourceItem("/path")})
-	sl.Cursor = 0
-
-	// Should not panic on error
-	sl.HandleDelete()
+	if sl.Cursor != 1 || len(sl.Items) != 2 || sl.Items[0].Display() != "/one" || sl.Items[1].Display() != "/two" {
+		t.Fatalf("failed deletion changed list: cursor=%d items=%v", sl.Cursor, sl.Items)
+	}
 }
 
 func TestSourceList_View_ListMode(t *testing.T) {

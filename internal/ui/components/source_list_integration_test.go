@@ -2,175 +2,83 @@ package components_test
 
 import (
 	"errors"
+	"slices"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-
-	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 )
 
 var errTest = errors.New("test")
 
-func TestSourceListIntegration_Simple(t *testing.T) {
-	// Simulate skill/persona source workflow
-
-	var savedSources []string
-
-	conf := components.SourceListConfig{
-		Title:      "Skill Sources",
-		FormPrompt: "Path:",
-		FormFields: 1,
-	}
-
-	callbacks := components.SourceListCallbacks{
-		OnSave: func(item components.SourceItem, idx int) (tea.Cmd, error) {
-			if idx == -1 {
-				savedSources = append(savedSources, item.Display())
-			} else {
-				savedSources[idx] = item.Display()
-			}
-			return nil, errTest
-		},
-		OnRefresh: func() tea.Cmd { return nil },
-		OnClose:   func() {},
-	}
-
-	sl := components.NewSourceList(conf, callbacks)
-
-	// 1. Initial empty state
-	sl.SetItems([]components.SourceItem{})
-
-	view := sl.View()
-	if view == "" {
-		t.Error("View should render empty state")
-	}
-
-	// 2. Add sources
-	sources := []string{"/home/user/skills", "/home/user/more-skills"}
-	sl.SetItems(components.ToSimpleItems(sources))
-
-	view = sl.View()
-	if view == "" {
-		t.Error("View should render with items")
-	}
-
-	// 3. Simulate "n" key (new item)
-	sl.Cursor = len(sources) // Select "New" option
-	sl.OpenForm(len(sources))
-
-	if sl.Mode != components.SourceListModeForm {
-		t.Error("Should be in form mode")
-	}
-
-	t.Log("Simple source list integration completed successfully")
-}
-
-func TestSourceListIntegration_Workspace(t *testing.T) {
-	// Simulate workspace source workflow
-
-	var savedItems []components.SourceItem
-
-	conf := components.SourceListConfig{
-		Title:       "Workspace Sources",
-		Legend:      "(R=Root folder)",
-		FormFields:  2,
-		Field2Label: "Is Root:",
-	}
-
-	callbacks := components.SourceListCallbacks{
-		OnSave: func(item components.SourceItem, idx int) (tea.Cmd, error) {
-			if idx == -1 {
-				savedItems = append(savedItems, item)
-			} else {
-				savedItems[idx] = item
-			}
-			return nil, errTest
-		},
-		OnRefresh: func() tea.Cmd { return nil },
-		OnClose:   func() {},
-	}
-
-	sl := components.NewSourceList(conf, callbacks)
-
-	// 1. Set workspace sources
-	wsSources := []config.WorkspaceSource{
-		{ID: "ws1", Path: "/home/user/project", IsRoot: false},
-		{ID: "ws2", Path: "/home/user/projects", IsRoot: true},
-	}
-	sl.SetItems(components.ToWorkspaceItems(wsSources))
-
-	view := sl.View()
-	if view == "" {
-		t.Error("View should render")
-	}
-
-	// 2. Verify display format
-	// Item 0: [ ] /home/user/project
-	// Item 1: [R] /home/user/projects
-
-	t.Log("Workspace source list integration completed successfully")
-}
-
 func TestSourceListIntegration_CRUD(t *testing.T) {
-	// Test full CRUD cycle
-
 	var sources []string
-
-	conf := components.SourceListConfig{Title: "Test", FormFields: 1}
-
-	callbacks := components.SourceListCallbacks{
-		OnSave: func(item components.SourceItem, idx int) (tea.Cmd, error) {
-			if idx == -1 {
+	refreshes, reloads, saves, deletes := 0, 0, 0, 0
+	sl := components.NewSourceList(components.SourceListConfig{Title: "Sources", FormFields: 1}, components.SourceListCallbacks{
+		OnSave: func(item components.SourceItem, index int) (tea.Cmd, error) {
+			saves++
+			if index == -1 {
 				sources = append(sources, item.Display())
-			} else if idx < len(sources) {
-				sources[idx] = item.Display()
+			} else {
+				sources[index] = item.Display()
 			}
-			return nil, errTest
+			return nil, nil //nolint:nilnil // Source callbacks may succeed without a follow-up command.
 		},
-		OnDelete: func(idx int) (tea.Cmd, error) {
-			if idx >= 0 && idx < len(sources) {
-				sources = append(sources[:idx], sources[idx+1:]...)
-			}
-			return nil, errTest
+		OnDelete: func(index int) (tea.Cmd, error) {
+			deletes++
+			sources = append(sources[:index], sources[index+1:]...)
+			return nil, nil //nolint:nilnil // Source callbacks may succeed without a follow-up command.
 		},
-		OnRefresh: func() tea.Cmd { return nil },
-		OnClose:   func() {},
+		OnRefresh: func() tea.Cmd { refreshes++; return nil },
+	})
+	sl.Callbacks.OnReload = func() {
+		reloads++
+		sl.SetItems(components.ToSimpleItems(sources))
 	}
-
-	sl := components.NewSourceList(conf, callbacks)
-
-	// CREATE
-	sl.SetItems([]components.SourceItem{})
-	sl.OpenForm(-1)
-	sl.Inputs[0].SetValue("/new/source")
-	sl.HandleSave()
-
-	if len(sources) != 1 {
-		t.Errorf("Expected 1 source after create, got %d", len(sources))
+	key := func(msg tea.KeyPressMsg) { t.Helper(); sl.Update(msg) }
+	check := func(want []string, mutations int) {
+		t.Helper()
+		var got []string
+		for _, item := range sl.Items {
+			got = append(got, item.Display())
+		}
+		if !slices.Equal(got, want) || !slices.Equal(sources, want) || sl.Mode != components.SourceListModeList {
+			t.Fatalf("store=%v displayed=%v mode=%v, want %v in list mode", sources, got, sl.Mode, want)
+		}
+		if refreshes != mutations || reloads != mutations {
+			t.Fatalf("refreshes=%d reloads=%d, want %d", refreshes, reloads, mutations)
+		}
+		assertSourceListText(t, sl, want)
 	}
-
-	// READ (via SetItems/View)
-	sl.SetItems(components.ToSimpleItems(sources))
-
-	// UPDATE
-	sl.SetItems(components.ToSimpleItems(sources))
-	sl.OpenForm(0)
-	sl.Inputs[0].SetValue("/updated/source")
-	sl.HandleSave()
-
-	if sources[0] != "/updated/source" {
-		t.Errorf("Expected '/updated/source', got '%s'", sources[0])
+	key(tea.KeyPressMsg{Text: "n"})
+	if sl.Mode != components.SourceListModeForm || sl.EditingIndex != -1 {
+		t.Fatal("new did not open new-item form")
 	}
-
-	// DELETE
-	sl.SetItems(components.ToSimpleItems(sources))
-	sl.Cursor = 0
-	sl.HandleDelete()
-
-	if len(sources) != 0 {
-		t.Errorf("Expected 0 sources after delete, got %d", len(sources))
+	key(tea.KeyPressMsg{Text: "/new/source"})
+	key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	check([]string{"/new/source"}, 1)
+	key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if sl.Mode != components.SourceListModeForm || sl.EditingIndex != 0 || sl.Inputs[0].Value() != "/new/source" {
+		t.Fatal("edit did not load selected source")
 	}
+	key(tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl})
+	key(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	key(tea.KeyPressMsg{Text: "/updated/source"})
+	key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	check([]string{"/updated/source"}, 2)
+	key(tea.KeyPressMsg{Text: "d"})
+	check(nil, 3)
+	if saves != 2 || deletes != 1 || sl.Cursor != 0 {
+		t.Fatalf("saves=%d deletes=%d cursor=%d", saves, deletes, sl.Cursor)
+	}
+}
 
-	t.Log("CRUD cycle completed successfully")
+func assertSourceListText(t *testing.T, list *components.SourceList, sources []string) {
+	t.Helper()
+	for _, source := range sources {
+		if !strings.Contains(list.View(), source) {
+			t.Fatalf("view missing %q", source)
+		}
+	}
 }

@@ -26,10 +26,7 @@ func TestEmbeddedMCPCLISkillDeploysThroughConfig(t *testing.T) {
 
 	workspace := t.TempDir()
 	d := driver.NewGenericCLIDriver()
-	skill, ok := config.GetBuiltinSkill(config.BuiltinSkillMCPCLI)
-	if !ok {
-		t.Fatal("built-in skill metadata is missing")
-	}
+	skill := builtinSkill(t, config.BuiltinSkillMCPCLI)
 	if err := d.SetSkills([]config.Skill{skill}, workspace); err != nil {
 		t.Fatalf("deploy embedded skill: %v", err)
 	}
@@ -49,10 +46,7 @@ func TestEmbeddedKankuroPuppetSkillDeploysThroughConfig(t *testing.T) {
 	config.SetBuiltinKankuroPuppetSkillContent(embeddedKankuroPuppetSkill)
 	t.Cleanup(func() { config.SetBuiltinKankuroPuppetSkillContent(nil) })
 	workspace := t.TempDir()
-	skill, ok := config.GetBuiltinSkill(config.BuiltinSkillKankuroPuppet)
-	if !ok {
-		t.Fatal("built-in puppet skill metadata is missing")
-	}
+	skill := builtinSkill(t, config.BuiltinSkillKankuroPuppet)
 	if err := driver.NewGenericCLIDriver().SetSkills([]config.Skill{skill}, workspace); err != nil {
 		t.Fatal(err)
 	}
@@ -63,4 +57,16 @@ func TestEmbeddedKankuroPuppetSkillDeploysThroughConfig(t *testing.T) {
 	if !bytes.Equal(deployed, embeddedKankuroPuppetSkill) {
 		t.Fatal("deployed puppet skill differs from embedded bytes")
 	}
+}
+
+// builtinSkill reads the actual registry used for deployment.
+func builtinSkill(t *testing.T, id string) config.Skill {
+	t.Helper()
+	for _, skill := range config.BuiltinSkills() {
+		if skill.ID == id {
+			return skill
+		}
+	}
+	t.Fatalf("built-in skill %s missing", id)
+	return config.Skill{}
 }

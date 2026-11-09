@@ -192,39 +192,42 @@ func TestSourceManager_Save_Workspace(t *testing.T) {
 	}
 }
 
-func TestSourceManager_Delete(_ *testing.T) {
-	callbacks := views.SourceManagerCallbacks{
-		DeleteSource: func(_ int) (tea.Cmd, error) {
-			return func() tea.Msg { return nil }, errTest
+func TestSourceManager_Delete(t *testing.T) {
+	calls, loads, refreshes := 0, 0, 0
+	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{
+		LoadSources: func() []components.SourceItem {
+			loads++
+			return components.ToSimpleItems([]string{"/one", "/two"})
 		},
-		Refresh: func() tea.Cmd { return nil },
-	}
-
-	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks)
-
-	sm.Reload()
-
-	sm.SourceList().SetItems([]components.SourceItem{
-		components.SimpleSourceItem("/path1"),
-		components.SimpleSourceItem("/path2"),
+		DeleteSource: func(index int) (tea.Cmd, error) {
+			calls++
+			if index != 1 {
+				t.Errorf("delete index = %d, want 1", index)
+			}
+			// The callback owns asynchronous errors; the list must return its command.
+			return func() tea.Msg { return messages.ErrorMsg{Err: errTest} }, nil
+		},
+		Refresh: func() tea.Cmd { refreshes++; return nil },
 	})
-
-	_, _ = sm.Update(tea.KeyPressMsg{Code: 0, Text: "d"})
-}
-
-func TestSourceManager_EscapeInListMode_NavigatesBack(t *testing.T) {
-	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{})
 	sm.Init()
-
-	_, cmd := sm.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
-
-	if cmd == nil {
-		t.Error("Should return a command on escape")
+	sm.SourceList().Cursor = 1
+	model, cmd := sm.Update(tea.KeyPressMsg{Text: "d"})
+	if model != sm || cmd == nil || calls != 1 || loads != 2 || refreshes != 1 {
+		t.Fatalf("delete routing: same model=%v cmd=%v calls=%d loads=%d refreshes=%d", model == sm, cmd != nil, calls, loads, refreshes)
 	}
-
 	msg := cmd()
-	if _, ok := msg.(messages.NavigateBackMsg); !ok {
-		t.Errorf("Should emit NavigateBackMsg, got %T", msg)
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		if len(batch) != 1 {
+			t.Fatalf("commands = %d, want 1", len(batch))
+		}
+		msg = batch[0]()
+	}
+	result, ok := msg.(messages.ErrorMsg)
+	if !ok || !errors.Is(result.Err, errTest) {
+		t.Fatalf("delete error lost: %#v", msg)
+	}
+	if len(sm.SourceList().Items) != 2 || sm.SourceList().Items[1].Display() != "/two" {
+		t.Fatal("failed asynchronous deletion lost items")
 	}
 }
 
@@ -255,23 +258,6 @@ func TestSourceManager_SetSize(t *testing.T) {
 	}
 }
 
-func TestSourceManager_Error(t *testing.T) {
-	callbacks := views.SourceManagerCallbacks{
-		SaveSimpleSource: func(_ string, _ int) (tea.Cmd, error) {
-			return nil, errors.New("save failed")
-		},
-	}
-
-	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks)
-	sm.SetError(errors.New("test error"))
-
-	view := sm.View()
-
-	if !strings.Contains(view, "Error:") {
-		t.Error("Should display error in view")
-	}
-}
-
 func TestGetSourceTypeConfig(t *testing.T) {
 	tests := []struct {
 		sourceType     views.SourceType
@@ -296,18 +282,5 @@ func TestGetSourceTypeConfig(t *testing.T) {
 				t.Errorf("Expected %d fields, got %d", tt.expectedFields, config.FormFields)
 			}
 		})
-	}
-}
-
-func TestGenerateID(t *testing.T) {
-	id1 := views.GenerateID()
-	id2 := views.GenerateID()
-
-	if id1 == id2 {
-		t.Error("IDs should be unique")
-	}
-
-	if len(id1) < 5 {
-		t.Errorf("ID too short: %s", id1)
 	}
 }

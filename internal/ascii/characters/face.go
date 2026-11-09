@@ -10,8 +10,7 @@ const defaultFaceWidth = 5
 type Face struct {
 	ascii.BaseShape
 
-	style     string
-	useColors bool
+	style string
 }
 
 func NewFace(opts ...ascii.Option) ascii.Shape {
@@ -21,11 +20,10 @@ func NewFace(opts ...ascii.Option) ascii.Shape {
 	}
 
 	shape := &Face{
-		style:     config.GetString("style", "neutral"),
-		useColors: config.GetBool("useColor", false),
+		style: config.GetString("style", "neutral"),
 	}
-	shape.BaseShape.Width = config.GetInt("width", defaultFaceWidth)
-	shape.BaseShape.Height = config.GetInt("height", 1)
+	shape.BaseShape.Width = defaultFaceWidth
+	shape.BaseShape.Height = 1
 	return shape
 }
 

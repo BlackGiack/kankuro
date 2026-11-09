@@ -5,93 +5,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 )
 
-func TestSessionPreviewIntegration(t *testing.T) {
-	// Simulate App workflow
-
-	// 1. Create component
-	p := components.NewSessionPreview()
-	p.SetSize(50, 20)
-
-	// 2. Initial state - empty placeholder
-	view := p.View()
-	if view == "" {
-		t.Error("View should render placeholder")
-	}
-
-	// 3. Set session data
-	snap := &session.Snapshot{
-		ID:         "s1",
-		Name:       "Integration Test",
-		Status:     session.StatusRunning,
-		PID:        12345,
-		WorkingDir: "/home/user/test",
-		StartedAt:  time.Now(),
-	}
-
-	card := &config.IDCard{
-		ID:     "c1",
-		Name:   "Test Card",
-		Puppet: "kankuro",
-	}
-
-	p.SetSession(snap, card)
-
-	// 4. View with session
-	view = p.View()
-	if view == "" {
-		t.Error("View should render session")
-	}
-
-	// 5. Add scrollback
-	p.SetScrollback([]byte("Starting process...\nProcess running\nDone"))
-
-	view = p.View()
-	if view == "" {
-		t.Error("View should render with scrollback")
-	}
-
-	// 6. Clear
-	p.Clear()
-	view = p.View()
-	if view == "" {
-		t.Error("View should render placeholder after clear")
-	}
-
-	t.Log("SessionPreview integration test completed successfully")
-}
-
 func TestSessionPreview_ScrollbackSanitization(t *testing.T) {
 	p := components.NewSessionPreview()
-	p.SetSize(60, 25)
-
-	snap := &session.Snapshot{
-		ID:        "s1",
-		Name:      "Test",
-		Status:    session.StatusRunning,
-		StartedAt: time.Now(),
-	}
-	p.SetSession(snap, nil)
-
-	// Set scrollback with ANSI codes
-	scrollback := []byte("\x1b[32mSuccess\x1b[0m: Operation completed\n\x1b[31mError\x1b[0m: None")
-	p.SetScrollback(scrollback)
-
+	p.SetSize(80, 25)
+	p.SetSession(&session.Snapshot{ID: "s1", Name: "Test", Status: session.StatusRunning}, nil)
+	p.SetScrollback(
+		[]byte("\x1b[32mSuccess\x1b[0m: Operation completed\n\x1b]0;UNSAFE-TITLE\x07Error: None\n\x1b_Ga=d;HIDDEN-PAYLOAD\x07Done"),
+	)
 	view := p.View()
-
-	// ANSI codes should be stripped
-	if view == "" {
-		t.Error("View should render")
+	for _, text := range []string{"Success: Operation completed", "Error: None", "Done"} {
+		if !strings.Contains(view, text) {
+			t.Errorf("missing %q in %q", text, view)
+		}
 	}
-
-	// Should contain the actual text (after stripping)
-	// (In real test, check that no escape sequences remain)
-
-	t.Log("Scrollback sanitization test completed")
+	for _, control := range []string{"UNSAFE-TITLE", "HIDDEN-PAYLOAD", "\x07", "\x1b]", "\x1b_"} {
+		if strings.Contains(view, control) {
+			t.Errorf("leaked %q in %q", control, view)
+		}
+	}
 }
 
 func TestSessionPreview_OpencodeRedrawScenario(t *testing.T) {

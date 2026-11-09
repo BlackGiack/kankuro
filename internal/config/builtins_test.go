@@ -157,25 +157,6 @@ func TestBuiltinSkillsReturnsMCPCLIAndPuppet(t *testing.T) {
 	}
 }
 
-func TestIsBuiltinSkillIdentifiesBuiltin(t *testing.T) {
-	if !config.IsBuiltinSkill(config.BuiltinSkillMCPCLI) {
-		t.Fatal("expected BuiltinSkillMCPCLI to be recognized as builtin")
-	}
-	if config.IsBuiltinSkill("some-random-id") {
-		t.Fatal("expected random ID to not be recognized as builtin")
-	}
-}
-
-func TestGetBuiltinSkillReturnsCorrectEntry(t *testing.T) {
-	skill, ok := config.GetBuiltinSkill(config.BuiltinSkillMCPCLI)
-	if !ok {
-		t.Fatal("expected to find builtin skill")
-	}
-	if skill.Name != "mcp-cli" {
-		t.Fatalf("expected mcp-cli, got %s", skill.Name)
-	}
-}
-
 func TestGetBuiltinSkillContentReturnsEmbeddedContent(t *testing.T) {
 	fixture := []byte("---\nname: mcp-cli\n---\n# MCP-CLI\nfixture\n")
 	setBuiltinSkillFixture(t, fixture)
