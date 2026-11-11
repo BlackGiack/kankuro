@@ -409,7 +409,7 @@ func (c *Coordinator) sessionLauncherCallbacks() views.SessionLauncherCallbacks 
 		OnSetNameAsync: func(sessionID, name string) tea.Cmd {
 			dashboardID, generation, service := c.activeDashboard, c.viewGeneration, c.actions.service
 			return func() tea.Msg {
-				return messages.ScopedSessionNamedMsg{DashboardID: dashboardID, Generation: generation, SessionID: sessionID,
+				return messages.ScopedSessionNamedMsg{DashboardID: dashboardID, Generation: generation, Name: name, SessionID: sessionID,
 					Err: service.RenameInDashboard(dashboardID, sessionID, name)}
 			}
 		},

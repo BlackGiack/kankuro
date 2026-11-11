@@ -22,18 +22,28 @@ import (
 // refreshDataSeeded is the full refresh every mutation path uses; it also
 // seeds the fingerprint baseline (see refresher.fullSeeded).
 func (c *Coordinator) refreshDataSeeded() tea.Cmd {
-	return c.refresh.scopedFull(c.actions.service, c.activeDashboard, c.viewGeneration, c.currentPreviewSessionID())
+	refresh := c.refresh
+	refresh.sessionEpoch = c.sessionEpoch
+	return refresh.scopedFull(c.actions.service, c.activeDashboard, c.viewGeneration, c.currentPreviewSessionID())
 }
 
 // refreshSessions is the idle tick's sessions-only refresh.
 func (c *Coordinator) refreshSessions() tea.Cmd {
-	return c.refresh.scopedSessions(c.actions.service, c.activeDashboard, c.viewGeneration, c.currentPreviewSessionID())
+	refresh := c.refresh
+	refresh.sessionEpoch = c.sessionEpoch
+	return refresh.scopedSessions(c.actions.service, c.activeDashboard, c.viewGeneration, c.currentPreviewSessionID())
 }
 
 // maybeRefreshConfig is the idle tick's config half; it hands the current
 // baseline to the refresher by value.
 func (c *Coordinator) maybeRefreshConfig() tea.Cmd {
-	return c.refresh.scopedConfigIfChanged(c.actions.service, c.activeDashboard, c.viewGeneration, c.configFingerprint)
+	refresh := c.refresh
+	refresh.sessionEpoch = c.sessionEpoch
+	return refresh.scopedConfigIfChanged(c.actions.service, c.activeDashboard, c.viewGeneration, c.configFingerprint)
+}
+
+func (c *Coordinator) hasStaleSessionSnapshot(msg messages.DataLoadedMsg) bool {
+	return msg.Sessions != nil && msg.SessionEpoch < c.sessionEpoch
 }
 
 // handleConfigFingerprint adopts non-nil stamps and data. An unchanged result
@@ -41,6 +51,9 @@ func (c *Coordinator) maybeRefreshConfig() tea.Cmd {
 func (c *Coordinator) handleConfigFingerprint(m configFingerprintMsg) tea.Cmd {
 	if m.data != nil &&
 		(m.data.DashboardID != c.activeDashboard || m.data.Generation != c.viewGeneration) {
+		return nil
+	}
+	if m.data != nil && c.hasStaleSessionSnapshot(*m.data) {
 		return nil
 	}
 	if m.stamps != nil {
@@ -54,6 +67,9 @@ func (c *Coordinator) handleConfigFingerprint(m configFingerprintMsg) tea.Cmd {
 
 func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
 	if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+		return nil
+	}
+	if c.hasStaleSessionSnapshot(m) {
 		return nil
 	}
 	if m.Err != nil {
@@ -93,13 +109,16 @@ func (c *Coordinator) handleSessionsRefreshed(m messages.SessionsRefreshedMsg) t
 	if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
 		return nil
 	}
+	if m.SessionEpoch < c.sessionEpoch {
+		return nil
+	}
 	if c.activeDashboard == "" {
 		return nil
 	}
 	if m.Err != nil {
 		c.err = m.Err
 	}
-	partial := messages.DataLoadedMsg{Cards: m.Cards, Sessions: m.Sessions}
+	partial := messages.DataLoadedMsg{Cards: m.Cards, Sessions: m.Sessions, SessionEpoch: m.SessionEpoch}
 	for _, viewType := range []ViewType{ViewDashboard, ViewAgentSwitch} {
 		if receiver, ok := c.views[viewType].(messages.DataReceiver); ok {
 			receiver.SetData(partial)

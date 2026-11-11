@@ -18,8 +18,9 @@ import (
 // values passed in as arguments, so invariant 1 (no tea.Cmd closure touches
 // coordinator state) holds here by construction.
 type refresher struct {
-	repo     config.Repository
-	sessions *session.Manager
+	repo         config.Repository
+	sessionEpoch uint64
+	sessions     *session.Manager
 }
 
 // loadGlobalConfigData reads registries shared by all dashboards.

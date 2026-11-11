@@ -29,20 +29,40 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 	if err != nil || len(workspaces) != 1 {
 		t.Fatalf("workspaces: %v %v", workspaces, err)
 	}
-	card, err := createCurrentCard(repo, config.IDCard{Name: "Launch test", Driver: "cat", WorkspaceID: workspaces[0].ID})
+	card, err := createCurrentCard(repo, config.IDCard{Name: "Agent", Driver: "cat", WorkspaceID: workspaces[0].ID})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if _, err = launchCurrentSession(repo, sm, card); err != nil {
+		t.Fatalf("create existing session: %v", err)
 	}
 	coord := newOpenedCoordinator(repo, sm)
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coord.Update(coord.RefreshData()())
+	dashboard := coord.Views()[app.ViewDashboard].(*views.Dashboard)
+	if !hasSessionNamed(dashboard.Sessions(), "Agent") {
+		t.Fatal("older Agent session was not loaded for the filter regression")
+	}
+	dashboard.TogglePane()
+	dashboard.Update(tea.KeyPressMsg{Text: "/"})
+	dashboard.Update(tea.KeyPressMsg{Text: "Agent"})
+	dashboard.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	dashboard.TogglePane()
+	if dashboard.Search().SessionsQuery != "Agent" {
+		t.Fatalf("could not establish retained matching filter: %+v", dashboard.Search())
+	}
 	_, cmd := coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	var launch messages.SessionLaunchCompletedMsg
 	for _, msg := range collectMsgs(t, cmd) {
 		if result, ok := msg.(messages.SessionLaunchCompletedMsg); ok {
 			launch = result
 		}
-		coord.Update(msg)
+		_, followup := coord.Update(msg)
+		if _, isLaunch := msg.(messages.SessionLaunchCompletedMsg); isLaunch {
+			for _, refreshMsg := range collectMsgs(t, followup) {
+				coord.Update(refreshMsg)
+			}
+		}
 	}
 	if launch.Err != nil || launch.SessionID == "" {
 		t.Fatalf("launch did not succeed: %+v", launch)
@@ -51,6 +71,51 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 	if !ok || snap.CardID != card.ID || snap.WorkingDir != workspace || !snap.ProcessStarted || snap.Status != session.StatusRunning ||
 		snap.PID <= 0 {
 		t.Fatalf("missing live activation: %+v", snap)
+	}
+	selected, selectedOK := dashboard.SessionList().Selected()
+	if !selectedOK || selected.ID != launch.SessionID || dashboard.FocusedPane() != views.PaneSessions ||
+		dashboard.PreviewSessionID() != launch.SessionID {
+		t.Fatalf("launched session was not selected: selected=%+v ok=%v pane=%v preview=%q", selected, selectedOK,
+			dashboard.FocusedPane(), dashboard.PreviewSessionID())
+	}
+	if dashboard.Search().SessionsQuery != "Agent" {
+		t.Fatalf("matching initial session name did not preserve filter: %+v", dashboard.Search())
+	}
+	launcher := coord.Views()[app.ViewSessionLauncher].(*views.SessionLauncher)
+	launcher.SetName("Created session")
+	_, nameCmd := launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	var nameResult messages.ScopedSessionNamedMsg
+	for _, msg := range collectMsgs(t, nameCmd) {
+		if result, ok := msg.(messages.ScopedSessionNamedMsg); ok {
+			nameResult = result
+		}
+	}
+	if nameResult.SessionID != launch.SessionID || nameResult.Err != nil {
+		t.Fatalf("name confirmation failed: %+v", nameResult)
+	}
+	_, attachFlow := coord.Update(nameResult)
+	if dashboard.Search().SessionsQuery != "Agent" {
+		t.Fatalf("renamed focus cleared filter before refreshed name arrived: %+v", dashboard.Search())
+	}
+	if coord.CurrentView() != app.ViewDashboard {
+		t.Fatal("name confirmation did not return to dashboard")
+	}
+	if attachFlow == nil {
+		t.Fatal("name confirmation did not request attachment")
+	}
+	_, refresh := coord.Update(messages.AttachFinishedMsg{
+		SessionID: launch.SessionID, DashboardID: launch.DashboardID, Generation: launch.Generation,
+	})
+	for _, refreshMsg := range collectMsgs(t, refresh) {
+		coord.Update(refreshMsg)
+	}
+	selected, selectedOK = dashboard.SessionList().Selected()
+	if !selectedOK || selected.ID != launch.SessionID || dashboard.PreviewSessionID() != launch.SessionID {
+		t.Fatalf("detachment refresh changed launched session selection: selected=%+v ok=%v preview=%q", selected,
+			selectedOK, dashboard.PreviewSessionID())
+	}
+	if dashboard.Search().SessionsQuery != "" {
+		t.Fatalf("filter that no longer matches confirmed name was not cleared: %+v", dashboard.Search())
 	}
 	bytes, err := os.ReadFile(filepath.Join(repo.Dir(), "sessions", launch.SessionID+".json"))
 	if err != nil {
@@ -64,6 +129,15 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 		persisted.WorkingDir != workspace {
 		t.Fatalf("persisted wrong session: %+v", persisted)
 	}
+}
+
+func hasSessionNamed(sessions []session.Snapshot, name string) bool {
+	for _, sess := range sessions {
+		if sess.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func TestCardCRUDFlow(t *testing.T) {

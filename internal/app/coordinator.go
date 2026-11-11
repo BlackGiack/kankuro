@@ -44,6 +44,7 @@ type Coordinator struct {
 	preview              previewSub
 	activeDashboard      string
 	viewGeneration       uint64
+	sessionEpoch         uint64
 	dashboardListRequest uint64
 	dashboardViews       map[string]*views.Dashboard
 	editingCard          config.IDCard
@@ -240,6 +241,9 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
 			return true, nil
 		}
+		if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+			dashboard.SetDashboardScope("", c.viewGeneration+1)
+		}
 		c.activeDashboard = ""
 		c.viewGeneration++
 		return true, tea.Batch(c.navigateTo(ViewDashboardList), c.refreshDashboardList())
@@ -350,6 +354,12 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		if ok {
 			launcher.SetLaunchResult(m.SessionID, m.Err)
 		}
+		if m.SessionID != "" && (m.Err == nil || errors.Is(m.Err, session.ErrPersistFailed)) {
+			c.sessionEpoch++
+			if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+				dashboard.FocusSession(m.SessionID)
+			}
+		}
 		return true, c.refreshDataSeeded()
 
 	case messages.AgentSwitchRequestedMsg:
@@ -417,6 +427,10 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		if m.Err != nil {
 			return true, nil
 		}
+		c.sessionEpoch++
+		if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+			dashboard.FocusSessionAfterRename(m.SessionID, m.Name)
+		}
 		return true, tea.Batch(c.navigateTo(ViewDashboard), c.requestAttach(m.SessionID))
 
 	case messages.DashboardSessionRenamedMsg:
@@ -426,6 +440,9 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		dashboard, ok := c.views[ViewDashboard].(*views.Dashboard)
 		if !ok || !dashboard.CompleteRename(m.SessionID, m.Err) {
 			return true, nil
+		}
+		if m.Err == nil {
+			c.sessionEpoch++
 		}
 		return true, c.refreshDataSeeded()
 

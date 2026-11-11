@@ -249,6 +249,28 @@ func TestSessionList_SetSelectedByID(t *testing.T) {
 	}
 }
 
+func TestSessionList_SetSessionsPreservesSelectionByID(t *testing.T) {
+	sl := components.NewSessionList(components.SessionListCallbacks{})
+	sl.SetSessions([]session.Snapshot{
+		{ID: "a", Name: "A", StartedAt: time.Unix(1, 0)},
+		{ID: "b", Name: "B", StartedAt: time.Unix(2, 0)},
+	}, nil)
+	sl.SetSelectedByID("a")
+	sl.SetSessions([]session.Snapshot{
+		{ID: "a", Name: "A", StartedAt: time.Unix(4, 0)},
+		{ID: "b", Name: "B", StartedAt: time.Unix(3, 0)},
+	}, nil)
+	selected, ok := sl.Selected()
+	if !ok || selected.ID != "a" {
+		t.Fatalf("selection changed after reorder: %+v, %v", selected, ok)
+	}
+	sl.SetSessions([]session.Snapshot{{ID: "b", Name: "B", StartedAt: time.Unix(4, 0)}}, nil)
+	selected, ok = sl.Selected()
+	if !ok || selected.ID != "b" {
+		t.Fatalf("removed selection did not fall back: %+v, %v", selected, ok)
+	}
+}
+
 func TestRenderAgentFace(t *testing.T) {
 	// Test that renderer works
 	face := components.RenderAgentFace("neutral")

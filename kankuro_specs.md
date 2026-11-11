@@ -274,7 +274,7 @@ running, waiting and terminated processes.
 |---|---|
 | `Tab` | Move focus between cards and sessions. |
 | `/` | Search the focused list. |
-| `Enter` on a card | Launch a new session. |
+| `Enter` on a card | Launch a new session; after launch, focus and select it in the sessions pane. |
 | `Enter` on a session | Attach if live; relaunch if terminated, with conversation selection when needed. |
 | `a` | Attach to the selected live session. |
 | `n` / `e` | Create / edit a card, subject to ownership. |
