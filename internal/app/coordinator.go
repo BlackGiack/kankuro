@@ -419,6 +419,16 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		}
 		return true, tea.Batch(c.navigateTo(ViewDashboard), c.requestAttach(m.SessionID))
 
+	case messages.DashboardSessionRenamedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || c.currentView != ViewDashboard {
+			return true, nil
+		}
+		dashboard, ok := c.views[ViewDashboard].(*views.Dashboard)
+		if !ok || !dashboard.CompleteRename(m.SessionID, m.Err) {
+			return true, nil
+		}
+		return true, c.refreshDataSeeded()
+
 	case messages.ScopedActionFinishedMsg:
 		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
 			return true, nil

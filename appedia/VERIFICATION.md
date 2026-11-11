@@ -1,75 +1,56 @@
-# Verification — 2026-11-09 OpenCode fixture refresh
+# Verification — 2026-11-11 session rename refresh
 
-## Fixture and checks
+The current source is commit `7a58943` (`feat: sessions rename`). This documentation
+refresh adds the existing-session rename interaction, scoped persistence/result
+handling, responsive modal/help, and nine supported test scenarios. Production
+code and tests were not changed during this appedia update.
 
-Current OpenCode credentials are exported/imported through the installed CLI
-and integration/value/active metadata is compared in memory. Credential values
-are never printed or published. The conversation database is not copied.
-Service configuration is excluded; the fixture uses and stops its own service
-on a separate loopback port.
+## Current execution
 
-The requested model is openrouter/openrouter/free (Free Models Router).
-Its visible model label is asserted before the task is submitted.
-Every E2E Go source has the e2e build tag.
+`go test -json ./...` passed. Per-test results were read from that run's JSONL and
+bound to the fresh collector fingerprint. This ordinary suite excludes E2E-tagged
+sources. The source inventory and relevant existing assertions were reassessed;
+the moved terminal-action test body is unchanged, and its reviewed file hash was
+updated. The nine rename scenarios include direct cancellation/scope-reset and
+coordinator/service/disk/reload assertions.
 
-The capture-glyph preflight passed using tui-test Go and an installed
-Noto Sans Symbols2 fallback for U+2B1D. It creates only a temporary PNG and runs
-before model calls. Direct-process exit checks read State.Exited, as required
-for Run processes.
+The site's 29 features contain 78 scoped scenarios: 70 tested and eight partial.
+The rename feature has nine supported scenarios and no partial/missing evidence.
+Broader stop/remove/raw-terminal and native-agent boundaries retain their own
+limits; these totals are not a statement or functional coverage percentage.
 
-Fresh ordinary tests passed with package-local atomic coverage: 7,897 /
-10,760 statements (73.4%). Tagged vet and lint passed.
-The prior cleanup's production build/vet/race results remain historical checks;
-this refresh changes test support and documentation, not production behavior.
+## Historical evidence
 
-## Actual native run
+The embedded 2026-11-09 native-agent captures/result retain their original run,
+endpoint fingerprint and failed-registration outcome. They were recovered from
+the prior evidence inventory because the ignored source PNGs are absent in this
+checkout. No new native-agent/model-driven run was performed, and detach/resume
+assertions were not reached in that historical attempt.
 
-    go test -tags=e2e ./tests/e2e -run '^TestNativeAgentJourney$' -count=1 -timeout=10m -v
+The old atomic statement profile remains available with its original provenance;
+its fingerprint differs from current head, so it is not current-head coverage.
+No new statement profile or coverage delta was collected. Detailed historical
+results are retained in
+[.maintenance/native-agent-verification-2026-11-09.md](.maintenance/native-agent-verification-2026-11-09.md).
 
-Started 2026-11-09T22:38:19.351021609Z; finished 2026-11-09T22:42:26.268507608Z.
-Result: failed; final stage: register.
-Environment: Linux/amd64, OpenCode 2.2.6, tui-test Go v0.1.1, 120×40 cells,
-isolated HOME/config/workspace/service and the configured OpenRouter credential.
+## Documentation checks
 
-The run launched and attached with the requested model, but no conversation binding was saved within the four-minute registration wait. Detach/restoration and resume were not reached.
+The accepted rename impact review is retained in
+[.maintenance/session-rename-review.json](.maintenance/session-rename-review.json).
+Reference/evidence validation and all-route smoke checks passed during finalize.
+The updated baseline was accepted at 2026-11-11T21:20:40.117Z. All 114 initial impact
+items were reviewed, followed by a source-stable association refinement. The
+rename-save flow now links only to its five supported scenarios; broader partial
+stop/remove/attach assessments stay on the manual-session flow.
 
-Read-only native-session diagnostics during this attempt showed a completed
-assistant turn without a tool call for the explicit registration task.
-A prior router attempt loaded the registration skill, then stopped without
-registering. Model inference was responding; this is not evidence of a failed
-HTTP connection. The router may choose different backing models.
+Chrome captures covered the map, changed code, rename flow, feature, evidence
+source and coverage pages in light and dark. Additional 900px captures checked
+the rename flow/feature and retained historical failure image. Representative
+captures were visually inspected. The coverage page correctly refuses to assign
+the old profile to current head. Captures are under
+`tmp/appedia-session-rename-shots/`. Browser screenshots of the documentation
+site are separate from terminal-application E2E evidence.
 
-The current PNGs and result.json are embedded in data/test-evidence.json and
-the normalized model. The failure capture preserves the terminal at the
-registration checkpoint. No registration, Ctrl+K restoration, resume or
-image-baseline comparison is claimed for this failed run.
+`git diff --check` passed. No production source or test files changed.
 
-The initial Big Pickle quota screenshot came from incomplete fixture setup.
-It does not describe the user's account state and is superseded. The later
-NVIDIA timeouts are also historical attempts; the current evidence uses the
-router confirmed by the user.
-
-## Provenance and assessments
-
-Source fingerprint: 22ce60949b80ba3d6d306b85a4c88683bf040372efe7dbbff5d879030f24365a
-Revision: WORKTREE.
-
-The ordinary profile, native result and collected endpoint match. The snapshot
-contains the raw profile, source hashes and actual execution metadata. Curated
-ordinary results come from the run's JSONL events, separate from the failed E2E
-result. No earlier profile was relabeled as current and no coverage delta is
-claimed.
-
-There are 28 features, 69 scenarios and 94 reviewed evidence records:
-61 tested and 8 partial. Temporary-workspace
-input/save is tested. The native journey remains partial with actual reached
-assertions, implemented later checkpoints, and explicit limits.
-
-Finalization passed reference/evidence validation and the all-route smoke
-check. The refreshed baseline was accepted at 2026-11-09T22:46:01.092Z.
-Eight Chrome captures covered feature, source, failure-image and coverage pages
-in both themes; the feature and failure-image pages were visually inspected.
-Those documentation checks are separate from terminal E2E proof.
-The accepted impact review is retained in
-.maintenance/opencode-fixture-review.json. Prior cleanup reviews remain history.
 No commits were made.

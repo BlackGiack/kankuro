@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode"
 
+	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -23,7 +24,9 @@ type Pane int
 
 // UI constants.
 const (
-	cardsListPadding = 2
+	cardsListPadding       = 2
+	renameInputMaxWidth    = 56
+	renameModalChromeWidth = 4
 )
 
 const (
@@ -47,8 +50,9 @@ type PendingAction struct {
 
 // DashboardCallbacks defines callbacks for dashboard actions.
 type DashboardCallbacks struct {
-	OnBack     func() tea.Cmd
-	OnEditCard func(card config.IDCard) tea.Cmd
+	OnBack          func() tea.Cmd
+	OnEditCard      func(card config.IDCard) tea.Cmd
+	OnRenameSession func(sessionID, name string) tea.Cmd
 
 	OnLaunchCard func(card config.IDCard) tea.Cmd
 
@@ -82,7 +86,12 @@ type Dashboard struct {
 	sessionList *components.SessionList
 	preview     *components.SessionPreview
 
-	deleteModal *components.Modal
+	deleteModal     *components.Modal
+	renameModal     *components.Modal
+	renameInput     textinput.Model
+	renameSessionID string
+	renamePending   bool
+	renameErr       error
 
 	focusedPane Pane
 	search      SearchState
@@ -117,12 +126,18 @@ func NewDashboard(callbacks DashboardCallbacks) *Dashboard {
 	preview := components.NewSessionPreview()
 
 	deleteModal := components.NewModal("Confirm Delete")
+	renameModal := components.NewModal("Rename Session")
+	renameInput := textinput.New()
+	renameInput.Placeholder = "Session name"
+	renameInput.SetWidth(defaultInputWidth)
 
 	d := &Dashboard{
 		cardList:    nil,
 		sessionList: nil,
 		preview:     preview,
 		deleteModal: deleteModal,
+		renameModal: renameModal,
+		renameInput: renameInput,
 		focusedPane: PaneCards,
 		callbacks:   callbacks,
 	}
@@ -161,7 +176,30 @@ func (d *Dashboard) SetDashboardName(name string) { d.dashboardName = name }
 
 // SetDashboardScope tags navigation commands with the originating view.
 func (d *Dashboard) SetDashboardScope(id string, generation uint64) {
+	if d.dashboardID != id || d.dashboardGeneration != generation {
+		d.closeRename()
+	}
 	d.dashboardID, d.dashboardGeneration = id, generation
+}
+
+// CompleteRename applies only the result for the currently pending target.
+func (d *Dashboard) CompleteRename(sessionID string, err error) bool {
+	if !d.renameModal.IsOpen() || !d.renamePending || d.renameSessionID != sessionID {
+		return false
+	}
+	d.renamePending = false
+	d.renameErr = err
+	if err == nil {
+		d.closeRename()
+	}
+	return true
+}
+
+func (d *Dashboard) closeRename() {
+	d.renameModal.Close()
+	d.renameSessionID = ""
+	d.renamePending = false
+	d.renameErr = nil
 }
 
 // ShowCardDeletionImpact requires explicit confirmation of foreign references.
@@ -391,6 +429,9 @@ func (d *Dashboard) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if d.cardImpactOpen {
 		return d.updateCardImpact(msg)
 	}
+	if d.renameModal.IsOpen() {
+		return d.updateRename(msg)
+	}
 	// Handle modals first
 	if d.deleteModal.IsOpen() {
 		return d.updateDeleteModal(msg)
@@ -492,7 +533,47 @@ func (d *Dashboard) handleEdit() (tea.Cmd, bool) {
 			}
 		}
 	}
+	if d.focusedPane == PaneSessions {
+		if sess, ok := d.sessionList.Selected(); ok {
+			d.renameSessionID = sess.ID
+			d.renameInput.SetValue(sess.Name)
+			d.renameInput.Focus()
+			d.renamePending = false
+			d.renameErr = nil
+			d.renameModal.Open()
+		}
+	}
 	return nil, true
+}
+
+func (d *Dashboard) updateRename(msg tea.Msg) (component.Model, tea.Cmd) {
+	key, isKey := msg.(tea.KeyPressMsg)
+	if isKey && key.String() == keyCtrlC {
+		return d, tea.Quit
+	}
+	if isKey && !d.renamePending {
+		switch key.Code {
+		case tea.KeyEsc:
+			d.closeRename()
+			return d, nil
+		case tea.KeyEnter:
+			name := strings.TrimSpace(d.renameInput.Value())
+			if name == "" {
+				name = d.renameSessionID
+			}
+			if d.callbacks.OnRenameSession != nil {
+				d.renamePending = true
+				return d, d.callbacks.OnRenameSession(d.renameSessionID, name)
+			}
+			return d, nil
+		}
+	}
+	if d.renamePending {
+		return d, nil
+	}
+	var cmd tea.Cmd
+	d.renameInput, cmd = d.renameInput.Update(msg)
+	return d, cmd
 }
 
 func (d *Dashboard) handleOpenMCP() (tea.Cmd, bool) {
@@ -912,6 +993,8 @@ func (d *Dashboard) SetSize(width, height int) {
 		paneHeight-paneBorderRing,
 	)
 	d.deleteModal.SetSize(width, height)
+	d.renameModal.SetSize(width, height)
+	d.renameInput.SetWidth(dashboardModalInputWidth(width))
 }
 
 // View renders the dashboard.
@@ -924,6 +1007,22 @@ func (d *Dashboard) View() string {
 	// Handle modal overlays
 	if d.deleteModal.IsOpen() {
 		return d.renderWithOverlay(d.deleteModal.View())
+	}
+	if d.renameModal.IsOpen() {
+		content := d.renameInput.View()
+		if d.renamePending {
+			content += "\nSaving…"
+		} else {
+			content += "\nEnter: save  Esc: cancel"
+		}
+		if d.renameErr != nil {
+			const errorPrefix = "Save failed: "
+			errorWidth := max(0, d.renameInput.Width()-lipgloss.Width(errorPrefix))
+			errorText := errorPrefix + components.TruncateTail(components.DisplayText(d.renameErr.Error()), errorWidth)
+			content += "\n" + errorText
+		}
+		d.renameModal.SetContent(content)
+		return d.renderWithOverlay(d.renameModal.View())
 	}
 
 	return d.renderBase()
@@ -1110,8 +1209,8 @@ func paneTitleStyle() lipgloss.Style {
 const (
 	footerNav             = "[Nav] Tab"
 	footerCards           = "[Card] Enter=Launch n=New e=Edit"
-	footerSessions        = "[Session] Enter=Attach/Relaunch o=IDE t=Terminal s=Switch x=Kill Del=Remove"
-	footerSessionsCompact = "[Session] Enter=Attach/Relaunch o=IDE t=Terminal x=Kill"
+	footerSessions        = "[Session] Enter=Attach/Relaunch e=Rename o=IDE t=Terminal s=Switch x=Kill Del=Remove"
+	footerSessionsCompact = "[Session] Enter=Attach/Relaunch e=Rename o=IDE t=Terminal x=Kill"
 	footerGlobal          = "[Global] m=MCP w=Workspaces c=Settings q=Quit"
 	footerGlobalMinimal   = "[Global] q=Quit"
 	footerGroupGap        = "  "
@@ -1141,11 +1240,14 @@ func (d *Dashboard) footerText(width int) string {
 	}
 	if d.focusedPane == PaneSessions {
 		candidates = append(candidates,
-			[]string{navigation, footerSessionsCompact, footerGlobalMinimal},
-			[]string{navigation, "[Session] Enter=Attach o=IDE t=Terminal", footerGlobalMinimal},
+			[]string{navigation, "[Session] Enter=Attach/Relaunch e=Rename o=IDE t=Terminal", footerGlobalMinimal},
+			[]string{navigation, "[Session] Enter=Attach e=Rename t=Terminal", footerGlobalMinimal},
 		)
 		if d.dashboardID != "" {
-			candidates = append(candidates, []string{"Esc=Dashboards", "[Session] Enter=Attach t=Terminal", footerGlobalMinimal})
+			candidates = append(candidates,
+				[]string{"Esc=Dashboards", "[Session] Enter=Attach e=Rename", footerGlobalMinimal},
+				[]string{"Esc=Dashboards", "[Session] Enter=Attach t=Terminal", footerGlobalMinimal},
+			)
 		}
 		candidates = append(candidates, []string{footerSessionsCompact, footerGlobalMinimal})
 	}
@@ -1160,6 +1262,11 @@ func (d *Dashboard) footerText(width int) string {
 		}
 	}
 	return components.TruncateHead(footerGlobalMinimal, width)
+}
+
+func dashboardModalInputWidth(width int) int {
+	modalWidth := min(width, max(40, width*3/5)) //nolint:mnd // matches Modal.SetSize responsive width
+	return max(1, min(renameInputMaxWidth, modalWidth-renameModalChromeWidth))
 }
 
 // renderFooter renders the keyboard shortcuts, fitted to the dashboard's width.

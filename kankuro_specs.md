@@ -278,6 +278,7 @@ running, waiting and terminated processes.
 | `Enter` on a session | Attach if live; relaunch if terminated, with conversation selection when needed. |
 | `a` | Attach to the selected live session. |
 | `n` / `e` | Create / edit a card, subject to ownership. |
+| `e` on a selected session | Edit its display name; Enter saves and Esc cancels. |
 | `x` | Stop the selected live session. |
 | `s` | Switch the selected terminated session to an available card. |
 | Delete/Backspace on a session | Confirm removal of a terminated session and its temporary workspace. |

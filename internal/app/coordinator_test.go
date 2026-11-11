@@ -12,7 +12,10 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/app"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 func TestCoordinator_New(t *testing.T) {
@@ -49,6 +52,151 @@ func TestCoordinator_Navigate(t *testing.T) {
 	}
 	if coord.PrevView() != app.ViewDashboard {
 		t.Errorf("Expected prevView ViewDashboard, got %v", coord.PrevView())
+	}
+}
+
+func TestCoordinator_DashboardRenameFailureStaysInDialogAndIgnoresStaleResult(t *testing.T) {
+	repo, _ := newCurrentRepository(t.TempDir())
+	sm := newTestManager(t, repo.Dir(), repo)
+	coord := newScopedCoordinator(repo, sm)
+	openDefaultDashboard(coord)
+	dashboard, ok := coord.Views()[app.ViewDashboard].(*views.Dashboard)
+	if !ok {
+		t.Fatal("dashboard view unavailable")
+	}
+	dashboard.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "missing-session", Name: "Session"}}})
+	dashboard.TogglePane()
+	dashboard.SessionList().SetSelectedByID("missing-session")
+	dashboard.Update(tea.KeyPressMsg{Text: "e"})
+	_, cmd := dashboard.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("rename did not start")
+	}
+	result, ok := cmd().(messages.DashboardSessionRenamedMsg)
+	if !ok {
+		t.Fatal("rename command returned unexpected message")
+	}
+	stale := result
+	stale.Generation++
+	coord.Update(stale)
+	if !strings.Contains(dashboard.View(), "Saving") {
+		t.Fatal("stale rename result modified the pending dialog")
+	}
+	coord.Update(result)
+	if coord.CurrentView() != app.ViewDashboard {
+		t.Fatalf("rename failure navigated to view %v", coord.CurrentView())
+	}
+	if !strings.Contains(dashboard.View(), "Save failed") {
+		t.Fatal("rename failure was not retained in the dialog")
+	}
+}
+
+func newRunningRenameSession(t *testing.T) (*config.FileRepository, *session.Manager, string) {
+	t.Helper()
+	repo, err := newCurrentRepository(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sm := newTestManager(t, repo.Dir(), repo)
+	if err = repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: t.TempDir()}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, err := repo.ListWorkspaces()
+	if err != nil || len(workspaces) != 1 {
+		t.Fatalf("workspace discovery: %v, %v", workspaces, err)
+	}
+	card, err := createCurrentCard(repo, config.IDCard{
+		Name: "Rename fixture", Driver: "cat", WorkspaceID: workspaces[0].ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessionID, err := launchCurrentSession(repo, sm, card)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return repo, sm, sessionID
+}
+
+func TestCoordinator_DashboardRenameRefreshesWithoutAttachAndSurvivesRestart(t *testing.T) {
+	repo, sm, sessionID := newRunningRenameSession(t)
+	before, ok := sm.GetSession(sessionID)
+	if !ok || before.Status == session.StatusTerminated || before.PID <= 0 || !before.ProcessStarted {
+		t.Fatalf("expected a live activation before rename: %+v", before)
+	}
+	coord := newOpenedCoordinator(repo, sm)
+	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	coord.Update(coord.RefreshData()())
+	dashboard := coord.Views()[app.ViewDashboard].(*views.Dashboard)
+	coord.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	dashboard.SessionList().SetSelectedByID(sessionID)
+	coord.Update(tea.KeyPressMsg{Text: "e"})
+	if !strings.Contains(dashboard.View(), "Rename Session") {
+		t.Fatal("session edit did not open the rename dialog")
+	}
+	// Replace the existing name through the same text input events as the UI.
+	coord.Update(tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl})
+	coord.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	const newName = "Renamed 日本語 session"
+	coord.Update(tea.KeyPressMsg{Text: newName})
+	_, submit := coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if submit == nil {
+		t.Fatal("rename did not return a save command")
+	}
+	result, ok := submit().(messages.DashboardSessionRenamedMsg)
+	if !ok || result.Err != nil || result.SessionID != sessionID {
+		t.Fatalf("rename result: %+v", result)
+	}
+	_, refresh := coord.Update(result)
+	if strings.Contains(dashboard.View(), "Rename Session") {
+		t.Fatal("successful rename did not close the dialog")
+	}
+	// A rename must return only the data refresh, never the launch naming
+	// flow's attachment or navigation commands. Do not execute preview waits.
+	updates := collectMsgs(t, refresh)
+	for _, update := range updates {
+		if attach, isAttach := update.(messages.ScopedAttachReadyMsg); isAttach && attach.Handle != nil {
+			attach.Handle.Close()
+			t.Fatal("rename requested terminal attachment")
+		}
+	}
+	if len(updates) != 1 {
+		t.Fatalf("rename returned %d commands, want only a data refresh", len(updates))
+	}
+	coord.Update(updates[0])
+	if coord.CurrentView() != app.ViewDashboard || coord.Err() != nil {
+		t.Fatalf("rename changed view or reported error: view=%v error=%v", coord.CurrentView(), coord.Err())
+	}
+	selected, ok := dashboard.SessionList().Selected()
+	if !ok || selected.ID != sessionID || selected.Name != newName {
+		t.Fatalf("dashboard did not refresh the selected name: %+v", selected)
+	}
+	after, ok := sm.GetSession(sessionID)
+	if !ok || after.PID != before.PID || after.ActivationID != before.ActivationID || after.Status == session.StatusTerminated {
+		t.Fatalf("rename replaced or stopped the activation: before=%+v after=%+v", before, after)
+	}
+	if err := sm.Kill(sessionID); err != nil {
+		t.Fatalf("stop renamed session: %v", err)
+	}
+	sm.Shutdown()
+	checkRenamedSessionAfterRestart(t, repo.Dir(), sessionID, newName)
+}
+
+func checkRenamedSessionAfterRestart(t *testing.T, dir, sessionID, name string) {
+	t.Helper()
+	restoredRepo, err := newCurrentRepository(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restoredManager := newTestManager(t, restoredRepo.Dir(), restoredRepo)
+	if err = restoredManager.LoadErrors(); err != nil {
+		t.Fatal(err)
+	}
+	restoredCoord := newOpenedCoordinator(restoredRepo, restoredManager)
+	restoredCoord.Update(restoredCoord.RefreshData()())
+	restoredDashboard := restoredCoord.Views()[app.ViewDashboard].(*views.Dashboard)
+	if got := restoredDashboard.Sessions(); len(got) != 1 || got[0].ID != sessionID || got[0].Name != name {
+		t.Fatalf("rename did not survive restart: %+v", got)
 	}
 }
 

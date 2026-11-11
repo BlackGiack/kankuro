@@ -147,6 +147,7 @@ schemas, retention bounds and retry scheduling details.
 | Dashboard list | `Enter` opens; `n` creates; `e` edits; Delete/Backspace starts deletion or retries incomplete deletion. `Esc` and Ctrl+C do not quit the list; `q` quits. |
 | Open dashboard | `Esc` returns to the list; pane navigation and `/` search select cards or sessions. `q` quits. |
 | Card/session actions | Enter launches a card or attaches/relaunches a session; `a` attaches, `x` stops, `s` switches a stopped session, Delete/Backspace removes a stopped session. |
+| Session rename | Focus a selected session and press `e`; Enter saves the name and Esc cancels. |
 | Workspace commands | `o` / `t` open the selected session's actual workspace in the configured IDE / terminal. |
 | Configuration | `m` / `w` / `c` open MCP configuration, workspace sources and settings. |
 | Attached terminal | Ctrl+K detaches and returns control to Bubble Tea. |

@@ -1,0 +1,1413 @@
+{
+  "version": 1,
+  "changes": [
+    {
+      "ref": "app.Coordinator.dashboardCallbacks",
+      "status": "changed",
+      "file": "callbacks.go"
+    },
+    {
+      "ref": "app.Coordinator.handleSessionMessages",
+      "status": "changed",
+      "file": "coordinator.go"
+    },
+    {
+      "ref": "app.Coordinator.renameDashboardSession",
+      "status": "added",
+      "file": "callbacks.go"
+    },
+    {
+      "ref": "code:relations",
+      "status": "changed relations or data flow",
+      "file": ""
+    },
+    {
+      "ref": "messages.DashboardSessionRenamedMsg",
+      "status": "added",
+      "file": "messages.go"
+    },
+    {
+      "ref": "views.Dashboard",
+      "status": "changed",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.closeRename",
+      "status": "added",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.CompleteRename",
+      "status": "added",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.footerText",
+      "status": "changed",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.handleEdit",
+      "status": "changed",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.SetDashboardScope",
+      "status": "changed",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.SetSize",
+      "status": "changed",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.Update",
+      "status": "changed",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.updateRename",
+      "status": "added",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.View",
+      "status": "changed",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.DashboardCallbacks",
+      "status": "changed",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.dashboardModalInputWidth",
+      "status": "added",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.NewDashboard",
+      "status": "changed",
+      "file": "dashboard.go"
+    }
+  ],
+  "files": [
+    {
+      "file": "AGENTS.md",
+      "status": "changed"
+    },
+    {
+      "file": "feature-sessmod.md",
+      "status": "added"
+    },
+    {
+      "file": "impl_plan.md",
+      "status": "added"
+    },
+    {
+      "file": "internal/app/callbacks.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/app/coordinator_test.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/app/coordinator.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/ui/messages/messages.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/ui/views/dashboard_layout_test.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/ui/views/dashboard_test.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/ui/views/dashboard.go",
+      "status": "changed"
+    },
+    {
+      "file": "kankuro_specs.md",
+      "status": "changed"
+    },
+    {
+      "file": "project.md",
+      "status": "changed"
+    },
+    {
+      "file": "review.md",
+      "status": "added"
+    },
+    {
+      "file": "tests_to_remove.md",
+      "status": "removed"
+    },
+    {
+      "file": "tests/e2e/AGENTS.md",
+      "status": "added"
+    },
+    {
+      "file": "tests/e2e/README.md",
+      "status": "changed"
+    }
+  ],
+  "items": [
+    {
+      "id": "flow:attach",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed attach against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:card-delete",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.CompleteRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetSize (changed)",
+        "participant association: views.Dashboard.Update (changed)",
+        "participant association: views.Dashboard.View (changed)",
+        "participant association: views.Dashboard.closeRename (added)",
+        "participant association: views.Dashboard.footerText (changed)",
+        "participant association: views.Dashboard.handleEdit (changed)",
+        "participant association: views.Dashboard.updateRename (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed card-delete against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:dashboard",
+      "reasons": [
+        "direct reference: views.Dashboard.View (changed)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.CompleteRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetSize (changed)",
+        "participant association: views.Dashboard.Update (changed)",
+        "participant association: views.Dashboard.View (changed)",
+        "participant association: views.Dashboard.closeRename (added)",
+        "participant association: views.Dashboard.footerText (changed)",
+        "participant association: views.Dashboard.handleEdit (changed)",
+        "participant association: views.Dashboard.updateRename (added)",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Updated this flow for existing-session rename, modal input/scope/error behavior, compact help, or the explicit distinction from launch-time naming. Dedicated rename-edit/save/layout flows trace the added path."
+    },
+    {
+      "id": "flow:dashboard-details",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed dashboard-details against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:deleted-session",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.CompleteRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetSize (changed)",
+        "participant association: views.Dashboard.Update (changed)",
+        "participant association: views.Dashboard.View (changed)",
+        "participant association: views.Dashboard.closeRename (added)",
+        "participant association: views.Dashboard.footerText (changed)",
+        "participant association: views.Dashboard.handleEdit (changed)",
+        "participant association: views.Dashboard.updateRename (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed deleted-session against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:editcard",
+      "reasons": [
+        "direct reference: app.Coordinator.dashboardCallbacks (changed)",
+        "direct reference: views.Dashboard.handleEdit (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.CompleteRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetSize (changed)",
+        "participant association: views.Dashboard.Update (changed)",
+        "participant association: views.Dashboard.View (changed)",
+        "participant association: views.Dashboard.closeRename (added)",
+        "participant association: views.Dashboard.footerText (changed)",
+        "participant association: views.Dashboard.handleEdit (changed)",
+        "participant association: views.Dashboard.updateRename (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Updated this flow for existing-session rename, modal input/scope/error behavior, compact help, or the explicit distinction from launch-time naming. Dedicated rename-edit/save/layout flows trace the added path."
+    },
+    {
+      "id": "flow:ide",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.CompleteRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetSize (changed)",
+        "participant association: views.Dashboard.Update (changed)",
+        "participant association: views.Dashboard.View (changed)",
+        "participant association: views.Dashboard.closeRename (added)",
+        "participant association: views.Dashboard.footerText (changed)",
+        "participant association: views.Dashboard.handleEdit (changed)",
+        "participant association: views.Dashboard.updateRename (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed ide against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:launch",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed launch against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:list-errors",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed list-errors against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:manual-session",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Updated this flow for existing-session rename, modal input/scope/error behavior, compact help, or the explicit distinction from launch-time naming. Dedicated rename-edit/save/layout flows trace the added path."
+    },
+    {
+      "id": "flow:mcp",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed mcp against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:mutation",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.CompleteRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetSize (changed)",
+        "participant association: views.Dashboard.Update (changed)",
+        "participant association: views.Dashboard.View (changed)",
+        "participant association: views.Dashboard.closeRename (added)",
+        "participant association: views.Dashboard.footerText (changed)",
+        "participant association: views.Dashboard.handleEdit (changed)",
+        "participant association: views.Dashboard.updateRename (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Updated this flow for existing-session rename, modal input/scope/error behavior, compact help, or the explicit distinction from launch-time naming. Dedicated rename-edit/save/layout flows trace the added path."
+    },
+    {
+      "id": "flow:navigation",
+      "reasons": [
+        "direct reference: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.CompleteRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetSize (changed)",
+        "participant association: views.Dashboard.Update (changed)",
+        "participant association: views.Dashboard.View (changed)",
+        "participant association: views.Dashboard.closeRename (added)",
+        "participant association: views.Dashboard.footerText (changed)",
+        "participant association: views.Dashboard.handleEdit (changed)",
+        "participant association: views.Dashboard.updateRename (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)",
+        "supporting reference: views.Dashboard.SetDashboardScope (changed)",
+        "supporting reference: views.Dashboard.SetSize (changed)",
+        "supporting reference: views.Dashboard.Update (changed)",
+        "supporting reference: views.Dashboard.View (changed)",
+        "supporting reference: views.Dashboard.footerText (changed)",
+        "supporting reference: views.Dashboard.handleEdit (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Updated this flow for existing-session rename, modal input/scope/error behavior, compact help, or the explicit distinction from launch-time naming. Dedicated rename-edit/save/layout flows trace the added path."
+    },
+    {
+      "id": "flow:picker-refresh",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed picker-refresh against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:preview",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.CompleteRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetSize (changed)",
+        "participant association: views.Dashboard.Update (changed)",
+        "participant association: views.Dashboard.View (changed)",
+        "participant association: views.Dashboard.closeRename (added)",
+        "participant association: views.Dashboard.footerText (changed)",
+        "participant association: views.Dashboard.handleEdit (changed)",
+        "participant association: views.Dashboard.updateRename (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed preview against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:quit",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed quit against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:readiness",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed readiness against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:resize",
+      "reasons": [
+        "direct reference: views.Dashboard.footerText (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.CompleteRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetSize (changed)",
+        "participant association: views.Dashboard.Update (changed)",
+        "participant association: views.Dashboard.View (changed)",
+        "participant association: views.Dashboard.closeRename (added)",
+        "participant association: views.Dashboard.footerText (changed)",
+        "participant association: views.Dashboard.handleEdit (changed)",
+        "participant association: views.Dashboard.updateRename (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_layout_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Updated this flow for existing-session rename, modal input/scope/error behavior, compact help, or the explicit distinction from launch-time naming. Dedicated rename-edit/save/layout flows trace the added path."
+    },
+    {
+      "id": "flow:resume",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed resume against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:savecard",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "supporting reference: app.Coordinator.dashboardCallbacks (changed)"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed savecard against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:settings",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed settings against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:settings-edit",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed settings-edit against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:skill-filter",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed skill-filter against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:source",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed source against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:startup",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed startup against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:sub-clear",
+      "reasons": [
+        "source file changed: kankuro_specs.md",
+        "source file changed: project.md"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed sub-clear against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:terminal",
+      "reasons": [
+        "direct reference: app.Coordinator.dashboardCallbacks (changed)",
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.CompleteRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetSize (changed)",
+        "participant association: views.Dashboard.Update (changed)",
+        "participant association: views.Dashboard.View (changed)",
+        "participant association: views.Dashboard.closeRename (added)",
+        "participant association: views.Dashboard.footerText (changed)",
+        "participant association: views.Dashboard.handleEdit (changed)",
+        "participant association: views.Dashboard.updateRename (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go",
+        "supporting reference: views.DashboardCallbacks (changed)"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed terminal against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:tick",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.CompleteRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetSize (changed)",
+        "participant association: views.Dashboard.Update (changed)",
+        "participant association: views.Dashboard.View (changed)",
+        "participant association: views.Dashboard.closeRename (added)",
+        "participant association: views.Dashboard.footerText (changed)",
+        "participant association: views.Dashboard.handleEdit (changed)",
+        "participant association: views.Dashboard.updateRename (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed tick against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:workspace-command-errors",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/messages/messages.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed workspace-command-errors against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "flow:workspace-sources",
+      "reasons": [
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.renameDashboardSession (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed workspace-sources against the production diff: shared Coordinator/Dashboard associations changed only for the added rename branch; this flow retains its existing calls, authority and completion behavior. Rename is traced separately."
+    },
+    {
+      "id": "package:app",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "supporting reference: app.Coordinator.dashboardCallbacks (changed)",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Updated package role/source references for the dashboard rename dialog, captured command or dedicated completion message; boundaries and imports remain consistent with head."
+    },
+    {
+      "id": "package:messages",
+      "reasons": [
+        "source file changed: internal/ui/messages/messages.go"
+      ],
+      "disposition": "updated",
+      "note": "Updated package role/source references for the dashboard rename dialog, captured command or dedicated completion message; boundaries and imports remain consistent with head."
+    },
+    {
+      "id": "package:views",
+      "reasons": [
+        "direct reference: views.Dashboard (changed)",
+        "source file changed: internal/ui/views/dashboard.go",
+        "supporting reference: views.Dashboard.SetDashboardScope (changed)",
+        "supporting reference: views.Dashboard.SetSize (changed)",
+        "supporting reference: views.Dashboard.Update (changed)",
+        "supporting reference: views.Dashboard.View (changed)",
+        "supporting reference: views.Dashboard.footerText (changed)",
+        "supporting reference: views.Dashboard.handleEdit (changed)",
+        "supporting reference: views.DashboardCallbacks (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Updated package role/source references for the dashboard rename dialog, captured command or dedicated completion message; boundaries and imports remain consistent with head."
+    },
+    {
+      "id": "rule:1",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed changed command/view handlers: inputs are captured before async execution, full data snapshots are unchanged, and rename errors are form-local while the coordinator banner rule remains intact."
+    },
+    {
+      "id": "rule:3",
+      "reasons": [
+        "source file changed: internal/ui/messages/messages.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed changed command/view handlers: inputs are captured before async execution, full data snapshots are unchanged, and rename errors are form-local while the coordinator banner rule remains intact."
+    },
+    {
+      "id": "rule:4",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)"
+      ],
+      "disposition": "unchanged",
+      "note": "Reviewed changed command/view handlers: inputs are captured before async execution, full data snapshots are unchanged, and rename errors are form-local while the coordinator banner rule remains intact."
+    },
+    {
+      "id": "task:Add a message",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/messages/messages.go"
+      ],
+      "disposition": "updated",
+      "note": "Extended message/key guidance with dedicated rename completion and responsive modal/help references."
+    },
+    {
+      "id": "task:Add a screen",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "The rename interaction uses an existing dashboard modal, not a new screen. Screen registration guidance remains accurate."
+    },
+    {
+      "id": "task:Change dashboard layout or keys",
+      "reasons": [
+        "direct reference: views.Dashboard.footerText (changed)",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_layout_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Extended message/key guidance with dedicated rename completion and responsive modal/help references."
+    },
+    {
+      "id": "test-feature:activation-readiness",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:application-settings",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:card-editor",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:configuration-startup",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:conversation-choice",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:dashboard-context",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:dashboard-management",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:dashboard-ownership",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:deletion-recovery",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:mcp-form",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:minimum-terminal",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_layout_test.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:registry-refresh",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:relaunch-mcp",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:session-actions",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Added direct rename/restart and cancellation evidence, removed the obsolete rename composition gap, and retained the remaining stop/remove/raw-terminal boundaries. Added separate nine-scenario session-rename feature."
+    },
+    {
+      "id": "test-feature:shutdown",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:terminal-journeys",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: tests/e2e/README.md"
+      ],
+      "disposition": "updated",
+      "note": "Preserved source relevance and historical native captures/result with their original endpoint metadata. Explicitly documented no current native-agent rerun and the model/budget requirement; ordinary terminal-layer tests were rerun."
+    },
+    {
+      "id": "test-feature:workspace-commands",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:workspace-identity",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-feature:workspace-selection",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: kankuro_specs.md",
+        "source file changed: project.md"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:activation-readiness/dashboard-launch",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:activation-readiness/readiness",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:application-settings/settings",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:application-settings/settings-edit",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:application-settings/settings-layout",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:card-editor/control-toggle",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:card-editor/focused-field",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:card-editor/preserve-fields",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:card-editor/skill-filter",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:configuration-startup/exclusive-writer",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:configuration-startup/fresh-root",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:configuration-startup/invalid-records",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:conversation-choice/compatible-only",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:dashboard-context/fingerprints",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:dashboard-context/stale-results",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:dashboard-management/dashboard-details",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:dashboard-management/list-errors",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:dashboard-ownership/revalidate-launch",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:dashboard-ownership/scoped-inventory",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:deletion-recovery/pending-launch",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:mcp-form/all-fields",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:minimum-terminal/drop-input",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_layout_test.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:minimum-terminal/explicit-quit",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_layout_test.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:minimum-terminal/notice-rectangle",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_layout_test.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:registry-refresh/blank-canvas",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:registry-refresh/corrupt-registry",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:registry-refresh/destination-refresh",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:registry-refresh/preview-broadcast",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:registry-refresh/preview-sanitization",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:registry-refresh/source-crud",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:registry-refresh/sync-warning",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:registry-refresh/workspace-sources",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:relaunch-mcp/preserve-and-rotate",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:session-actions/manual-session",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Added direct rename/restart and cancellation evidence, removed the obsolete rename composition gap, and retained the remaining stop/remove/raw-terminal boundaries. Added separate nine-scenario session-rename feature."
+    },
+    {
+      "id": "test-scenario:shutdown/copy-boundary",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:shutdown/spawn-boundary",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:terminal-journeys/attachment-handle",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Preserved source relevance and historical native captures/result with their original endpoint metadata. Explicitly documented no current native-agent rerun and the model/budget requirement; ordinary terminal-layer tests were rerun."
+    },
+    {
+      "id": "test-scenario:terminal-journeys/native-agent",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: tests/e2e/README.md"
+      ],
+      "disposition": "updated",
+      "note": "Preserved source relevance and historical native captures/result with their original endpoint metadata. Explicitly documented no current native-agent rerun and the model/budget requirement; ordinary terminal-layer tests were rerun."
+    },
+    {
+      "id": "test-scenario:terminal-journeys/resume-driver",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Preserved source relevance and historical native captures/result with their original endpoint metadata. Explicitly documented no current native-agent rerun and the model/budget requirement; ordinary terminal-layer tests were rerun."
+    },
+    {
+      "id": "test-scenario:workspace-commands/ide",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:workspace-commands/terminal",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go",
+        "supporting reference: app.Coordinator.dashboardCallbacks (changed)"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:workspace-commands/workspace-command-errors",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:workspace-identity/unavailable-path",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:workspace-selection/clear-subworkspaces",
+      "reasons": [
+        "source file changed: kankuro_specs.md",
+        "source file changed: project.md"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "test-scenario:workspace-selection/picker-refresh",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained assertion scope after checking source hashes: all named tests are unchanged (the moved dashboard terminal-routing body is identical). Ordinary execution metadata was refreshed from current go test JSON; rename-only source changes do not alter this scenario."
+    },
+    {
+      "id": "uncovered:code:relations",
+      "reasons": [
+        "uncovered symbol: changed relations or data flow"
+      ],
+      "disposition": "updated",
+      "note": "Added production source references in package notes/rename flows and direct coordinator test evidence. The dialog reuses Modal/textinput and the new result message is distinct from launch naming."
+    },
+    {
+      "id": "uncovered:file:AGENTS.md",
+      "reasons": [
+        "uncovered changed file: changed"
+      ],
+      "disposition": "unchanged",
+      "note": "Task/session-local instructions or feature/plan/review artifacts do not change onboarding policy. Their requirements are incorporated in the rename flow and evidence; no obsolete task content copied into project documentation."
+    },
+    {
+      "id": "uncovered:file:feature-sessmod.md",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "unchanged",
+      "note": "Task/session-local instructions or feature/plan/review artifacts do not change onboarding policy. Their requirements are incorporated in the rename flow and evidence; no obsolete task content copied into project documentation."
+    },
+    {
+      "id": "uncovered:file:impl_plan.md",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "unchanged",
+      "note": "Task/session-local instructions or feature/plan/review artifacts do not change onboarding policy. Their requirements are incorporated in the rename flow and evidence; no obsolete task content copied into project documentation."
+    },
+    {
+      "id": "uncovered:file:internal/app/coordinator_test.go",
+      "reasons": [
+        "uncovered changed file: changed"
+      ],
+      "disposition": "updated",
+      "note": "Added production source references in package notes/rename flows and direct coordinator test evidence. The dialog reuses Modal/textinput and the new result message is distinct from launch naming."
+    },
+    {
+      "id": "uncovered:file:review.md",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "unchanged",
+      "note": "Task/session-local instructions or feature/plan/review artifacts do not change onboarding policy. Their requirements are incorporated in the rename flow and evidence; no obsolete task content copied into project documentation."
+    },
+    {
+      "id": "uncovered:file:tests_to_remove.md",
+      "reasons": [
+        "uncovered changed file: removed"
+      ],
+      "disposition": "updated",
+      "note": "The retired task audit is no longer linked as a current document; current README/verification describe this refresh and retained maintenance history."
+    },
+    {
+      "id": "uncovered:file:tests/e2e/AGENTS.md",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "updated",
+      "note": "Documented provider/model and total-budget confirmation before model-driven E2E. No such run was performed; historical native evidence remains qualified."
+    },
+    {
+      "id": "uncovered:messages.DashboardSessionRenamedMsg",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Added production source references in package notes/rename flows and direct coordinator test evidence. The dialog reuses Modal/textinput and the new result message is distinct from launch naming."
+    },
+    {
+      "id": "uncovered:views.dashboardModalInputWidth",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Added production source references in package notes/rename flows and direct coordinator test evidence. The dialog reuses Modal/textinput and the new result message is distinct from launch naming."
+    },
+    {
+      "id": "uncovered:views.NewDashboard",
+      "reasons": [
+        "uncovered symbol: changed"
+      ],
+      "disposition": "updated",
+      "note": "Added production source references in package notes/rename flows and direct coordinator test evidence. The dialog reuses Modal/textinput and the new result message is distinct from launch naming."
+    }
+  ]
+}

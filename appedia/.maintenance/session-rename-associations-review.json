@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "changes": [],
+  "files": [],
+  "items": [
+    {
+      "id": "content",
+      "reasons": [
+        "appedia content changed since the accepted baseline"
+      ],
+      "disposition": "updated",
+      "note": "Keep the broad partial attach/stop/remove assessment associated with manual-session. The dedicated rename flows link only to the nine directly supported rename scenarios; their assertion evidence and scope limits remain explicit."
+    }
+  ]
+}

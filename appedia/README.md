@@ -2,66 +2,77 @@
 
 Open [index.html](index.html) directly in a browser. No server is needed.
 
-Refreshed 2026-11-09 against the current working tree. Covers 18 packages,
-55 flows, 28 rules and 31 common-change tasks. The Tests tab has 28 features,
-69 scenarios and 94 reviewed evidence records: 61 tested and
-8 partial. These are scoped assertion assessments, not a
-functional completeness percentage.
+Updated 2026-11-11 for commit `7a58943` (session rename). The site covers 18
+packages, 58 flows, 28 rules and 31 common-change tasks. The Tests tab contains
+29 features, 78 scenarios and 103 reviewed evidence records: 70 scenarios tested
+and 8 partial. These are scoped assertion assessments, not a completeness score.
 
-All 29 cleanup findings and additional dead helpers remain resolved; see
-[the audit dispositions](../tests_to_remove.md). Temporary-workspace Space/save
-has direct Go regression coverage. Repaired tests and neighboring sources are
-published with current hashes; the historical audit filter is unused.
+The session-rename feature has nine supported scenarios. Its three flows explain
+editing/cancelling a draft, scoped asynchronous save and retry, and responsive
+layout/help. Tests directly cover cancellation and scope changes, immediate
+refresh without attachment or process replacement, and saved-name restoration
+through a fresh repository, manager and coordinator.
 
-The native fixture transfers and verifies current OpenCode credentials through
-supported auth export/import, excludes service configuration and uses its own
-loopback port. User conversations are not copied. The selected model is
-OpenRouter's Free Models Router, openrouter/openrouter/free. The run launched and attached with the requested model, but no conversation binding was saved within the four-minute registration wait. Detach/restoration and resume were not reached.
+Existing partial scenarios retain their limits. The native-agent captures and
+failed registration result are historical evidence from 2026-11-09; this refresh
+did not run a model-driven terminal journey. The prior statement profile is also
+historical and is not attributed to the current head. Current ordinary test
+execution is recorded separately. See [VERIFICATION.md](VERIFICATION.md).
 
-The old Big Pickle quota screen came from incomplete fixture setup and does not
-describe the user's configured environment. Current captures and the actual run
-record replace that snapshot. The screenshot preflight passes with the installed
-Noto Sans Symbols2 fallback and writes only a temporary probe.
+## What to edit
 
-Ordinary-suite atomic coverage passed: 7,897 / 10,760 statements
-(73.4%), excluding E2E-tagged tests. The profile and separate
-native run match the current source fingerprint. Dependencies lists 12 direct
-Go declarations with versions queried through Go's package manager.
-
-## Explicit terminal tests
-
-Every E2E Go source carries //go:build e2e. Ordinary tests and normal
-Appedia/Appediff collection do not launch agents or create screenshots.
-
-    go test -tags=e2e ./tests/e2e -run '^TestNativeAgentJourney$' -count=1 -timeout=10m -v
-
-See [the E2E instructions](../tests/e2e/README.md) for configuration, model, timeouts,
-fonts and artifact paths. Each explicit run replaces only known filenames;
-missing checkpoints remain missing. No image-baseline comparison is claimed.
+Edit `data/content.js` for package roles, flows, rules, tasks and test assessments.
+The model, diagrams, source inventory and content index are generated. During a
+refresh, resolve the generated impact entries under `.maintenance/pending/`.
+The accepted rename dispositions are in
+[.maintenance/session-rename-review.json](.maintenance/session-rename-review.json).
 
 ## Reproducing a refresh
 
-Edit data/content.js for explanations and assessments. Models, diagrams, source
-inventory and content index are generated. Requirements: Go 1.27.3, Node 18+,
-Python 3.9+, Graphviz, and jsdom for smoke checks.
+Requirements: Go 1.27.3, Node 18+, Python 3.9+, Graphviz and jsdom for smoke checks.
+The refresh extracts Go sources and queries dependency versions through Go's
+package manager. It does not execute project tests automatically.
 
 From the repository root:
 
-    appedia_skill_dir=.agents/skills/create-appedia
-    appedia_exclusions=kankuro_skills/create-appedia,kankuro_skills/create-appediff,tmp,appedia,.agents,.kankuro
+```sh
+appedia_skill_dir=.agents/skills/create-appedia
+appedia_exclusions=kankuro_skills/create-appedia,kankuro_skills/create-appediff,tmp,appedia,.agents,.kankuro
+node "$appedia_skill_dir/scripts/appedia.mjs" --action prepare --repo . --lang go --exclude "$appedia_exclusions"
+mkdir -p tmp
+go test -json ./... > tmp/appedia-refresh-tests.jsonl
+# Review pending/impact.md; update content.js, source-bound evidence/results,
+# and every pending/impact.json disposition before finalization.
+node "$appedia_skill_dir/scripts/appedia.mjs" --action rebuild --repo .
+node "$appedia_skill_dir/scripts/appedia.mjs" --action finalize --repo . --jsdom /tmp/appedia-smoke
+```
 
-    python3 "$appedia_skill_dir/scripts/test-evidence.py" --root . --exclude "$appedia_exclusions" --revision WORKTREE --run-go-coverage --file tests/e2e/artifacts/native-agent/result.json --file tests/e2e/artifacts/native-agent/launched.png --file tests/e2e/artifacts/native-agent/failure.png --out /tmp/kankuro-router-evidence.json
-    node "$appedia_skill_dir/scripts/appedia.mjs" --action prepare --repo . --lang go --exclude "$appedia_exclusions"
-    node "$appedia_skill_dir/scripts/appedia.mjs" --action rebuild --repo . --test-evidence /tmp/kankuro-router-evidence.json
-    node "$appedia_skill_dir/scripts/appedia.mjs" --action finalize --repo . --jsdom /tmp/appedia-smoke --test-evidence /tmp/kankuro-router-evidence.json
+This refresh used the stored extraction settings for `prepare`. It merged only
+the previously embedded native result/capture records into the fresh test
+inventory, keeping their historical metadata. It reassessed unchanged test
+assertions against source hashes, recorded current ordinary results from JSONL,
+and added the new rename assertions. No old run or profile was relabeled.
 
-Collect only artifacts produced by that explicit run. Prepare does not execute
-tests. Review every pending impact item before finalize. The explicit coverage
-flag executes the ordinary suite. For read-only collection, omit it and leave
-coverage uncollected or import a profile with its real metadata and matching
-fingerprint. This refresh imported its freshly executed ordinary profile and
-then collected existing terminal artifacts, without executing E2E again.
+The exact extractor and builder used by that pipeline are:
 
-Appediff accepts the same source-bound snapshot through --test-evidence.
-See [VERIFICATION.md](VERIFICATION.md) for actual outcomes and limits.
-Prior audit/cleanup review artifacts remain as history. Nothing was committed.
+```sh
+appedia_repo_root="$PWD"
+(cd .agents/skills/create-appedia/scripts/extract-go && go run . -root "$appedia_repo_root" -out "$appedia_repo_root/appedia/.maintenance/pending/model.json" -exclude kankuro_skills/create-appedia,kankuro_skills/create-appediff,tmp,appedia,.agents,.kankuro)
+node .agents/skills/create-appedia/scripts/build.mjs --model appedia/.maintenance/pending/model.json --dependencies appedia/.maintenance/pending/dependencies.json --content appedia/data/content.js --test-evidence appedia/.maintenance/pending/test-evidence.json --out appedia
+```
+
+Finalization accepts the new baseline only after validation and smoke checks.
+Building by hand does not advance it. Use `--action refresh-renderer` for a
+renderer-only update. No commits were made during this refresh.
+
+## Explicit terminal tests
+
+Project-owned terminal tests use the tui-test Go binding and the `e2e` build tag.
+Before a model-driven run, choose a provider/model and confirm a total token
+budget covering the runs and retries, per [tests/e2e/AGENTS.md](../tests/e2e/AGENTS.md).
+Ordinary tests and the model-free glyph preflight do not contact a provider.
+
+See [tests/e2e/README.md](../tests/e2e/README.md) for the explicit journey, isolation,
+font requirements and artifact paths. Collect only artifacts from the actual
+run and keep checkpoint/assertion limits explicit; no screenshot-baseline
+comparison is implied.

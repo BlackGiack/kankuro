@@ -600,6 +600,7 @@
         "views.CardEditor.renderDashboardControlLine",
         "views.Dashboard",
         "views.Dashboard.View",
+        "views.Dashboard.footerText",
         "views.Dashboard.renderPreviewPane"
       ],
       "directRefs": [
@@ -621,6 +622,8 @@
         "components.renderPreviewField",
         "components.renderedBlockWidth",
         "components.wrapPreviewWords",
+        "views.Dashboard.View",
+        "views.Dashboard.footerText",
         "views.Dashboard.renderPreviewPane"
       ],
       "files": [
@@ -630,7 +633,7 @@
         "internal/ui/views/card_editor.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "b8dd87e00fac6e15a42a7aad4b52eade2a98ebbf971d8b63d299fe38fcb2eef6"
+      "digest": "e0547b964fab9d3cbd024774cf0620066eaea5ad6676da71b1542fdd06daf84a"
     },
     {
       "kind": "flow",
@@ -861,7 +864,7 @@
         "internal/ui/views/card_editor.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "f436bf656a2dcea105c0f893e5b210ce57d655350b6fa6bba5fb6be37c72789d"
+      "digest": "d36b5b6a8d289d6ee771d00fe2360c8659a490e3298a4ef7be055eb26326f2c9"
     },
     {
       "kind": "flow",
@@ -1136,7 +1139,7 @@
         "internal/session/manager.go",
         "internal/ui/views/session_launcher.go"
       ],
-      "digest": "0392884c6e6461b867b1427b73e35460e265664a3226ee693de3d2d9522bc103"
+      "digest": "21ee453982f4837d1f9c137cdc11598d4498d70ed274aa0a1538383353758c48"
     },
     {
       "kind": "flow",
@@ -1253,7 +1256,7 @@
         "internal/app/terminal_launch_test.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "345ddf372382aac975d44f4f5e96afadb1a8fff6ab32c623cc119c80be038980"
+      "digest": "64223d1d10e7dac163ec4a16f237a04f505d2d044c9f627d098080b0262a2faa"
     },
     {
       "kind": "flow",
@@ -1395,7 +1398,7 @@
         "internal/ui/views/dashboard.go",
         "internal/ui/views/dashboard_list.go"
       ],
-      "digest": "975c040f4fa98eacc253113dd882903acff566b2da4bf5a38f5b37c976576362"
+      "digest": "c5ef5a4463bb3ed1163f05a4c815189d72a65ab80e6201aac7fbb45a2f689290"
     },
     {
       "kind": "flow",
@@ -1941,6 +1944,114 @@
     },
     {
       "kind": "flow",
+      "id": "rename-edit",
+      "refs": [
+        "views.Dashboard",
+        "views.Dashboard.SetDashboardScope",
+        "views.Dashboard.Update",
+        "views.Dashboard.closeRename",
+        "views.Dashboard.handleEdit",
+        "views.Dashboard.updateRename"
+      ],
+      "directRefs": [
+        "views.Dashboard.SetDashboardScope",
+        "views.Dashboard.Update",
+        "views.Dashboard.closeRename",
+        "views.Dashboard.handleEdit",
+        "views.Dashboard.updateRename"
+      ],
+      "participants": [
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "4c688bbfd4cabce47128b07bcf2b32ec075b9f0e8b01099b0ec0cc05f8c1ac01"
+    },
+    {
+      "kind": "flow",
+      "id": "rename-layout",
+      "refs": [
+        "components.Modal",
+        "views.Dashboard",
+        "views.Dashboard.SetSize",
+        "views.Dashboard.View",
+        "views.Dashboard.footerText",
+        "views.NewDashboard",
+        "views.dashboardModalInputWidth"
+      ],
+      "directRefs": [
+        "views.Dashboard.SetSize",
+        "views.Dashboard.View",
+        "views.Dashboard.footerText",
+        "views.NewDashboard",
+        "views.dashboardModalInputWidth"
+      ],
+      "participants": [
+        "components.Modal",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/components/modal.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "00bb7d095a54a8028aa5fffa5db364645f9baffc241a1a07ef84157046b3f3a5"
+    },
+    {
+      "kind": "flow",
+      "id": "rename-save",
+      "refs": [
+        "api.Service",
+        "api.Service.RenameInDashboard",
+        "app.Coordinator",
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.refreshDataSeeded",
+        "app.Coordinator.renameDashboardSession",
+        "messages.DashboardSessionRenamedMsg",
+        "session.Manager",
+        "session.Manager.SetNameChecked",
+        "views.Dashboard",
+        "views.Dashboard.CompleteRename",
+        "views.Dashboard.updateRename"
+      ],
+      "directRefs": [
+        "api.Service.RenameInDashboard",
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.refreshDataSeeded",
+        "app.Coordinator.renameDashboardSession",
+        "session.Manager.SetNameChecked",
+        "views.Dashboard.CompleteRename",
+        "views.Dashboard.updateRename"
+      ],
+      "participants": [
+        "api.Service",
+        "app.Coordinator",
+        "session.Manager",
+        "views.Dashboard"
+      ],
+      "supportingRefs": [
+        "messages.DashboardSessionRenamedMsg"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/coordinator_test.go",
+        "internal/app/handlers.go",
+        "internal/session/manager.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go"
+      ],
+      "digest": "42b249836fa9f3641e65a0caa3370aa31e20b05a4fcd516edc69334274a619f8"
+    },
+    {
+      "kind": "flow",
       "id": "report-inspection",
       "refs": [
         "api.Service",
@@ -2105,7 +2216,7 @@
         "internal/ui/views/settings.go",
         "internal/ui/views/settings_test.go"
       ],
-      "digest": "268df727776228c6b7b368b283084b97a388648de7a2510893b9d0e94fb391ad"
+      "digest": "284e09fd7e95156c775277bf4c7eaf734e6307142dc2801bf41b53623cf9b4d6"
     },
     {
       "kind": "flow",
@@ -3483,6 +3594,7 @@
         "app.Coordinator.refreshDashboardList",
         "app.Coordinator.refreshDataSeeded",
         "app.Coordinator.refreshSessions",
+        "app.Coordinator.renameDashboardSession",
         "app.Coordinator.requestAttach",
         "app.Coordinator.requestRelaunch",
         "app.Coordinator.requestSwitch",
@@ -3546,6 +3658,7 @@
         "app.Coordinator.refreshDashboardList",
         "app.Coordinator.refreshDataSeeded",
         "app.Coordinator.refreshSessions",
+        "app.Coordinator.renameDashboardSession",
         "app.Coordinator.requestAttach",
         "app.Coordinator.requestRelaunch",
         "app.Coordinator.requestSwitch",
@@ -3587,7 +3700,7 @@
         "internal/app/session_actions.go",
         "internal/app/size_guard.go"
       ],
-      "digest": "990d7dbd1675cff3c73a24c008511baf36f195bf27910f5f713c10b9e2c5d38c"
+      "digest": "e1716ba0af3c8b21e5bbfd1c3a9f138be5989d3cae626595a9b5c9f3071143bc"
     },
     {
       "kind": "package",
@@ -3953,6 +4066,7 @@
       "id": "messages",
       "refs": [
         "messages",
+        "messages.DashboardSessionRenamedMsg",
         "messages.ScopedActionFinishedMsg"
       ],
       "directRefs": [
@@ -3960,12 +4074,13 @@
       ],
       "participants": [],
       "supportingRefs": [
+        "messages.DashboardSessionRenamedMsg",
         "messages.ScopedActionFinishedMsg"
       ],
       "files": [
         "internal/ui/messages/messages.go"
       ],
-      "digest": "534112aafcd18d2ffb3a486d5b83f794bf96c9076722cb002e352cd6dc8fe043"
+      "digest": "c1c6d5ff7e9575a0465a980731a6ace957e28d6bd467d94a01f7892f2e28ec0d"
     },
     {
       "kind": "package",
@@ -4216,6 +4331,7 @@
         "views.ConversationChoiceView.SelectedBinding",
         "views.ConversationChoiceView.Update",
         "views.Dashboard",
+        "views.Dashboard.CompleteRename",
         "views.Dashboard.SetDashboardName",
         "views.Dashboard.SetDashboardScope",
         "views.Dashboard.SetSessions",
@@ -4223,6 +4339,7 @@
         "views.Dashboard.ShowCardDeletionImpact",
         "views.Dashboard.Update",
         "views.Dashboard.View",
+        "views.Dashboard.closeRename",
         "views.Dashboard.footerText",
         "views.Dashboard.handleDeleteCard",
         "views.Dashboard.handleEdit",
@@ -4233,6 +4350,7 @@
         "views.Dashboard.renderBase",
         "views.Dashboard.renderPreviewPane",
         "views.Dashboard.updateCardImpact",
+        "views.Dashboard.updateRename",
         "views.DashboardCallbacks",
         "views.DashboardList",
         "views.DashboardList.Init",
@@ -4247,6 +4365,7 @@
         "views.DashboardList.selected",
         "views.DashboardList.updateConfirmation",
         "views.DashboardList.updateForm",
+        "views.NewDashboard",
         "views.NewDashboardList",
         "views.SessionLauncher.Reset",
         "views.SessionLauncher.SetNameResult",
@@ -4263,6 +4382,7 @@
         "views.dashboardItem.Description",
         "views.dashboardItem.FilterValue",
         "views.dashboardItem.Title",
+        "views.dashboardModalInputWidth",
         "views.editorKeyIdentity",
         "views.focusTargetTable",
         "views.workspaceItem.Title"
@@ -4293,6 +4413,7 @@
         "views.ConversationChoiceView.RefreshContext",
         "views.ConversationChoiceView.SelectedBinding",
         "views.ConversationChoiceView.Update",
+        "views.Dashboard.CompleteRename",
         "views.Dashboard.SetDashboardName",
         "views.Dashboard.SetDashboardScope",
         "views.Dashboard.SetSessions",
@@ -4300,6 +4421,7 @@
         "views.Dashboard.ShowCardDeletionImpact",
         "views.Dashboard.Update",
         "views.Dashboard.View",
+        "views.Dashboard.closeRename",
         "views.Dashboard.footerText",
         "views.Dashboard.handleDeleteCard",
         "views.Dashboard.handleEdit",
@@ -4310,6 +4432,7 @@
         "views.Dashboard.renderBase",
         "views.Dashboard.renderPreviewPane",
         "views.Dashboard.updateCardImpact",
+        "views.Dashboard.updateRename",
         "views.DashboardCallbacks",
         "views.DashboardList.Init",
         "views.DashboardList.SetDashboards",
@@ -4323,6 +4446,7 @@
         "views.DashboardList.selected",
         "views.DashboardList.updateConfirmation",
         "views.DashboardList.updateForm",
+        "views.NewDashboard",
         "views.NewDashboardList",
         "views.SessionLauncher.Reset",
         "views.SessionLauncher.SetNameResult",
@@ -4339,6 +4463,7 @@
         "views.dashboardItem.Description",
         "views.dashboardItem.FilterValue",
         "views.dashboardItem.Title",
+        "views.dashboardModalInputWidth",
         "views.editorKeyIdentity",
         "views.focusTargetTable",
         "views.workspaceItem.Title"
@@ -4359,7 +4484,7 @@
         "internal/ui/views/source_type.go",
         "internal/ui/views/workspace_picker_modal.go"
       ],
-      "digest": "38613fdbc458bddff148646304286c474316b6181bca41e1d7ee0f5cc5462029"
+      "digest": "ea8f6cc1143f127f6b9df5fcfd0cc703aa950d8115b87a91d2ef895271333e17"
     },
     {
       "kind": "rule",
@@ -4881,11 +5006,13 @@
       "refs": [
         "app.Coordinator.handleSessionMessages",
         "app.Coordinator.handleSpecialMessages",
+        "messages.DashboardSessionRenamedMsg",
         "messages.ScopedActionFinishedMsg"
       ],
       "directRefs": [
         "app.Coordinator.handleSessionMessages",
         "app.Coordinator.handleSpecialMessages",
+        "messages.DashboardSessionRenamedMsg",
         "messages.ScopedActionFinishedMsg"
       ],
       "participants": [],
@@ -4894,7 +5021,7 @@
         "internal/app/coordinator.go",
         "internal/ui/messages/messages.go"
       ],
-      "digest": "453dfb8ea71a705642f9337ee145464f944102cb124caf51e19384d9c3cf3d7a"
+      "digest": "4af162b5bfb08e3bcd393c0ad8690d0cfe017b4128cdd28227535db947eb40bc"
     },
     {
       "kind": "task",
@@ -5046,23 +5173,28 @@
       "refs": [
         "views.Dashboard.footerText",
         "views.Dashboard.handleKey",
+        "views.Dashboard.updateRename",
         "views.DashboardList.Update",
-        "views.DashboardList.renderPage"
+        "views.DashboardList.renderPage",
+        "views.dashboardModalInputWidth"
       ],
       "directRefs": [
         "views.Dashboard.footerText",
         "views.Dashboard.handleKey",
+        "views.Dashboard.updateRename",
         "views.DashboardList.Update",
-        "views.DashboardList.renderPage"
+        "views.DashboardList.renderPage",
+        "views.dashboardModalInputWidth"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
         "internal/ui/views/dashboard.go",
         "internal/ui/views/dashboard_layout_test.go",
-        "internal/ui/views/dashboard_list.go"
+        "internal/ui/views/dashboard_list.go",
+        "internal/ui/views/dashboard_test.go"
       ],
-      "digest": "bddc8a47d2e251eec88f013639b44ae55cf9b808ed4d448efc5b60671877fdc7"
+      "digest": "6403c122d33c3c7ab071304f476a797d29c568a53e4fe60339bf3f12a7c02483"
     },
     {
       "kind": "task",
@@ -5292,23 +5424,34 @@
       "kind": "task",
       "id": "Change session names or activation snapshots",
       "refs": [
-        "api.Service.CreateSession",
+        "api.Service.RenameInDashboard",
         "api.inspectionFromSnapshot",
-        "session.Manager.snapshotLocked"
+        "app.Coordinator.renameDashboardSession",
+        "messages.DashboardSessionRenamedMsg",
+        "session.Manager.SetNameChecked",
+        "views.Dashboard.handleEdit",
+        "views.Dashboard.updateRename"
       ],
       "directRefs": [
-        "api.Service.CreateSession",
+        "api.Service.RenameInDashboard",
         "api.inspectionFromSnapshot",
-        "session.Manager.snapshotLocked"
+        "app.Coordinator.renameDashboardSession",
+        "messages.DashboardSessionRenamedMsg",
+        "session.Manager.SetNameChecked",
+        "views.Dashboard.handleEdit",
+        "views.Dashboard.updateRename"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/api/operations.go",
+        "internal/api/membership.go",
         "internal/api/service.go",
-        "internal/session/manager.go"
+        "internal/app/callbacks.go",
+        "internal/session/manager.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go"
       ],
-      "digest": "3634617eb6c7ec608fc9ad8ca5a392342a0c8081c8d4376ab609b33cd794603e"
+      "digest": "573339ba6f2f8f54bc365a8aca3cd7aacad68fffcfa86a9c7031b6c3ff90d003"
     },
     {
       "kind": "task",
@@ -5991,6 +6134,7 @@
         "internal/api/service_test.go",
         "internal/app/attach.go",
         "internal/app/coordinator.go",
+        "internal/app/coordinator_test.go",
         "internal/app/session_actions.go",
         "internal/driver/driver.go",
         "internal/session/attach.go",
@@ -6000,10 +6144,11 @@
         "internal/session/lifecycle_test.go",
         "internal/session/manager.go",
         "internal/session/messaging.go",
+        "internal/ui/views/dashboard_test.go",
         "internal/ui/views/session_launcher.go",
         "internal/ui/views/session_launcher_test.go"
       ],
-      "digest": "470e2687a4d413f4e5b1a0b2376e679969a5a0f017a56260503c1410cd103551"
+      "digest": "a01eb57d5d137ee0ab09dbd488c11235f3b09bd29b089496532d73283f37a398"
     },
     {
       "kind": "test-feature",
@@ -6023,6 +6168,37 @@
         "internal/session/watch.go"
       ],
       "digest": "a800d7ce050de871177e5de53209cb456362d27a22d7fafa1aa4597e79e864ed"
+    },
+    {
+      "kind": "test-feature",
+      "id": "session-rename",
+      "refs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/coordinator_test.go",
+        "internal/app/handlers.go",
+        "internal/session/lifecycle_test.go",
+        "internal/session/manager.go",
+        "internal/ui/components/modal.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_layout_test.go",
+        "internal/ui/views/dashboard_test.go",
+        "internal/ui/views/session_launcher_test.go"
+      ],
+      "digest": "d00f5b0af42a85ad817ff1524a162e0813fc0b526b3bc4f6fecf063f7508af23"
     },
     {
       "kind": "test-feature",
@@ -7407,15 +7583,17 @@
         "internal/api/service_test.go",
         "internal/app/attach.go",
         "internal/app/coordinator.go",
+        "internal/app/coordinator_test.go",
         "internal/app/session_actions.go",
         "internal/session/attach.go",
         "internal/session/attach_test.go",
         "internal/session/lifecycle_test.go",
         "internal/session/manager.go",
+        "internal/ui/views/dashboard_test.go",
         "internal/ui/views/session_launcher.go",
         "internal/ui/views/session_launcher_test.go"
       ],
-      "digest": "1c768a9ddc545493f0c3ef0375ded7ee2a06db26e6135c71b4c0168773e1d588"
+      "digest": "26a7f1ffb27997fc9108f4683547782e066e35ad84a90162dd55ac2a05c29428"
     },
     {
       "kind": "test-scenario",
@@ -7466,6 +7644,228 @@
         "internal/session/watch.go"
       ],
       "digest": "fbb76be52a63f887f37ce25fef475fcfbff81e0353795086e2178d3cab56f979"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-rename/blank-name",
+      "refs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/coordinator_test.go",
+        "internal/app/handlers.go",
+        "internal/session/manager.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go"
+      ],
+      "digest": "ae7543e8e5a41cdae2abecbdf0825930f05961d3816118dbc1bb94bc802dc358"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-rename/cancel",
+      "refs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go"
+      ],
+      "digest": "77115e6cb5094299da703e9db08789c67db7117778c1d7bb7546343f7c8f49ab"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-rename/draft-retry",
+      "refs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go"
+      ],
+      "digest": "9fed870da54ce90e4a34928ccbc249318af8737372603858d1bc31994326c7bb"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-rename/launch-naming",
+      "refs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/coordinator_test.go",
+        "internal/app/handlers.go",
+        "internal/session/manager.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go",
+        "internal/ui/views/session_launcher_test.go"
+      ],
+      "digest": "6fdbc79861a9b25194010848229abc4e972aeb5993ae102afa46f874faa280bb"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-rename/layout",
+      "refs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/ui/components/modal.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_layout_test.go"
+      ],
+      "digest": "096b8494dfbaff8a81d671634c825e0710f8637ee3b28e237e512034c4d0010c"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-rename/persist-error",
+      "refs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/coordinator_test.go",
+        "internal/app/handlers.go",
+        "internal/session/lifecycle_test.go",
+        "internal/session/manager.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go"
+      ],
+      "digest": "dec9150bd93775e9b4f81be42e7c51465e4981fbd7abd685402675e9dd253b33"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-rename/search",
+      "refs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go"
+      ],
+      "digest": "6e68379f4398afff6cf2dadfb2233eb0b1ad7031f428b655e6f3b3f207320f4f"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-rename/stale-result",
+      "refs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/coordinator_test.go",
+        "internal/app/handlers.go",
+        "internal/session/manager.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go"
+      ],
+      "digest": "d6ff53385195c016faf54845e39158ee3d0b85f737d7f0a503ceb1775de117be"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-rename/success-restart",
+      "refs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.renameDashboardSession",
+        "views.Dashboard.handleEdit"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/coordinator_test.go",
+        "internal/app/handlers.go",
+        "internal/session/manager.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go"
+      ],
+      "digest": "4fabe19e0136faa6e57ac8916bb50f95041ecc1a02cfc08b575eca8a4e5fc99c"
     },
     {
       "kind": "test-scenario",
@@ -7907,5 +8307,5 @@
       "digest": "9b604ee1f64e13182417327ca84f286cf8e9ea59aabcba4777c111a27287e9ff"
     }
   ],
-  "digest": "71d290fb310d54bde1940601b9ec7361c1e281bd15b36472cb0c13a331558564"
+  "digest": "4fb1b5b2775e3f8ac175f52e19e7b674ae3f00333e38f3264272080ef0ad7853"
 }

@@ -127,6 +127,136 @@ func TestDashboard_Search_NonASCII(t *testing.T) {
 	}
 }
 
+func TestDashboard_RenameSession(t *testing.T) {
+	var gotID, gotName string
+	var submissions int
+	d := views.NewDashboard(views.DashboardCallbacks{OnRenameSession: func(id, name string) tea.Cmd {
+		gotID, gotName = id, name
+		submissions++
+		return func() tea.Msg { return nil }
+	}})
+	d.SetSize(80, 24-views.CoordinatorRows)
+	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "session-1", Name: "Seed"}}})
+	d.TogglePane()
+	d.SessionList().SetSelectedByID("session-1")
+	d.Update(tea.KeyPressMsg{Text: "e"})
+	if !strings.Contains(d.View(), "Seed") {
+		t.Fatal("rename dialog did not show the selected session name")
+	}
+	d.Update(tea.KeyPressMsg{Text: "é   "})
+	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "session-1", Name: "Refreshed"}}})
+	if !strings.Contains(d.View(), "Seedé") {
+		t.Fatal("periodic data refresh discarded the rename draft")
+	}
+	_, cmd := d.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil || submissions != 1 {
+		t.Fatalf("Enter submissions = %d, command nil = %t", submissions, cmd == nil)
+	}
+	if gotID != "session-1" || gotName != "Seedé" {
+		t.Fatalf("rename submitted (%q, %q), want captured target and trimmed Unicode draft", gotID, gotName)
+	}
+	d.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if submissions != 1 {
+		t.Fatalf("pending rename submitted %d times", submissions)
+	}
+	if !d.CompleteRename("session-1", errTest) {
+		t.Fatal("matching rename result was ignored")
+	}
+	if !strings.Contains(d.View(), "Save failed") {
+		t.Fatal("failed rename error was not shown in the dialog")
+	}
+	d.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if submissions != 2 {
+		t.Fatalf("failed rename could not be retried: submissions=%d", submissions)
+	}
+	d.CompleteRename("session-1", nil)
+	d.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	if strings.Contains(d.View(), "Save failed") {
+		t.Fatal("Esc did not cancel the retry dialog")
+	}
+}
+
+func TestDashboard_RenameSessionEmptyUsesIDAndNoSelectionIsNoop(t *testing.T) {
+	submissions := 0
+	var gotID, gotName string
+	d := views.NewDashboard(views.DashboardCallbacks{OnRenameSession: func(id, name string) tea.Cmd {
+		submissions++
+		gotID, gotName = id, name
+		return func() tea.Msg { return nil }
+	}})
+	d.SetSize(80, 24-views.CoordinatorRows)
+	d.Update(tea.KeyPressMsg{Text: "e"})
+	if strings.Contains(d.View(), "Rename Session") {
+		t.Fatal("rename dialog opened with no selected session")
+	}
+	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "session-id", Name: "Name"}}})
+	d.TogglePane()
+	d.SessionList().SetSelectedByID("session-id")
+	d.Update(tea.KeyPressMsg{Text: "e"})
+	for range 8 {
+		d.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	}
+	d.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if submissions != 1 || gotID != "session-id" || gotName != "session-id" {
+		t.Fatalf("blank name rename = (%q, %q), submissions %d", gotID, gotName, submissions)
+	}
+}
+
+func TestDashboard_RenameSessionDiscardsDraftWithoutSaving(t *testing.T) {
+	for _, action := range []string{"escape", "dashboard change", "generation change"} {
+		t.Run(action, func(t *testing.T) { checkRenameDraftDiscard(t, action) })
+	}
+}
+
+func checkRenameDraftDiscard(t *testing.T, action string) {
+	t.Helper()
+	var savedNames []string
+	d := views.NewDashboard(views.DashboardCallbacks{OnRenameSession: func(_ string, name string) tea.Cmd {
+		savedNames = append(savedNames, name)
+		return func() tea.Msg { return nil }
+	}})
+	d.SetSize(80, 24-views.CoordinatorRows)
+	d.SetDashboardScope("dashboard", 1)
+	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "session-id", Name: "Original"}}})
+	d.TogglePane()
+	d.SessionList().SetSelectedByID("session-id")
+	d.Update(tea.KeyPressMsg{Text: "e"})
+	d.Update(tea.KeyPressMsg{Text: " discarded draft"})
+	if !strings.Contains(d.View(), "discarded draft") {
+		t.Fatal("rename draft was not edited")
+	}
+
+	switch action {
+	case "escape":
+		_, cmd := d.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+		if cmd != nil {
+			t.Fatal("cancelling rename returned a command")
+		}
+	case "dashboard change":
+		d.SetDashboardScope("other-dashboard", 1)
+	case "generation change":
+		d.SetDashboardScope("dashboard", 2)
+	}
+	if strings.Contains(d.View(), "Rename Session") {
+		t.Fatal("discarded rename dialog is still open")
+	}
+	if len(savedNames) != 0 {
+		t.Fatalf("discarding draft saved names: %q", savedNames)
+	}
+	if got := d.Sessions()[0].Name; got != "Original" {
+		t.Fatalf("discarding draft changed session name to %q", got)
+	}
+
+	d.Update(tea.KeyPressMsg{Text: "e"})
+	if strings.Contains(d.View(), "discarded draft") {
+		t.Fatal("reopening rename retained the discarded draft")
+	}
+	d.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if len(savedNames) != 1 || savedNames[0] != "Original" {
+		t.Fatalf("reopened rename saved %q, want original name once", savedNames)
+	}
+}
+
 func TestDashboard_LaunchTerminalRouting(t *testing.T) {
 	for _, status := range []session.Status{session.StatusRunning, session.StatusWaiting, session.StatusTerminated} {
 		t.Run(string(status), func(t *testing.T) {

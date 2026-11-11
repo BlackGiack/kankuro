@@ -132,6 +132,14 @@ type ScopedSessionNamedMsg struct {
 	Err         error
 }
 
+// DashboardSessionRenamedMsg reports a rename initiated from the dashboard.
+type DashboardSessionRenamedMsg struct {
+	DashboardID string
+	Generation  uint64
+	SessionID   string
+	Err         error
+}
+
 // PuppetsSyncedMsg signals that a background puppet-source sync has finished.
 // Like DataRefreshRequestedMsg, it defers the actual refreshData() call to
 // Update instead of running it inside the async closure that performed the

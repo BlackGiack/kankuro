@@ -39,6 +39,7 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 
 			return c.navigationCommand(messages.ViewCardEditor)
 		},
+		OnRenameSession: c.renameDashboardSession,
 
 		OnLaunchCard: c.launchCard,
 
@@ -111,6 +112,19 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 
 		OnLaunchIDE:      c.launchIDE,
 		OnLaunchTerminal: c.launchTerminal,
+	}
+}
+
+func (c *Coordinator) renameDashboardSession(sessionID, name string) tea.Cmd {
+	dashboardID, generation, service := c.activeDashboard, c.viewGeneration, c.actions.service
+	return func() tea.Msg {
+		err := service.RenameInDashboard(dashboardID, sessionID, name)
+		return messages.DashboardSessionRenamedMsg{
+			DashboardID: dashboardID,
+			Generation:  generation,
+			SessionID:   sessionID,
+			Err:         err,
+		}
 	}
 }
 

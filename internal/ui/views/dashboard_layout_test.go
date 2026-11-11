@@ -1,6 +1,7 @@
 package views_test
 
 import (
+	"errors"
 	"fmt"
 	"image/color"
 	"strings"
@@ -137,6 +138,51 @@ func assertDashboardShape(t *testing.T, d *views.Dashboard, w, rows int, label s
 	body := strings.Join(lines[2:rows-1], "\n")
 	uitest.AssertExactRect(t, body, w, rows-dashboardChrome, label+" body")
 	assertPaneBorders(t, body, d, w, rows-dashboardChrome, label)
+}
+
+func TestDashboardRenameLayoutAndScopedFooter(t *testing.T) {
+	d := views.NewDashboard(views.DashboardCallbacks{OnRenameSession: func(string, string) tea.Cmd {
+		return func() tea.Msg { return nil }
+	}})
+	d.SetSize(80, 24-views.CoordinatorRows)
+	d.SetDashboardScope("dashboard", 1)
+	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{
+		ID:   "session-id",
+		Name: strings.Repeat("長いセッション名", 12),
+	}}})
+	d.TogglePane()
+	d.SessionList().SetSelectedByID("session-id")
+	footer := ansi.Strip(strings.Split(d.View(), "\n")[23])
+	if !strings.Contains(footer, "e=Rename") {
+		t.Fatalf("scoped 80-column sessions footer omits rename: %q", footer)
+	}
+	d.Update(tea.KeyPressMsg{Text: "e"})
+	d.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	longErr := errors.New("write /" + strings.Repeat("long-config-dir/", 50) + "sessions/s.json: permission denied")
+	if !d.CompleteRename("session-id", longErr) {
+		t.Fatal("failed to apply matching rename result")
+	}
+	assertRenameDialogFits(t, d, 80, 24)
+	d.SetSize(120, 40-views.CoordinatorRows)
+	assertRenameDialogFits(t, d, 120, 40)
+}
+
+func assertRenameDialogFits(t *testing.T, d *views.Dashboard, width, height int) {
+	t.Helper()
+	view := d.View()
+	if got := lipgloss.Height(view); got != height {
+		t.Fatalf("rename dialog height at %dx%d is %d, want %d", width, height, got, height)
+	}
+	for row, line := range strings.Split(view, "\n") {
+		if got := ansi.StringWidth(line); got > width {
+			t.Fatalf("rename dialog row %d is %d columns at width %d", row, got, width)
+		}
+	}
+	for _, control := range []string{"Save failed:", "Enter: save", "Esc: cancel"} {
+		if !strings.Contains(view, control) {
+			t.Fatalf("rename dialog at %dx%d hides %q", width, height, control)
+		}
+	}
 }
 
 func assertPaneBorders(t *testing.T, body string, d *views.Dashboard, w, bodyRows int, label string) {
