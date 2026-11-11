@@ -238,6 +238,10 @@ func (s *SessionList) SetSize(width, height int) {
 
 // refreshItems rebuilds the list items from sessions.
 func (s *SessionList) refreshItems() {
+	previousID := ""
+	if selected, ok := s.Selected(); ok {
+		previousID = selected.ID
+	}
 	// Sort sessions by StartedAt (newest first)
 	sorted := make([]session.Snapshot, len(s.sessions))
 	copy(sorted, s.sessions)
@@ -268,6 +272,9 @@ func (s *SessionList) refreshItems() {
 	}
 
 	s.list.SetItems(items)
+	if previousID != "" {
+		s.SetSelectedByID(previousID)
+	}
 }
 
 // filterSessions applies the search query filter.

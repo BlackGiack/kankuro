@@ -59,6 +59,66 @@ func TestDashboard_SetData(t *testing.T) {
 	}
 }
 
+func TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch(t *testing.T) {
+	d := views.NewDashboard(views.DashboardCallbacks{})
+	d.SetData(messages.DataLoadedMsg{
+		Sessions: []session.Snapshot{{ID: "existing", Name: "Existing"}},
+	})
+	d.FocusSession("new")
+	if d.FocusedPane() != views.PaneCards {
+		t.Fatal("missing target must not focus an unrelated session")
+	}
+	d.TogglePane()
+	setDashboardSearchQuery(d, "Existing")
+	if d.Search().SessionsQuery != "Existing" {
+		t.Fatalf("session filter was not established: %+v", d.Search())
+	}
+	d.SetSessions([]session.Snapshot{
+		{ID: "new", Name: "New"},
+		{ID: "existing", Name: "Existing"},
+	})
+	selected, ok := d.SessionList().Selected()
+	if !ok || selected.ID != "new" || d.FocusedPane() != views.PaneSessions || d.PreviewSessionID() != "new" {
+		t.Fatalf("focus not applied to new session: selected=%+v ok=%v pane=%v preview=%q", selected, ok, d.FocusedPane(), d.PreviewSessionID())
+	}
+	if d.Search().SessionsQuery != "" {
+		t.Fatalf("filter hiding target was not cleared: %+v", d.Search())
+	}
+
+	d.SessionList().SetSelectedByID("existing")
+	d.SetSessions([]session.Snapshot{
+		{ID: "existing", Name: "Existing"},
+		{ID: "new", Name: "New"},
+	})
+	selected, ok = d.SessionList().Selected()
+	if !ok || selected.ID != "existing" || d.PreviewSessionID() != "existing" {
+		t.Fatalf("consumed focus request stole selection on later refresh: selected=%+v ok=%v preview=%q", selected, ok, d.PreviewSessionID())
+	}
+}
+
+func TestDashboard_FocusSessionPreservesMatchingSearch(t *testing.T) {
+	d := views.NewDashboard(views.DashboardCallbacks{})
+	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "existing", Name: "Existing"}}})
+	d.TogglePane()
+	setDashboardSearchQuery(d, "New")
+	d.FocusSession("new")
+	d.SetSessions([]session.Snapshot{
+		{ID: "existing", Name: "Existing"},
+		{ID: "new", Name: "New session"},
+	})
+	selected, ok := d.SessionList().Selected()
+	if !ok || selected.ID != "new" || d.Search().SessionsQuery != "New" || d.PreviewSessionID() != "new" {
+		t.Fatalf("matching filter was not preserved with target selected: selected=%+v ok=%v search=%+v preview=%q",
+			selected, ok, d.Search(), d.PreviewSessionID())
+	}
+}
+
+func setDashboardSearchQuery(d *views.Dashboard, query string) {
+	d.Update(tea.KeyPressMsg{Text: "/"})
+	d.Update(tea.KeyPressMsg{Text: query})
+	d.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+}
+
 func TestDashboard_TogglePane(t *testing.T) {
 	d := views.NewDashboard(views.DashboardCallbacks{})
 	d.SetData(messages.DataLoadedMsg{

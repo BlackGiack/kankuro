@@ -97,14 +97,17 @@ type Dashboard struct {
 	search      SearchState
 	pending     PendingAction
 
-	callbacks           DashboardCallbacks
-	dashboardName       string
-	dashboardID         string
-	dashboardGeneration uint64
-	cardImpactOpen      bool
-	cardImpactID        string
-	cardImpactToken     string
-	cardImpactViewport  viewport.Model
+	callbacks             DashboardCallbacks
+	dashboardName         string
+	dashboardID           string
+	dashboardGeneration   uint64
+	pendingFocusSessionID string
+	pendingFocusName      string
+	pendingFocusWaitName  bool
+	cardImpactOpen        bool
+	cardImpactID          string
+	cardImpactToken       string
+	cardImpactViewport    viewport.Model
 
 	// Data (passed from App)
 	cards    []config.IDCard
@@ -179,6 +182,11 @@ func (d *Dashboard) SetDashboardScope(id string, generation uint64) {
 	if d.dashboardID != id || d.dashboardGeneration != generation {
 		d.closeRename()
 	}
+	if d.dashboardID != id {
+		d.pendingFocusSessionID = ""
+		d.pendingFocusName = ""
+		d.pendingFocusWaitName = false
+	}
 	d.dashboardID, d.dashboardGeneration = id, generation
 }
 
@@ -200,6 +208,63 @@ func (d *Dashboard) closeRename() {
 	d.renameSessionID = ""
 	d.renamePending = false
 	d.renameErr = nil
+}
+
+// FocusSession selects a launched session once it is present in the dashboard data.
+func (d *Dashboard) FocusSession(sessionID string) {
+	if sessionID == "" {
+		return
+	}
+	d.pendingFocusSessionID = sessionID
+	d.pendingFocusName = ""
+	d.pendingFocusWaitName = false
+	d.applyPendingSessionFocus()
+}
+
+// FocusSessionAfterRename waits until session data reflects the confirmed name.
+func (d *Dashboard) FocusSessionAfterRename(sessionID, name string) {
+	if sessionID == "" {
+		return
+	}
+	d.pendingFocusSessionID = sessionID
+	d.pendingFocusName = name
+	d.pendingFocusWaitName = true
+	d.applyPendingSessionFocus()
+}
+
+func (d *Dashboard) applyPendingSessionFocus() {
+	if d.pendingFocusSessionID == "" {
+		return
+	}
+	for _, sess := range d.sessions {
+		if sess.ID != d.pendingFocusSessionID {
+			continue
+		}
+		if d.pendingFocusWaitName && sess.Name != d.pendingFocusName {
+			return
+		}
+		if !matchesSessionQuery(sess, d.search.SessionsQuery) {
+			d.search.SessionsQuery = ""
+			d.sessionList.SetSearchQuery("")
+		}
+		d.sessionList.SetSelectedByID(sess.ID)
+		selected, ok := d.sessionList.Selected()
+		if !ok || selected.ID != sess.ID {
+			return
+		}
+		d.focusedPane = PaneSessions
+		d.pendingFocusSessionID = ""
+		d.pendingFocusName = ""
+		d.pendingFocusWaitName = false
+		d.syncPreviewSelection()
+		return
+	}
+}
+
+func matchesSessionQuery(sess session.Snapshot, query string) bool {
+	query = strings.ToLower(query)
+	return query == "" || strings.Contains(strings.ToLower(sess.Name), query) ||
+		strings.Contains(strings.ToLower(sess.CardID), query)
 }
 
 // ShowCardDeletionImpact requires explicit confirmation of foreign references.
@@ -244,6 +309,7 @@ func (d *Dashboard) SetData(msg messages.DataLoadedMsg) {
 	if msg.Sessions != nil {
 		d.sessions = msg.Sessions
 		d.sessionList.SetSessions(d.sessions, d.cards)
+		d.applyPendingSessionFocus()
 	}
 	if msg.Skills != nil {
 		d.skills = msg.Skills
@@ -284,6 +350,7 @@ func (d *Dashboard) SetSessions(sessions []session.Snapshot) {
 	}
 	d.sessions = sessions
 	d.sessionList.SetSessions(d.sessions, d.cards)
+	d.applyPendingSessionFocus()
 	d.syncPreviewSelection()
 }
 

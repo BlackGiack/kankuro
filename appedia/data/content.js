@@ -61,7 +61,7 @@ window.APPEDIA_CONTENT = {
       "comes back through Bubble Tea's Update"
     ]
   },
-  "snapshot": "Commit 7a58943 (session rename), reviewed 2026-11-11. Ordinary tests refreshed; native-agent evidence and coverage remain historical.",
+  "snapshot": "Based on origin/main c1a6065 (session rename), with launch-focus UX changes and stale-refresh protection. Ordinary tests verified; native-agent evidence and coverage remain historical.",
   "pitch": "Organize agent configurations and sessions into independent dashboards. Share selected cards across dashboards while keeping each session, workspace identity and conversation binding in its creation dashboard.",
   "pitch2": "The dashboard-list TUI and authenticated loopback MCP endpoint share one scoped service. The session manager owns processes, credentials and workspace preparation; repositories persist registries, membership and checkpointed recovery. A report dispatcher feeds the existing operation runner and shared message delivery hooks. Configstartup locks and validates configuration before runtime begins.",
   "concepts": [
@@ -116,7 +116,7 @@ window.APPEDIA_CONTENT = {
       "flow-navigation"
     ],
     [
-      "Trace a scoped launch through admission and process publication.",
+      "Trace scoped launch through publication, confirmed naming and session-focus restoration.",
       "flow-launch"
     ],
     [
@@ -289,7 +289,7 @@ window.APPEDIA_CONTENT = {
     "app": {
       "label": "UI coordinator",
       "sub": "commands and navigation",
-      "role": "Coordinates screens, snapshots and asynchronous commands. Captures dashboard scope before renaming and applies only the matching completion without attaching to the session.",
+      "role": "Coordinates screens, snapshots and asynchronous commands. Launch completion focuses the created session; session epochs discard refresh snapshots that predate a launch or rename.",
       "files": {
         "coordinator.go": "the Coordinator struct, Update, message routing",
         "navigation.go": "navigateTo (rule 2), initViews, resizeAll, broadcasts",
@@ -305,7 +305,8 @@ window.APPEDIA_CONTENT = {
         "scoped_refresh.go": "captured scope, generation and fingerprint-aware commands"
       },
       "notes": [
-        "Commands capture dashboard ID, view generation and settings before running off the coordinator goroutine.",
+        "Commands capture dashboard ID, view generation, settings and session-data epoch before running off the coordinator goroutine.",
+        "Successful launch and rename advance the epoch so delayed session snapshots cannot displace the selected target.",
         "Test-only adapters in export_test.go exercise the current scoped handlers."
       ],
       "rules": [],
@@ -375,9 +376,9 @@ window.APPEDIA_CONTENT = {
     "views": {
       "label": "Terminal views",
       "sub": "forms, lists and modals",
-      "role": "Owns terminal screens and their interaction state. The dashboard now hosts a rename dialog using the existing modal and Bubbles text input; persistence remains in the service.",
+      "role": "Owns terminal screens and their interaction state. The dashboard preserves launch focus through refreshed naming, filters and session-list rebuilds, and hosts the existing-session rename dialog.",
       "files": {
-        "dashboard.go": "Three panes, keys, search, compact help and existing-session rename modal with pending-save/error handling",
+        "dashboard.go": "Three panes, keys, search, launch-focus reconciliation and existing-session rename modal with pending-save/error handling",
         "card_editor.go": "card fields, one key switch, focused sub workspace clearing, source shortcuts, skills filter",
         "mcp_form.go": "MCP form driven by mcpFieldTable",
         "source_manager.go": "source directories per registry",
@@ -394,7 +395,8 @@ window.APPEDIA_CONTENT = {
       "notes": [
         "The entry screen is the dashboard list. Escape cancels a dialog or stays on the list; q quits there.",
         "Delete/Backspace resumes an incomplete dashboard deletion; Enter inspects its status.",
-        "Select an existing session and press e to rename; Enter saves and Esc cancels before submission. Pending saves block repeated submit/dismissal; errors retain the draft for retry."
+        "Select an existing session and press e to rename; Enter saves and Esc cancels before submission. Pending saves block repeated submit/dismissal; errors retain the draft for retry.",
+        "After launching a card, the sessions pane selects the created session. A confirmed name is reconciled against fresh session data; only a filter hiding the target is cleared."
       ],
       "rules": [],
       "key": [
@@ -482,12 +484,12 @@ window.APPEDIA_CONTENT = {
     "messages": {
       "label": "UI messages",
       "sub": "scoped async results",
-      "role": "Defines events between commands, views and the coordinator, including a dashboard-only rename result distinct from launch-time naming.",
+      "role": "Defines scoped launch, naming and refresh events; refresh messages carry a session epoch so pre-mutation snapshots can be rejected.",
       "files": {
         "messages.go": "all message types, DataReceiver, PreviewReceiver"
       },
       "notes": [
-        "DataLoadedMsg is always a full snapshot; partial updates get their own type.",
+        "DataLoadedMsg is always a full snapshot; partial updates get their own type. Session snapshots carry the mutation epoch captured when their read started.",
         "DashboardSessionRenamedMsg is separate from launcher naming: successful rename refreshes without attaching, and includes captured dashboard, generation and target identity."
       ],
       "rules": [],
@@ -1507,7 +1509,7 @@ window.APPEDIA_CONTENT = {
     },
     "launch": {
       "title": "Launch with membership before publication",
-      "summary": "Human and MCP requests enter the same dashboard-scoped activation path.",
+      "summary": "Human and MCP requests enter one dashboard-scoped activation path; the TUI keeps a human-launched session selected through naming, refresh and detach.",
       "participants": [
         [
           "u",
@@ -1532,6 +1534,26 @@ window.APPEDIA_CONTENT = {
         [
           "disk",
           "disk"
+        ],
+        [
+          "launcher",
+          "views.SessionLauncher"
+        ],
+        [
+          "ref",
+          "app.refresher"
+        ],
+        [
+          "dash",
+          "views.Dashboard"
+        ],
+        [
+          "list",
+          "components.SessionList"
+        ],
+        [
+          "preview",
+          "components.SessionPreview"
         ]
       ],
       "steps": [
@@ -1590,6 +1612,78 @@ window.APPEDIA_CONTENT = {
           "publish + save with immutable dashboard_id",
           "Revalidates card/dashboard under admission; rejects deletion races.",
           "session.Session.data"
+        ],
+        [
+          "mgr",
+          "c",
+          "msg",
+          "SessionLaunchCompletedMsg(session ID)",
+          "A usable launch advances the session epoch and requests focus for the exact ID.",
+          "app.Coordinator.handleSessionMessages"
+        ],
+        [
+          "c",
+          "dash",
+          "call",
+          "Focus the new session",
+          "If its snapshot is not loaded yet, the one-shot focus waits for session data.",
+          "app.Coordinator.handleSessionMessages"
+        ],
+        [
+          "u",
+          "launcher",
+          "key",
+          "Confirm the session name",
+          "The scoped naming result carries the confirmed name.",
+          "views.SessionLauncher.handleNameSubmit"
+        ],
+        [
+          "launcher",
+          "c",
+          "msg",
+          "ScopedSessionNamedMsg(session ID, name)",
+          "Advance the session epoch and keep focus pending until refreshed data contains that name.",
+          "app.Coordinator.handleSessionMessages"
+        ],
+        [
+          "ref",
+          "c",
+          "msg",
+          "Delayed old-epoch refresh",
+          "Reject snapshots started before launch or rename, even within the same dashboard generation.",
+          "app.Coordinator.handleSessionsRefreshed"
+        ],
+        [
+          "ref",
+          "dash",
+          "msg",
+          "Current session snapshot",
+          "Select by ID, clear search only when it hides the target, and sync preview.",
+          "app.Coordinator.handleDataLoaded"
+        ],
+        [
+          "u",
+          "c",
+          "key",
+          "Ctrl+K to detach",
+          "The detach refresh retains the selected ID; later refreshes do not steal focus again.",
+          "app.Coordinator.handleSessionMessages"
+        ],
+        [
+          "dash",
+          "list",
+          "call",
+          "Rebuild session list and preview by selected ID",
+          "Session-list ordering changes do not displace the created session.",
+          "views.Dashboard.SetSessions"
+        ],
+        [
+          "dash",
+          "preview",
+          "call",
+          "Sync preview with focused session",
+          "Session action hints and preview agree with the selected session.",
+          "views.Dashboard.syncPreviewSelection"
         ]
       ],
       "sources": {
@@ -1602,6 +1696,9 @@ window.APPEDIA_CONTENT = {
           "session.Manager.List",
           "session.Manager.ReserveCardReferenceForDashboardWithCancel",
           "session.Manager.SetNameChecked",
+          "app.Coordinator.handleDataLoaded",
+          "app.Coordinator.handleSessionMessages",
+          "app.Coordinator.handleSessionsRefreshed",
           "session.Manager.ShutdownStarted",
           "session.Manager.TemporaryWorkspaceRoot",
           "session.Manager.WaitCardReferences",

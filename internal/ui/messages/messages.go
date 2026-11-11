@@ -128,6 +128,7 @@ type ScopedAttachReadyMsg struct {
 type ScopedSessionNamedMsg struct {
 	DashboardID string
 	Generation  uint64
+	Name        string
 	SessionID   string
 	Err         error
 }
@@ -268,15 +269,16 @@ type MCPServerFailedMsg struct{ Err error }
 // DataLoadedMsg contains a full repository snapshot. Nil fields indicate failed reads
 // and preserve receiver data. Preview-only updates use PreviewDataMsg.
 type DataLoadedMsg struct {
-	DashboardID string
-	Generation  uint64
-	Cards       []config.IDCard
-	Sessions    []session.Snapshot
-	Skills      []config.Skill
-	Personas    []config.Persona
-	MCPs        []config.MCPServer
-	Workspaces  []config.Workspace
-	Puppets     []config.Puppet
+	DashboardID  string
+	Generation   uint64
+	SessionEpoch uint64
+	Cards        []config.IDCard
+	Sessions     []session.Snapshot
+	Skills       []config.Skill
+	Personas     []config.Persona
+	MCPs         []config.MCPServer
+	Workspaces   []config.Workspace
+	Puppets      []config.Puppet
 
 	// PreviewSessionID/PreviewScrollback carry the current preview's
 	// scrollback alongside a full refresh. The coordinator forwards these to
@@ -303,6 +305,7 @@ type DataReceiver interface {
 type SessionsRefreshedMsg struct {
 	DashboardID       string
 	Generation        uint64
+	SessionEpoch      uint64
 	Err               error
 	Cards             []config.IDCard
 	Sessions          []session.Snapshot

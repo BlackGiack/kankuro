@@ -13,7 +13,7 @@ import (
 func (r refresher) scopedFull(service *api.Service, dashboardID string, generation uint64, previewID string) tea.Cmd {
 	return func() tea.Msg {
 		data := r.loadGlobalConfigData()
-		data.DashboardID, data.Generation = dashboardID, generation
+		data.DashboardID, data.Generation, data.SessionEpoch = dashboardID, generation, r.sessionEpoch
 		// A failed scoped read must leave prior dashboard data intact.
 		data.Cards, data.Sessions = nil, nil
 		if dashboardID != "" {
@@ -40,7 +40,9 @@ func (r refresher) scopedFull(service *api.Service, dashboardID string, generati
 
 func (r refresher) scopedSessions(service *api.Service, dashboardID string, generation uint64, previewID string) tea.Cmd {
 	return func() tea.Msg {
-		result := messages.SessionsRefreshedMsg{DashboardID: dashboardID, Generation: generation}
+		result := messages.SessionsRefreshedMsg{
+			DashboardID: dashboardID, Generation: generation, SessionEpoch: r.sessionEpoch,
+		}
 		if dashboardID == "" {
 			return result
 		}
@@ -72,7 +74,7 @@ func (r refresher) scopedConfigIfChanged(
 			return configFingerprintMsg{}
 		}
 		data := r.loadGlobalConfigData()
-		data.DashboardID, data.Generation = dashboardID, generation
+		data.DashboardID, data.Generation, data.SessionEpoch = dashboardID, generation, r.sessionEpoch
 		data.Cards = nil
 		if dashboardID != "" {
 			scoped, scopeErr := service.ReadDashboardData(dashboardID)
