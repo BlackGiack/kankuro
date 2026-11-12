@@ -54,8 +54,7 @@ const MCPInputCount = mcpInputCount
 
 // MCPFormCallbacks defines callbacks for MCP form actions.
 type MCPFormCallbacks struct {
-	OnSave   func(mcp config.MCPServer) tea.Cmd
-	OnDelete func(mcpID string) error
+	OnSave func(mcp config.MCPServer) tea.Cmd
 }
 
 // MCPForm is a simple form for creating/editing MCP servers.
@@ -200,16 +199,14 @@ func (f *MCPForm) handleSubmit() tea.Cmd {
 		return nil
 	}
 
-	mcp := config.MCPServer{
-		ID:      f.mcp.ID,
-		Name:    strings.TrimSpace(f.inputs[mcpNameIdx].Value()),
-		Command: strings.TrimSpace(f.inputs[mcpCommandIdx].Value()),
-		Args:    args,
-		CWD:     strings.TrimSpace(f.inputs[mcpCWDIdx].Value()),
-		URL:     strings.TrimSpace(f.inputs[mcpURLIdx].Value()),
-		Env:     env,
-		Headers: headers,
-	}
+	mcp := f.mcp
+	mcp.Name = strings.TrimSpace(f.inputs[mcpNameIdx].Value())
+	mcp.Command = strings.TrimSpace(f.inputs[mcpCommandIdx].Value())
+	mcp.Args = args
+	mcp.CWD = strings.TrimSpace(f.inputs[mcpCWDIdx].Value())
+	mcp.URL = strings.TrimSpace(f.inputs[mcpURLIdx].Value())
+	mcp.Env = env
+	mcp.Headers = headers
 
 	if f.callbacks.OnSave != nil {
 		return f.callbacks.OnSave(mcp)

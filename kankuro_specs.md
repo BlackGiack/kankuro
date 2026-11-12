@@ -145,6 +145,8 @@ Deletion is recoverable work. Surface partial failures and retain completed
 progress so the same action resumes remaining cleanup, including after restart.
 A deleting dashboard exposes its status and cannot accept ordinary new work.
 
+The dashboard MCP server list opens with `m`. Enter edits a selected custom server or opens a blank form on `[ New MCP ]`; Esc returns to the list and then the dashboard. Delete opens a confirmation for a custom server. The built-in Kankuro server is read-only, and servers referenced by any saved card cannot be deleted.
+
 ## 2. Local MCP control and communication
 
 ### 2.1 Authorization and session operations
@@ -283,7 +285,7 @@ running, waiting and terminated processes.
 | `s` | Switch the selected terminated session to an available card. |
 | Delete/Backspace on a session | Confirm removal of a terminated session and its temporary workspace. |
 | `o` / `t` | Open the selected session's actual workspace in its configured IDE / terminal; available for live or terminated sessions. |
-| `m` / `w` / `c` | MCP configuration / workspace sources / settings. |
+| `m` / `w` / `c` | MCP server list / workspace sources / settings. |
 | `Esc` | Return to the dashboard list. |
 | `q` | Quit Kankuro. |
 | Ctrl+K while attached | Detach from the agent terminal. |

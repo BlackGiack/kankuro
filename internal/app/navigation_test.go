@@ -35,7 +35,7 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 	// Navigate back to dashboard
 	coord.Update(messages.ScopedNavigateMsg{View: messages.ViewDashboard, DashboardID: "default", Generation: 1})
 
-	// Test 'm' key - should navigate to MCPForm
+	// Test 'm' key - should navigate to MCPManager
 	_, cmd = coord.Update(tea.KeyPressMsg{Code: 0, Text: "m"})
 	// Execute the captured-context navigation command
 	if cmd != nil {
@@ -44,8 +44,8 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 			coord.Update(navigateMsg)
 		}
 	}
-	if coord.CurrentView() != app.ViewMCPForm {
-		t.Errorf("Expected ViewMCPForm after 'm' key, got %v", coord.CurrentView())
+	if coord.CurrentView() != app.ViewMCPManager {
+		t.Errorf("Expected ViewMCPManager after 'm' key, got %v", coord.CurrentView())
 	}
 
 	// Navigate back to dashboard
@@ -109,5 +109,32 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 	coord.Update(cmd())
 	if coord.CurrentView() != app.ViewDashboardList {
 		t.Fatal("dashboard list did not open")
+	}
+}
+
+func TestMCPManagerNestedNavigation(t *testing.T) {
+	repo, _ := newCurrentRepository(t.TempDir())
+	sm := newTestManager(t, repo.Dir(), repo)
+	coord := newScopedCoordinator(repo, sm)
+	coord.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	openDefaultDashboard(coord)
+	for range 2 {
+		_, cmd := coord.Update(tea.KeyPressMsg{Text: "m"})
+		coord.Update(cmd())
+		_, cmd = coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		coord.Update(cmd())
+		if coord.CurrentView() != app.ViewMCPForm {
+			t.Fatal("new MCP did not open form")
+		}
+		_, cmd = coord.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+		coord.Update(cmd())
+		if coord.CurrentView() != app.ViewMCPManager {
+			t.Fatal("form did not return to list")
+		}
+		_, cmd = coord.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+		coord.Update(cmd())
+		if coord.CurrentView() != app.ViewDashboard {
+			t.Fatal("list did not return to dashboard")
+		}
 	}
 }

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "changes": [],
+  "files": [],
+  "items": [
+    {
+      "id": "content",
+      "reasons": [
+        "appedia content changed since the accepted baseline"
+      ],
+      "disposition": "updated",
+      "note": "Removed unused participants from launch/MCP sequences for readable width; bound each launch-focus capture to its own checkpoint assertion and omitted unknown per-image timestamps. Source/model/test provenance unchanged."
+    }
+  ]
+}

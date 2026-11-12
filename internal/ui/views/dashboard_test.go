@@ -79,7 +79,8 @@ func TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch(t *testing
 	})
 	selected, ok := d.SessionList().Selected()
 	if !ok || selected.ID != "new" || d.FocusedPane() != views.PaneSessions || d.PreviewSessionID() != "new" {
-		t.Fatalf("focus not applied to new session: selected=%+v ok=%v pane=%v preview=%q", selected, ok, d.FocusedPane(), d.PreviewSessionID())
+		t.Fatalf("focus not applied to new session: selected=%+v ok=%v pane=%v preview=%q",
+			selected, ok, d.FocusedPane(), d.PreviewSessionID())
 	}
 	if d.Search().SessionsQuery != "" {
 		t.Fatalf("filter hiding target was not cleared: %+v", d.Search())
@@ -92,7 +93,8 @@ func TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch(t *testing
 	})
 	selected, ok = d.SessionList().Selected()
 	if !ok || selected.ID != "existing" || d.PreviewSessionID() != "existing" {
-		t.Fatalf("consumed focus request stole selection on later refresh: selected=%+v ok=%v preview=%q", selected, ok, d.PreviewSessionID())
+		t.Fatalf("consumed focus request stole selection on later refresh: selected=%+v ok=%v preview=%q",
+			selected, ok, d.PreviewSessionID())
 	}
 }
 

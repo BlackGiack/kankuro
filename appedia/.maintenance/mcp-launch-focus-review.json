@@ -1,0 +1,2742 @@
+{
+  "version": 1,
+  "changes": [
+    {
+      "ref": "app.convertViewType",
+      "status": "changed",
+      "file": "navigation.go"
+    },
+    {
+      "ref": "app.Coordinator",
+      "status": "changed",
+      "file": "coordinator.go"
+    },
+    {
+      "ref": "app.Coordinator.dashboardCallbacks",
+      "status": "changed",
+      "file": "callbacks.go"
+    },
+    {
+      "ref": "app.Coordinator.handleConfigFingerprint",
+      "status": "changed",
+      "file": "handlers.go"
+    },
+    {
+      "ref": "app.Coordinator.handleDataLoaded",
+      "status": "changed",
+      "file": "handlers.go"
+    },
+    {
+      "ref": "app.Coordinator.handleSessionMessages",
+      "status": "changed",
+      "file": "coordinator.go"
+    },
+    {
+      "ref": "app.Coordinator.handleSessionsRefreshed",
+      "status": "changed",
+      "file": "handlers.go"
+    },
+    {
+      "ref": "app.Coordinator.handleSpecialMessages",
+      "status": "changed",
+      "file": "coordinator.go"
+    },
+    {
+      "ref": "app.Coordinator.hasStaleSessionSnapshot",
+      "status": "added",
+      "file": "handlers.go"
+    },
+    {
+      "ref": "app.Coordinator.initViews",
+      "status": "changed",
+      "file": "navigation.go"
+    },
+    {
+      "ref": "app.Coordinator.matchesMCPManagerScope",
+      "status": "added",
+      "file": "coordinator.go"
+    },
+    {
+      "ref": "app.Coordinator.maybeRefreshConfig",
+      "status": "changed",
+      "file": "handlers.go"
+    },
+    {
+      "ref": "app.Coordinator.mcpCallbacks",
+      "status": "changed",
+      "file": "callbacks.go"
+    },
+    {
+      "ref": "app.Coordinator.navigateTo",
+      "status": "changed",
+      "file": "navigation.go"
+    },
+    {
+      "ref": "app.Coordinator.refreshDataSeeded",
+      "status": "changed",
+      "file": "handlers.go"
+    },
+    {
+      "ref": "app.Coordinator.refreshSessions",
+      "status": "changed",
+      "file": "handlers.go"
+    },
+    {
+      "ref": "app.Coordinator.sessionLauncherCallbacks",
+      "status": "changed",
+      "file": "callbacks.go"
+    },
+    {
+      "ref": "app.refresher",
+      "status": "changed",
+      "file": "refresh.go"
+    },
+    {
+      "ref": "app.refresher.scopedConfigIfChanged",
+      "status": "changed",
+      "file": "scoped_refresh.go"
+    },
+    {
+      "ref": "app.refresher.scopedFull",
+      "status": "changed",
+      "file": "scoped_refresh.go"
+    },
+    {
+      "ref": "app.refresher.scopedSessions",
+      "status": "changed",
+      "file": "scoped_refresh.go"
+    },
+    {
+      "ref": "app.sessionActions.deleteMCPFromManager",
+      "status": "added",
+      "file": "session_actions.go"
+    },
+    {
+      "ref": "code:relations",
+      "status": "changed relations or data flow",
+      "file": ""
+    },
+    {
+      "ref": "components.SessionList.refreshItems",
+      "status": "changed",
+      "file": "session_list.go"
+    },
+    {
+      "ref": "components.SourceList.renderList",
+      "status": "changed",
+      "file": "source_list.go"
+    },
+    {
+      "ref": "components.SourceList.updateList",
+      "status": "changed",
+      "file": "source_list.go"
+    },
+    {
+      "ref": "components.SourceListCallbacks",
+      "status": "changed",
+      "file": "source_list.go"
+    },
+    {
+      "ref": "components.SourceListConfig",
+      "status": "changed",
+      "file": "source_list.go"
+    },
+    {
+      "ref": "messages.DataLoadedMsg",
+      "status": "changed",
+      "file": "messages.go"
+    },
+    {
+      "ref": "messages.MCPManagerDeletedMsg",
+      "status": "added",
+      "file": "messages.go"
+    },
+    {
+      "ref": "messages.MCPManagerDeleteMsg",
+      "status": "added",
+      "file": "messages.go"
+    },
+    {
+      "ref": "messages.MCPManagerEditMsg",
+      "status": "added",
+      "file": "messages.go"
+    },
+    {
+      "ref": "messages.MCPManagerScope",
+      "status": "added",
+      "file": "messages.go"
+    },
+    {
+      "ref": "messages.MCPSavedMsg",
+      "status": "changed",
+      "file": "messages.go"
+    },
+    {
+      "ref": "messages.ScopedSessionNamedMsg",
+      "status": "changed",
+      "file": "messages.go"
+    },
+    {
+      "ref": "messages.SessionsRefreshedMsg",
+      "status": "changed",
+      "file": "messages.go"
+    },
+    {
+      "ref": "views.Dashboard",
+      "status": "changed",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.applyPendingSessionFocus",
+      "status": "added",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.FocusSession",
+      "status": "added",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.FocusSessionAfterRename",
+      "status": "added",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.SetDashboardScope",
+      "status": "changed",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.SetData",
+      "status": "changed",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.Dashboard.SetSessions",
+      "status": "changed",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.matchesSessionQuery",
+      "status": "added",
+      "file": "dashboard.go"
+    },
+    {
+      "ref": "views.MCPForm.handleSubmit",
+      "status": "changed",
+      "file": "mcp_form.go"
+    },
+    {
+      "ref": "views.MCPFormCallbacks",
+      "status": "changed",
+      "file": "mcp_form.go"
+    },
+    {
+      "ref": "views.MCPManager",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.MCPManager.AdmitDelete",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.MCPManager.DeleteFinished",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.MCPManager.DiscardDelete",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.MCPManager.Init",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.MCPManager.Leave",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.MCPManager.SetData",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.MCPManager.SetScope",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.MCPManager.SetSize",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.MCPManager.Update",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.MCPManager.View",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.mcpManagerItem",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.mcpManagerItem.Display",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.mcpManagerItem.ID",
+      "status": "added",
+      "file": "mcp_manager.go"
+    },
+    {
+      "ref": "views.NewMCPManager",
+      "status": "added",
+      "file": "mcp_manager.go"
+    }
+  ],
+  "files": [
+    {
+      "file": "feature-mcpedit.md",
+      "status": "added"
+    },
+    {
+      "file": "feature-sessmod.md",
+      "status": "removed"
+    },
+    {
+      "file": "go.mod",
+      "status": "changed"
+    },
+    {
+      "file": "go.sum",
+      "status": "changed"
+    },
+    {
+      "file": "impl_plan.md",
+      "status": "changed"
+    },
+    {
+      "file": "internal/app/callbacks.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/app/coordinator_test.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/app/coordinator.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/app/handlers.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/app/inline_rename_refresh_internal_test.go",
+      "status": "added"
+    },
+    {
+      "file": "internal/app/integration_test.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/app/launch_focus_internal_test.go",
+      "status": "added"
+    },
+    {
+      "file": "internal/app/mcp_manager_gaps_test.go",
+      "status": "added"
+    },
+    {
+      "file": "internal/app/mcp_manager_review_test.go",
+      "status": "added"
+    },
+    {
+      "file": "internal/app/navigation_test.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/app/navigation.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/app/refresh.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/app/scoped_refresh.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/app/session_actions.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/ui/components/session_list_test.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/ui/components/session_list.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/ui/components/source_list.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/ui/messages/messages.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/ui/views/dashboard_test.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/ui/views/dashboard.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/ui/views/mcp_form.go",
+      "status": "changed"
+    },
+    {
+      "file": "internal/ui/views/mcp_manager_test.go",
+      "status": "added"
+    },
+    {
+      "file": "internal/ui/views/mcp_manager.go",
+      "status": "added"
+    },
+    {
+      "file": "kankuro_specs.md",
+      "status": "changed"
+    },
+    {
+      "file": "review.md",
+      "status": "changed"
+    },
+    {
+      "file": "tests/e2e/launch_focus_test.go",
+      "status": "added"
+    },
+    {
+      "file": "tests/e2e/mcp_manager_test.go",
+      "status": "added"
+    },
+    {
+      "file": "tests/e2e/README.md",
+      "status": "changed"
+    }
+  ],
+  "items": [
+    {
+      "id": "flow:attach",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Retained shared attachment path; launch-focus now documents the created selection on detach and reattachment separately."
+    },
+    {
+      "id": "flow:card-delete",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained card-delete behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:dashboard",
+      "reasons": [
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/ui/components/session_list.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "supporting reference: components.SessionList.refreshItems (changed)"
+      ],
+      "disposition": "unchanged",
+      "note": "Kept dashboard interactions; exact-ID launch focus and responsive selection behavior are documented separately."
+    },
+    {
+      "id": "flow:dashboard-details",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained dashboard-details behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:deleted-session",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/components/session_list.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained deleted-session behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:editcard",
+      "reasons": [
+        "direct reference: app.Coordinator.dashboardCallbacks (changed)",
+        "direct reference: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Checked card-editor direct MCP creation remains supported; reset and explicit return are documented by the MCP flow without changing loaded card state."
+    },
+    {
+      "id": "flow:ide",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: app.sessionActions.deleteMCPFromManager (added)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/session_actions.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained ide behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:launch",
+      "reasons": [
+        "direct reference: app.Coordinator.handleDataLoaded (changed)",
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "direct reference: app.Coordinator.handleSessionsRefreshed (changed)",
+        "direct reference: views.Dashboard.SetSessions (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: app.refresher (changed)",
+        "participant association: app.refresher.scopedConfigIfChanged (changed)",
+        "participant association: app.refresher.scopedFull (changed)",
+        "participant association: app.refresher.scopedSessions (changed)",
+        "participant association: components.SessionList.refreshItems (changed)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/ui/components/session_list.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "supporting reference: app.Coordinator.handleDataLoaded (changed)",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)",
+        "supporting reference: app.Coordinator.handleSessionsRefreshed (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Split admission/publication from the new launch-focus flow; publication result now advances epoch and hands off exact-ID focus."
+    },
+    {
+      "id": "flow:list-errors",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained list-errors behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:manual-session",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/session_actions.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained manual-session behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:mcp",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSpecialMessages (changed)",
+        "direct reference: app.Coordinator.mcpCallbacks (changed)",
+        "direct reference: views.MCPForm.handleSubmit (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: views.MCPForm.handleSubmit (changed)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/mcp_form.go"
+      ],
+      "disposition": "updated",
+      "note": "Replaced form-only narrative with manager-origin editing, metadata overlays, scoped save results and explicit return destination."
+    },
+    {
+      "id": "flow:mutation",
+      "reasons": [
+        "direct reference: app.Coordinator.handleConfigFingerprint (changed)",
+        "direct reference: app.Coordinator.handleDataLoaded (changed)",
+        "direct reference: app.Coordinator.handleSpecialMessages (changed)",
+        "direct reference: app.refresher.scopedFull (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: app.refresher (changed)",
+        "participant association: app.refresher.scopedConfigIfChanged (changed)",
+        "participant association: app.refresher.scopedFull (changed)",
+        "participant association: app.refresher.scopedSessions (changed)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/app/scoped_refresh.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Updated scoped refresh arguments and rejection of old session epochs before data/fingerprint application."
+    },
+    {
+      "id": "flow:navigation",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSpecialMessages (changed)",
+        "direct reference: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)",
+        "supporting reference: app.Coordinator.handleSpecialMessages (changed)",
+        "supporting reference: app.Coordinator.navigateTo (changed)",
+        "supporting reference: app.convertViewType (changed)",
+        "supporting reference: views.Dashboard.SetDashboardScope (changed)"
+      ],
+      "disposition": "unchanged",
+      "note": "Dashboard open/back and generation invalidation remain unchanged. Nested MCP return routing lives in its new flows."
+    },
+    {
+      "id": "flow:picker-refresh",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained picker-refresh behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:preview",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Preview subscription/output ownership is unchanged; launch-focus explains which selected ID supplies its preview."
+    },
+    {
+      "id": "flow:quit",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained quit behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:readiness",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained readiness behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:rename-edit",
+      "reasons": [
+        "direct reference: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Checked rename target/draft handling and cancellation remain unchanged; successful-save stale snapshot rejection is in rename-save/launch-focus."
+    },
+    {
+      "id": "flow:rename-layout",
+      "reasons": [
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Rename dialog layout/help unchanged; upgraded rendering dependencies passed view/race and startup journey checks."
+    },
+    {
+      "id": "flow:rename-save",
+      "reasons": [
+        "direct reference: app.Coordinator.dashboardCallbacks (changed)",
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "direct reference: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/coordinator_test.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Documented successful inline rename advancing the session epoch and retaining a separately scoped dialog result."
+    },
+    {
+      "id": "flow:resize",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained resize behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:resume",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained resume behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:savecard",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "supporting reference: app.Coordinator.dashboardCallbacks (changed)",
+        "supporting reference: app.Coordinator.mcpCallbacks (changed)",
+        "supporting reference: app.Coordinator.sessionLauncherCallbacks (changed)"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained savecard behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:settings",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSpecialMessages (changed)",
+        "direct reference: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Checked settings navigation/save still uses its existing return path; MCP-specific nested return logic does not change this flow."
+    },
+    {
+      "id": "flow:settings-edit",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained settings-edit behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:skill-filter",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained skill-filter behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:source",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "SourceManager still uses inline source forms and default SourceList labels/key behavior; MCP intercepts its own activation/delete keys."
+    },
+    {
+      "id": "flow:startup",
+      "reasons": [
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained startup behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:sub-clear",
+      "reasons": [
+        "source file changed: kankuro_specs.md"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained sub-clear behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:terminal",
+      "reasons": [
+        "direct reference: app.Coordinator.dashboardCallbacks (changed)",
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "direct reference: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: app.sessionActions.deleteMCPFromManager (added)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/session_actions.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained terminal behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:tick",
+      "reasons": [
+        "direct reference: app.Coordinator.handleDataLoaded (changed)",
+        "direct reference: app.Coordinator.handleSessionsRefreshed (changed)",
+        "direct reference: app.Coordinator.handleSpecialMessages (changed)",
+        "direct reference: app.Coordinator.refreshDataSeeded (changed)",
+        "direct reference: app.refresher.scopedFull (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: app.refresher (changed)",
+        "participant association: app.refresher.scopedConfigIfChanged (changed)",
+        "participant association: app.refresher.scopedFull (changed)",
+        "participant association: app.refresher.scopedSessions (changed)",
+        "participant association: views.Dashboard (changed)",
+        "participant association: views.Dashboard.FocusSession (added)",
+        "participant association: views.Dashboard.FocusSessionAfterRename (added)",
+        "participant association: views.Dashboard.SetDashboardScope (changed)",
+        "participant association: views.Dashboard.SetData (changed)",
+        "participant association: views.Dashboard.SetSessions (changed)",
+        "participant association: views.Dashboard.applyPendingSessionFocus (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/app/scoped_refresh.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "supporting reference: app.Coordinator.handleConfigFingerprint (changed)",
+        "supporting reference: app.Coordinator.handleDataLoaded (changed)",
+        "supporting reference: app.Coordinator.handleSessionsRefreshed (changed)",
+        "supporting reference: app.Coordinator.maybeRefreshConfig (changed)",
+        "supporting reference: app.Coordinator.refreshDataSeeded (changed)",
+        "supporting reference: app.Coordinator.refreshSessions (changed)",
+        "supporting reference: app.refresher.scopedConfigIfChanged (changed)",
+        "supporting reference: app.refresher.scopedFull (changed)",
+        "supporting reference: app.refresher.scopedSessions (changed)",
+        "supporting reference: messages.MCPSavedMsg (changed)",
+        "supporting reference: messages.ScopedSessionNamedMsg (changed)",
+        "supporting reference: views.Dashboard.SetSessions (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Recorded epoch-bearing full/session/fingerprint snapshots through supporting references; tick cadence remains unchanged."
+    },
+    {
+      "id": "flow:workspace-command-errors",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "participant association: app.sessionActions.deleteMCPFromManager (added)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/session_actions.go",
+        "source file changed: internal/ui/messages/messages.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Traced retained workspace-command-errors behavior against the current sources. It shares changed Coordinator/Dashboard participants, but its operations, authorization, failure rules and call ordering are unchanged by MCP navigation or launch-focus additions."
+    },
+    {
+      "id": "flow:workspace-sources",
+      "reasons": [
+        "direct reference: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator (changed)",
+        "participant association: app.Coordinator.dashboardCallbacks (changed)",
+        "participant association: app.Coordinator.handleConfigFingerprint (changed)",
+        "participant association: app.Coordinator.handleDataLoaded (changed)",
+        "participant association: app.Coordinator.handleSessionMessages (changed)",
+        "participant association: app.Coordinator.handleSessionsRefreshed (changed)",
+        "participant association: app.Coordinator.handleSpecialMessages (changed)",
+        "participant association: app.Coordinator.hasStaleSessionSnapshot (added)",
+        "participant association: app.Coordinator.initViews (changed)",
+        "participant association: app.Coordinator.matchesMCPManagerScope (added)",
+        "participant association: app.Coordinator.maybeRefreshConfig (changed)",
+        "participant association: app.Coordinator.mcpCallbacks (changed)",
+        "participant association: app.Coordinator.navigateTo (changed)",
+        "participant association: app.Coordinator.refreshDataSeeded (changed)",
+        "participant association: app.Coordinator.refreshSessions (changed)",
+        "participant association: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Workspace source-manager callback/save policy unchanged; SourceList MCP labels/activation are opt-in."
+    },
+    {
+      "id": "package:app",
+      "reasons": [
+        "direct reference: app.Coordinator (changed)",
+        "direct reference: app.refresher (changed)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/app/scoped_refresh.go",
+        "source file changed: internal/app/session_actions.go",
+        "supporting reference: app.Coordinator.dashboardCallbacks (changed)",
+        "supporting reference: app.Coordinator.handleConfigFingerprint (changed)",
+        "supporting reference: app.Coordinator.handleDataLoaded (changed)",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)",
+        "supporting reference: app.Coordinator.handleSessionsRefreshed (changed)",
+        "supporting reference: app.Coordinator.handleSpecialMessages (changed)",
+        "supporting reference: app.Coordinator.maybeRefreshConfig (changed)",
+        "supporting reference: app.Coordinator.mcpCallbacks (changed)",
+        "supporting reference: app.Coordinator.navigateTo (changed)",
+        "supporting reference: app.Coordinator.refreshDataSeeded (changed)",
+        "supporting reference: app.Coordinator.refreshSessions (changed)",
+        "supporting reference: app.Coordinator.sessionLauncherCallbacks (changed)",
+        "supporting reference: app.convertViewType (changed)",
+        "supporting reference: app.refresher.scopedConfigIfChanged (changed)",
+        "supporting reference: app.refresher.scopedFull (changed)",
+        "supporting reference: app.refresher.scopedSessions (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Added MCP visit/request policy and explicit return notes; retained launch epochs, shared service boundaries and refresh ownership."
+    },
+    {
+      "id": "package:components",
+      "reasons": [
+        "source file changed: internal/ui/components/session_list.go",
+        "source file changed: internal/ui/components/source_list.go",
+        "supporting reference: components.SessionList.refreshItems (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Documented reused SourceList labels/bounded rendering and stable SessionList identity selection; default source behavior preserved."
+    },
+    {
+      "id": "package:messages",
+      "reasons": [
+        "source file changed: internal/ui/messages/messages.go"
+      ],
+      "disposition": "updated",
+      "note": "Reviewed MCP scope/result records and session-epoch/name fields; these are coordinator protocol payloads, not persistence schemas."
+    },
+    {
+      "id": "package:views",
+      "reasons": [
+        "direct reference: views.Dashboard (changed)",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/mcp_form.go",
+        "supporting reference: views.Dashboard.SetDashboardScope (changed)",
+        "supporting reference: views.Dashboard.SetSessions (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Added MCPManager/form file descriptions and separation of modal/view state from coordinator navigation; retained dashboard focus rules."
+    },
+    {
+      "id": "rule:1",
+      "reasons": [
+        "direct reference: app.Coordinator (changed)",
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/session_actions.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Commands still capture repository/service/scope values before asynchronous execution; added MCP commands follow the same invariant."
+    },
+    {
+      "id": "rule:2",
+      "reasons": [
+        "direct reference: app.Coordinator.navigateTo (changed)",
+        "source file changed: internal/app/navigation.go"
+      ],
+      "disposition": "unchanged",
+      "note": "MCP keys emit messages; only coordinator handlers navigate. Explicit MCP return routing strengthens the same view-writeback invariant."
+    },
+    {
+      "id": "rule:22",
+      "reasons": [
+        "direct reference: app.Coordinator.handleDataLoaded (changed)",
+        "source file changed: internal/app/handlers.go"
+      ],
+      "disposition": "updated",
+      "note": "Expanded stale-result rule to session epochs and manager visits; linked launch and MCP delayed-result regressions."
+    },
+    {
+      "id": "rule:3",
+      "reasons": [
+        "direct reference: messages.DataLoadedMsg (changed)",
+        "source file changed: internal/ui/messages/messages.go"
+      ],
+      "disposition": "unchanged",
+      "note": "DataLoadedMsg remains a full snapshot with nil failed fields preserved; SessionEpoch adds freshness checking before application."
+    },
+    {
+      "id": "rule:4",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)"
+      ],
+      "disposition": "unchanged",
+      "note": "MCP asynchronous errors use the existing banner behavior; next-key clearing and navigation preservation are unchanged."
+    },
+    {
+      "id": "task:Add a message",
+      "reasons": [
+        "direct reference: app.Coordinator.handleSessionMessages (changed)",
+        "direct reference: app.Coordinator.handleSpecialMessages (changed)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/messages/messages.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Rechecked Add a message entry points. Existing component/service ownership and starting files remain correct; MCP-specific and launch-focus guidance is in the new dedicated tasks."
+    },
+    {
+      "id": "task:Add a screen",
+      "reasons": [
+        "direct reference: app.Coordinator.initViews (changed)",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Rechecked Add a screen entry points. Existing component/service ownership and starting files remain correct; MCP-specific and launch-focus guidance is in the new dedicated tasks."
+    },
+    {
+      "id": "task:Add a session operation for TUI and MCP",
+      "reasons": [
+        "source file changed: internal/app/session_actions.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Rechecked Add a session operation for TUI and MCP entry points. Existing component/service ownership and starting files remain correct; MCP-specific and launch-focus guidance is in the new dedicated tasks."
+    },
+    {
+      "id": "task:Change dashboard layout or keys",
+      "reasons": [
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Rechecked Change dashboard layout or keys entry points. Existing component/service ownership and starting files remain correct; MCP-specific and launch-focus guidance is in the new dedicated tasks."
+    },
+    {
+      "id": "task:Change how IDE or terminal windows open",
+      "reasons": [
+        "source file changed: internal/app/session_actions.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Rechecked Change how IDE or terminal windows open entry points. Existing component/service ownership and starting files remain correct; MCP-specific and launch-focus guidance is in the new dedicated tasks."
+    },
+    {
+      "id": "task:Change refresh behaviour",
+      "reasons": [
+        "direct reference: app.refresher (changed)",
+        "source file changed: internal/app/refresh.go"
+      ],
+      "disposition": "updated",
+      "note": "Rechecked Change refresh behaviour entry points. Added session-epoch/selection guidance; related new MCP tasks describe manager composition and scoped returns."
+    },
+    {
+      "id": "task:Change session names or activation snapshots",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Rechecked Change session names or activation snapshots entry points. Added session-epoch/selection guidance; related new MCP tasks describe manager composition and scoped returns."
+    },
+    {
+      "id": "task:Change the preview subscription",
+      "reasons": [
+        "source file changed: internal/app/handlers.go"
+      ],
+      "disposition": "unchanged",
+      "note": "Rechecked Change the preview subscription entry points. Existing component/service ownership and starting files remain correct; MCP-specific and launch-focus guidance is in the new dedicated tasks."
+    },
+    {
+      "id": "test-feature:activation-readiness",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/integration_test.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/ui/components/session_list.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:application-settings",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:card-editor",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:configuration-startup",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:conversation-choice",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:dashboard-context",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/app/scoped_refresh.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:dashboard-management",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:dashboard-ownership",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/ui/components/session_list.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:deletion-recovery",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:mcp-form",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/mcp_form.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:minimum-terminal",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:registry-refresh",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/integration_test.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/app/scoped_refresh.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:relaunch-mcp",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:session-actions",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/coordinator_test.go",
+        "source file changed: internal/app/session_actions.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:session-rename",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/coordinator_test.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:shutdown",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:terminal-journeys",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/ui/components/session_list.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: tests/e2e/README.md"
+      ],
+      "disposition": "updated",
+      "note": "Preserved the historical failed model-driven registration outcome and limits. New startup-only launch-focus evidence is separate and does not establish registration/resume; ordinary supporting assertions were refreshed."
+    },
+    {
+      "id": "test-feature:workspace-commands",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/session_actions.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:workspace-identity",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-feature:workspace-selection",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: kankuro_specs.md"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:activation-readiness/dashboard-launch",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/integration_test.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/ui/components/session_list.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:activation-readiness/readiness",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:application-settings/settings",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go",
+        "supporting reference: app.Coordinator.handleSpecialMessages (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:application-settings/settings-edit",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:application-settings/settings-layout",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:card-editor/control-toggle",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:card-editor/focused-field",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:card-editor/preserve-fields",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:card-editor/skill-filter",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:configuration-startup/exclusive-writer",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:configuration-startup/fresh-root",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:configuration-startup/invalid-records",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:conversation-choice/compatible-only",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:dashboard-context/fingerprints",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/app/scoped_refresh.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:dashboard-context/stale-results",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/app/scoped_refresh.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:dashboard-management/dashboard-details",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:dashboard-management/list-errors",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:dashboard-ownership/revalidate-launch",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/ui/components/session_list.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:dashboard-ownership/scoped-inventory",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/components/session_list.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:deletion-recovery/pending-launch",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:mcp-form/all-fields",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/mcp_form.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:minimum-terminal/drop-input",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:minimum-terminal/explicit-quit",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:minimum-terminal/notice-rectangle",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:registry-refresh/blank-canvas",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:registry-refresh/corrupt-registry",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:registry-refresh/destination-refresh",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/integration_test.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/app/scoped_refresh.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:registry-refresh/preview-broadcast",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/app/scoped_refresh.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:registry-refresh/preview-sanitization",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/navigation.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:registry-refresh/source-crud",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/app/scoped_refresh.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:registry-refresh/sync-warning",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/app/scoped_refresh.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:registry-refresh/workspace-sources",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/navigation.go",
+        "supporting reference: app.Coordinator.navigateTo (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:relaunch-mcp/preserve-and-rotate",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:session-actions/manual-session",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/coordinator_test.go",
+        "source file changed: internal/app/session_actions.go",
+        "source file changed: internal/ui/views/dashboard_test.go",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:session-rename/blank-name",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/coordinator_test.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:session-rename/cancel",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:session-rename/draft-retry",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:session-rename/launch-naming",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/coordinator_test.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:session-rename/layout",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:session-rename/persist-error",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/coordinator_test.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:session-rename/search",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:session-rename/stale-result",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/coordinator_test.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:session-rename/success-restart",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/coordinator_test.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:shutdown/copy-boundary",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:shutdown/spawn-boundary",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:terminal-journeys/attachment-handle",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Preserved the historical failed model-driven registration outcome and limits. New startup-only launch-focus evidence is separate and does not establish registration/resume; ordinary supporting assertions were refreshed."
+    },
+    {
+      "id": "test-scenario:terminal-journeys/native-agent",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/handlers.go",
+        "source file changed: internal/app/refresh.go",
+        "source file changed: internal/ui/components/session_list.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: tests/e2e/README.md"
+      ],
+      "disposition": "updated",
+      "note": "Preserved the historical failed model-driven registration outcome and limits. New startup-only launch-focus evidence is separate and does not establish registration/resume; ordinary supporting assertions were refreshed."
+    },
+    {
+      "id": "test-scenario:terminal-journeys/resume-driver",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Preserved the historical failed model-driven registration outcome and limits. New startup-only launch-focus evidence is separate and does not establish registration/resume; ordinary supporting assertions were refreshed."
+    },
+    {
+      "id": "test-scenario:workspace-commands/ide",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/session_actions.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:workspace-commands/terminal",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/session_actions.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "source file changed: internal/ui/views/dashboard.go",
+        "source file changed: internal/ui/views/dashboard_test.go",
+        "supporting reference: app.Coordinator.dashboardCallbacks (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:workspace-commands/workspace-command-errors",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go",
+        "source file changed: internal/app/session_actions.go",
+        "source file changed: internal/ui/messages/messages.go",
+        "supporting reference: app.Coordinator.handleSessionMessages (changed)"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:workspace-identity/unavailable-path",
+      "reasons": [
+        "source file changed: internal/app/callbacks.go",
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:workspace-selection/clear-subworkspaces",
+      "reasons": [
+        "source file changed: kankuro_specs.md"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "test-scenario:workspace-selection/picker-refresh",
+      "reasons": [
+        "source file changed: internal/app/coordinator.go"
+      ],
+      "disposition": "updated",
+      "note": "Reassessed recorded assertions, source hashes and named results against the final JSON ordinary-suite run. Scenario scope and limitations retained; new MCP/launch-focus evidence is separately linked."
+    },
+    {
+      "id": "uncovered:code:relations",
+      "reasons": [
+        "uncovered symbol: changed relations or data flow"
+      ],
+      "disposition": "updated",
+      "note": "Checked new manager-to-list/modal/scope composition, coordinator routing and view base/interface relationships in the extracted model."
+    },
+    {
+      "id": "uncovered:components.SourceList.renderList",
+      "reasons": [
+        "uncovered symbol: changed"
+      ],
+      "disposition": "updated",
+      "note": "MCP labels, sanitized bounded rows and reachable New are documented with view-level bounds and real-terminal captures."
+    },
+    {
+      "id": "uncovered:components.SourceList.updateList",
+      "reasons": [
+        "uncovered symbol: changed"
+      ],
+      "disposition": "updated",
+      "note": "Optional external activation hook leaves inline source-manager behavior as default; MCPManager owns its own key policy."
+    },
+    {
+      "id": "uncovered:components.SourceListCallbacks",
+      "reasons": [
+        "uncovered symbol: changed"
+      ],
+      "disposition": "updated",
+      "note": "Added optional OnActivate command seam; current manager reuses list movement/rendering and handles activation itself."
+    },
+    {
+      "id": "uncovered:components.SourceListConfig",
+      "reasons": [
+        "uncovered symbol: changed"
+      ],
+      "disposition": "updated",
+      "note": "List/New/help labels are configurable with existing source defaults preserved."
+    },
+    {
+      "id": "uncovered:file:feature-mcpedit.md",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "updated",
+      "note": "Task requirement is now reflected in MCP list/create/edit/confirmation flows and evidence."
+    },
+    {
+      "id": "uncovered:file:feature-sessmod.md",
+      "reasons": [
+        "uncovered changed file: removed"
+      ],
+      "disposition": "removed",
+      "note": "Removed historical task artifact; current session-renaming behavior remains covered by product specs, code and retained flows."
+    },
+    {
+      "id": "uncovered:file:go.mod",
+      "reasons": [
+        "uncovered changed file: changed"
+      ],
+      "disposition": "updated",
+      "note": "All five requested direct upgrades are verified by the fresh Go package-manager snapshot; other direct declarations remain unchanged."
+    },
+    {
+      "id": "uncovered:file:go.sum",
+      "reasons": [
+        "uncovered changed file: changed"
+      ],
+      "disposition": "updated",
+      "note": "Reviewed expected updated direct/transitive checksums paired with go.mod; no instructions or credential data."
+    },
+    {
+      "id": "uncovered:file:impl_plan.md",
+      "reasons": [
+        "uncovered changed file: changed"
+      ],
+      "disposition": "updated",
+      "note": "Task-specific plan, not project-wide policy. Implemented MCP behavior and evidence are represented in current flows/tests."
+    },
+    {
+      "id": "uncovered:file:internal/app/inline_rename_refresh_internal_test.go",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "updated",
+      "note": "New evidence covers old full/session/fingerprint snapshot rejection after inline rename; lint suppression has a focused lifecycle reason."
+    },
+    {
+      "id": "uncovered:file:internal/app/launch_focus_internal_test.go",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "updated",
+      "note": "New launch-focus feature links exact-ID selection, pending data, scope rejection, warning and epoch tests."
+    },
+    {
+      "id": "uncovered:file:internal/app/mcp_manager_gaps_test.go",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "updated",
+      "note": "Linked cross-dashboard commands/results and injected ENOSPC data-retention/retry assertions."
+    },
+    {
+      "id": "uncovered:file:internal/app/mcp_manager_review_test.go",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "updated",
+      "note": "Linked metadata preservation, clean New state, same-dashboard stale requests and referenced-delete failures."
+    },
+    {
+      "id": "uncovered:file:internal/app/navigation_test.go",
+      "reasons": [
+        "uncovered changed file: changed"
+      ],
+      "disposition": "updated",
+      "note": "MCP route and repeated manager/form/dashboard Back tests linked; existing workspace paths retained."
+    },
+    {
+      "id": "uncovered:file:internal/ui/components/session_list_test.go",
+      "reasons": [
+        "uncovered changed file: changed"
+      ],
+      "disposition": "updated",
+      "note": "Linked selected-ID preservation when sorted items change."
+    },
+    {
+      "id": "uncovered:file:internal/ui/views/mcp_manager_test.go",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "updated",
+      "note": "Linked confirmation target/cancel, nil snapshot, protected/New and Unicode/ANSI bounded-list tests."
+    },
+    {
+      "id": "uncovered:file:internal/ui/views/mcp_manager.go",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "updated",
+      "note": "New view is covered by package notes, manager flows, ordinary tests and configuration E2E."
+    },
+    {
+      "id": "uncovered:file:review.md",
+      "reasons": [
+        "uncovered changed file: changed"
+      ],
+      "disposition": "updated",
+      "note": "Historical task review; both reported bugs have current regressions and are not presented as remaining findings."
+    },
+    {
+      "id": "uncovered:file:tests/e2e/launch_focus_test.go",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "updated",
+      "note": "Startup-only native journey passed after shadow-variable/format fixes, with three fingerprint-matched captures; no model task was submitted."
+    },
+    {
+      "id": "uncovered:file:tests/e2e/mcp_manager_test.go",
+      "reasons": [
+        "uncovered changed file: added"
+      ],
+      "disposition": "updated",
+      "note": "Model-free actual-executable MCP journey passed with six fingerprint-matched captures and stored-definition assertions."
+    },
+    {
+      "id": "uncovered:messages.MCPManagerDeletedMsg",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "ID, request counter, originating dashboard/generation and error preserve completion context."
+    },
+    {
+      "id": "uncovered:messages.MCPManagerDeleteMsg",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Captured stable server ID and scope request admission on the coordinator."
+    },
+    {
+      "id": "uncovered:messages.MCPManagerEditMsg",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Loaded server and originating scope request reset/populate on coordinator."
+    },
+    {
+      "id": "uncovered:messages.MCPManagerScope",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Dashboard, generation and visit identify the originating interaction."
+    },
+    {
+      "id": "uncovered:messages.SessionsRefreshedMsg",
+      "reasons": [
+        "uncovered symbol: changed"
+      ],
+      "disposition": "updated",
+      "note": "SessionEpoch accompanies session snapshots so same-dashboard pre-launch/rename refreshes can be discarded."
+    },
+    {
+      "id": "uncovered:views.matchesSessionQuery",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Pending focus clears only a session query hiding the target; matching queries and card search remain."
+    },
+    {
+      "id": "uncovered:views.MCPFormCallbacks",
+      "reasons": [
+        "uncovered symbol: changed"
+      ],
+      "disposition": "updated",
+      "note": "Removed unused synchronous delete callback; saves remain asynchronous coordinator commands."
+    },
+    {
+      "id": "uncovered:views.MCPManager",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Composite SourceList/Modal view holds selection and pending ID, scope/visit and admission state."
+    },
+    {
+      "id": "uncovered:views.MCPManager.AdmitDelete",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Only one pending confirmation from the matching visit is admitted."
+    },
+    {
+      "id": "uncovered:views.MCPManager.DeleteFinished",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Success/failure clears deletion pending state so the manager can retry."
+    },
+    {
+      "id": "uncovered:views.MCPManager.DiscardDelete",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Stale unadmitted request cleanup is visit-specific and cannot clear a newer request."
+    },
+    {
+      "id": "uncovered:views.MCPManager.Init",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Opening the manager closes stale confirmation state without discarding registry snapshots."
+    },
+    {
+      "id": "uncovered:views.MCPManager.Leave",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Leaving cancels only unadmitted confirmation; admitted repository work completes asynchronously."
+    },
+    {
+      "id": "uncovered:views.MCPManager.SetData",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Nil snapshots retain loaded data; selected server ID/New and cursor bounds survive refresh/reorder."
+    },
+    {
+      "id": "uncovered:views.MCPManager.SetScope",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Each entry receives dashboard, generation and manager-visit identity."
+    },
+    {
+      "id": "uncovered:views.MCPManager.SetSize",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Sized list/modal composition shares terminal bounds."
+    },
+    {
+      "id": "uncovered:views.MCPManager.Update",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Protected/New rows, stable captured delete ID, confirmation cancellation and scoped command emission are documented and tested."
+    },
+    {
+      "id": "uncovered:views.MCPManager.View",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Switches between list and reusable confirmation rendering."
+    },
+    {
+      "id": "uncovered:views.mcpManagerItem",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Adapter provides repository server ID and display label to the reused list interface."
+    },
+    {
+      "id": "uncovered:views.mcpManagerItem.Display",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Built-in Kankuro row is visibly read-only; custom labels show names only."
+    },
+    {
+      "id": "uncovered:views.mcpManagerItem.ID",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Stable registry identity drives selection and mutation targets."
+    },
+    {
+      "id": "uncovered:views.NewMCPManager",
+      "reasons": [
+        "uncovered symbol: added"
+      ],
+      "disposition": "updated",
+      "note": "Composes SourceList and Modal with MCP-specific labels/help."
+    },
+    {
+      "id": "content",
+      "reasons": [
+        "appedia content changed since the accepted baseline"
+      ],
+      "disposition": "updated",
+      "note": "Retained UX launch-focus narrative, added scoped MCP flows/tasks/rule and two feature assessments, and refreshed source-bound evidence and dependencies."
+    }
+  ]
+}

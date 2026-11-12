@@ -923,8 +923,14 @@
         "api.Service",
         "api.Service.LaunchInDashboard",
         "app.Coordinator",
+        "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.handleSessionsRefreshed",
+        "app.Coordinator.hasStaleSessionSnapshot",
         "app.Coordinator.launchCard",
+        "components.SessionList.refreshItems",
         "driver.GenericCLIDriver",
+        "messages.SessionsRefreshedMsg",
         "session.CardPendingReference",
         "session.CardReferenceImpact",
         "session.CardSessionReference",
@@ -949,14 +955,19 @@
         "session.Session.data",
         "session.Session.snapshot",
         "session.cardReservation",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename",
+        "views.Dashboard.applyPendingSessionFocus",
         "views.SessionLauncher",
         "views.SessionLauncher.Reset",
         "views.SessionLauncher.SetNameResult",
         "views.SessionLauncher.handleNameSubmit",
-        "views.SessionLauncherCallbacks"
+        "views.SessionLauncherCallbacks",
+        "views.matchesSessionQuery"
       ],
       "directRefs": [
         "api.Service.LaunchInDashboard",
+        "app.Coordinator.handleSessionMessages",
         "app.Coordinator.launchCard",
         "session.Manager.LaunchInDashboardWithIDContext",
         "session.Manager.ReserveCardReferenceForDashboardWithCancel",
@@ -971,6 +982,12 @@
         "session.Manager"
       ],
       "supportingRefs": [
+        "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.handleSessionsRefreshed",
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "components.SessionList.refreshItems",
+        "messages.SessionsRefreshedMsg",
         "session.CardPendingReference",
         "session.CardReferenceImpact",
         "session.CardSessionReference",
@@ -992,25 +1009,160 @@
         "session.Session.data",
         "session.Session.snapshot",
         "session.cardReservation",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename",
+        "views.Dashboard.applyPendingSessionFocus",
         "views.SessionLauncher",
         "views.SessionLauncher.Reset",
         "views.SessionLauncher.SetNameResult",
         "views.SessionLauncher.handleNameSubmit",
-        "views.SessionLauncherCallbacks"
+        "views.SessionLauncherCallbacks",
+        "views.matchesSessionQuery"
       ],
       "files": [
         "internal/api/membership.go",
         "internal/api/service.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
         "internal/driver/driver.go",
         "internal/session/card_references.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
         "internal/session/workspace.go",
-        "internal/ui/views/session_launcher.go"
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "66028bdf665352ec46695679bcdf96a23f5d34443c58669039bbe91f5336a525"
+      "digest": "137000faffa20536d8737adfc4409243ab9a615b5b7e6acb362156efeef06f49"
+    },
+    {
+      "kind": "flow",
+      "id": "launch-focus",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.handleSessionsRefreshed",
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "app.refresher",
+        "components.SessionList",
+        "components.SessionList.refreshItems",
+        "components.SessionPreview",
+        "messages.SessionsRefreshedMsg",
+        "session.CardPendingReference",
+        "session.CardReferenceImpact",
+        "session.CardSessionReference",
+        "session.Manager",
+        "session.Manager.CancelPendingCardReferences",
+        "session.Manager.CardReferences",
+        "session.Manager.List",
+        "session.Manager.ReserveCardReferenceForDashboardWithCancel",
+        "session.Manager.SetNameChecked",
+        "session.Manager.ShutdownStarted",
+        "session.Manager.TemporaryWorkspaceRoot",
+        "session.Manager.WaitCardReferences",
+        "session.Manager.WithCardReferencesAndSnapshot",
+        "session.Manager.bindPendingWorkspace",
+        "session.Manager.cardReferencesLocked",
+        "session.Manager.listLocked",
+        "session.Manager.notifyCardReferencesLocked",
+        "session.Manager.reserveCardReference",
+        "session.NewManager",
+        "session.Session.data",
+        "session.Session.snapshot",
+        "session.cardReservation",
+        "views.Dashboard",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename",
+        "views.Dashboard.SetSessions",
+        "views.Dashboard.applyPendingSessionFocus",
+        "views.Dashboard.syncPreviewSelection",
+        "views.SessionLauncher",
+        "views.SessionLauncher.Reset",
+        "views.SessionLauncher.SetNameResult",
+        "views.SessionLauncher.handleNameSubmit",
+        "views.SessionLauncherCallbacks",
+        "views.matchesSessionQuery"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.handleSessionsRefreshed",
+        "views.Dashboard.SetSessions",
+        "views.Dashboard.syncPreviewSelection",
+        "views.SessionLauncher.handleNameSubmit"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.refresher",
+        "components.SessionList",
+        "components.SessionPreview",
+        "session.Manager",
+        "views.Dashboard",
+        "views.SessionLauncher"
+      ],
+      "supportingRefs": [
+        "app.Coordinator.handleDataLoaded",
+        "app.Coordinator.handleSessionMessages",
+        "app.Coordinator.handleSessionsRefreshed",
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "components.SessionList.refreshItems",
+        "messages.SessionsRefreshedMsg",
+        "session.CardPendingReference",
+        "session.CardReferenceImpact",
+        "session.CardSessionReference",
+        "session.Manager.CancelPendingCardReferences",
+        "session.Manager.CardReferences",
+        "session.Manager.List",
+        "session.Manager.ReserveCardReferenceForDashboardWithCancel",
+        "session.Manager.SetNameChecked",
+        "session.Manager.ShutdownStarted",
+        "session.Manager.TemporaryWorkspaceRoot",
+        "session.Manager.WaitCardReferences",
+        "session.Manager.WithCardReferencesAndSnapshot",
+        "session.Manager.bindPendingWorkspace",
+        "session.Manager.cardReferencesLocked",
+        "session.Manager.listLocked",
+        "session.Manager.notifyCardReferencesLocked",
+        "session.Manager.reserveCardReference",
+        "session.NewManager",
+        "session.Session.data",
+        "session.Session.snapshot",
+        "session.cardReservation",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename",
+        "views.Dashboard.applyPendingSessionFocus",
+        "views.SessionLauncher",
+        "views.SessionLauncher.Reset",
+        "views.SessionLauncher.SetNameResult",
+        "views.SessionLauncher.handleNameSubmit",
+        "views.SessionLauncherCallbacks",
+        "views.matchesSessionQuery"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
+        "internal/app/refresh.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/session/workspace.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go"
+      ],
+      "digest": "b3539623f792938801221a7f4bc53d4d490a81affd50e43bfb6c6db715989033"
     },
     {
       "kind": "flow",
@@ -1147,22 +1299,32 @@
       "refs": [
         "app.Coordinator",
         "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.matchesMCPManagerScope",
         "app.Coordinator.mcpCallbacks",
         "config.FileRepository",
         "config.FileRepository.UpsertMCP",
         "views.MCPForm",
-        "views.MCPForm.handleSubmit"
+        "views.MCPForm.SetMCP",
+        "views.MCPForm.Update",
+        "views.MCPForm.handleSubmit",
+        "views.MCPManager",
+        "views.MCPManager.Update"
       ],
       "directRefs": [
         "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.matchesMCPManagerScope",
         "app.Coordinator.mcpCallbacks",
         "config.FileRepository.UpsertMCP",
-        "views.MCPForm.handleSubmit"
+        "views.MCPForm.SetMCP",
+        "views.MCPForm.Update",
+        "views.MCPForm.handleSubmit",
+        "views.MCPManager.Update"
       ],
       "participants": [
         "app.Coordinator",
         "config.FileRepository",
-        "views.MCPForm"
+        "views.MCPForm",
+        "views.MCPManager"
       ],
       "supportingRefs": [],
       "files": [
@@ -1170,9 +1332,45 @@
         "internal/app/coordinator.go",
         "internal/config/mcps.go",
         "internal/config/repository.go",
-        "internal/ui/views/mcp_form.go"
+        "internal/ui/views/mcp_form.go",
+        "internal/ui/views/mcp_manager.go"
       ],
-      "digest": "2a2fb65d8b9587934ebf2458440cfb488bfd42679b7e591edd3e5bf5e24dce6b"
+      "digest": "824b45738c072a4957a7688211e723e3c572d9eef3755f8930236b3e84c51e5d"
+    },
+    {
+      "kind": "flow",
+      "id": "mcp-card",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.handleSpecialMessages",
+        "app.sessionActions",
+        "app.sessionActions.deleteMCP",
+        "config.FileRepository",
+        "config.FileRepository.DeleteMCP",
+        "views.CardEditor",
+        "views.CardEditor.deleteSelectedMCP"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "app.sessionActions.deleteMCP",
+        "config.FileRepository.DeleteMCP",
+        "views.CardEditor.deleteSelectedMCP"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.sessionActions",
+        "config.FileRepository",
+        "views.CardEditor"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/views/card_editor.go"
+      ],
+      "digest": "2d3980004266ddacd692a92c5db639791096efce986c3346bc084e3063a86a8f"
     },
     {
       "kind": "flow",
@@ -1218,6 +1416,218 @@
     },
     {
       "kind": "flow",
+      "id": "mcp-delete",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.matchesMCPManagerScope",
+        "app.sessionActions",
+        "app.sessionActions.deleteMCPFromManager",
+        "config.FileRepository",
+        "config.FileRepository.DeleteMCP",
+        "views.MCPManager",
+        "views.MCPManager.AdmitDelete",
+        "views.MCPManager.DeleteFinished",
+        "views.MCPManager.Update"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.matchesMCPManagerScope",
+        "app.sessionActions.deleteMCPFromManager",
+        "config.FileRepository.DeleteMCP",
+        "views.MCPManager.AdmitDelete",
+        "views.MCPManager.DeleteFinished",
+        "views.MCPManager.Update"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "app.sessionActions",
+        "config.FileRepository",
+        "views.MCPManager"
+      ],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/views/mcp_manager.go"
+      ],
+      "digest": "43f84dd0bf2927dfb8e6ca7c2136ca11f68592f0fce92f8aea6921a23c77dd10"
+    },
+    {
+      "kind": "flow",
+      "id": "mcp-open",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.initViews",
+        "app.Coordinator.navigateTo",
+        "app.convertViewType",
+        "components.SourceList",
+        "components.SourceList.HandleDelete",
+        "components.SourceList.HandleSave",
+        "components.SourceList.Init",
+        "components.SourceList.OpenForm",
+        "components.SourceList.SetItems",
+        "components.SourceList.SetSize",
+        "components.SourceList.Update",
+        "components.SourceList.View",
+        "components.SourceList.cycleInputFocus",
+        "components.SourceList.handleListRune",
+        "components.SourceList.initEditForm",
+        "components.SourceList.initNewForm",
+        "components.SourceList.moveDown",
+        "components.SourceList.moveUp",
+        "components.SourceList.renderForm",
+        "components.SourceList.renderList",
+        "components.SourceList.updateForm",
+        "components.SourceList.updateList",
+        "components.SourceListCallbacks",
+        "components.SourceListConfig",
+        "components.SourceListMode",
+        "messages.MCPManagerDeleteMsg",
+        "messages.MCPManagerDeletedMsg",
+        "messages.MCPManagerEditMsg",
+        "messages.MCPManagerScope",
+        "views.Dashboard",
+        "views.Dashboard.Update",
+        "views.MCPFormCallbacks",
+        "views.MCPManager",
+        "views.MCPManager.AdmitDelete",
+        "views.MCPManager.DeleteFinished",
+        "views.MCPManager.DiscardDelete",
+        "views.MCPManager.Init",
+        "views.MCPManager.Leave",
+        "views.MCPManager.SetData",
+        "views.MCPManager.SetScope",
+        "views.MCPManager.SetSize",
+        "views.MCPManager.Update",
+        "views.MCPManager.View",
+        "views.NewMCPManager",
+        "views.mcpManagerItem",
+        "views.mcpManagerItem.Display",
+        "views.mcpManagerItem.ID"
+      ],
+      "directRefs": [
+        "app.Coordinator.dashboardCallbacks",
+        "app.Coordinator.navigateTo",
+        "views.Dashboard.Update",
+        "views.MCPManager.Init",
+        "views.MCPManager.View"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "views.Dashboard",
+        "views.MCPManager"
+      ],
+      "supportingRefs": [
+        "app.Coordinator.initViews",
+        "app.convertViewType",
+        "components.SourceList",
+        "components.SourceList.HandleDelete",
+        "components.SourceList.HandleSave",
+        "components.SourceList.Init",
+        "components.SourceList.OpenForm",
+        "components.SourceList.SetItems",
+        "components.SourceList.SetSize",
+        "components.SourceList.Update",
+        "components.SourceList.View",
+        "components.SourceList.cycleInputFocus",
+        "components.SourceList.handleListRune",
+        "components.SourceList.initEditForm",
+        "components.SourceList.initNewForm",
+        "components.SourceList.moveDown",
+        "components.SourceList.moveUp",
+        "components.SourceList.renderForm",
+        "components.SourceList.renderList",
+        "components.SourceList.updateForm",
+        "components.SourceList.updateList",
+        "components.SourceListCallbacks",
+        "components.SourceListConfig",
+        "components.SourceListMode",
+        "messages.MCPManagerDeleteMsg",
+        "messages.MCPManagerDeletedMsg",
+        "messages.MCPManagerEditMsg",
+        "messages.MCPManagerScope",
+        "views.MCPFormCallbacks",
+        "views.MCPManager",
+        "views.MCPManager.AdmitDelete",
+        "views.MCPManager.DeleteFinished",
+        "views.MCPManager.DiscardDelete",
+        "views.MCPManager.Init",
+        "views.MCPManager.Leave",
+        "views.MCPManager.SetData",
+        "views.MCPManager.SetScope",
+        "views.MCPManager.SetSize",
+        "views.MCPManager.Update",
+        "views.MCPManager.View",
+        "views.NewMCPManager",
+        "views.mcpManagerItem",
+        "views.mcpManagerItem.Display",
+        "views.mcpManagerItem.ID"
+      ],
+      "files": [
+        "feature-mcpedit.md",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/app/navigation_test.go",
+        "internal/ui/components/source_list.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/mcp_form.go",
+        "internal/ui/views/mcp_manager.go",
+        "internal/ui/views/mcp_manager_test.go"
+      ],
+      "digest": "5587d0ee298e92f448a26465d1cb5533302d78a41733d3c2dc5f41213e77f544"
+    },
+    {
+      "kind": "flow",
+      "id": "mcp-stale",
+      "refs": [
+        "app.Coordinator",
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.matchesMCPManagerScope",
+        "messages.MCPManagerDeleteMsg",
+        "messages.MCPManagerDeletedMsg",
+        "messages.MCPManagerEditMsg",
+        "messages.MCPManagerScope",
+        "views.MCPManager",
+        "views.MCPManager.DiscardDelete",
+        "views.MCPManager.Leave",
+        "views.MCPManager.SetScope",
+        "views.MCPManager.Update"
+      ],
+      "directRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.matchesMCPManagerScope",
+        "views.MCPManager.DiscardDelete",
+        "views.MCPManager.Leave",
+        "views.MCPManager.SetScope",
+        "views.MCPManager.Update"
+      ],
+      "participants": [
+        "app.Coordinator",
+        "views.MCPManager"
+      ],
+      "supportingRefs": [
+        "messages.MCPManagerDeleteMsg",
+        "messages.MCPManagerDeletedMsg",
+        "messages.MCPManagerEditMsg",
+        "messages.MCPManagerScope"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/mcp_manager_gaps_test.go",
+        "internal/app/mcp_manager_review_test.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/mcp_manager.go"
+      ],
+      "digest": "628765ecdaa8da32c4e7140c0dcef5a50d5ea863f9724c0bc306102a87e7adc4"
+    },
+    {
+      "kind": "flow",
       "id": "mutation",
       "refs": [
         "app.Coordinator",
@@ -1256,7 +1666,7 @@
         "internal/app/terminal_launch_test.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "64223d1d10e7dac163ec4a16f237a04f505d2d044c9f627d098080b0262a2faa"
+      "digest": "483f36b28b567a4feb14fa1948899a18b444b9d890cc0fc3cfdb33a2b2e536c8"
     },
     {
       "kind": "flow",
@@ -2048,7 +2458,7 @@
         "internal/ui/views/dashboard.go",
         "internal/ui/views/dashboard_test.go"
       ],
-      "digest": "42b249836fa9f3641e65a0caa3370aa31e20b05a4fcd516edc69334274a619f8"
+      "digest": "938b60edccf90b0654d4eacacbaa182bf72e545a527012f5533f3b9e22b146ad"
     },
     {
       "kind": "flow",
@@ -3072,6 +3482,7 @@
         "app.Coordinator.handlePreviewRequest",
         "app.Coordinator.handleSessionsRefreshed",
         "app.Coordinator.handleSpecialMessages",
+        "app.Coordinator.hasStaleSessionSnapshot",
         "app.Coordinator.maybeRefreshConfig",
         "app.Coordinator.maybeSubscribeAutoSelectedPreview",
         "app.Coordinator.refreshDataSeeded",
@@ -3129,6 +3540,7 @@
         "app.Coordinator.handleDataLoaded",
         "app.Coordinator.handlePreviewRequest",
         "app.Coordinator.handleSessionsRefreshed",
+        "app.Coordinator.hasStaleSessionSnapshot",
         "app.Coordinator.maybeRefreshConfig",
         "app.Coordinator.maybeSubscribeAutoSelectedPreview",
         "app.Coordinator.refreshDataSeeded",
@@ -3178,7 +3590,7 @@
         "internal/ui/messages/messages.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "787b7f8c35238324ba6b30474c0a6fbb1da3632bc052dbceef35a795a3bbe847"
+      "digest": "f5665e2a3b5d27edd7ef9369b2c4112af667d262ec4c772eef2df3ef73e46593"
     },
     {
       "kind": "flow",
@@ -3700,7 +4112,7 @@
         "internal/app/session_actions.go",
         "internal/app/size_guard.go"
       ],
-      "digest": "e1716ba0af3c8b21e5bbfd1c3a9f138be5989d3cae626595a9b5c9f3071143bc"
+      "digest": "a2980f2c5fc38dd72e3e185d32ff3c9785c682d92436c131db2a53a5e34c68bb"
     },
     {
       "kind": "package",
@@ -3813,7 +4225,7 @@
         "internal/ui/components/source_list.go",
         "internal/ui/components/text.go"
       ],
-      "digest": "13cc6ad2b487262c70e36f113caaa9e4d15b3fe0d1442f25c099af05ddcf39dd"
+      "digest": "3ffe9a577539244e01e46cd9fca257a266b02ac4a6bf87be3176924eeaa1cc08"
     },
     {
       "kind": "package",
@@ -4080,7 +4492,7 @@
       "files": [
         "internal/ui/messages/messages.go"
       ],
-      "digest": "c1c6d5ff7e9575a0465a980731a6ace957e28d6bd467d94a01f7892f2e28ec0d"
+      "digest": "c8226e3466039448e929460f7f7a2f5e7aa4641dcdbb8e280fac748952b41b6e"
     },
     {
       "kind": "package",
@@ -4477,6 +4889,7 @@
         "internal/ui/views/dashboard.go",
         "internal/ui/views/dashboard_list.go",
         "internal/ui/views/mcp_form.go",
+        "internal/ui/views/mcp_manager.go",
         "internal/ui/views/puppet_selector_modal.go",
         "internal/ui/views/session_launcher.go",
         "internal/ui/views/settings.go",
@@ -4484,7 +4897,7 @@
         "internal/ui/views/source_type.go",
         "internal/ui/views/workspace_picker_modal.go"
       ],
-      "digest": "ea8f6cc1143f127f6b9df5fcfd0cc703aa950d8115b87a91d2ef895271333e17"
+      "digest": "4807164b51a71c07273fb68d12cdf3a4a21a9ebfc33049fa06e15932f25fa83f"
     },
     {
       "kind": "rule",
@@ -4747,7 +5160,7 @@
       "files": [
         "internal/app/handlers.go"
       ],
-      "digest": "4927c5615570a834e776d257752e89bc3e9be7291d0c8b0a1d361d72d14251af"
+      "digest": "877ac607c4fd9e99edd60c02009e31f8069c7698de9e7d2ad01a07611943692a"
     },
     {
       "kind": "rule",
@@ -4844,6 +5257,31 @@
         "internal/driver/driver.go"
       ],
       "digest": "d4fb5c90ac5a01b1b8678275edcd59110fb3ff827dd5fac705cd5bb16c71d5b5"
+    },
+    {
+      "kind": "rule",
+      "id": "29",
+      "refs": [
+        "config.FileRepository.DeleteMCP",
+        "views.MCPForm.handleSubmit",
+        "views.MCPManager.Update"
+      ],
+      "directRefs": [
+        "views.MCPForm.handleSubmit"
+      ],
+      "participants": [],
+      "supportingRefs": [
+        "config.FileRepository.DeleteMCP",
+        "views.MCPManager.Update"
+      ],
+      "files": [
+        "internal/app/mcp_manager_review_test.go",
+        "internal/config/mcps.go",
+        "internal/ui/views/mcp_form.go",
+        "internal/ui/views/mcp_manager.go",
+        "tests/e2e/mcp_manager_test.go"
+      ],
+      "digest": "5d2fc25ee4eaa527f18bd89cf999b05ca09fc328ba22a0a7abc70b8eb8b2e3a0"
     },
     {
       "kind": "rule",
@@ -5260,6 +5698,55 @@
     },
     {
       "kind": "task",
+      "id": "Change launch selection or stale-refresh protection",
+      "refs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "components.SessionList.refreshItems",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "directRefs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "components.SessionList.refreshItems",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/handlers.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "bee84dea03af8c7537dd2782860d6664b1e8412bff7864f014a07ca37da955e1"
+    },
+    {
+      "kind": "task",
+      "id": "Change MCP registry management",
+      "refs": [
+        "app.Coordinator.mcpCallbacks",
+        "config.FileRepository.DeleteMCP",
+        "views.MCPForm",
+        "views.MCPManager"
+      ],
+      "directRefs": [
+        "app.Coordinator.mcpCallbacks",
+        "config.FileRepository.DeleteMCP",
+        "views.MCPForm",
+        "views.MCPManager"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/app/callbacks.go",
+        "internal/config/mcps.go",
+        "internal/ui/views/mcp_form.go",
+        "internal/ui/views/mcp_manager.go"
+      ],
+      "digest": "3e36cc892670adfd08632da745133d401641612d69e9415e3c68f8d3ae541f16"
+    },
+    {
+      "kind": "task",
       "id": "Change native conversation registration or resume",
       "refs": [
         "driver.ClaudeCodeDriver.SetSession",
@@ -5350,7 +5837,7 @@
         "internal/app/refresh.go",
         "internal/config/storage.go"
       ],
-      "digest": "777e71cbaa69aef790a0f246d6b6a85878c01a7a78544570144aedeac2abae39"
+      "digest": "36377121727a2951ed838bed29843d2b0e3fc56151dcc000569d2571c7ef14b4"
     },
     {
       "kind": "task",
@@ -5451,7 +5938,7 @@
         "internal/ui/messages/messages.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "573339ba6f2f8f54bc365a8aca3cd7aacad68fffcfa86a9c7031b6c3ff90d003"
+      "digest": "4759d9192d70e97f2e37cec0f3bddbb684afb82b08416293dfad113737ce51b8"
     },
     {
       "kind": "task",
@@ -5657,7 +6144,10 @@
         "internal/api/service.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
         "internal/app/integration_test.go",
+        "internal/app/launch_focus_internal_test.go",
         "internal/driver/driver.go",
         "internal/session/attach.go",
         "internal/session/card_references.go",
@@ -5666,9 +6156,14 @@
         "internal/session/startup_boundary_test.go",
         "internal/session/startup_integration_test.go",
         "internal/session/workspace.go",
-        "internal/ui/views/session_launcher.go"
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "5b706327a70d21432b7fad463122cf435131f9abb790eb9bc05305e1db318109"
+      "digest": "faafbec676a41431d321996e8e1893aab2a2a24e566d5f774973d75aebf92f34"
     },
     {
       "kind": "test-feature",
@@ -5879,6 +6374,9 @@
         "internal/api/service.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
         "internal/config/card_tombstones.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
@@ -5893,12 +6391,15 @@
         "internal/ui/components/card_list.go",
         "internal/ui/components/filter.go",
         "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
         "internal/ui/components/session_preview.go",
+        "internal/ui/messages/messages.go",
         "internal/ui/views/card_editor.go",
         "internal/ui/views/dashboard.go",
-        "internal/ui/views/session_launcher.go"
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "2343c9eba6cdd1d2080f222152d07252df33c9aafa2ccc84fd21af7db6cf6c64"
+      "digest": "60f22d5f173bebf465bafdf954488d0b41dd2582a72683b927c3c8892f9bedef"
     },
     {
       "kind": "test-feature",
@@ -5949,6 +6450,44 @@
     },
     {
       "kind": "test-feature",
+      "id": "launch-focus",
+      "refs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
+        "internal/app/refresh.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/session/workspace.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/artifacts/launch-focus/attached.png",
+        "tests/e2e/artifacts/launch-focus/dashboard.png",
+        "tests/e2e/artifacts/launch-focus/reattached.png",
+        "tests/e2e/launch_focus_test.go"
+      ],
+      "digest": "3da1e4a9ced2305e96cb70dac5c66deaf556dfc211480d32645a014181b10ed4"
+    },
+    {
+      "kind": "test-feature",
       "id": "mcp-form",
       "refs": [],
       "directRefs": [],
@@ -5960,9 +6499,54 @@
         "internal/config/mcps.go",
         "internal/config/repository.go",
         "internal/ui/views/mcp_form.go",
-        "internal/ui/views/mcp_form_test.go"
+        "internal/ui/views/mcp_form_test.go",
+        "internal/ui/views/mcp_manager.go"
       ],
-      "digest": "f9725c0bd638e672484d96c75a9a3caf508616d07f9fca0672d2735c0abfa622"
+      "digest": "1381da418842bd549651bff85b555fab82fe5e3ba3f782d9fadc08464f1bbe8d"
+    },
+    {
+      "kind": "test-feature",
+      "id": "mcp-registry",
+      "refs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "files": [
+        "feature-mcpedit.md",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/mcp_manager_gaps_test.go",
+        "internal/app/mcp_manager_review_test.go",
+        "internal/app/navigation.go",
+        "internal/app/navigation_test.go",
+        "internal/app/session_actions.go",
+        "internal/config/builtin_mcp_test.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/components/source_list.go",
+        "internal/ui/components/source_list_test.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/mcp_form.go",
+        "internal/ui/views/mcp_form_test.go",
+        "internal/ui/views/mcp_manager.go",
+        "internal/ui/views/mcp_manager_test.go",
+        "tests/e2e/artifacts/mcp-manager/confirm.png",
+        "tests/e2e/artifacts/mcp-manager/deleted.png",
+        "tests/e2e/artifacts/mcp-manager/edit.png",
+        "tests/e2e/artifacts/mcp-manager/edited-list.png",
+        "tests/e2e/artifacts/mcp-manager/list.png",
+        "tests/e2e/artifacts/mcp-manager/new.png",
+        "tests/e2e/mcp_manager_test.go"
+      ],
+      "digest": "8d348312b69ee800e94de2ea8a9e88f65a04369d049c4ef5993d15f39837dfa5"
     },
     {
       "kind": "test-feature",
@@ -6189,16 +6773,26 @@
         "internal/app/coordinator.go",
         "internal/app/coordinator_test.go",
         "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
+        "internal/driver/driver.go",
+        "internal/session/card_references.go",
+        "internal/session/lifecycle.go",
         "internal/session/lifecycle_test.go",
         "internal/session/manager.go",
+        "internal/session/workspace.go",
         "internal/ui/components/modal.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
         "internal/ui/messages/messages.go",
         "internal/ui/views/dashboard.go",
         "internal/ui/views/dashboard_layout_test.go",
         "internal/ui/views/dashboard_test.go",
-        "internal/ui/views/session_launcher_test.go"
+        "internal/ui/views/session_launcher.go",
+        "internal/ui/views/session_launcher_test.go",
+        "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "d00f5b0af42a85ad817ff1524a162e0813fc0b526b3bc4f6fecf063f7508af23"
+      "digest": "fb7fb47d551ad66e698e7ad2e779a6732ce115de35595fada18adc9aec4cd5ce"
     },
     {
       "kind": "test-feature",
@@ -6252,6 +6846,9 @@
         "internal/app/attach.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
         "internal/driver/driver.go",
         "internal/mcp/server.go",
         "internal/session/attach.go",
@@ -6263,19 +6860,24 @@
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
         "internal/session/workspace.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/messages/messages.go",
         "internal/ui/views/agent_switch.go",
         "internal/ui/views/conversation_choice.go",
+        "internal/ui/views/dashboard.go",
         "internal/ui/views/session_launcher.go",
         "tests/e2e/README.md",
         "tests/e2e/artifacts/native-agent/failure.png",
         "tests/e2e/artifacts/native-agent/launched.png",
         "tests/e2e/capture_test.go",
         "tests/e2e/environment_test.go",
+        "tests/e2e/launch_focus_test.go",
         "tests/e2e/native_agent_test.go",
         "tests/e2e/opencode_test.go",
         "tests/e2e/provenance_test.go"
       ],
-      "digest": "6eccfcd4523a0290b7f03c489ed4a3d6a4536b30fdea82ad8fa50f4a975d01a2"
+      "digest": "9a39f0a4b18fafced53014e39ad3d366d041934252748975fd9e384ad6a7bad4"
     },
     {
       "kind": "test-feature",
@@ -6373,15 +6975,23 @@
         "internal/api/service.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
         "internal/app/integration_test.go",
+        "internal/app/launch_focus_internal_test.go",
         "internal/driver/driver.go",
         "internal/session/card_references.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
         "internal/session/workspace.go",
-        "internal/ui/views/session_launcher.go"
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "a3132151009af363fdaa47e2766110f7afba712d498330946e9a94dce32b681c"
+      "digest": "1515bcba4d3af40b77354f5fbc98f4f498c69859b2da9980ea19c259a5c84e56"
     },
     {
       "kind": "test-scenario",
@@ -6938,14 +7548,22 @@
         "internal/api/service.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
         "internal/driver/driver.go",
         "internal/session/card_references.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
         "internal/session/workspace.go",
-        "internal/ui/views/session_launcher.go"
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "82f0a3ad1d93e43de9ffdb07bf0a378276618978f05676b6feabf6d461ac10b5"
+      "digest": "c0acf8bab49d4d37732d73ebd5c1d5eb2f96b1d77dd01bb05cacc9d22df83166"
     },
     {
       "kind": "test-scenario",
@@ -7086,6 +7704,180 @@
     },
     {
       "kind": "test-scenario",
+      "id": "launch-focus/completion",
+      "refs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
+        "internal/app/refresh.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/session/workspace.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/dashboard_test.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go"
+      ],
+      "digest": "bce07038ce7fbd5e07acb28115d2d03088a31c892fb1a6b918dd71d89616977a"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "launch-focus/epochs",
+      "refs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
+        "internal/app/refresh.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/session/workspace.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go"
+      ],
+      "digest": "d6a895ca8d068f6ea55868c2770f1bd4c7d18bea2c55f84fff6004bcc8509d79"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "launch-focus/ordering",
+      "refs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
+        "internal/app/refresh.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/session/workspace.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go"
+      ],
+      "digest": "23364b50e3ba394c32dca29f11f9eb1186ecd7672b8b715e7dce5ee8faea1149"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "launch-focus/scope",
+      "refs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
+        "internal/app/refresh.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/session/workspace.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go"
+      ],
+      "digest": "a44a183b53505f13aadb2e8eb07a200a850f49e3ba11c5f8a721de50f7e24da3"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "launch-focus/terminal",
+      "refs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename"
+      ],
+      "files": [
+        "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
+        "internal/app/refresh.go",
+        "internal/session/card_references.go",
+        "internal/session/manager.go",
+        "internal/session/workspace.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/components/session_preview.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/artifacts/launch-focus/attached.png",
+        "tests/e2e/artifacts/launch-focus/dashboard.png",
+        "tests/e2e/artifacts/launch-focus/reattached.png",
+        "tests/e2e/launch_focus_test.go"
+      ],
+      "digest": "6aa132da291a682715ad513ef04b15594e8579c9013898e51fb930b056c7ede6"
+    },
+    {
+      "kind": "test-scenario",
       "id": "mcp-form/all-fields",
       "refs": [],
       "directRefs": [],
@@ -7097,9 +7889,245 @@
         "internal/config/mcps.go",
         "internal/config/repository.go",
         "internal/ui/views/mcp_form.go",
-        "internal/ui/views/mcp_form_test.go"
+        "internal/ui/views/mcp_form_test.go",
+        "internal/ui/views/mcp_manager.go"
       ],
-      "digest": "6ec4b93e169d1716f288ee75e6244e9672ea68c8c155556cd1bd7f34768278b5"
+      "digest": "114cfde38dd3f0453e3a0f06da5b50dd6e84cd04f401aa8b4ff74d5a7465cb33"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "mcp-registry/back",
+      "refs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "files": [
+        "feature-mcpedit.md",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/app/navigation_test.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/components/source_list.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/mcp_form.go",
+        "internal/ui/views/mcp_manager.go",
+        "internal/ui/views/mcp_manager_test.go"
+      ],
+      "digest": "5b387ec1cf93ceb56557e00812a423f0574f3c4d1b9a5e78b586c82efd2b0614"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "mcp-registry/bounds",
+      "refs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "files": [
+        "feature-mcpedit.md",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/app/navigation_test.go",
+        "internal/app/session_actions.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/components/source_list.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/mcp_form.go",
+        "internal/ui/views/mcp_manager.go",
+        "internal/ui/views/mcp_manager_test.go",
+        "tests/e2e/artifacts/mcp-manager/confirm.png",
+        "tests/e2e/artifacts/mcp-manager/deleted.png",
+        "tests/e2e/artifacts/mcp-manager/edited-list.png"
+      ],
+      "digest": "173693ff9ca9706c14b7ef6dba9c6df712e7631fb239ecf32d2993efd4d48fd3"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "mcp-registry/delete",
+      "refs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "files": [
+        "feature-mcpedit.md",
+        "internal/app/coordinator.go",
+        "internal/app/mcp_manager_gaps_test.go",
+        "internal/app/mcp_manager_review_test.go",
+        "internal/app/session_actions.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/mcp_manager.go",
+        "internal/ui/views/mcp_manager_test.go",
+        "tests/e2e/mcp_manager_test.go"
+      ],
+      "digest": "eca7bee5a76fab57edd8593d8118821af21b9d00d2bf43f9c41c16eda0afa1dd"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "mcp-registry/edit",
+      "refs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "files": [
+        "feature-mcpedit.md",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/mcp_manager_gaps_test.go",
+        "internal/app/mcp_manager_review_test.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/views/mcp_form.go",
+        "internal/ui/views/mcp_form_test.go",
+        "internal/ui/views/mcp_manager.go",
+        "tests/e2e/mcp_manager_test.go"
+      ],
+      "digest": "5fbd37a7324ac276d4499714046e5069c8a1fd6be6a0d34cea761c205c8530c3"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "mcp-registry/faults",
+      "refs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "files": [
+        "feature-mcpedit.md",
+        "internal/app/coordinator.go",
+        "internal/app/mcp_manager_gaps_test.go",
+        "internal/app/mcp_manager_review_test.go",
+        "internal/app/session_actions.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/mcp_manager.go"
+      ],
+      "digest": "dd6854f5d259afe130bb29c9136024508703647a9ba27b1ba5661659bb804e3b"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "mcp-registry/policy",
+      "refs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "files": [
+        "feature-mcpedit.md",
+        "internal/app/coordinator.go",
+        "internal/app/mcp_manager_review_test.go",
+        "internal/app/session_actions.go",
+        "internal/config/builtin_mcp_test.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/views/mcp_manager.go",
+        "internal/ui/views/mcp_manager_test.go"
+      ],
+      "digest": "c31893d9ac3d2f9d56d47c47d07c76f732f165af93b534020ffeada447eb8151"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "mcp-registry/source-reuse",
+      "refs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "files": [
+        "feature-mcpedit.md",
+        "internal/app/coordinator.go",
+        "internal/app/session_actions.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/components/source_list_test.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/mcp_manager.go"
+      ],
+      "digest": "088a03a178d529eec7ae91d5f40b27cca24d9a57c9196bb2dae3a7673075d285"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "mcp-registry/visual",
+      "refs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "app.Coordinator.handleSpecialMessages",
+        "views.MCPManager.Update"
+      ],
+      "files": [
+        "feature-mcpedit.md",
+        "internal/app/callbacks.go",
+        "internal/app/coordinator.go",
+        "internal/app/navigation.go",
+        "internal/app/navigation_test.go",
+        "internal/app/session_actions.go",
+        "internal/config/mcps.go",
+        "internal/config/repository.go",
+        "internal/ui/components/source_list.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/mcp_form.go",
+        "internal/ui/views/mcp_manager.go",
+        "internal/ui/views/mcp_manager_test.go",
+        "tests/e2e/artifacts/mcp-manager/confirm.png",
+        "tests/e2e/artifacts/mcp-manager/deleted.png",
+        "tests/e2e/artifacts/mcp-manager/edit.png",
+        "tests/e2e/artifacts/mcp-manager/edited-list.png",
+        "tests/e2e/artifacts/mcp-manager/list.png",
+        "tests/e2e/artifacts/mcp-manager/new.png",
+        "tests/e2e/mcp_manager_test.go"
+      ],
+      "digest": "a8cdf755e4e877371b2153f8c6dcdfb54fc14027ae34310d3110e9df3f2cb6e7"
     },
     {
       "kind": "test-scenario",
@@ -7732,15 +8760,23 @@
         "internal/api/service.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
-        "internal/app/coordinator_test.go",
         "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
+        "internal/driver/driver.go",
+        "internal/session/card_references.go",
+        "internal/session/lifecycle.go",
         "internal/session/manager.go",
+        "internal/session/workspace.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
         "internal/ui/messages/messages.go",
         "internal/ui/views/dashboard.go",
-        "internal/ui/views/dashboard_test.go",
-        "internal/ui/views/session_launcher_test.go"
+        "internal/ui/views/session_launcher.go",
+        "internal/ui/views/session_launcher_test.go",
+        "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "6fdbc79861a9b25194010848229abc4e972aeb5993ae102afa46f874faa280bb"
+      "digest": "a023dd6946edcde80585f3493de147cdbadb2fcbcc5291ed3a34c7da18bd53e4"
     },
     {
       "kind": "test-scenario",
@@ -7991,6 +9027,9 @@
         "internal/app/attach.go",
         "internal/app/callbacks.go",
         "internal/app/coordinator.go",
+        "internal/app/handlers.go",
+        "internal/app/inline_rename_refresh_internal_test.go",
+        "internal/app/launch_focus_internal_test.go",
         "internal/driver/driver.go",
         "internal/mcp/server.go",
         "internal/session/attach.go",
@@ -8002,19 +9041,24 @@
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
         "internal/session/workspace.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/messages/messages.go",
         "internal/ui/views/agent_switch.go",
         "internal/ui/views/conversation_choice.go",
+        "internal/ui/views/dashboard.go",
         "internal/ui/views/session_launcher.go",
         "tests/e2e/README.md",
         "tests/e2e/artifacts/native-agent/failure.png",
         "tests/e2e/artifacts/native-agent/launched.png",
         "tests/e2e/capture_test.go",
         "tests/e2e/environment_test.go",
+        "tests/e2e/launch_focus_test.go",
         "tests/e2e/native_agent_test.go",
         "tests/e2e/opencode_test.go",
         "tests/e2e/provenance_test.go"
       ],
-      "digest": "ec7a155aaf5d74eba4aae2420bc4f296d68afcd2c71621fed7f56e793b067058"
+      "digest": "55fe6d8482d280e4389d023cb11e07c5a0ebe5f0b18aee23c3aff2969c0faa7e"
     },
     {
       "kind": "test-scenario",
@@ -8307,5 +9351,5 @@
       "digest": "9b604ee1f64e13182417327ca84f286cf8e9ea59aabcba4777c111a27287e9ff"
     }
   ],
-  "digest": "4fb1b5b2775e3f8ac175f52e19e7b674ae3f00333e38f3264272080ef0ad7853"
+  "digest": "571840d2ec554d0c4d6913d000a63849b2d7eed33e88cd61b39196f410da7c9c"
 }
