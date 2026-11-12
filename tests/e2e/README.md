@@ -85,3 +85,30 @@ to a different source snapshot.
 The fingerprint uses the repository's current Appedia exclusions (see
 `provenance_test.go`). If those exclusions change, update that list before the
 next explicit run. Normal Appedia and Appediff collection never runs this test.
+
+## MCP configuration journey (no model calls)
+
+`TestMCPManagerJourney` drives the real Kankuro executable using tui-test, with
+an isolated empty configuration and disposable HOME/XDG directories. It never
+launches an agent or contacts a model provider, so no provider or token-budget
+confirmation is required.
+
+```sh
+go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v
+```
+
+The scenario opens the dashboard MCP list, creates a custom server, edits it
+while retaining its identity and command, opens and cancels deletion, confirms
+deletion, checks the saved registry, and returns/reopens through the dashboard.
+It checks visible state and help before taking screenshots: `list.png`,
+`new.png`, `edit.png` at 120×40; `edited-list.png`, `confirm.png`, and
+`deleted.png` at the supported minimum 80×24. These are asserted journey
+checkpoints, not pixel comparisons against a baseline.
+
+Artifacts live under `tests/e2e/artifacts/mcp-manager/` (gitignored).
+`KANKURO_MCP_E2E_ARTIFACT_DIR` overrides this directory. Serialize runs sharing
+the same directory. Each run removes only its known artifact names. `result.json`
+records command, WORKTREE fingerprint, actual status/timestamps and reached
+capture checkpoints with terminal sizes and assertions. A failed run can leave
+`failure.png`; missing checkpoints are not passes or reusable old images.
+Collect these captures and the result explicitly when refreshing Appediff/Appedia.

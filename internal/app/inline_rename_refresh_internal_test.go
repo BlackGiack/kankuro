@@ -11,6 +11,7 @@ import (
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
+//nolint:gocognit // The test checks each refresh path across the rename lifecycle.
 func TestInlineRenameRejectsOlderRefreshSnapshots(t *testing.T) {
 	for _, kind := range []string{"full", "sessions", "fingerprint"} {
 		t.Run(kind, func(t *testing.T) {

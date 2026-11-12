@@ -64,7 +64,10 @@ func TestNativeLaunchFocusReturn(t *testing.T) {
 	j.press("Enter")
 	expectIdleCodex(t, j.terminal)
 	assertLaunchFocusSessions(t, j.configDir, created)
-	j.capture("reattached", "Enter without pane navigation reattaches to the same live process; exactly two persisted sessions remain and the older session stays terminated.")
+	j.capture(
+		"reattached",
+		"Enter without pane navigation reattaches to the same live process; exactly two persisted sessions remain and the older session stays terminated.",
+	)
 	j.finish()
 }
 
@@ -86,8 +89,8 @@ func newLaunchFocusJourney(t *testing.T) *nativeJourney {
 	}
 	must(t, os.MkdirAll(artifacts, 0o700))
 	for _, name := range []string{"attached.png", "dashboard.png", "reattached.png", "failure.png", "result.json"} {
-		if err := os.Remove(filepath.Join(artifacts, name)); err != nil && !os.IsNotExist(err) {
-			t.Fatal(err)
+		if removeErr := os.Remove(filepath.Join(artifacts, name)); removeErr != nil && !os.IsNotExist(removeErr) {
+			t.Fatal(removeErr)
 		}
 	}
 	run := &journeyRun{
@@ -115,8 +118,8 @@ func newLaunchFocusJourney(t *testing.T) *nativeJourney {
 		for key, value := range environment {
 			stop.Env = append(stop.Env, key+"="+value)
 		}
-		if output, err := stop.CombinedOutput(); err != nil {
-			t.Errorf("stop isolated Codex daemon: %v\n%s", err, output)
+		if output, stopErr := stop.CombinedOutput(); stopErr != nil {
+			t.Errorf("stop isolated Codex daemon: %v\n%s", stopErr, output)
 		}
 	})
 	workspace := filepath.Join(sandbox, "workspace")
@@ -150,8 +153,8 @@ func newLaunchFocusJourney(t *testing.T) *nativeJourney {
 	defer cancel()
 	build := exec.CommandContext(buildCtx, "go", "build", "-o", binary, ".")
 	build.Dir = root
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build Kankuro: %v\n%s", err, output)
+	if output, buildErr := build.CombinedOutput(); buildErr != nil {
+		t.Fatalf("build Kankuro: %v\n%s", buildErr, output)
 	}
 	environment["KANKURO_CONFIG_DIR"] = configDir
 	environment["KANKURO_TMP_DIR"] = filepath.Join(sandbox, "tmp")
@@ -181,12 +184,12 @@ func stopCodexUpdater(t *testing.T, codexHome string) {
 			fields[2] != "app-server" || fields[3] != "daemon" || fields[4] != "pid-update-loop" {
 			continue
 		}
-		pid, err := strconv.Atoi(fields[0])
-		must(t, err)
-		process, err := os.FindProcess(pid)
-		must(t, err)
-		if err := process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) && !os.IsNotExist(err) {
-			t.Errorf("stop isolated Codex updater: %v", err)
+		pid, parseErr := strconv.Atoi(fields[0])
+		must(t, parseErr)
+		process, findErr := os.FindProcess(pid)
+		must(t, findErr)
+		if killErr := process.Kill(); killErr != nil && !errors.Is(killErr, os.ErrProcessDone) && !os.IsNotExist(killErr) {
+			t.Errorf("stop isolated Codex updater: %v", killErr)
 		}
 	}
 }
@@ -238,8 +241,8 @@ func assertLaunchFocusSessions(t *testing.T, configDir string, created session.D
 		t.Fatalf("session count = %d, want older session and exactly one created session", len(paths))
 	}
 	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		must(t, err)
+		data, readErr := os.ReadFile(path)
+		must(t, readErr)
 		var current session.Data
 		must(t, json.Unmarshal(data, &current))
 		if current.ID == created.ID {

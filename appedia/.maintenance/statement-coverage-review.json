@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "changes": [],
+  "files": [],
+  "items": [
+    {
+      "id": "content",
+      "reasons": [
+        "appedia content changed since the accepted baseline"
+      ],
+      "disposition": "updated",
+      "note": "Added passing current-head atomic statement coverage and explicit scope/provenance; retained existing functional/E2E evidence and archived the old profile without asserting a before/after delta."
+    }
+  ]
+}

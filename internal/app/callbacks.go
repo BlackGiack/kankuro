@@ -82,7 +82,7 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 		},
 
 		OnOpenMCP: func() tea.Cmd {
-			return c.navigationCommand(messages.ViewMCPForm)
+			return c.navigationCommand(messages.ViewMCPManager)
 		},
 
 		OnOpenWorkspaces: func() tea.Cmd {
@@ -391,15 +391,11 @@ func (c *Coordinator) settingsCallbacks() views.SettingsCallbacks {
 func (c *Coordinator) mcpCallbacks() views.MCPFormCallbacks {
 	return views.MCPFormCallbacks{
 		OnSave: func(mcp config.MCPServer) tea.Cmd {
-			dashboardID, generation, repo := c.activeDashboard, c.viewGeneration, c.repo
+			dashboardID, generation, request, repo := c.activeDashboard, c.viewGeneration, c.mcpRequest, c.repo
 			return func() tea.Msg {
 				saved, err := repo.UpsertMCP(mcp)
-				return messages.MCPSavedMsg{MCP: saved, Err: err, DashboardID: dashboardID, Generation: generation}
+				return messages.MCPSavedMsg{MCP: saved, Err: err, DashboardID: dashboardID, Generation: generation, Request: request}
 			}
-		},
-
-		OnDelete: func(mcpID string) error {
-			return c.repo.DeleteMCP(mcpID)
 		},
 	}
 }

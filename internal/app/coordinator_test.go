@@ -32,8 +32,8 @@ func TestCoordinator_New(t *testing.T) {
 		t.Errorf("Expected initial dashboard list, got %v", coord.CurrentView())
 	}
 
-	if len(coord.Views()) != 12 {
-		t.Errorf("Expected 12 views, got %d", len(coord.Views()))
+	if len(coord.Views()) != 13 {
+		t.Errorf("Expected 13 views, got %d", len(coord.Views()))
 	}
 }
 

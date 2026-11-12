@@ -2,77 +2,93 @@
 
 Open [index.html](index.html) directly in a browser. No server is needed.
 
-Updated 2026-11-11 for commit `7a58943` (session rename). The site covers 18
-packages, 58 flows, 28 rules and 31 common-change tasks. The Tests tab contains
-29 features, 78 scenarios and 103 reviewed evidence records: 70 scenarios tested
-and 8 partial. These are scoped assertion assessments, not a completeness score.
+This refresh describes the final worktree on UX commit `474ae3a`, including the
+MCP manager, launch/naming focus and stale-refresh protection, and the five
+suggested dependency updates. It contains 18 packages, 63 flows, 29 rules and
+33 common-change tasks. The Tests tab has 31 features, 91 scoped scenarios,
+127 evidence records and 11 terminal captures: 83 scenarios have direct support
+and eight retain partial evidence. These counts are not coverage percentages.
 
-The session-rename feature has nine supported scenarios. Its three flows explain
-editing/cancelling a draft, scoped asynchronous save and retry, and responsive
-layout/help. Tests directly cover cancellation and scope changes, immediate
-refresh without attachment or process replacement, and saved-name restoration
-through a fresh repository, manager and coordinator.
+MCP management has eight supported scenarios, including cross-dashboard delays,
+injected write-error recovery and a real tui-test configuration journey with six
+captures. Launch focus has five supported scenarios and three startup-only
+native-terminal captures: launch/name, detach and Enter reattachment retain the
+created session's identity. Both current E2E journeys passed without submitting
+an agent task to a model.
 
-Existing partial scenarios retain their limits. The native-agent captures and
-failed registration result are historical evidence from 2026-11-09; this refresh
-did not run a model-driven terminal journey. The prior statement profile is also
-historical and is not attributed to the current head. Current ordinary test
-execution is recorded separately. See [VERIFICATION.md](VERIFICATION.md).
+The Code coverage tab now shows a fresh ordinary-suite statement profile: 8,192
+of 11,074 statements covered (73.98%) across 16 measured packages. It excludes
+E2E-tagged tests and does not use transitive `-coverpkg` instrumentation. The older
+profile is archived with its original metadata; no before/after delta is claimed.
+The older model-driven registration failure remains historical. Broader existing partial
+scenarios retain their limits. See [VERIFICATION.md](VERIFICATION.md) for exact
+checks, the intermittent preview-test result, and source provenance.
 
-## What to edit
+## Editing and refreshing
 
 Edit `data/content.js` for package roles, flows, rules, tasks and test assessments.
-The model, diagrams, source inventory and content index are generated. During a
-refresh, resolve the generated impact entries under `.maintenance/pending/`.
-The accepted rename dispositions are in
-[.maintenance/session-rename-review.json](.maintenance/session-rename-review.json).
+Models, diagrams, inventories and `data/content-index.json` are generated.
+The accepted impact dispositions are recorded in
+[.maintenance/mcp-launch-focus-review.json](.maintenance/mcp-launch-focus-review.json).
 
-## Reproducing a refresh
-
-Requirements: Go 1.27.3, Node 18+, Python 3.9+, Graphviz and jsdom for smoke checks.
-The refresh extracts Go sources and queries dependency versions through Go's
-package manager. It does not execute project tests automatically.
-
-From the repository root:
+Requirements: Go 1.27.3, Node 18+, Python 3.9+, Graphviz and jsdom. From the root:
 
 ```sh
 appedia_skill_dir=.agents/skills/create-appedia
 appedia_exclusions=kankuro_skills/create-appedia,kankuro_skills/create-appediff,tmp,appedia,.agents,.kankuro
 node "$appedia_skill_dir/scripts/appedia.mjs" --action prepare --repo . --lang go --exclude "$appedia_exclusions"
-mkdir -p tmp
-go test -json ./... > tmp/appedia-refresh-tests.jsonl
-# Review pending/impact.md; update content.js, source-bound evidence/results,
-# and every pending/impact.json disposition before finalization.
-node "$appedia_skill_dir/scripts/appedia.mjs" --action rebuild --repo .
-node "$appedia_skill_dir/scripts/appedia.mjs" --action finalize --repo . --jsdom /tmp/appedia-smoke
+go test -json ./... -count=1 > tmp/final-mcp-validation/tests.jsonl
+# Review pending/impact.md, update content.js and source-bound test evidence,
+# then set every pending/impact.json disposition with its reasoning.
+node "$appedia_skill_dir/scripts/appedia.mjs" --action rebuild --repo . --test-evidence tmp/final-mcp-validation/appedia-evidence.json
+node "$appedia_skill_dir/scripts/appedia.mjs" --action finalize --repo . --jsdom /tmp/appedia-smoke --test-evidence tmp/final-mcp-validation/appedia-evidence.json
 ```
 
-This refresh used the stored extraction settings for `prepare`. It merged only
-the previously embedded native result/capture records into the fresh test
-inventory, keeping their historical metadata. It reassessed unchanged test
-assertions against source hashes, recorded current ordinary results from JSONL,
-and added the new rename assertions. No old run or profile was relabeled.
+The pipeline parses sources, queries direct dependency versions read-only via Go,
+and collects tests without executing them. It advances the baseline only after
+reviewed impact dispositions, content validation and all-route smoke pass.
+Use `--action refresh-renderer` for renderer-only changes.
 
-The exact extractor and builder used by that pipeline are:
+The underlying extractor/build commands are:
 
 ```sh
 appedia_repo_root="$PWD"
 (cd .agents/skills/create-appedia/scripts/extract-go && go run . -root "$appedia_repo_root" -out "$appedia_repo_root/appedia/.maintenance/pending/model.json" -exclude kankuro_skills/create-appedia,kankuro_skills/create-appediff,tmp,appedia,.agents,.kankuro)
-node .agents/skills/create-appedia/scripts/build.mjs --model appedia/.maintenance/pending/model.json --dependencies appedia/.maintenance/pending/dependencies.json --content appedia/data/content.js --test-evidence appedia/.maintenance/pending/test-evidence.json --out appedia
+node .agents/skills/create-appedia/scripts/build.mjs --model appedia/.maintenance/pending/model.json --dependencies appedia/.maintenance/pending/dependencies.json --content appedia/data/content.js --test-evidence tmp/final-mcp-validation/appedia-evidence.json --out appedia
 ```
 
-Finalization accepts the new baseline only after validation and smoke checks.
-Building by hand does not advance it. Use `--action refresh-renderer` for a
-renderer-only update. No commits were made during this refresh.
+## Terminal evidence
 
-## Explicit terminal tests
+Project-owned terminal tests use tui-test behind the `e2e` build tag. The current
+checks were run explicitly:
 
-Project-owned terminal tests use the tui-test Go binding and the `e2e` build tag.
-Before a model-driven run, choose a provider/model and confirm a total token
-budget covering the runs and retries, per [tests/e2e/AGENTS.md](../tests/e2e/AGENTS.md).
-Ordinary tests and the model-free glyph preflight do not contact a provider.
+```sh
+go test -tags=e2e ./tests/e2e -run '^Test(MCPManagerJourney|NativeLaunchFocusReturn)$' -count=1 -timeout=5m -v
+```
 
-See [tests/e2e/README.md](../tests/e2e/README.md) for the explicit journey, isolation,
-font requirements and artifact paths. Collect only artifacts from the actual
-run and keep checkpoint/assertion limits explicit; no screenshot-baseline
-comparison is implied.
+Artifacts live in the ignored `tests/e2e/artifacts/mcp-manager/` and
+`tests/e2e/artifacts/launch-focus/` folders. Their `result.json` files record
+source fingerprints, commands, outcomes and reached screenshot checkpoints.
+Collect those files explicitly with the skill's `test-evidence.py --file` options;
+this refresh retained the raw snapshot in `data/test-evidence.json`. Captures
+are asserted journey checkpoints, not pixel-baseline comparisons.
+
+`TestNativeLaunchFocusReturn` starts Codex in private state but submits no prompt.
+The separate `TestNativeAgentJourney` contacts a model provider: before running
+it, follow [tests/e2e/AGENTS.md](../tests/e2e/AGENTS.md) and confirm provider/model
+and a total token budget. Existing saved choices are not standing approval.
+
+## Refreshing statement coverage
+
+Explicitly collect an instrumented profile with the same source exclusions, then
+pass that evidence snapshot to rebuild/finalize. Normal documentation collection
+does not run tests:
+
+```sh
+python3 .agents/skills/create-appedia/scripts/test-evidence.py --root . --revision WORKTREE --exclude kankuro_skills/create-appedia,kankuro_skills/create-appediff,tmp,appedia,.agents,.kankuro --run-go-coverage --out tmp/appedia-coverage/evidence.json
+```
+
+Retain authored evidence images/results when combining the new coverage snapshot
+with `data/test-evidence.json`. The collector records the actual command, mode,
+scope, toolchain, environment and source fingerprint, rejects source changes
+during the run, and keeps the raw profile and Go JSON log beside its output.

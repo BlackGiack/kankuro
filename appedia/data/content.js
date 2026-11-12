@@ -61,7 +61,7 @@ window.APPEDIA_CONTENT = {
       "comes back through Bubble Tea's Update"
     ]
   },
-  "snapshot": "Based on origin/main c1a6065 (session rename), with launch-focus UX changes and stale-refresh protection. Ordinary tests verified; native-agent evidence and coverage remain historical.",
+  "snapshot": "Final worktree on UX commit 474ae3a: MCP registry management, launch/naming focus and session-epoch refresh protection; five suggested dependency updates validated. Ordinary tests and two startup/configuration E2E journeys passed. Current ordinary-suite statement coverage is collected separately; older model-driven native evidence remains historical.",
   "pitch": "Organize agent configurations and sessions into independent dashboards. Share selected cards across dashboards while keeping each session, workspace identity and conversation binding in its creation dashboard.",
   "pitch2": "The dashboard-list TUI and authenticated loopback MCP endpoint share one scoped service. The session manager owns processes, credentials and workspace preparation; repositories persist registries, membership and checkpointed recovery. A report dispatcher feeds the existing operation runner and shared message delivery hooks. Configstartup locks and validates configuration before runtime begins.",
   "concepts": [
@@ -307,7 +307,8 @@ window.APPEDIA_CONTENT = {
       "notes": [
         "Commands capture dashboard ID, view generation, settings and session-data epoch before running off the coordinator goroutine.",
         "Successful launch and rename advance the epoch so delayed session snapshots cannot displace the selected target.",
-        "Test-only adapters in export_test.go exercise the current scoped handlers."
+        "Test-only adapters in export_test.go exercise the current scoped handlers.",
+        "MCP forms have explicit return destinations. Manager commands carry dashboard/generation/visit identity; discarded unadmitted confirmations release pending state."
       ],
       "rules": [],
       "key": [
@@ -380,7 +381,7 @@ window.APPEDIA_CONTENT = {
       "files": {
         "dashboard.go": "Three panes, keys, search, launch-focus reconciliation and existing-session rename modal with pending-save/error handling",
         "card_editor.go": "card fields, one key switch, focused sub workspace clearing, source shortcuts, skills filter",
-        "mcp_form.go": "MCP form driven by mcpFieldTable",
+        "mcp_form.go": "Create/edit form; overlays visible fields to preserve loaded metadata",
         "source_manager.go": "source directories per registry",
         "settings.go": "Independent IDE/terminal command inputs, focus, save/cancel and bounded rendering",
         "session_launcher.go": "progress while a session starts",
@@ -390,13 +391,15 @@ window.APPEDIA_CONTENT = {
         "agentsmd_editor_modal.go": "modal: AGENTS.md content or path",
         "constants.go": "MinTerminalWidth/Height, CoordinatorRows",
         "source_type.go": "per-registry labels",
-        "dashboard_list.go": "list-first navigation, forms and delete/retry controls"
+        "dashboard_list.go": "list-first navigation, forms and delete/retry controls",
+        "mcp_manager.go": "Global MCP list, stable selection, protected built-in handling and scoped delete confirmation"
       },
       "notes": [
         "The entry screen is the dashboard list. Escape cancels a dialog or stays on the list; q quits there.",
         "Delete/Backspace resumes an incomplete dashboard deletion; Enter inspects its status.",
         "Select an existing session and press e to rename; Enter saves and Esc cancels before submission. Pending saves block repeated submit/dismissal; errors retain the draft for retry.",
-        "After launching a card, the sessions pane selects the created session. A confirmed name is reconciled against fresh session data; only a filter hiding the target is cleared."
+        "After launching a card, the sessions pane selects the created session. A confirmed name is reconciled against fresh session data; only a filter hiding the target is cleared.",
+        "MCPManager reuses SourceList and Modal; the coordinator owns scoped navigation and off-loop registry mutations."
       ],
       "rules": [],
       "key": [
@@ -616,7 +619,8 @@ window.APPEDIA_CONTENT = {
       },
       "notes": [
         "Fit by display width, never bytes. Clip art, never wrap it (rule 9).",
-        "Selected-only mode changes visible items, not the full item collection or selection map. Normalize the cursor after registry and selection changes."
+        "Selected-only mode changes visible items, not the full item collection or selection map. Normalize the cursor after registry and selection changes.",
+        "SourceList retains source-manager defaults while providing configurable labels and bounded MCP-list rendering."
       ],
       "rules": [],
       "key": [],
@@ -1133,6 +1137,7 @@ window.APPEDIA_CONTENT = {
     {
       "name": "Sessions",
       "flows": [
+        "launch-focus",
         "attach",
         "ide",
         "terminal",
@@ -1167,7 +1172,11 @@ window.APPEDIA_CONTENT = {
       "name": "Registries & settings",
       "flows": [
         "source",
+        "mcp-open",
         "mcp",
+        "mcp-delete",
+        "mcp-stale",
+        "mcp-card",
         "settings",
         "settings-edit"
       ]
@@ -1509,7 +1518,7 @@ window.APPEDIA_CONTENT = {
     },
     "launch": {
       "title": "Launch with membership before publication",
-      "summary": "Human and MCP requests enter one dashboard-scoped activation path; the TUI keeps a human-launched session selected through naming, refresh and detach.",
+      "summary": "Human and MCP requests share dashboard-scoped admission and process publication; the human launch result hands selection to the launch-focus flow.",
       "participants": [
         [
           "u",
@@ -1534,26 +1543,6 @@ window.APPEDIA_CONTENT = {
         [
           "disk",
           "disk"
-        ],
-        [
-          "launcher",
-          "views.SessionLauncher"
-        ],
-        [
-          "ref",
-          "app.refresher"
-        ],
-        [
-          "dash",
-          "views.Dashboard"
-        ],
-        [
-          "list",
-          "components.SessionList"
-        ],
-        [
-          "preview",
-          "components.SessionPreview"
         ]
       ],
       "steps": [
@@ -1620,70 +1609,6 @@ window.APPEDIA_CONTENT = {
           "SessionLaunchCompletedMsg(session ID)",
           "A usable launch advances the session epoch and requests focus for the exact ID.",
           "app.Coordinator.handleSessionMessages"
-        ],
-        [
-          "c",
-          "dash",
-          "call",
-          "Focus the new session",
-          "If its snapshot is not loaded yet, the one-shot focus waits for session data.",
-          "app.Coordinator.handleSessionMessages"
-        ],
-        [
-          "u",
-          "launcher",
-          "key",
-          "Confirm the session name",
-          "The scoped naming result carries the confirmed name.",
-          "views.SessionLauncher.handleNameSubmit"
-        ],
-        [
-          "launcher",
-          "c",
-          "msg",
-          "ScopedSessionNamedMsg(session ID, name)",
-          "Advance the session epoch and keep focus pending until refreshed data contains that name.",
-          "app.Coordinator.handleSessionMessages"
-        ],
-        [
-          "ref",
-          "c",
-          "msg",
-          "Delayed old-epoch refresh",
-          "Reject snapshots started before launch or rename, even within the same dashboard generation.",
-          "app.Coordinator.handleSessionsRefreshed"
-        ],
-        [
-          "ref",
-          "dash",
-          "msg",
-          "Current session snapshot",
-          "Select by ID, clear search only when it hides the target, and sync preview.",
-          "app.Coordinator.handleDataLoaded"
-        ],
-        [
-          "u",
-          "c",
-          "key",
-          "Ctrl+K to detach",
-          "The detach refresh retains the selected ID; later refreshes do not steal focus again.",
-          "app.Coordinator.handleSessionMessages"
-        ],
-        [
-          "dash",
-          "list",
-          "call",
-          "Rebuild session list and preview by selected ID",
-          "Session-list ordering changes do not displace the created session.",
-          "views.Dashboard.SetSessions"
-        ],
-        [
-          "dash",
-          "preview",
-          "call",
-          "Sync preview with focused session",
-          "Session action hints and preview agree with the selected session.",
-          "views.Dashboard.syncPreviewSelection"
         ]
       ],
       "sources": {
@@ -1716,7 +1641,20 @@ window.APPEDIA_CONTENT = {
           "views.SessionLauncher.Reset",
           "views.SessionLauncher.SetNameResult",
           "views.SessionLauncher.handleNameSubmit",
-          "views.SessionLauncherCallbacks"
+          "views.SessionLauncherCallbacks",
+          "views.Dashboard.FocusSession",
+          "views.Dashboard.FocusSessionAfterRename",
+          "views.Dashboard.applyPendingSessionFocus",
+          "views.matchesSessionQuery",
+          "components.SessionList.refreshItems",
+          "app.Coordinator.hasStaleSessionSnapshot",
+          "messages.SessionsRefreshedMsg"
+        ],
+        "files": [
+          "internal/app/launch_focus_internal_test.go",
+          "internal/app/inline_rename_refresh_internal_test.go",
+          "internal/ui/components/session_list_test.go",
+          "tests/e2e/launch_focus_test.go"
         ]
       }
     },
@@ -2173,7 +2111,10 @@ window.APPEDIA_CONTENT = {
           "session.Data.restore",
           "session.loadSessions",
           "session.saveSession",
-          "views.Dashboard.SetSessions"
+          "views.Dashboard.SetSessions",
+          "app.Coordinator.hasStaleSessionSnapshot",
+          "app.refresher.scopedConfigIfChanged",
+          "app.refresher.scopedSessions"
         ]
       }
     },
@@ -2329,7 +2270,7 @@ window.APPEDIA_CONTENT = {
           "tea",
           "ref",
           "cmd",
-          "scopedFull(scope, generation, previewID)",
+          "scopedFull(scope, generation, epoch, previewID)",
           "Load global capabilities and scoped cards/sessions, then seed the fingerprint baseline.",
           "app.refresher.scopedFull"
         ],
@@ -2346,7 +2287,7 @@ window.APPEDIA_CONTENT = {
           "views",
           "call",
           "handleDataLoaded → broadcastData",
-          "Reject obsolete dashboard/generation data; nil failed fields preserve previous values.",
+          "Reject obsolete dashboard/generation and session-epoch snapshots before applying any data; nil failed fields preserve prior values.",
           "app.Coordinator.handleDataLoaded"
         ],
         [
@@ -2695,69 +2636,93 @@ window.APPEDIA_CONTENT = {
       ]
     },
     "mcp": {
-      "title": "Save an MCP server",
-      "summary": "Parse the form, upsert into mcps.yaml, go back.",
+      "title": "Create or edit and save",
+      "summary": "New or a selected custom MCP opens an initialized form; saving preserves identity/metadata and returns to the explicit caller.",
       "participants": [
         [
-          "user",
+          "u",
           "user"
         ],
         [
-          "form",
+          "m",
+          "views.MCPManager"
+        ],
+        [
+          "c",
+          "app.Coordinator"
+        ],
+        [
+          "f",
           "views.MCPForm"
         ],
         [
-          "tea",
-          "tea"
-        ],
-        [
-          "repo",
+          "r",
           "config.FileRepository"
-        ],
-        [
-          "coord",
-          "app.Coordinator"
         ]
       ],
       "steps": [
         [
-          "user",
-          "form",
+          "u",
+          "m",
           "key",
-          "Enter",
-          "",
+          "Enter custom MCP or New",
+          "Protected built-in generates an error instead.",
+          "views.MCPManager.Update"
+        ],
+        [
+          "m",
+          "c",
+          "cmd",
+          "Scoped edit request",
+          "Reject requests from an earlier visit.",
+          "app.Coordinator.matchesMCPManagerScope"
+        ],
+        [
+          "c",
+          "f",
+          "call",
+          "Reset first, then populate selected MCP",
+          "Init runs synchronously before SetMCP.",
+          "views.MCPForm.SetMCP"
+        ],
+        [
+          "u",
+          "f",
+          "key",
+          "Enter to save",
+          "Form also remains the card editor create entry point.",
+          "views.MCPForm.Update"
+        ],
+        [
+          "f",
+          "c",
+          "call",
+          "Overlay edited fields on loaded MCP",
+          "Preserve description; new form starts from zero value.",
           "views.MCPForm.handleSubmit"
         ],
         [
-          "form",
-          "form",
-          "self",
-          "parse args, env, headers",
-          "Comma-separated with \\ escaping; a bad key=value list shows an error in the form.",
-          "views.MCPForm.handleSubmit"
-        ],
-        [
-          "form",
-          "tea",
-          "return",
-          "OnSave(mcp) command",
-          "",
+          "c",
+          "r",
+          "cmd",
+          "Upsert MCP; return scoped save result",
+          "Command captures repository, scope and form request.",
           "app.Coordinator.mcpCallbacks"
         ],
         [
-          "tea",
-          "repo",
-          "cmd",
-          "UpsertMCP(mcp)",
-          "",
+          "r",
+          "r",
+          "call",
+          "Persist validated global definition",
+          "Built-in/shadow protection remains authoritative.",
           "config.FileRepository.UpsertMCP"
         ],
         [
-          "repo",
-          "coord",
+          "c",
+          "m",
           "msg",
-          "MCPSavedMsg",
-          "Refresh and go back to the previous view. The card editor auto-selects the mcp-cli skill when an MCP is added.",
+          "Return to caller and refresh data",
+          "Manager return path avoids previous-view bouncing.",
           "app.Coordinator.handleSpecialMessages"
         ]
       ]
@@ -6820,7 +6785,7 @@ window.APPEDIA_CONTENT = {
           "coord",
           "msg",
           "handleSessionMessages(result)",
-          "DashboardSessionRenamedMsg must match dashboard, generation and current view.",
+          "DashboardSessionRenamedMsg must match dashboard, generation and current view. A successful inline rename also advances the session epoch so older refreshes cannot restore the old name.",
           "app.Coordinator.handleSessionMessages"
         ],
         [
@@ -6909,6 +6874,541 @@ window.APPEDIA_CONTENT = {
           "views.Dashboard.footerText"
         ]
       ]
+    },
+    "mcp-open": {
+      "title": "Open the MCP server list",
+      "summary": "Press m on an open dashboard to choose a server or New.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "d",
+          "views.Dashboard"
+        ],
+        [
+          "c",
+          "app.Coordinator"
+        ],
+        [
+          "m",
+          "views.MCPManager"
+        ]
+      ],
+      "steps": [
+        [
+          "u",
+          "d",
+          "key",
+          "m",
+          "Dashboard key invokes its captured navigation callback.",
+          "views.Dashboard.Update"
+        ],
+        [
+          "d",
+          "c",
+          "cmd",
+          "Request MCP configuration",
+          "Callback now names the manager.",
+          "app.Coordinator.dashboardCallbacks"
+        ],
+        [
+          "c",
+          "m",
+          "call",
+          "Open manager; assign visit scope",
+          "Navigation remains on the coordinator goroutine.",
+          "app.Coordinator.navigateTo"
+        ],
+        [
+          "c",
+          "m",
+          "call",
+          "Initialize modal and list",
+          "Registry data already arrives via full snapshots.",
+          "views.MCPManager.Init"
+        ],
+        [
+          "m",
+          "m",
+          "call",
+          "Render available MCPs and New",
+          "Built-in row is marked read-only.",
+          "views.MCPManager.View"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "components.SourceList",
+          "components.SourceListCallbacks",
+          "components.SourceListConfig",
+          "components.SourceListMode",
+          "components.SourceList.HandleDelete",
+          "components.SourceList.HandleSave",
+          "components.SourceList.Init",
+          "components.SourceList.OpenForm",
+          "components.SourceList.SetItems",
+          "components.SourceList.SetSize",
+          "components.SourceList.Update",
+          "components.SourceList.View",
+          "components.SourceList.cycleInputFocus",
+          "components.SourceList.handleListRune",
+          "components.SourceList.initEditForm",
+          "components.SourceList.initNewForm",
+          "components.SourceList.moveDown",
+          "components.SourceList.moveUp",
+          "components.SourceList.renderForm",
+          "components.SourceList.renderList",
+          "components.SourceList.updateForm",
+          "components.SourceList.updateList",
+          "messages.MCPManagerDeleteMsg",
+          "messages.MCPManagerDeletedMsg",
+          "messages.MCPManagerEditMsg",
+          "messages.MCPManagerScope",
+          "views.MCPFormCallbacks",
+          "views.MCPManager",
+          "views.mcpManagerItem",
+          "views.MCPManager.AdmitDelete",
+          "views.MCPManager.DeleteFinished",
+          "views.MCPManager.DiscardDelete",
+          "views.MCPManager.Init",
+          "views.MCPManager.Leave",
+          "views.MCPManager.SetData",
+          "views.MCPManager.SetScope",
+          "views.MCPManager.SetSize",
+          "views.MCPManager.Update",
+          "views.MCPManager.View",
+          "views.mcpManagerItem.Display",
+          "views.mcpManagerItem.ID",
+          "views.NewMCPManager",
+          "app.Coordinator.initViews",
+          "app.convertViewType"
+        ],
+        "files": [
+          "feature-mcpedit.md",
+          "internal/ui/views/mcp_manager_test.go",
+          "internal/app/navigation_test.go"
+        ]
+      }
+    },
+    "mcp-delete": {
+      "title": "Confirm deletion of a global MCP",
+      "summary": "Delete opens a named modal; confirmation invokes repository policy and refreshes consumers.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "m",
+          "views.MCPManager"
+        ],
+        [
+          "c",
+          "app.Coordinator"
+        ],
+        [
+          "a",
+          "app.sessionActions"
+        ],
+        [
+          "r",
+          "config.FileRepository"
+        ]
+      ],
+      "steps": [
+        [
+          "u",
+          "m",
+          "key",
+          "Delete on a custom server",
+          "New is ignored; built-in returns a visible restriction.",
+          "views.MCPManager.Update"
+        ],
+        [
+          "m",
+          "m",
+          "call",
+          "Open confirmation with captured ID",
+          "Refresh/reorder cannot redirect the target.",
+          "views.MCPManager.Update"
+        ],
+        [
+          "u",
+          "m",
+          "key",
+          "Enter/y confirms; Esc/n cancels",
+          "No repository mutation before confirmation.",
+          "views.MCPManager.Update"
+        ],
+        [
+          "m",
+          "c",
+          "cmd",
+          "Deliver scoped delete request",
+          "Pending state blocks repeated Delete.",
+          "app.Coordinator.matchesMCPManagerScope"
+        ],
+        [
+          "c",
+          "m",
+          "call",
+          "Admit once for the matching visit",
+          "Unadmitted requests may be canceled by leaving.",
+          "views.MCPManager.AdmitDelete"
+        ],
+        [
+          "c",
+          "a",
+          "cmd",
+          "Run deletion outside UI goroutine",
+          "Stable ID is passed rather than a row index.",
+          "app.sessionActions.deleteMCPFromManager"
+        ],
+        [
+          "a",
+          "r",
+          "call",
+          "DeleteMCP(id)",
+          "Rejects referenced cards, built-in and missing IDs.",
+          "config.FileRepository.DeleteMCP"
+        ],
+        [
+          "a",
+          "c",
+          "msg",
+          "Deletion result",
+          "Success triggers global refresh; current errors stay visible.",
+          "app.Coordinator.handleSpecialMessages"
+        ],
+        [
+          "c",
+          "m",
+          "call",
+          "Release deletion pending state",
+          "Allows retry after policy or persistence errors.",
+          "views.MCPManager.DeleteFinished"
+        ]
+      ]
+    },
+    "mcp-stale": {
+      "title": "Leave while a command is pending",
+      "summary": "Delayed work cannot mutate the interaction state of a later manager visit.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "m",
+          "views.MCPManager"
+        ],
+        [
+          "c",
+          "app.Coordinator"
+        ],
+        [
+          "t",
+          "tea"
+        ]
+      ],
+      "steps": [
+        [
+          "m",
+          "t",
+          "cmd",
+          "Queue scoped edit/delete request",
+          "Capture the origin before the command runs.",
+          "views.MCPManager.Update"
+        ],
+        [
+          "u",
+          "m",
+          "key",
+          "Esc; return to dashboard",
+          "An unadmitted confirmation is canceled.",
+          "views.MCPManager.Update"
+        ],
+        [
+          "c",
+          "m",
+          "call",
+          "Leave clears unadmitted pending state",
+          "Admitted repository work continues to its result.",
+          "views.MCPManager.Leave"
+        ],
+        [
+          "c",
+          "m",
+          "call",
+          "Reopen with a new visit identity",
+          "Later commands/results cannot reuse prior visit admission.",
+          "views.MCPManager.SetScope"
+        ],
+        [
+          "t",
+          "c",
+          "msg",
+          "Deliver old command",
+          "Scope comparison rejects it even if manager is current again.",
+          "app.Coordinator.matchesMCPManagerScope"
+        ],
+        [
+          "c",
+          "m",
+          "call",
+          "Discard only its unadmitted state",
+          "Does not strand or clear a newer pending request.",
+          "views.MCPManager.DiscardDelete"
+        ],
+        [
+          "t",
+          "c",
+          "msg",
+          "An admitted deletion eventually finishes",
+          "Success still refreshes global registry; no result-driven navigation.",
+          "app.Coordinator.handleSpecialMessages"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "messages.MCPManagerScope",
+          "messages.MCPManagerEditMsg",
+          "messages.MCPManagerDeleteMsg",
+          "messages.MCPManagerDeletedMsg"
+        ],
+        "files": [
+          "internal/app/mcp_manager_gaps_test.go",
+          "internal/app/mcp_manager_review_test.go"
+        ]
+      }
+    },
+    "mcp-card": {
+      "title": "Retain card editor MCP configuration",
+      "summary": "The existing card editor create shortcut and deletion policy remain available.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "e",
+          "views.CardEditor"
+        ],
+        [
+          "c",
+          "app.Coordinator"
+        ],
+        [
+          "a",
+          "app.sessionActions"
+        ],
+        [
+          "r",
+          "config.FileRepository"
+        ]
+      ],
+      "steps": [
+        [
+          "u",
+          "e",
+          "key",
+          "Delete highlighted MCP",
+          "This pre-existing route does not gain a manager modal.",
+          "views.CardEditor.deleteSelectedMCP"
+        ],
+        [
+          "e",
+          "c",
+          "cmd",
+          "MCPDeleteRequestedMsg",
+          "Coordinator delegates repository work.",
+          "app.Coordinator.handleSpecialMessages"
+        ],
+        [
+          "c",
+          "a",
+          "cmd",
+          "deleteMCP",
+          "Existing card reference policy is reused.",
+          "app.sessionActions.deleteMCP"
+        ],
+        [
+          "a",
+          "r",
+          "call",
+          "DeleteMCP",
+          "Referenced saved cards still prevent deletion.",
+          "config.FileRepository.DeleteMCP"
+        ],
+        [
+          "a",
+          "c",
+          "msg",
+          "Centralize completion and refresh",
+          "Preserve editor deselection, refresh the registry globally.",
+          "app.Coordinator.handleSpecialMessages"
+        ]
+      ]
+    },
+    "launch-focus": {
+      "title": "Keep the created session selected through naming and detach",
+      "summary": "Launch/name completion and fresh snapshots maintain one selected ID and preview; old epochs cannot displace it.",
+      "participants": [
+        [
+          "u",
+          "user"
+        ],
+        [
+          "c",
+          "app.Coordinator"
+        ],
+        [
+          "mgr",
+          "session.Manager"
+        ],
+        [
+          "launcher",
+          "views.SessionLauncher"
+        ],
+        [
+          "ref",
+          "app.refresher"
+        ],
+        [
+          "dash",
+          "views.Dashboard"
+        ],
+        [
+          "list",
+          "components.SessionList"
+        ],
+        [
+          "preview",
+          "components.SessionPreview"
+        ]
+      ],
+      "steps": [
+        [
+          "mgr",
+          "c",
+          "msg",
+          "SessionLaunchCompletedMsg(session ID)",
+          "A usable launch advances the session epoch and requests focus for the exact ID.",
+          "app.Coordinator.handleSessionMessages"
+        ],
+        [
+          "c",
+          "dash",
+          "call",
+          "Focus the new session",
+          "If its snapshot is not loaded yet, the one-shot focus waits for session data.",
+          "app.Coordinator.handleSessionMessages"
+        ],
+        [
+          "u",
+          "launcher",
+          "key",
+          "Confirm the session name",
+          "The scoped naming result carries the confirmed name.",
+          "views.SessionLauncher.handleNameSubmit"
+        ],
+        [
+          "launcher",
+          "c",
+          "msg",
+          "ScopedSessionNamedMsg(session ID, name)",
+          "Advance the session epoch and keep focus pending until refreshed data contains that name.",
+          "app.Coordinator.handleSessionMessages"
+        ],
+        [
+          "ref",
+          "c",
+          "msg",
+          "Delayed old-epoch refresh",
+          "Reject snapshots started before launch or rename, even within the same dashboard generation.",
+          "app.Coordinator.handleSessionsRefreshed"
+        ],
+        [
+          "ref",
+          "dash",
+          "msg",
+          "Current session snapshot",
+          "Select by ID, clear search only when it hides the target, and sync preview.",
+          "app.Coordinator.handleDataLoaded"
+        ],
+        [
+          "u",
+          "c",
+          "key",
+          "Ctrl+K to detach",
+          "The detach refresh retains the selected ID; later refreshes do not steal focus again.",
+          "app.Coordinator.handleSessionMessages"
+        ],
+        [
+          "dash",
+          "list",
+          "call",
+          "Rebuild session list and preview by selected ID",
+          "Session-list ordering changes do not displace the created session.",
+          "views.Dashboard.SetSessions"
+        ],
+        [
+          "dash",
+          "preview",
+          "call",
+          "Sync preview with focused session",
+          "Session action hints and preview agree with the selected session.",
+          "views.Dashboard.syncPreviewSelection"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "session.CardPendingReference",
+          "session.CardReferenceImpact",
+          "session.CardSessionReference",
+          "session.Manager.CancelPendingCardReferences",
+          "session.Manager.CardReferences",
+          "session.Manager.List",
+          "session.Manager.ReserveCardReferenceForDashboardWithCancel",
+          "session.Manager.SetNameChecked",
+          "app.Coordinator.handleDataLoaded",
+          "app.Coordinator.handleSessionMessages",
+          "app.Coordinator.handleSessionsRefreshed",
+          "session.Manager.ShutdownStarted",
+          "session.Manager.TemporaryWorkspaceRoot",
+          "session.Manager.WaitCardReferences",
+          "session.Manager.WithCardReferencesAndSnapshot",
+          "session.Manager.bindPendingWorkspace",
+          "session.Manager.cardReferencesLocked",
+          "session.Manager.listLocked",
+          "session.Manager.notifyCardReferencesLocked",
+          "session.Manager.reserveCardReference",
+          "session.NewManager",
+          "session.Session.data",
+          "session.Session.snapshot",
+          "session.cardReservation",
+          "views.SessionLauncher",
+          "views.SessionLauncher.Reset",
+          "views.SessionLauncher.SetNameResult",
+          "views.SessionLauncher.handleNameSubmit",
+          "views.SessionLauncherCallbacks",
+          "views.Dashboard.FocusSession",
+          "views.Dashboard.FocusSessionAfterRename",
+          "views.Dashboard.applyPendingSessionFocus",
+          "views.matchesSessionQuery",
+          "components.SessionList.refreshItems",
+          "app.Coordinator.hasStaleSessionSnapshot",
+          "messages.SessionsRefreshedMsg"
+        ],
+        "files": [
+          "internal/app/launch_focus_internal_test.go",
+          "internal/app/inline_rename_refresh_internal_test.go",
+          "internal/ui/components/session_list_test.go",
+          "tests/e2e/launch_focus_test.go"
+        ]
+      }
     }
   },
   "rules": [
@@ -7183,12 +7683,14 @@ window.APPEDIA_CONTENT = {
       "n": "22",
       "title": "Ignore obsolete asynchronous UI results",
       "ref": "app.Coordinator.handleDataLoaded",
-      "why": "Capture dashboard and generation before commands. Late refresh, attachment and workspace-command results must not retarget the current view.",
-      "check": "Scoped refresh, attachment and coordinator command-race tests.",
+      "why": "Capture dashboard/generation before commands, plus the session epoch for refreshes and manager visit for MCP edits/deletes. Late work must not retarget another view or displace a newly launched/renamed selection.",
+      "check": "Scoped command-race tests, cross-dashboard MCP tests, and full/session/fingerprint stale-refresh tests.",
       "flows": [
         "navigation",
         "tick",
-        "attach"
+        "attach",
+        "launch",
+        "mcp-stale"
       ]
     },
     {
@@ -7257,6 +7759,27 @@ window.APPEDIA_CONTENT = {
         "notification-write",
         "report-inspection"
       ]
+    },
+    {
+      "n": "29",
+      "title": "MCP editing preserves hidden fields and repository policy",
+      "ref": "views.MCPForm.handleSubmit",
+      "why": "An edit overlays the loaded definition, so metadata absent from the form survives. Global deletion keeps built-in and saved-card reference guards; confirmation is tied to a stable ID.",
+      "check": "Metadata/New-reset, protected/reference deletion, captured-ID, write-error/retry and tui-test configuration journeys.",
+      "flows": [
+        "mcp",
+        "mcp-delete"
+      ],
+      "sources": {
+        "refs": [
+          "config.FileRepository.DeleteMCP",
+          "views.MCPManager.Update"
+        ],
+        "files": [
+          "internal/app/mcp_manager_review_test.go",
+          "tests/e2e/mcp_manager_test.go"
+        ]
+      }
     }
   ],
   "tasks": [
@@ -7385,7 +7908,7 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Change refresh behaviour",
-      "a": "refresh.go for the commands, handlers.go for applying results, and config.Fingerprint.",
+      "a": "refresh.go for the commands, handlers.go for applying results, and config.Fingerprint. Capture session epochs with snapshots and reject old epochs before data or fingerprints are applied.",
       "refs": [
         "app.refresher",
         "config.FileRepository.Fingerprint"
@@ -7469,7 +7992,7 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Change session names or activation snapshots",
-      "a": "For existing-session e rename, start at Dashboard.handleEdit/updateRename, the captured coordinator callback and its dedicated completion message. Reuse RenameInDashboard and SetNameChecked; refresh on either result and preserve process identity. Launch naming keeps its separate attach flow. For operation snapshots, keep inspectionFromSnapshot as the single conversion.",
+      "a": "For existing-session e rename, start at Dashboard.handleEdit/updateRename, the captured coordinator callback and its dedicated completion message. Reuse RenameInDashboard and SetNameChecked; refresh on either result and preserve process identity. Launch naming keeps its separate attach flow. For operation snapshots, keep inspectionFromSnapshot as the single conversion. Launch naming retains focus by ID and confirmed name; inline rename invalidates older session refreshes.",
       "refs": [
         "views.Dashboard.handleEdit",
         "views.Dashboard.updateRename",
@@ -7588,6 +8111,28 @@ window.APPEDIA_CONTENT = {
         "driver.PromptEnvelope"
       ],
       "flow": "notification-authority"
+    },
+    {
+      "q": "Change MCP registry management",
+      "a": "MCPManager owns list/modal state; MCPForm owns edited fields. Coordinator commands capture request scope and target IDs, then call the repository. Preserve built-in and saved-card reference guards, metadata overlays and stale-visit rejection.",
+      "refs": [
+        "views.MCPManager",
+        "views.MCPForm",
+        "app.Coordinator.mcpCallbacks",
+        "config.FileRepository.DeleteMCP"
+      ],
+      "flow": "mcp-open"
+    },
+    {
+      "q": "Change launch selection or stale-refresh protection",
+      "a": "The coordinator advances session epochs on launch and rename. Dashboard focus waits for the exact ID/name, clears only a hiding session search, and is consumed once. SessionList preserves selected ID across reordering.",
+      "refs": [
+        "app.Coordinator.hasStaleSessionSnapshot",
+        "views.Dashboard.FocusSession",
+        "views.Dashboard.FocusSessionAfterRename",
+        "components.SessionList.refreshItems"
+      ],
+      "flow": "launch"
     }
   ],
   "storage": {
@@ -7739,8 +8284,10 @@ window.APPEDIA_CONTENT = {
     "Project-owned terminal tests use the tui-test Go binding behind //go:build e2e. Run explicitly for Appedia/Appediff; normal tests and evidence collection create no screenshots.",
     "The corrected OpenCode fixture verifies supported credential export/import, isolates service configuration and selects openrouter/openrouter/free. Its actual result is failed at register. The older Big Pickle quota screen came from an incomplete fixture and does not describe the configured user environment.",
     "Session rename is covered with ordinary Go tests: cancellation/scope changes discard drafts without saving; the coordinator path refreshes without attachment or process replacement and restores the saved name through a fresh manager. Native-agent E2E is not required for these assertions.",
-    "Ordinary tests were rerun for this refresh. The 2026-11-09 statement profile and native-agent captures are historical and are not current-head coverage or execution proof.",
-    "Model-driven E2E runs require a provider/model choice and total token budget covering retries, per tests/e2e/AGENTS.md. Ordinary tests and model-free screenshot preflight need no model call."
+    "Current ordinary-suite statement coverage is collected with atomic instrumentation and matching source/run provenance; it does not execute E2E-tagged tests. The 2026-11-09 profile is archived with its original metadata and is not a paired baseline for a coverage delta.",
+    "Model-driven E2E runs require a provider/model choice and total token budget covering retries, per tests/e2e/AGENTS.md. Ordinary tests and model-free screenshot preflight need no model call.",
+    "Current MCP and startup-only launch-focus E2E journeys pass with the upgraded UI dependencies. They capture actual terminal checkpoints, without model tasks or pixel-baseline comparisons.",
+    "Validation retained one intermittent TestPreviewImmediateUpdate race-run failure; ten focused repetitions and a full app race rerun passed. This is not reported as a clean initial broad race run."
   ],
   "glossary": [
     [
@@ -7865,7 +8412,7 @@ window.APPEDIA_CONTENT = {
     ]
   ],
   "tests": {
-    "scope": "All existing documented flows retain their scoped assertion assessments. Existing-session rename adds nine supported scenarios, including cancellation and successful save/restart, using ordinary Go tests. Ordinary test execution was refreshed on this head; native-agent artifacts and statement coverage remain historical and do not establish current-head execution.",
+    "scope": "Project-wide functional assessment retained and reassessed against current source; MCP management and launch-focus added with fresh ordinary and E2E evidence. Current ordinary-suite statement coverage is recorded separately from these functional assessments. The older model-driven native registration failure remains explicitly historical.",
     "features": [
       {
         "id": "configuration-startup",
@@ -9507,7 +10054,7 @@ window.APPEDIA_CONTENT = {
             ],
             "limit": "Unchanged launcher test does not assert dashboard success avoids attachment.",
             "flows": [
-              "rename-save"
+              "launch"
             ],
             "summary": "Existing launcher naming waits for result and permits retry."
           },
@@ -9540,6 +10087,271 @@ window.APPEDIA_CONTENT = {
             "summary": "Esc and both dashboard-scope changes discard the draft without invoking save; reopening restores the original name."
           }
         ]
+      },
+      {
+        "id": "mcp-registry",
+        "title": "Manage global MCP servers",
+        "area": "Dashboard",
+        "summary": "Select a global definition while retaining repository safeguards.",
+        "sources": {
+          "refs": [
+            "views.MCPManager.Update",
+            "app.Coordinator.handleSpecialMessages"
+          ],
+          "files": [
+            "feature-mcpedit.md"
+          ]
+        },
+        "scenarios": [
+          {
+            "id": "back",
+            "title": "Nested cancel navigation",
+            "dimension": "interaction",
+            "status": "tested",
+            "flows": [
+              "mcp-open",
+              "mcp"
+            ],
+            "evidence": [
+              "mcp-navigation"
+            ],
+            "limit": "In-process keys and messages; no native terminal.",
+            "summary": "Nested cancel navigation"
+          },
+          {
+            "id": "edit",
+            "title": "Edit metadata and create a clean New record",
+            "dimension": "behavior",
+            "status": "tested",
+            "flows": [
+              "mcp"
+            ],
+            "evidence": [
+              "mcp-metadata",
+              "mcp-parser-retained",
+              "mcp-cross-dashboard-saves",
+              "mcp-write-failure-retry",
+              "mcp-mcp-terminal-journey"
+            ],
+            "limit": "Isolated real repository; no restart persistence test.",
+            "summary": "Edit metadata and create a clean New record"
+          },
+          {
+            "id": "delete",
+            "title": "Delete admission and delayed request recovery",
+            "dimension": "interaction",
+            "status": "tested",
+            "flows": [
+              "mcp-delete",
+              "mcp-stale"
+            ],
+            "evidence": [
+              "mcp-stale-commands",
+              "mcp-modal-target",
+              "mcp-cross-dashboard-requests",
+              "mcp-cross-dashboard-deletes",
+              "mcp-write-failure-retry",
+              "mcp-mcp-terminal-journey"
+            ],
+            "limit": "Same dashboard only; delayed result must not change current view.",
+            "summary": "Delete admission and delayed request recovery"
+          },
+          {
+            "id": "policy",
+            "title": "Protected and referenced definitions remain intact",
+            "dimension": "behavior",
+            "status": "tested",
+            "flows": [
+              "mcp-delete"
+            ],
+            "evidence": [
+              "mcp-referenced",
+              "mcp-protected",
+              "mcp-repository-retained"
+            ],
+            "limit": "No injected filesystem write failure or foreign-dashboard reference integration case.",
+            "summary": "Protected and referenced definitions remain intact"
+          },
+          {
+            "id": "bounds",
+            "title": "Long list and modal stay within bounds",
+            "dimension": "layout",
+            "status": "tested",
+            "flows": [
+              "mcp-open",
+              "mcp-delete"
+            ],
+            "evidence": [
+              "mcp-long-list"
+            ],
+            "limit": "80×22 component bounds; no actual application screenshot or position-baseline comparison.",
+            "summary": "Long list and modal stay within bounds",
+            "captures": [
+              "mcp-edited-list",
+              "mcp-confirm",
+              "mcp-deleted"
+            ]
+          },
+          {
+            "id": "source-reuse",
+            "title": "Existing source-list navigation remains usable",
+            "dimension": "interaction",
+            "status": "tested",
+            "flows": [
+              "mcp-card"
+            ],
+            "evidence": [
+              "mcp-sources-retained"
+            ],
+            "limit": "Direct component tests only; workspace CRUD covered by suite but not exhaustively assessed here.",
+            "summary": "Existing source-list navigation remains usable"
+          },
+          {
+            "id": "faults",
+            "title": "Cross-dashboard delayed results and disk errors",
+            "dimension": "behavior",
+            "status": "tested",
+            "flows": [
+              "mcp-stale",
+              "mcp-delete"
+            ],
+            "evidence": [
+              "mcp-cross-dashboard-requests",
+              "mcp-cross-dashboard-saves",
+              "mcp-cross-dashboard-deletes",
+              "mcp-write-failure-retry"
+            ],
+            "limit": "Deterministic coordinator command delivery with real file storage; ENOSPC injected at the repository boundary. Physical disk fault handling is not claimed.",
+            "summary": "Cross-dashboard delayed command/result and write-error recovery boundaries now have direct Go assertions."
+          },
+          {
+            "id": "visual",
+            "title": "Real terminal configuration journey and captures",
+            "dimension": "layout",
+            "status": "tested",
+            "flows": [
+              "mcp-open",
+              "mcp",
+              "mcp-delete"
+            ],
+            "evidence": [
+              "mcp-mcp-terminal-journey"
+            ],
+            "limit": "List/modal at 80×24 and forms at 120×40. Screenshot checkpoints are supported by text/storage assertions and visual inspection; no pixel-baseline comparison.",
+            "summary": "Project E2E checks actual keyboard navigation, persisted create/edit/delete and captures the reached list/form/modal states.",
+            "captures": [
+              "mcp-list",
+              "mcp-new",
+              "mcp-edit",
+              "mcp-edited-list",
+              "mcp-confirm",
+              "mcp-deleted"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "launch-focus",
+        "title": "Keep launch and naming focus on the created session",
+        "area": "Dashboard",
+        "summary": "New-session selection survives naming, older refreshes, detach and session-list reordering.",
+        "sources": {
+          "refs": [
+            "views.Dashboard.FocusSession",
+            "views.Dashboard.FocusSessionAfterRename",
+            "app.Coordinator.hasStaleSessionSnapshot"
+          ],
+          "files": [
+            "internal/app/launch_focus_internal_test.go",
+            "internal/app/inline_rename_refresh_internal_test.go",
+            "tests/e2e/launch_focus_test.go"
+          ]
+        },
+        "scenarios": [
+          {
+            "id": "completion",
+            "title": "Select the created ID and align preview",
+            "summary": "Select the created ID and align preview",
+            "status": "tested",
+            "dimension": "interaction",
+            "evidence": [
+              "focus-completion",
+              "focus-search"
+            ],
+            "limit": "Coordinator/view fixtures; actual terminal checkpoint is separate.",
+            "flows": [
+              "launch-focus"
+            ],
+            "captures": []
+          },
+          {
+            "id": "epochs",
+            "title": "Reject old launch and inline-rename refreshes",
+            "summary": "Reject old launch and inline-rename refreshes",
+            "status": "tested",
+            "dimension": "behavior",
+            "evidence": [
+              "focus-epochs",
+              "rename-epochs"
+            ],
+            "limit": "Covers full/session/fingerprint delivery with deterministic events.",
+            "flows": [
+              "launch-focus"
+            ],
+            "captures": []
+          },
+          {
+            "id": "scope",
+            "title": "Keep warnings usable and ignore canceled/stale focus",
+            "summary": "Keep warnings usable and ignore canceled/stale focus",
+            "status": "tested",
+            "dimension": "behavior",
+            "evidence": [
+              "focus-warning",
+              "focus-stale",
+              "focus-cancel"
+            ],
+            "limit": "Controlled error/scope messages; no physical filesystem outage.",
+            "flows": [
+              "launch-focus"
+            ],
+            "captures": []
+          },
+          {
+            "id": "ordering",
+            "title": "Keep selection stable when newer sessions arrive",
+            "summary": "Keep selection stable when newer sessions arrive",
+            "status": "tested",
+            "dimension": "interaction",
+            "evidence": [
+              "focus-order"
+            ],
+            "limit": "List component identity assertion, no terminal key decoder.",
+            "flows": [
+              "launch-focus"
+            ],
+            "captures": []
+          },
+          {
+            "id": "terminal",
+            "title": "Launch, name, detach and reattach the same process",
+            "summary": "Launch, name, detach and reattach the same process",
+            "status": "tested",
+            "dimension": "interaction",
+            "evidence": [
+              "launch-focus-terminal"
+            ],
+            "limit": "Codex startup only at 120×40; no model task or image baseline.",
+            "flows": [
+              "launch-focus"
+            ],
+            "captures": [
+              "launch-focus-attached",
+              "launch-focus-dashboard",
+              "launch-focus-reattached"
+            ]
+          }
+        ]
       }
     ],
     "evidence": [
@@ -9556,11 +10368,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "23def849d1afd7463ecca53123cd3035b705f5cd4ef39e1b7a2fc5782fd55c31",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.745630966Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.715942183Z",
+          "scope": "TestFreshInitializationAndPartialRoot; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9576,11 +10388,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "a79b37b8df4a3e2f94e517171046fa8d1f212cd9e52cb5075ac05f7c7789b9ca",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.757506025Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.727411172Z",
+          "scope": "TestValidateLayoutRejectsInvalidRecordsWithoutRewriting; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9596,11 +10408,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "23def849d1afd7463ecca53123cd3035b705f5cd4ef39e1b7a2fc5782fd55c31",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.746768646Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.716070833Z",
+          "scope": "TestExclusiveLock; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9616,11 +10428,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "7788a680a0548d68f4a1d3ee5108c3ca6f219d435c34e55cd3ce6306b42e5cb2",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.989899399Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.914872882Z",
+          "scope": "TestReadDashboardDataScopesCardsAndSessions; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9636,11 +10448,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "7788a680a0548d68f4a1d3ee5108c3ca6f219d435c34e55cd3ce6306b42e5cb2",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:50.006808407Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.932543752Z",
+          "scope": "TestScopedLaunchRevalidatesChangedCardBeforePublication; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9650,17 +10462,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/api/membership_internal_test.go",
         "line": 461,
-        "endLine": 501,
+        "endLine": 502,
         "proves": "Asserts foreign pending impact, required confirmation, cancelled launch and no published session.",
         "limits": "Controlled copier and service entry points; no confirmation-modal rendering.",
         "reviewedHash": "7788a680a0548d68f4a1d3ee5108c3ca6f219d435c34e55cd3ce6306b42e5cb2",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:50.016480577Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.938806011Z",
+          "scope": "TestConfirmedCardDeletionCancelsForeignPendingLaunch; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9676,11 +10488,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "ba7b77503150f21a09e4c47a8818dc09064dfaf30c0fe1b292e713807c78af6a",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.822932111Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.77520059Z",
+          "scope": "TestDashboardCascadeResumesAfterRestart; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9690,17 +10502,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/app/multi_dashboard_internal_test.go",
         "line": 19,
-        "endLine": 110,
+        "endLine": 111,
         "proves": "Checks foreign preview rejection, stale refresh/navigation/attach isolation, current cards/sessions and restoration of the original view instance.",
         "limits": "Drives coordinator messages directly with real local cat sessions; not an end-to-end terminal journey.",
         "reviewedHash": "d946df2c92262a773d61a2e7670f54cfdfaf4dc7e2a780b6ebeb11ec3466b8a5",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:56.652965616Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.666897041Z",
+          "scope": "TestMultiDashboardDiscardsStaleResultsAndPreservesViews; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9716,11 +10528,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "5949b61fea145c448014776b5d2b37e945c67497ad99f79d7be77c5515ba94ae",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:56.658085866Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.672500281Z",
+          "scope": "TestMaybeRefreshConfigSkipsUnchangedRegistry; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9736,11 +10548,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "fcb14dea1373d1c821a7ef0039bfa0ec28484fb5005502e0546068b3366028b3",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:58.637874426Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:05.684013886Z",
+          "scope": "TestCoordinatorTooSmallScreenIsExact; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9756,11 +10568,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "fcb14dea1373d1c821a7ef0039bfa0ec28484fb5005502e0546068b3366028b3",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:58.671714153Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:05.705936575Z",
+          "scope": "TestCoordinatorDropsKeysWhenTooSmall; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9770,17 +10582,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/app/dashboard_list_keys_test.go",
         "line": 11,
-        "endLine": 44,
+        "endLine": 45,
         "proves": "Checks repeated Esc/Ctrl+C keep the dashboard list open at normal and small sizes and q returns QuitMsg.",
         "limits": "Coordinator-level input assertions; no physical terminal signal delivery.",
         "reviewedHash": "80762c5bb8bd9b5ed61a61ebd9268f056982d976e359b06c63dee8726b588763",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:57.000331352Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.017818592Z",
+          "scope": "TestDashboardListRequiresExplicitQuit; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9796,11 +10608,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "2a7332fafb47cd5df346dea1eff1d549fd80c41d83b4c9122dd3cd1490fda622",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:51.677822399Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:58.638108503Z",
+          "scope": "TestCardEditorPreservesUnmanagedFields; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9816,11 +10628,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "2a7332fafb47cd5df346dea1eff1d549fd80c41d83b4c9122dd3cd1490fda622",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:51.678877799Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:58.639084563Z",
+          "scope": "TestDashboardControlCardEditorToggleRoundTrip; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9836,11 +10648,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "2a7332fafb47cd5df346dea1eff1d549fd80c41d83b4c9122dd3cd1490fda622",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:51.680829949Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:58.643277152Z",
+          "scope": "TestCtrlXClearsOnlySubWorkspaceSelection; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9856,11 +10668,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "36ac1bf09e7ef1d2e10115628f1ca6f164065619c422eaeb2021556770442626",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:51.091471411Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:58.030879304Z",
+          "scope": "TestCardEditorFocusedFieldAlwaysVisible; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9876,11 +10688,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "74eb2a13274325ddfa009e0aae169d37bbe0febb6d2828e54c54d22c3cf08ffa",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:57.199359908Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.300699448Z",
+          "scope": "TestPartialPreviewBroadcastDoesNotWipeCardEditor; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9890,17 +10702,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/app/source_sync_warning_test.go",
         "line": 17,
-        "endLine": 69,
+        "endLine": 70,
         "proves": "Checks emitted sync error, refresh request and durable saved source path despite failed scanning.",
         "limits": "One missing skill-source path through callbacks; no full source-manager UI journey.",
         "reviewedHash": "16ae0ac11a321a83ff10b4b5d3cffb060f66a816805c5a30b497a8ee890a2f9d",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:58.801200534Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:05.80242298Z",
+          "scope": "TestSaveSimpleSourceSurfacesSyncFailure; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9916,11 +10728,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "3e58b28d6fdcfbbc1c0f45984f19da8e223ef6c872f2212d1393492235248e6f",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.877965557Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.513482413Z",
+          "scope": "TestMCPFormRoundTripsEveryField; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9936,11 +10748,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "bd540f8c7e3ac081fad2910f159272fde91d53d1b07cbbf26797de2d877b1021",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:51.722107326Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:58.674249451Z",
+          "scope": "TestConversationChoiceRequiresExplicitCompatibleChoice; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9956,11 +10768,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "e484a44ee3d38d1551068285e2471f861dd497b11af4cc4503256e6e81574550",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:12.003603686Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:18.030479824Z",
+          "scope": "TestActivationRejectsUnavailableSavedWorkspace; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9970,17 +10782,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/session/sub_workspaces_inspection_test.go",
         "line": 11,
-        "endLine": 40,
+        "endLine": 41,
         "proves": "Checks descriptor identity/path, absence of a newly created tmp directory and unavailable status for corrupt manifests.",
         "limits": "Read-only helper only; copy collision and multi-selection journeys remain separate.",
         "reviewedHash": "47b304b52e9a80c1587c84b7b469e5cab9c4696c3769199011887bbdeda0c3a7",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.939428952Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:07.018106997Z",
+          "scope": "TestReadSubWorkspaceDescriptorsDoesNotPrepareWorkspace; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -9996,11 +10808,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "d6d0f89ec7ac16c4c2395b51aeae0d31ba9bcab099c7395fd6806a03cc127526",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:57.72797578Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.821670683Z",
+          "scope": "TestRelaunchRefreshesOnlyKankuroMCPAfterRestart; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10016,11 +10828,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "c3c5f502e8c165b4b78aeea83d59d1301a13bd91b3dd1233565c1709f8f9c3f2",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:50.346588743Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:57.242431346Z",
+          "scope": "TestTrustInvalidConfigurationPreserved; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10036,11 +10848,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "c3feacc7073ff6582b64bf6830985cb9c7a26005624752028f9c7dd862320d42",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.388203872Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.481817694Z",
+          "scope": "TestShutdownDuringSpawnKillsTheNewProcess; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10056,11 +10868,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "c3feacc7073ff6582b64bf6830985cb9c7a26005624752028f9c7dd862320d42",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.597236377Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.689039183Z",
+          "scope": "TestShutdownWaitsForTemporaryWorkspacePreparation; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10076,11 +10888,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "7a24af59808ff28547db62ea979f2028b08a805bd1ae443bbd7bef97a9f77831",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:50.060908723Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.97018627Z",
+          "scope": "TestDataRoundTripCopiesEveryField; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10096,11 +10908,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "e853b5124ff8cf803fb6075b18985c8739e9ef4a7d766771631879e2aaff8007",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:57.696047673Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.791244424Z",
+          "scope": "TestReportNotificationInitialStateIsDurableAndIdempotent; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10116,11 +10928,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "e853b5124ff8cf803fb6075b18985c8739e9ef4a7d766771631879e2aaff8007",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:57.697317192Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.793450414Z",
+          "scope": "TestProgressRepliesPersistBeforeCompletion; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10130,17 +10942,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/session/messaging_test.go",
         "line": 260,
-        "endLine": 324,
+        "endLine": 325,
         "proves": "Checks recovery marks admitted delivery uncertain while preserving the accepted obligation and request identity.",
         "limits": "Constructed durable records; no process crash at an actual PTY write.",
         "reviewedHash": "e853b5124ff8cf803fb6075b18985c8739e9ef4a7d766771631879e2aaff8007",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:57.698320062Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.794096964Z",
+          "scope": "TestRestartMarksAdmittedNotificationUncertain; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10156,11 +10968,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:50.763704954Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:57.619733686Z",
+          "scope": "TestReportAutomaticallyNotifiesOriginalController; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10176,11 +10988,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:51.032364445Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:57.870628913Z",
+          "scope": "TestSavedNotificationSurvivesReporterStopping; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10196,11 +11008,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:51.077030122Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:57.91535088Z",
+          "scope": "TestStoppedOriginalActivationMakesNotificationUnavailable; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10216,11 +11028,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:50.81012125Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:57.666367803Z",
+          "scope": "TestNotificationRetriesAfterQueueCapacityReturns; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10236,11 +11048,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:50.989765578Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:57.814122415Z",
+          "scope": "TestNotificationReconciliationUsesDeliveryEvidence; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10256,11 +11068,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:52.208788881Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:59.039145432Z",
+          "scope": "TestConcurrentNotificationDispatchAdmitsOneAttempt; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10270,17 +11082,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/api/messaging_review_test.go",
         "line": 925,
-        "endLine": 950,
+        "endLine": 951,
         "proves": "Checks one recipient backs off without suppressing another and keeps its accepted predecessor ahead of a later pending report.",
         "limits": "Pure scheduling function with fixed time; no throughput benchmark.",
         "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:52.246536078Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:59.07518189Z",
+          "scope": "TestNotificationSchedulingPreservesRecipientOrderAndFairness; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10296,11 +11108,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Assertions reside in runWorkspaceLauncherCase at internal/session/ide_launcher_test.go:80, called by this table-driven test. Uses the test executable, not an IDE GUI.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:56.048798619Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:02.15047283Z",
+          "scope": "TestLaunchWorkspaceCommandExecutesInWorkspace; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10309,18 +11121,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/ui/views/dashboard_test.go",
-        "line": 260,
-        "endLine": 309,
-        "reviewedHash": "7f52ae5a60d3c811e9e8bbca97c8126749657429da2b482ae0cdbb37ab83c18e",
+        "line": 322,
+        "endLine": 371,
+        "reviewedHash": "c920b81707a08ff6e6af8c1a5cc5d4a9e5f7a702861887fe5797bfa1b68d4b48",
         "proves": "Checks the terminal callback receives the selected session for running/waiting/terminated states, ignores no-selection/search/nil callback cases, and checks o selects the expected IDE session.",
         "limits": "View callback assertions only; no command execution or external UI.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.865420778Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.506123793Z",
+          "scope": "TestDashboard_LaunchTerminalRouting; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10336,11 +11148,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Real local helper process rather than a graphical terminal emulator; one configured launch shape.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:58.834231952Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:05.827426238Z",
+          "scope": "TestTerminalLaunchThroughDashboard; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10350,17 +11162,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/app/terminal_launch_test.go",
         "line": 149,
-        "endLine": 212,
+        "endLine": 213,
         "reviewedHash": "0c4f6d7c1e26657e6fdcff703800126c243b5fe46651caf4ac4098da1a673cb7",
         "proves": "Checks missing/foreign scope, missing IDE/terminal commands, failed executable and absent workspace; feeds spawn failure back and asserts the coordinator banner is set.",
         "limits": "Most cases invoke callbacks directly. The banner assertion establishes error presence, not its full displayed text.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:58.848014891Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:05.836167808Z",
+          "scope": "TestTerminalLaunchReportsConfigurationAndLookupErrors; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10376,11 +11188,11 @@ window.APPEDIA_CONTENT = {
         "limits": "In-memory callback payload only; does not execute the asynchronous repository save.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:01.840132079Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:07.248780925Z",
+          "scope": "TestSettingsView_SaveInEditMode; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10396,11 +11208,11 @@ window.APPEDIA_CONTENT = {
         "limits": "View model callback boundary only; no YAML write.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:01.840312639Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:07.249061595Z",
+          "scope": "TestSettingsView_TerminalCommandFocusSaveAndCancel; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10416,11 +11228,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Does not execute coordinator persistence or check every focus wrap boundary.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:01.840179648Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:07.248995744Z",
+          "scope": "TestSettingsView_ToggleRows; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10436,11 +11248,11 @@ window.APPEDIA_CONTENT = {
         "limits": "String/cell assertions rather than terminal screenshots; helper assertSettingsFits is at settings_test.go:181.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:01.842026488Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:07.250798044Z",
+          "scope": "TestSettingsView_LongCommandsStayWithinSize; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10456,11 +11268,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Repository Save/Get against the same repository instance; no real app restart or coordinated navigation assertion.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.735676487Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.716000153Z",
+          "scope": "TestAppSettingsPersistence; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10470,17 +11282,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/app/source_save_test.go",
         "line": 203,
-        "endLine": 256,
+        "endLine": 257,
         "reviewedHash": "ad2cf273e0e9665d3397e7fa3d5c16d937c303dc3b5fb1233031eceb6a8bf3c5",
         "proves": "Executes source save/edit callbacks, then checks a nonempty repository-assigned ID survives a change of IsRoot.",
         "limits": "Does not drive Ctrl+E, the source form or navigation back to an unsaved card.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:58.795922274Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:05.79729125Z",
+          "scope": "TestWorkspaceSourceIDAssignedAndPreservedOnEdit; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10496,11 +11308,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Callback error boundary only; no source-manager key journey.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:58.784875925Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:05.786941181Z",
+          "scope": "TestSaveWorkspaceSourceAbortsOnMalformedRegistry; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10516,11 +11328,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Does not check successful deletion refresh or return navigation.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:58.789335245Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:05.79153707Z",
+          "scope": "TestDeleteWorkspaceSourceAbortsOnMalformedRegistry; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10536,11 +11348,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Does not send Ctrl+S or assert header indicator, search intersection or re-enabling all items.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:51.679985899Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:58.641615782Z",
+          "scope": "TestSelectedOnlySkillCursorNormalizesAfterRegistryRefresh; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10556,11 +11368,11 @@ window.APPEDIA_CONTENT = {
         "limits": "In-memory form/view sequence; does not copy sub-workspace files or persist the card repository.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:01.860472387Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:07.263170084Z",
+          "scope": "TestSubWorkspacePickerMultipleUnresolvedAndMainModes; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10576,11 +11388,11 @@ window.APPEDIA_CONTENT = {
         "limits": "View/registry-message fixture, not concurrent disk registry scanning.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:01.869170506Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:07.269702663Z",
+          "scope": "TestSubWorkspaceNewSelectionSurvivesRegistryRefresh; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10596,11 +11408,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Shared launcher API tests, not every caller-specific banner or concurrent filesystem change.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:56.049030939Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:02.15061457Z",
+          "scope": "TestLaunchWorkspaceCommandErrors; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10616,11 +11428,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Injected startup clock/driver preparation; does not assert native CLI task readiness.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.913542934Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:07.000527357Z",
+          "scope": "TestActivationPublishedBeforeStartupDelay; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10636,11 +11448,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Controlled clock/manager fixture, not native CLI processing.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:55.117423305Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:01.336299952Z",
+          "scope": "TestStartupAdmissionAndRegistrationAreIndependent; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10650,17 +11462,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/api/inspection_runtime_test.go",
         "line": 11,
-        "endLine": 39,
+        "endLine": 40,
         "reviewedHash": "6df6907a9f82ded9c9630b78044cc58fe22938ac554baadb19ec322a3efaa60a",
         "proves": "Checks inspection copies activation/startup/delivery fields, serialized historical effects stay unchanged after source snapshot mutation and old data does not fabricate runtime fields.",
         "limits": "Pure conversion/serialization test, separate from transport.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.873244427Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.805084578Z",
+          "scope": "TestInspectionConversionPreservesActivationSnapshot; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10670,17 +11482,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/mcp/dashboard_scope_test.go",
         "line": 21,
-        "endLine": 171,
+        "endLine": 172,
         "reviewedHash": "9b762f25ed9999928f3bcb4d29513636fb34986351fef01c4e11f5689e31efa4",
         "proves": "Authenticates two dashboards over the real Streamable HTTP SDK client, checks peer session discovery excludes caller and foreign sessions.",
         "limits": "Only list_sessions transport scope is asserted here; no external AI client.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:50.137450438Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:57.060497875Z",
+          "scope": "TestDashboardScopeOverHTTP; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10696,11 +11508,11 @@ window.APPEDIA_CONTENT = {
         "limits": "In-process service/runner fixture; no TUI or installed native-agent client. Tests the declared finite set of authorization and operation cases.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:52.698255416Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:59.524544126Z",
+          "scope": "TestOperationRunnerCreatesOnceAndReplaysRequest; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10716,11 +11528,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Service rejection assertions without transport status assertions.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:52.424079506Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:59.251895841Z",
+          "scope": "TestUnauthenticatedDiscoveryIsDenied; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10736,11 +11548,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Injected journal write seam and in-process runner restart, not OS crash/power-loss.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:52.730723244Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:59.556599765Z",
+          "scope": "TestFinalJournalWriteFailureReturnsOutcomeAndRecoversInterrupted; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10756,11 +11568,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Finite controlled worker interleavings and deadlines; not a throughput or starvation proof.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:53.022296944Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:59.84234434Z",
+          "scope": "TestOperationQueueBoundAndDisconnectedWaitReturnPromptly; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10776,11 +11588,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Constructed journal records and runner state; no actual process crash.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:53.022772884Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:59.8428063Z",
+          "scope": "TestOperationJournalRecoversInterruptedAndFailsClosedOnCorruption; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10790,17 +11602,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/api/service_test.go",
         "line": 1782,
-        "endLine": 1899,
+        "endLine": 1900,
         "reviewedHash": "592e2d9e09e30a20069d19b9395846eea1222bdc6a1fc71dbfa75c3165318792",
         "proves": "Checks target activation inspection, submitted send result, stable replay identity, changed-text conflict, stored text, worker report permission and removal of history on recipient deletion.",
         "limits": "Local service/PTY fixtures; submission is byte evidence, not an agent acknowledgment or processing proof.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:53.265754866Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:00.044800369Z",
+          "scope": "TestMessagingOperationsPinActivationsAndPersistExplicitReports; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10816,11 +11628,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Controlled write failure; no later partial PTY write claim.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:52.329405183Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:59.147339046Z",
+          "scope": "TestOrdinaryMessageJournalRejectionRollsBackHistoryAndRetries; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10836,11 +11648,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Controlled queue/worker fixture rather than unbounded production load.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:52.291887776Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:59.112647198Z",
+          "scope": "TestOrdinaryMessageQueueRejectionReleasesReservationAndPreservesReplay; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10856,11 +11668,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Service/manager and real filesystem fixture; not the dashboard confirmation key sequence.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:53.21792102Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:59.998265502Z",
+          "scope": "TestServiceRemoveSessionDelegatesGuardsCleanupAndManagerErrors; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10876,11 +11688,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Tests capability selection, not instruction following by an AI agent.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:53.028547953Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:59.84684967Z",
+          "scope": "TestResolveCapabilitiesAddsMCPAccessSkillOnlyWhenKankuroMCPSelected; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10896,11 +11708,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Uses builtin lookup only as fixture setup for the live deployment path; does not establish any runtime need for that lookup helper.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.726788817Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.696139914Z",
+          "scope": "TestEmbeddedMCPCLISkillDeploysThroughConfig; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10916,11 +11728,11 @@ window.APPEDIA_CONTENT = {
         "limits": "File deployment only; no evidence that an installed CLI reads or follows the skill.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.727088917Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.696863434Z",
+          "scope": "TestEmbeddedKankuroPuppetSkillDeploysThroughConfig; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10936,11 +11748,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Create-form callback only; no edit-form submission, repository write or selected-ID refresh assertion.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.839692519Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.485135534Z",
+          "scope": "TestDashboardListCreatesNamedDashboard; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10956,11 +11768,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Service/repository test; no dashboard-list form key journey.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.990422598Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.914962342Z",
+          "scope": "TestDashboardDetailsThroughService; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10976,11 +11788,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Manager handles only; does not run attachExec raw terminal mode, Ctrl+K or resize synchronization.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:55.287133313Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:01.489860464Z",
+          "scope": "TestSessionAttachReplay; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -10990,17 +11802,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/ui/views/session_launcher_test.go",
         "line": 121,
-        "endLine": 146,
+        "endLine": 147,
         "reviewedHash": "b868fdd3452c53f4f8f4967f63bf6084d84bb354fa020067ec9d3446a866c4e4",
         "proves": "Checks name submission starts once, duplicate Enter is suppressed while pending, an error is shown and another Enter can retry.",
         "limits": "In-memory naming callback/result boundary; not a persisted service rename.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:01.839940798Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:07.248557364Z",
+          "scope": "TestSessionLauncherWaitsForNameResultAndAllowsRetry; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11016,11 +11828,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Permission-based test skips as root; manager fixture is not the complete UI rename path.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:57.251574114Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.359369767Z",
+          "scope": "TestSetNamePropagatesPersistFailure; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11030,17 +11842,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/api/card_cleanup_internal_test.go",
         "line": 15,
-        "endLine": 151,
+        "endLine": 152,
         "reviewedHash": "cf170f60e2b5f59b84be6a7001d43fb756a631a4b235a31129fac5b71032392b",
         "proves": "Blocks a foreign pending copy, edits the card workspace, checks failed cleanup persists the original exact paths/error in a tombstone, then restarts and retries cleanup without removing a foreign session.",
         "limits": "Permission-based non-root filesystem fixture; in-process restart, not hard OS termination.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.746031626Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.722598682Z",
+          "scope": "TestCardDeletionRetriesPendingWorkspaceCleanupAfterRestart; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11056,11 +11868,11 @@ window.APPEDIA_CONTENT = {
         "limits": "View/message assertions; fake callbacks do not execute the deletion service. Helper assertDashboardDeletionErrorVisible supplies the bounds/sanitization oracle.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.82827359Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.474655015Z",
+          "scope": "TestDashboardListShowsDeletionPreparationAndStatusErrors; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11076,11 +11888,11 @@ window.APPEDIA_CONTENT = {
         "limits": "One narrow view state; not a screenshot or actual retry service run.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.82925194Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.475441804Z",
+          "scope": "TestDashboardListBoundsLongDeletionErrorWhenListBecomesEmpty; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11096,11 +11908,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Controlled runner/worker plus PTY bytes; ordinary uses public cancellation, notification cancels the captured task authority directly.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:52.385886779Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:59.197479973Z",
+          "scope": "TestQueuedDeliveryCancellationReleasesReservationWithoutSubmitting; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11116,11 +11928,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Finite controlled worker interleaving for ordinary sends; dispatcher shutdown during a real notification write is not directly asserted.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:50.364803422Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:57.187253348Z",
+          "scope": "TestQueuedMessageReservationsCannotDeadlockStopWorkersOrShutdown; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11136,11 +11948,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Direct manager/store admission sequence; no raw agent prompt-processing claim.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:52.161650205Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:58.995301444Z",
+          "scope": "TestDeletingReportHistoryCancelsAdmittedNotification; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11156,11 +11968,11 @@ window.APPEDIA_CONTENT = {
         "limits": "Interoperability test uses a shell/cat agent; it is not an installed Codex/Claude CLI accepting native resume. Skips when mcp-cli is absent; the recorded endpoint run passed.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:55.89086547Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:02.018737467Z",
+          "scope": "TestMCPCLIRegistersConversationForLiveActivation; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11170,17 +11982,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/session/claude_resume_test.go",
         "line": 70,
-        "endLine": 181,
+        "endLine": 182,
         "reviewedHash": "7f6768bfaccb7c57e03c66b33d35eb4165bbced868a119c602240ac4500aa144",
         "proves": "Captures fresh/saved/new and A→B→A Claude arguments, checks original workspace marker survives and conversation IDs stay card-local.",
         "limits": "Overrides Spawn and PrepareWorkspace with a capture driver; never starts the installed Claude CLI.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:55.322502441Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:01.510357493Z",
+          "scope": "TestClaudeResumeLifecycleUsesSelectedNativeID; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11193,15 +12005,15 @@ window.APPEDIA_CONTENT = {
         "proves": "Focuses Use Tmp Workspace, sends Space for false→true→false, then saves each boolean through OnSave and checks the complete normalized card.",
         "limits": "Card editor model/key/callback boundary; no terminal screenshot or repository write.",
         "line": 644,
-        "endLine": 680,
+        "endLine": 681,
         "reviewedHash": "2a7332fafb47cd5df346dea1eff1d549fd80c41d83b4c9122dd3cd1490fda622",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:51.721553546Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:58.673864221Z",
+          "scope": "TestTemporaryWorkspaceSpaceAndSave; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11214,15 +12026,15 @@ window.APPEDIA_CONTENT = {
         "proves": "Edits settings through coordinator Update, executes the real save callback command, delivers SettingsSavedMsg, and checks the visible error, retained view/edit and unchanged persisted settings.",
         "limits": "Repository wrapper injects save failure; successful save/editor-refresh composition remains separately partial.",
         "line": 27,
-        "endLine": 73,
+        "endLine": 74,
         "reviewedHash": "dc56c003ff77c0b7e63ab091d05d3ab6458ad83c6ef408368d8f9ce58c5e6a27",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:57.540059603Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.620934791Z",
+          "scope": "TestSettingsSaveFailureRemainsVisible; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11239,11 +12051,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "8db1b7fa376767dcf736a0916f53f142d2545069e37a5b34c9bd81ce29d26668",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:55.7501829Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:01.844135306Z",
+          "scope": "TestSourceListIntegration_CRUD; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11260,11 +12072,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "5a3a7e6203cc8b929a5aefff15098c9871e12b589602a6f1d8dcaf190487d212",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:55.7504965Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:01.844695986Z",
+          "scope": "TestSourceList_HandleDelete_CallbackError; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11281,11 +12093,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "d26d45240dbdbbf44017bd99a3953a3deab304cef8933da3aa067ad27710d60d",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:01.843527288Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:07.251624274Z",
+          "scope": "TestSourceManager_Delete; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11302,11 +12114,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "2a3683ddd211d7ab5ba94831b6878a090d83919999138b64de833222108871c7",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:51.713671446Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:58.518516179Z",
+          "scope": "TestSessionPreview_ScrollbackSanitization; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11318,16 +12130,16 @@ window.APPEDIA_CONTENT = {
         "file": "internal/app/integration_test.go",
         "proves": "Drives dashboard Enter, executes launch commands, verifies a running process and reads the persisted session/card/dashboard/workspace identity.",
         "limits": "Real local cat process; no native-agent task execution or raw-terminal attachment.",
-        "line": 18,
-        "endLine": 68,
-        "reviewedHash": "50499fb83b457f96a92b9d0c7b0462f34041f716dc08d437bbc3d43b3df7a87c",
+        "line": 19,
+        "endLine": 134,
+        "reviewedHash": "1707c86e4737e0fd967dd80bd5ea6dd74f8ca4a07c3159cdf0431dd505fa98a5",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:57.075473536Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.07210313Z",
+          "scope": "TestFullSessionLaunchFlow; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11339,16 +12151,16 @@ window.APPEDIA_CONTENT = {
         "file": "internal/app/integration_test.go",
         "proves": "Navigates to source management, changes persisted sources, delivers refresh results and checks actual list additions/removals.",
         "limits": "Coordinator/repository integration; does not cover the unsaved editor Ctrl+E return journey.",
-        "line": 111,
-        "endLine": 140,
-        "reviewedHash": "50499fb83b457f96a92b9d0c7b0462f34041f716dc08d437bbc3d43b3df7a87c",
+        "line": 186,
+        "endLine": 215,
+        "reviewedHash": "1707c86e4737e0fd967dd80bd5ea6dd74f8ca4a07c3159cdf0431dd505fa98a5",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:57.099327075Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.084304499Z",
+          "scope": "TestSourceManagementFlow; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11360,16 +12172,16 @@ window.APPEDIA_CONTENT = {
         "file": "internal/app/integration_test.go",
         "proves": "Checks an initially empty dashboard then verifies refreshed cards and changed names in the actual destination view.",
         "limits": "Coordinator/repository integration, not every capability registry.",
-        "line": 387,
-        "endLine": 425,
-        "reviewedHash": "50499fb83b457f96a92b9d0c7b0462f34041f716dc08d437bbc3d43b3df7a87c",
+        "line": 462,
+        "endLine": 500,
+        "reviewedHash": "1707c86e4737e0fd967dd80bd5ea6dd74f8ca4a07c3159cdf0431dd505fa98a5",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:57.16515325Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.137399637Z",
+          "scope": "TestCoordinatorDataPropagation; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11386,11 +12198,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "9b01386e6b4ab1b5aa57181b11235d30eb05c52cfc559c5a4c7465b87e767786",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.868180547Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.798574308Z",
+          "scope": "TestValidateCardRegistryIntegrity; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11407,11 +12219,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "677d53291a799c08ed87d7b4b950f840f3254ccbbe4df7702c7f11587deb17f4",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:49.725050107Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.702230263Z",
+          "scope": "TestCanvasCreation; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11441,18 +12253,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/ui/views/dashboard_test.go",
-        "line": 130,
-        "endLine": 178,
+        "line": 192,
+        "endLine": 240,
         "proves": "Captured target, normalized Unicode input, draft survives refresh, duplicate suppression, retry after error.",
         "limits": "View callback is a stub; no service write or cancellation assertion before submit.",
-        "reviewedHash": "7f52ae5a60d3c811e9e8bbca97c8126749657429da2b482ae0cdbb37ab83c18e",
+        "reviewedHash": "c920b81707a08ff6e6af8c1a5cc5d4a9e5f7a702861887fe5797bfa1b68d4b48",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.851629939Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.495640404Z",
+          "scope": "TestDashboard_RenameSession; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11461,18 +12273,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/ui/views/dashboard_test.go",
-        "line": 179,
-        "endLine": 204,
+        "line": 241,
+        "endLine": 266,
         "proves": "Blank input submits the session ID.",
         "limits": "No-selection probe starts in the cards pane; it does not establish empty sessions-pane behavior.",
-        "reviewedHash": "7f52ae5a60d3c811e9e8bbca97c8126749657429da2b482ae0cdbb37ab83c18e",
+        "reviewedHash": "c920b81707a08ff6e6af8c1a5cc5d4a9e5f7a702861887fe5797bfa1b68d4b48",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.852956129Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.498136103Z",
+          "scope": "TestDashboard_RenameSessionEmptyUsesIDAndNoSelectionIsNoop; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11485,14 +12297,14 @@ window.APPEDIA_CONTENT = {
         "endLine": 93,
         "proves": "Real command error stays in dialog; stale generation leaves pending state intact.",
         "limits": "Missing session fixture; does not establish successful persistence or stale dashboard identity separately.",
-        "reviewedHash": "57bf14c919881de65e2875da28bd60cc5f699ab8e5e3a7361d3bbdb78a862a1f",
+        "reviewedHash": "96e217a0912e57be8507792ab1b6aea0fc02ec3b008cc54af0d9a6f50c01e51d",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:56.754732799Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.776549585Z",
+          "scope": "TestCoordinator_DashboardRenameFailureStaysInDialogAndIgnoresStaleResult; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11508,11 +12320,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "b41624ff511eda1e9749598a3ad94f2ac00fa6611bae993a2f416c85bbc83afe",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:51.740928795Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:58.68897797Z",
+          "scope": "TestDashboardRenameLayoutAndScopedFooter; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11521,18 +12333,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/ui/views/dashboard_test.go",
-        "line": 83,
-        "endLine": 116,
+        "line": 145,
+        "endLine": 178,
         "proves": "Existing search consumes typed t/e/s/t and Esc exits search.",
         "limits": "Cards-pane search; does not explicitly exercise session-pane e search.",
-        "reviewedHash": "7f52ae5a60d3c811e9e8bbca97c8126749657429da2b482ae0cdbb37ab83c18e",
+        "reviewedHash": "c920b81707a08ff6e6af8c1a5cc5d4a9e5f7a702861887fe5797bfa1b68d4b48",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.848965569Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.493343354Z",
+          "scope": "TestDashboard_Search; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11548,11 +12360,11 @@ window.APPEDIA_CONTENT = {
         "reviewedHash": "20a260206ef6895110aafb86e5bd2811799a452e27066a795d75135ee00cff4b",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:57.251574114Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.359369767Z",
+          "scope": "TestSetNamePropagatesPersistFailure; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11562,17 +12374,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/ui/views/session_launcher_test.go",
         "line": 121,
-        "endLine": 146,
+        "endLine": 147,
         "proves": "Existing launcher naming waits for result and permits retry.",
         "limits": "Launch naming form, not dashboard completion routing.",
         "reviewedHash": "b868fdd3452c53f4f8f4967f63bf6084d84bb354fa020067ec9d3446a866c4e4",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:01.839940798Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:07.248557364Z",
+          "scope": "TestSessionLauncherWaitsForNameResultAndAllowsRetry; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11583,16 +12395,16 @@ window.APPEDIA_CONTENT = {
         "file": "internal/ui/views/dashboard_test.go",
         "proves": "Esc, dashboard changes and generation changes close an edited draft without saving or changing the session name. Reopening starts from the original name and submits once.",
         "limits": "View-level callback spy; no native terminal key decoding or persistence is involved.",
-        "line": 205,
-        "endLine": 259,
-        "reviewedHash": "7f52ae5a60d3c811e9e8bbca97c8126749657429da2b482ae0cdbb37ab83c18e",
+        "line": 267,
+        "endLine": 272,
+        "reviewedHash": "c920b81707a08ff6e6af8c1a5cc5d4a9e5f7a702861887fe5797bfa1b68d4b48",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:15:00.861247328Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.502853093Z",
+          "scope": "TestDashboard_RenameSessionDiscardsDraftWithoutSaving; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       },
       {
@@ -11604,15 +12416,469 @@ window.APPEDIA_CONTENT = {
         "proves": "Real cat session renamed through coordinator input, service and disk; returned command only refreshes; selected dashboard name updates, view stays put, process PID/activation identity are retained; fresh repository/manager/coordinator reloads the saved name.",
         "limits": "Ordinary Go integration test using a local cat PTY; does not drive a native AI CLI or real terminal renderer.",
         "line": 121,
-        "endLine": 202,
-        "reviewedHash": "57bf14c919881de65e2875da28bd60cc5f699ab8e5e3a7361d3bbdb78a862a1f",
+        "endLine": 184,
+        "reviewedHash": "96e217a0912e57be8507792ab1b6aea0fc02ec3b008cc54af0d9a6f50c01e51d",
         "result": {
           "status": "passed",
-          "command": "go test -json ./...",
-          "at": "2026-11-11T21:14:56.775398167Z",
-          "scope": "Named ordinary test in current-head suite; E2E-tagged sources excluded",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.795700044Z",
+          "scope": "TestCoordinator_DashboardRenameRefreshesWithoutAttachAndSurvivesRestart; ordinary suite excludes E2E-tagged tests",
           "revision": "WORKTREE",
-          "fingerprint": "f4a5f63f85a2f2b852ddb6d51b0d9017b74301799d344e677c6eb14f28526af9"
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-navigation",
+        "name": "TestMCPManagerNestedNavigation",
+        "file": "internal/app/navigation_test.go",
+        "line": 115,
+        "endLine": 141,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Repeated form cancel → manager → dashboard journeys preserve destinations.",
+        "limits": "No real terminal or rendered key delivery.",
+        "reviewedHash": "5bd7b802a0fc7b6156a004e3e478dc6f00653207d4fdd8c3b909b6f02fbc4968",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.289821179Z",
+          "scope": "TestMCPManagerNestedNavigation",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-metadata",
+        "name": "TestMCPManagerEditPreservesMetadataAndNewIsBlank",
+        "file": "internal/app/mcp_manager_review_test.go",
+        "line": 73,
+        "endLine": 124,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Existing ID/description survives edit; New clears fields and metadata.",
+        "limits": "In-process coordinator with isolated repository; no process restart.",
+        "reviewedHash": "3e229a9ac835d5a1fe54d866630ba78b245dde7df4dd03cc2a27fda3e3a39992",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.273107329Z",
+          "scope": "TestMCPManagerEditPreservesMetadataAndNewIsBlank",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-stale-commands",
+        "name": "TestMCPManagerStaleRequests",
+        "file": "internal/app/mcp_manager_review_test.go",
+        "line": 13,
+        "endLine": 72,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Old edit/delete requests rejected; new deletion succeeds and delayed result does not navigate.",
+        "limits": "Same-dashboard leave/reopen; no explicit cross-dashboard delayed-command assertion.",
+        "reviewedHash": "3e229a9ac835d5a1fe54d866630ba78b245dde7df4dd03cc2a27fda3e3a39992",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.26764511Z",
+          "scope": "TestMCPManagerStaleRequests",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-referenced",
+        "name": "TestMCPManagerReferencedDeleteReportsError",
+        "file": "internal/app/mcp_manager_review_test.go",
+        "line": 125,
+        "endLine": 178,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Saved card reference blocks deletion, retains server and displays an error.",
+        "limits": "Reference belongs to default dashboard; no injected disk-write failure.",
+        "reviewedHash": "3e229a9ac835d5a1fe54d866630ba78b245dde7df4dd03cc2a27fda3e3a39992",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.279805509Z",
+          "scope": "TestMCPManagerReferencedDeleteReportsError",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-modal-target",
+        "name": "TestMCPManagerConfirmationKeepsTargetAcrossRefresh",
+        "file": "internal/ui/views/mcp_manager_test.go",
+        "line": 15,
+        "endLine": 40,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Modal captures ID across reorder, Escape cancels, nil data retains loaded rows.",
+        "limits": "View-level messages; repository result is covered separately.",
+        "reviewedHash": "193db5f05aee84e02967a53609e5cf7eef5760d029be9474a5b48e1d9fb297d6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.970635879Z",
+          "scope": "TestMCPManagerConfirmationKeepsTargetAcrossRefresh",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-protected",
+        "name": "TestMCPManagerProtectedAndNew",
+        "file": "internal/ui/views/mcp_manager_test.go",
+        "line": 41,
+        "endLine": 66,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Built-in Enter/Delete return errors; New opens blank and cannot be deleted.",
+        "limits": "No real CLI or remote MCP server.",
+        "reviewedHash": "193db5f05aee84e02967a53609e5cf7eef5760d029be9474a5b48e1d9fb297d6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.970815169Z",
+          "scope": "TestMCPManagerProtectedAndNew",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-long-list",
+        "name": "TestMCPManagerLongListFits",
+        "file": "internal/ui/views/mcp_manager_test.go",
+        "line": 67,
+        "endLine": 86,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Forty long Unicode/ANSI names fit 80×22; New reachable; confirmation fits.",
+        "limits": "Bounds assertions only, no screenshot baseline or stable row-position assertion.",
+        "reviewedHash": "193db5f05aee84e02967a53609e5cf7eef5760d029be9474a5b48e1d9fb297d6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:57.001711328Z",
+          "scope": "TestMCPManagerLongListFits",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-parser-retained",
+        "name": "TestMCPFormRoundTripsEveryField",
+        "file": "internal/ui/views/mcp_form_test.go",
+        "line": 148,
+        "endLine": 203,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Retained assertions round-trip visible fields including escaped args/env/headers.",
+        "limits": "Direct form callback; no application navigation.",
+        "reviewedHash": "3e58b28d6fdcfbbc1c0f45984f19da8e223ef6c872f2212d1393492235248e6f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.513482413Z",
+          "scope": "TestMCPFormRoundTripsEveryField",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-sources-retained",
+        "name": "TestSourceList_Navigation",
+        "file": "internal/ui/components/source_list_test.go",
+        "line": 106,
+        "endLine": 139,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Retained source-list arrow navigation and New position.",
+        "limits": "Does not assert every source-manager CRUD path.",
+        "reviewedHash": "5a3a7e6203cc8b929a5aefff15098c9871e12b589602a6f1d8dcaf190487d212",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:01.844405616Z",
+          "scope": "TestSourceList_Navigation",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-repository-retained",
+        "name": "TestKankuroMCPIsOfferedOnceAndProtected",
+        "file": "internal/config/builtin_mcp_test.go",
+        "line": 11,
+        "endLine": 45,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Exactly one built-in; repository blocks edits, deletion and name shadowing.",
+        "limits": "Isolated file repository; no UI.",
+        "reviewedHash": "b28e8471e9e7f5e3c6ef47d89afdbdee27458b6a74c3da4576c34a705ca1f7b6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:56.722894302Z",
+          "scope": "TestKankuroMCPIsOfferedOnceAndProtected",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-cross-dashboard-requests",
+        "name": "TestMCPManagerCrossDashboardRequests",
+        "file": "internal/app/mcp_manager_gaps_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Old edit/delete messages are rejected after dashboard switch without clearing the new visit's confirmation; fresh deletion succeeds.",
+        "limits": "Real coordinator and file repository; command delivery is held deterministically rather than scheduled by the terminal.",
+        "reviewedHash": "13720406996dc7dc1f91c9a07c7b23d46f05aba708710a59c135c7e0973567ae",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.191154644Z",
+          "scope": "TestMCPManagerCrossDashboardRequests",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-cross-dashboard-saves",
+        "name": "TestMCPManagerCrossDashboardSaveResults",
+        "file": "internal/app/mcp_manager_gaps_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Delayed successful/failed saves preserve the other dashboard's form draft, navigation and current error; successful global mutation refreshes with current scope.",
+        "limits": "ENOSPC is injected at the repository boundary; does not fill a disk or exercise physical-media failure.",
+        "reviewedHash": "13720406996dc7dc1f91c9a07c7b23d46f05aba708710a59c135c7e0973567ae",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.224576772Z",
+          "scope": "TestMCPManagerCrossDashboardSaveResults",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-cross-dashboard-deletes",
+        "name": "TestMCPManagerCrossDashboardDeleteResults",
+        "file": "internal/app/mcp_manager_gaps_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Delayed success/failure cannot navigate or overwrite the new dashboard's error; success refreshes its global registry; failure releases pending state for retry.",
+        "limits": "Two actual persisted dashboards and an isolated file registry; injected repository failure, no real concurrent disk outage.",
+        "reviewedHash": "13720406996dc7dc1f91c9a07c7b23d46f05aba708710a59c135c7e0973567ae",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.245453271Z",
+          "scope": "TestMCPManagerCrossDashboardDeleteResults",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-write-failure-retry",
+        "name": "TestMCPManagerWriteFailuresRetainDataAndAllowRetry",
+        "file": "internal/app/mcp_manager_gaps_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Save/delete PathError(ENOSPC) remains visible, registry bytes stay identical, drafts/rows survive, and retry persists successfully.",
+        "limits": "Injects errors at the repository mutation boundary to avoid chmod/root dependence; atomic filesystem fault internals are outside this test.",
+        "reviewedHash": "13720406996dc7dc1f91c9a07c7b23d46f05aba708710a59c135c7e0973567ae",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:04.2620067Z",
+          "scope": "TestMCPManagerWriteFailuresRetainDataAndAllowRetry",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "mcp-mcp-terminal-journey",
+        "name": "TestMCPManagerJourney",
+        "file": "tests/e2e/mcp_manager_test.go",
+        "method": "automated",
+        "integration": "project",
+        "kind": "E2E",
+        "proves": "Actual executable: dashboard list → New/create → populated edit → rename preserving ID/command → Delete/cancel → Delete/confirm → return/reopen; six screenshots and saved-file assertions.",
+        "limits": "No agents/model calls or screenshot baseline comparison. List/modal checked at 80×24; forms at 120×40.",
+        "reviewedHash": "0b63e84ab8c3c871017132e66b9a9c3866d6d83d517e59ca1d71a3710a4b92bf",
+        "result": {
+          "status": "passed",
+          "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+          "at": "2026-11-11T22:34:16.106878795Z",
+          "scope": "Real executable configuration journey, no agent/model calls",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "focus-completion",
+        "name": "TestLaunchFocusSnapshotBeforeCompletion",
+        "file": "internal/app/launch_focus_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Launch completion selects the exact created ID, including a snapshot already loaded.",
+        "limits": "Coordinator events with controlled snapshots; native attachment is assessed separately.",
+        "reviewedHash": "aae09330a865a90c2d04b0eaba6f10cc57d93ea9bfd3822741aef414b8d36c25",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.618484733Z",
+          "scope": "TestLaunchFocusSnapshotBeforeCompletion",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "focus-epochs",
+        "name": "TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName",
+        "file": "internal/app/launch_focus_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Old session epochs cannot displace the created or confirmed-name target.",
+        "limits": "Deterministic snapshot ordering, not real scheduler timing.",
+        "reviewedHash": "aae09330a865a90c2d04b0eaba6f10cc57d93ea9bfd3822741aef414b8d36c25",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.624696933Z",
+          "scope": "TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "rename-epochs",
+        "name": "TestInlineRenameRejectsOlderRefreshSnapshots",
+        "file": "internal/app/inline_rename_refresh_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Full, sessions and fingerprint snapshots started before inline rename do not restore the old name.",
+        "limits": "In-process command/result delivery.",
+        "reviewedHash": "746d0f43d4a7f49e31e8949800f1a5d6812a68c3845149af004a85220b4695fd",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.612712594Z",
+          "scope": "TestInlineRenameRejectsOlderRefreshSnapshots",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "focus-warning",
+        "name": "TestLaunchFocusPersistenceWarningStillSelectsSession",
+        "file": "internal/app/launch_focus_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Usable launch with metadata persistence warning keeps selected focus and exposes the warning.",
+        "limits": "Controlled ErrPersistFailed result, not a physical disk fault.",
+        "reviewedHash": "aae09330a865a90c2d04b0eaba6f10cc57d93ea9bfd3822741aef414b8d36c25",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.637971252Z",
+          "scope": "TestLaunchFocusPersistenceWarningStillSelectsSession",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "focus-stale",
+        "name": "TestLaunchFocusIgnoresStaleResults",
+        "file": "internal/app/launch_focus_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Stale dashboard/generation results cannot move session focus.",
+        "limits": "Does not launch a native agent.",
+        "reviewedHash": "aae09330a865a90c2d04b0eaba6f10cc57d93ea9bfd3822741aef414b8d36c25",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.648507662Z",
+          "scope": "TestLaunchFocusIgnoresStaleResults",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "focus-cancel",
+        "name": "TestLaunchFocusPendingRequestIsCancelledOnDashboardExit",
+        "file": "internal/app/launch_focus_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Leaving a dashboard clears pending focus; delayed launch cannot apply in a different context.",
+        "limits": "Controlled coordinator events.",
+        "reviewedHash": "aae09330a865a90c2d04b0eaba6f10cc57d93ea9bfd3822741aef414b8d36c25",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:03.653821262Z",
+          "scope": "TestLaunchFocusPendingRequestIsCancelledOnDashboardExit",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "focus-order",
+        "name": "TestSessionList_SetSessionsPreservesSelectionByID",
+        "file": "internal/ui/components/session_list_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Newer session insertion preserves the selected ID rather than its row index.",
+        "limits": "Direct list component assertion.",
+        "reviewedHash": "115125cb966d130cfc83351a245e2760226e2b3f6bd726fc22e9ed1a62dde95c",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:34:58.517980309Z",
+          "scope": "TestSessionList_SetSessionsPreservesSelectionByID",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "focus-search",
+        "name": "TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch",
+        "file": "internal/ui/views/dashboard_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Focus waits for target data, clears hiding session search, selects sessions pane and aligns preview; later refreshes do not steal focus.",
+        "limits": "Direct view-level data refresh.",
+        "reviewedHash": "c920b81707a08ff6e6af8c1a5cc5d4a9e5f7a702861887fe5797bfa1b68d4b48",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-11T22:35:06.491274094Z",
+          "scope": "TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        }
+      },
+      {
+        "id": "launch-focus-terminal",
+        "name": "TestNativeLaunchFocusReturn",
+        "file": "tests/e2e/launch_focus_test.go",
+        "method": "automated",
+        "integration": "project",
+        "kind": "E2E",
+        "proves": "Real Codex startup screen after launch/name; detach restores selected created session; Enter reattaches to same live process, preserving exactly one older terminated session.",
+        "limits": "Startup-only; no agent prompt/provider inference or pixel-baseline comparison. Requires Codex installed.",
+        "reviewedHash": "e060a644c780ae1bc26cc70174c10c78034d26265c2c4eff54d39e19eb746a4e",
+        "result": {
+          "status": "passed",
+          "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeLaunchFocusReturn$' -count=1 -timeout=3m -v",
+          "at": "2026-11-11T22:34:13.965777217Z",
+          "scope": "Actual executable launch/name/detach/reattach with isolated native CLI state",
+          "revision": "WORKTREE",
+          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
       }
     ],
@@ -11659,6 +12925,201 @@ window.APPEDIA_CONTENT = {
         ],
         "evidence": [
           "native-agent-terminal-journey"
+        ]
+      },
+      {
+        "id": "mcp-list",
+        "title": "MCP configuration · list",
+        "file": "tests/e2e/artifacts/mcp-manager/list.png",
+        "state": "list",
+        "observation": "Only the protected built-in and New are initially available.",
+        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "tui-test Go v0.1.1; real local Kankuro executable; isolated temporary config/HOME/XDG; no agent/model",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+        "at": "2026-11-11T22:34:15.147987645Z",
+        "assertions": [
+          "Only the protected built-in and New are initially available."
+        ],
+        "evidence": [
+          "mcp-mcp-terminal-journey"
+        ]
+      },
+      {
+        "id": "mcp-new",
+        "title": "MCP configuration · new",
+        "file": "tests/e2e/artifacts/mcp-manager/new.png",
+        "state": "new",
+        "observation": "New opens a blank MCP form with save/back instructions.",
+        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "tui-test Go v0.1.1; real local Kankuro executable; isolated temporary config/HOME/XDG; no agent/model",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+        "at": "2026-11-11T22:34:15.291908278Z",
+        "assertions": [
+          "New opens a blank MCP form with save/back instructions."
+        ],
+        "evidence": [
+          "mcp-mcp-terminal-journey"
+        ]
+      },
+      {
+        "id": "mcp-edit",
+        "title": "MCP configuration · edit",
+        "file": "tests/e2e/artifacts/mcp-manager/edit.png",
+        "state": "edit",
+        "observation": "Existing entry loads its name and command in the editor.",
+        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "tui-test Go v0.1.1; real local Kankuro executable; isolated temporary config/HOME/XDG; no agent/model",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+        "at": "2026-11-11T22:34:15.43776469Z",
+        "assertions": [
+          "Existing entry loads its name and command in the editor."
+        ],
+        "evidence": [
+          "mcp-mcp-terminal-journey"
+        ]
+      },
+      {
+        "id": "mcp-edited-list",
+        "title": "MCP configuration · edited-list",
+        "file": "tests/e2e/artifacts/mcp-manager/edited-list.png",
+        "state": "edited-list",
+        "observation": "At 80×24 the renamed server, protected built-in, New and help are visible.",
+        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes.",
+        "size": [
+          80,
+          24
+        ],
+        "unit": "cells",
+        "environment": "tui-test Go v0.1.1; real local Kankuro executable; isolated temporary config/HOME/XDG; no agent/model",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+        "at": "2026-11-11T22:34:15.507906977Z",
+        "assertions": [
+          "At 80×24 the renamed server, protected built-in, New and help are visible."
+        ],
+        "evidence": [
+          "mcp-mcp-terminal-journey"
+        ]
+      },
+      {
+        "id": "mcp-confirm",
+        "title": "MCP configuration · confirm",
+        "file": "tests/e2e/artifacts/mcp-manager/confirm.png",
+        "state": "confirm",
+        "observation": "Delete opens a named confirmation with confirm/cancel instructions at 80×24.",
+        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes.",
+        "size": [
+          80,
+          24
+        ],
+        "unit": "cells",
+        "environment": "tui-test Go v0.1.1; real local Kankuro executable; isolated temporary config/HOME/XDG; no agent/model",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+        "at": "2026-11-11T22:34:15.571669443Z",
+        "assertions": [
+          "Delete opens a named confirmation with confirm/cancel instructions at 80×24."
+        ],
+        "evidence": [
+          "mcp-mcp-terminal-journey"
+        ]
+      },
+      {
+        "id": "mcp-deleted",
+        "title": "MCP configuration · deleted",
+        "file": "tests/e2e/artifacts/mcp-manager/deleted.png",
+        "state": "deleted",
+        "observation": "Confirmed deletion removes the custom definition and retains built-in/New at 80×24.",
+        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes.",
+        "size": [
+          80,
+          24
+        ],
+        "unit": "cells",
+        "environment": "tui-test Go v0.1.1; real local Kankuro executable; isolated temporary config/HOME/XDG; no agent/model",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+        "at": "2026-11-11T22:34:15.789639732Z",
+        "assertions": [
+          "Confirmed deletion removes the custom definition and retains built-in/New at 80×24."
+        ],
+        "evidence": [
+          "mcp-mcp-terminal-journey"
+        ]
+      },
+      {
+        "id": "launch-focus-attached",
+        "title": "Launch focus · attached",
+        "file": "tests/e2e/artifacts/launch-focus/attached.png",
+        "state": "attached",
+        "observation": "The isolated Codex startup input screen is visible.",
+        "limits": "Startup/attachment checkpoint only; no prompt or baseline-image comparison.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "tui-test Go; isolated HOME/config/workspace; Codex startup only",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeLaunchFocusReturn$' -count=1 -timeout=3m -v",
+        "assertions": [
+          "The real Codex input screen is visible after card launch and name confirmation; no agent prompt was entered."
+        ],
+        "evidence": [
+          "launch-focus-terminal"
+        ]
+      },
+      {
+        "id": "launch-focus-dashboard",
+        "title": "Launch focus · dashboard",
+        "file": "tests/e2e/artifacts/launch-focus/dashboard.png",
+        "state": "dashboard",
+        "observation": "The created session and older session are visible with session-pane actions after detach.",
+        "limits": "Startup/attachment checkpoint only; no prompt or baseline-image comparison.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "tui-test Go; isolated HOME/config/workspace; Codex startup only",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeLaunchFocusReturn$' -count=1 -timeout=3m -v",
+        "assertions": [
+          "Ctrl+K restores the dashboard with both sessions visible and session-pane action hints, without pressing Tab."
+        ],
+        "evidence": [
+          "launch-focus-terminal"
+        ]
+      },
+      {
+        "id": "launch-focus-reattached",
+        "title": "Launch focus · reattached",
+        "file": "tests/e2e/artifacts/launch-focus/reattached.png",
+        "state": "reattached",
+        "observation": "The isolated Codex startup input screen is visible.",
+        "limits": "Startup/attachment checkpoint only; no prompt or baseline-image comparison.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "tui-test Go; isolated HOME/config/workspace; Codex startup only",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeLaunchFocusReturn$' -count=1 -timeout=3m -v",
+        "assertions": [
+          "Enter without pane navigation reattaches to the same live process; exactly two persisted sessions remain and the older session stays terminated."
+        ],
+        "evidence": [
+          "launch-focus-terminal"
         ]
       }
     ]

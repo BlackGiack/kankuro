@@ -15,6 +15,7 @@ import (
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
+//nolint:gocognit,gocyclo,cyclop // The test exercises the complete launch and rename journey.
 func TestFullSessionLaunchFlow(t *testing.T) {
 	repo, err := newCurrentRepository(t.TempDir())
 	if err != nil {
@@ -86,7 +87,7 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 	_, nameCmd := launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	var nameResult messages.ScopedSessionNamedMsg
 	for _, msg := range collectMsgs(t, nameCmd) {
-		if result, ok := msg.(messages.ScopedSessionNamedMsg); ok {
+		if result, isNameResult := msg.(messages.ScopedSessionNamedMsg); isNameResult {
 			nameResult = result
 		}
 	}

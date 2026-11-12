@@ -26,6 +26,7 @@ const (
 	ViewSourceManagerPuppets
 	ViewSettings
 	ViewMCPForm
+	ViewMCPManager
 	ViewSessionLauncher
 	ViewAgentSwitch
 	ViewConversationChoice
@@ -48,6 +49,10 @@ type Coordinator struct {
 	dashboardListRequest uint64
 	dashboardViews       map[string]*views.Dashboard
 	editingCard          config.IDCard
+	mcpReturn            ViewType
+	mcpRequest           uint64
+	mcpManagerVisit      uint64
+	mcpDeleteRequest     uint64
 
 	// configFingerprint tracks the last loaded registry stamps. Seeded refreshes
 	// update the baseline; idle ticks skip configuration reads when it is unchanged.
@@ -264,7 +269,53 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, c.navigateTo(convertViewType(m.View))
 
 	case messages.NavigateBackMsg:
+		if c.currentView == ViewMCPForm {
+			c.mcpRequest++
+			return true, c.navigateTo(c.mcpReturn)
+		}
+		if c.currentView == ViewMCPManager {
+			return true, c.navigateTo(ViewDashboard)
+		}
 		return true, c.navigateTo(c.prevView)
+
+	case messages.MCPManagerEditMsg:
+		if !c.matchesMCPManagerScope(m.Scope) {
+			return true, nil
+		}
+		cmd := c.navigateTo(ViewMCPForm)
+		if form, ok := c.views[ViewMCPForm].(*views.MCPForm); ok {
+			form.SetMCP(m.MCP)
+		}
+		return true, cmd
+
+	case messages.MCPManagerDeleteMsg:
+		manager, ok := c.views[ViewMCPManager].(*views.MCPManager)
+		if !ok {
+			return true, nil
+		}
+		if !c.matchesMCPManagerScope(m.Scope) {
+			manager.DiscardDelete(m.Scope.Visit)
+			return true, nil
+		}
+		if !manager.AdmitDelete(m.Scope.Visit) {
+			return true, nil
+		}
+		c.mcpDeleteRequest++
+		return true, c.actions.deleteMCPFromManager(m.MCPID, c.activeDashboard, c.viewGeneration, c.mcpDeleteRequest)
+
+	case messages.MCPManagerDeletedMsg:
+		if m.Request == c.mcpDeleteRequest {
+			if manager, ok := c.views[ViewMCPManager].(*views.MCPManager); ok {
+				manager.DeleteFinished()
+			}
+			if m.Err != nil && m.DashboardID == c.activeDashboard && m.Generation == c.viewGeneration && c.currentView == ViewMCPManager {
+				c.err = m.Err
+			}
+		}
+		if m.Err == nil {
+			return true, c.refreshDataSeeded()
+		}
+		return true, nil
 
 	case messages.CardSavedMsg:
 		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
@@ -277,15 +328,18 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, tea.Batch(c.refreshDataSeeded(), c.navigateTo(ViewDashboard))
 
 	case messages.MCPSavedMsg:
-		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
-			return true, c.refreshDataSeeded()
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration ||
+			m.Request != c.mcpRequest || c.currentView != ViewMCPForm {
+			if m.Err == nil {
+				return true, c.refreshDataSeeded()
+			}
+			return true, nil
 		}
 		if m.Err != nil {
 			c.err = m.Err
 			return true, nil
 		}
-		// Refresh data to update MCP list in card editor
-		return true, tea.Batch(c.refreshDataSeeded(), c.navigateTo(c.prevView))
+		return true, tea.Batch(c.refreshDataSeeded(), c.navigateTo(c.mcpReturn))
 
 	case messages.SettingsSavedMsg:
 		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
@@ -317,6 +371,12 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 	case messages.MCPServerFailedMsg:
 		c.err = m.Err
 		return true, tea.Quit
+
+	case messages.MCPDeletedMsg:
+		if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
+			editor.Update(m)
+		}
+		return true, c.refreshDataSeeded()
 
 	case messages.MCPDeleteRequestedMsg:
 		// Disk I/O deferred to a tea.Cmd, consistent with every other
@@ -356,7 +416,7 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		}
 		if m.SessionID != "" && (m.Err == nil || errors.Is(m.Err, session.ErrPersistFailed)) {
 			c.sessionEpoch++
-			if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+			if dashboard, found := c.views[ViewDashboard].(*views.Dashboard); found {
 				dashboard.FocusSession(m.SessionID)
 			}
 		}
@@ -602,4 +662,9 @@ func (c *Coordinator) View() string {
 		return styles.ErrorStyle.Render(c.err.Error()) + "\n\n" + c.currentViewView()
 	}
 	return c.currentViewView()
+}
+
+func (c *Coordinator) matchesMCPManagerScope(scope messages.MCPManagerScope) bool {
+	return c.currentView == ViewMCPManager && scope.DashboardID == c.activeDashboard &&
+		scope.Generation == c.viewGeneration && scope.Visit == c.mcpManagerVisit
 }

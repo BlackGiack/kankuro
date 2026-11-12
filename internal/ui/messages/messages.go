@@ -16,6 +16,7 @@ const (
 	ViewSourceManagerWorkspaces
 	ViewSourceManagerPuppets
 	ViewMCPForm
+	ViewMCPManager
 	ViewSettings
 	ViewSessionLauncher
 	ViewAgentSwitch
@@ -190,6 +191,27 @@ type ConversationChoiceSelectedMsg struct {
 	Choice    session.ConversationChoice
 }
 
+type MCPManagerScope struct {
+	DashboardID string
+	Generation  uint64
+	Visit       uint64
+}
+type MCPManagerEditMsg struct {
+	MCP   config.MCPServer
+	Scope MCPManagerScope
+}
+type MCPManagerDeleteMsg struct {
+	MCPID string
+	Scope MCPManagerScope
+}
+type MCPManagerDeletedMsg struct {
+	MCPID       string
+	Err         error
+	DashboardID string
+	Generation  uint64
+	Request     uint64
+}
+
 // MCPDeleteRequestedMsg signals user wants to delete an MCP from the card editor.
 type MCPDeleteRequestedMsg struct {
 	MCPID string
@@ -241,6 +263,7 @@ type CardSavedMsg struct {
 
 // MCPSavedMsg signals that an MCP server has been saved.
 type MCPSavedMsg struct {
+	Request     uint64
 	MCP         config.MCPServer
 	Err         error
 	DashboardID string

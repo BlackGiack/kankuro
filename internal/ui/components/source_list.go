@@ -25,7 +25,8 @@ const (
 type SourceListCallbacks struct {
 	// OnSave is called when user saves a source.
 	// Returns any error and an optional command.
-	OnSave func(item SourceItem, editingIndex int) (tea.Cmd, error)
+	OnSave     func(item SourceItem, editingIndex int) (tea.Cmd, error)
+	OnActivate func(index int) tea.Cmd
 
 	// OnDelete is called when user deletes a source.
 	// Returns any error and an optional command.
@@ -43,6 +44,9 @@ type SourceListCallbacks struct {
 
 // SourceListConfig configures the source list behavior.
 type SourceListConfig struct {
+	ListLabel   string
+	NewLabel    string
+	Help        string
 	Title       string
 	Legend      string // Shown at bottom, e.g., "(R=Root folder...)"
 	FormPrompt  string // Label for input, e.g., "Path:"
@@ -137,6 +141,9 @@ func (s *SourceList) updateList(msg tea.Msg) (component.Model, tea.Cmd) {
 	case tea.KeyDown:
 		s.moveDown()
 	case tea.KeyEnter, tea.KeySpace:
+		if s.Callbacks.OnActivate != nil {
+			return s, s.Callbacks.OnActivate(s.Cursor)
+		}
 		s.OpenForm(s.Cursor)
 	case tea.KeyBackspace:
 		return s, s.HandleDelete()
@@ -371,7 +378,11 @@ func (s *SourceList) View() string {
 	return s.renderList()
 }
 
+const sourceListReservedRows = 6
+
 // renderList renders the source list.
+//
+//nolint:gocognit,nestif // List rendering keeps the shared layout in one place.
 func (s *SourceList) renderList() string {
 	var lines []string
 
@@ -380,20 +391,36 @@ func (s *SourceList) renderList() string {
 		Foreground(s.PrimaryColor).
 		Render(s.Config.Title))
 	lines = append(lines, "")
-	lines = append(lines, "Defined sources:")
+	label := s.Config.ListLabel
+	if label == "" {
+		label = "Defined sources:"
+	}
+	lines = append(lines, label)
 
 	if len(s.Items) == 0 {
 		lines = append(lines, lipgloss.NewStyle().
 			Foreground(s.Gray).
 			Render("  (no sources defined)"))
 	} else {
+		start, end := 0, len(s.Items)+1
+		if s.Config.NewLabel != "" && s.Height > 0 {
+			visible := max(1, s.Height-sourceListReservedRows)
+			start = max(0, s.Cursor-visible+1)
+			end = min(end, start+visible)
+		}
 		for i, item := range s.Items {
+			if i < start || i >= end {
+				continue
+			}
 			prefix := "  "
 			if i == s.Cursor {
 				prefix = "> "
 			}
 
 			line := fmt.Sprintf("%s%s", prefix, item.Display())
+			if s.Config.NewLabel != "" && s.Width > 0 {
+				line = TruncateHead(DisplayText(line), s.Width)
+			}
 
 			if i == s.Cursor {
 				line = lipgloss.NewStyle().
@@ -409,13 +436,20 @@ func (s *SourceList) renderList() string {
 	if s.Cursor == len(s.Items) {
 		prefix = "> "
 	}
-	newLine := fmt.Sprintf("%s[ New Source ]", prefix)
+	newLabel := s.Config.NewLabel
+	if newLabel == "" {
+		newLabel = "[ New Source ]"
+	}
+	newLine := fmt.Sprintf("%s%s", prefix, newLabel)
 	if s.Cursor == len(s.Items) {
 		newLine = lipgloss.NewStyle().
 			Foreground(s.HighlightColor).
 			Render(newLine)
 	}
-	lines = append(lines, newLine)
+	if s.Config.NewLabel == "" || s.Height <= 0 || len(s.Items) < max(1, s.Height-sourceListReservedRows) ||
+		s.Cursor >= len(s.Items)-max(1, s.Height-sourceListReservedRows)+1 {
+		lines = append(lines, newLine)
+	}
 
 	// Legend
 	if s.Config.Legend != "" {
@@ -427,7 +461,11 @@ func (s *SourceList) renderList() string {
 
 	// Help text
 	lines = append(lines, "")
-	lines = append(lines, "Enter/Space=edit n=new d=delete r=refresh Esc=back")
+	help := s.Config.Help
+	if help == "" {
+		help = "Enter/Space=edit n=new d=delete r=refresh Esc=back"
+	}
+	lines = append(lines, help)
 
 	return strings.Join(lines, "\n")
 }

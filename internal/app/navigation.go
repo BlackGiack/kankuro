@@ -34,6 +34,7 @@ func (c *Coordinator) initViews() {
 	settingsView := views.NewSettingsView(c.settingsCallbacks())
 	settingsView.SetSettings(c.settings)
 	c.views[ViewSettings] = settingsView
+	c.views[ViewMCPManager] = views.NewMCPManager()
 	c.views[ViewMCPForm] = views.NewMCPForm(c.mcpCallbacks())
 	c.views[ViewSessionLauncher] = views.NewSessionLauncher(c.sessionLauncherCallbacks())
 	c.views[ViewAgentSwitch] = views.NewAgentSwitchView(c.agentSwitchCallbacks())
@@ -55,6 +56,23 @@ func (c *Coordinator) initViews() {
 // not touch the error banner: that is cleared by the next keypress (see
 // Update), so an ErrorMsg batched beside a NavigateMsg survives either order.
 func (c *Coordinator) navigateTo(vt ViewType) tea.Cmd {
+	if c.currentView == ViewMCPManager && vt != ViewMCPManager {
+		if manager, ok := c.views[ViewMCPManager].(*views.MCPManager); ok {
+			manager.Leave()
+		}
+	}
+	if vt == ViewMCPManager {
+		c.mcpManagerVisit++
+		if manager, ok := c.views[ViewMCPManager].(*views.MCPManager); ok {
+			manager.SetScope(messages.MCPManagerScope{
+				DashboardID: c.activeDashboard, Generation: c.viewGeneration, Visit: c.mcpManagerVisit,
+			})
+		}
+	}
+	if vt == ViewMCPForm {
+		c.mcpReturn = c.currentView
+		c.mcpRequest++
+	}
 	if c.currentView == ViewDashboard && vt != ViewDashboard {
 		c.preview.unsubscribe()
 	}
@@ -136,6 +154,8 @@ func convertViewType(vt messages.ViewType) ViewType {
 		return ViewSourceManagerWorkspaces
 	case messages.ViewSourceManagerPuppets:
 		return ViewSourceManagerPuppets
+	case messages.ViewMCPManager:
+		return ViewMCPManager
 	case messages.ViewMCPForm:
 		return ViewMCPForm
 	case messages.ViewSettings:

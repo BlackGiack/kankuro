@@ -96,6 +96,14 @@ func (a sessionActions) deleteMCP(m messages.MCPDeleteRequestedMsg) tea.Cmd {
 	}
 }
 
+func (a sessionActions) deleteMCPFromManager(id, dashboardID string, generation, request uint64) tea.Cmd {
+	return func() tea.Msg {
+		return messages.MCPManagerDeletedMsg{
+			MCPID: id, Err: a.repo.DeleteMCP(id), DashboardID: dashboardID, Generation: generation, Request: request,
+		}
+	}
+}
+
 func (a sessionActions) launchWorkspaceCommand(sessionID, command string, notConfigured error) error {
 	for _, sess := range a.sessions.List() {
 		if sess.ID != sessionID {
