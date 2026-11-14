@@ -5,6 +5,7 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
@@ -16,7 +17,7 @@ import (
 func (c *Coordinator) initViews() {
 	c.views[ViewDashboard] = views.NewDashboard(c.dashboardCallbacks())
 	cardEditor := views.NewCardEditor(c.cardEditorCallbacks())
-	cardEditor.SetSettings(c.settings)
+	cardEditor.SetSettings(editorSettings(c.settings.ShowPersonasInCardEditor, c.settings.ShowMCPsInCardEditor))
 	c.views[ViewCardEditor] = cardEditor
 
 	smSkills := views.NewSourceManager(views.SourceTypeSkills, c.sourceManagerCallbacks(views.SourceTypeSkills))
@@ -72,6 +73,9 @@ func (c *Coordinator) navigateTo(vt ViewType) tea.Cmd {
 	if vt == ViewMCPForm {
 		c.mcpReturn = c.currentView
 		c.mcpRequest++
+	}
+	if c.currentView == ViewDashboard && vt != ViewDashboard && vt != ViewCardEditor {
+		c.editorEpoch++
 	}
 	if c.currentView == ViewDashboard && vt != ViewDashboard {
 		c.preview.unsubscribe()
@@ -161,4 +165,8 @@ func convertViewType(vt messages.ViewType) ViewType {
 	default:
 		return ViewDashboard
 	}
+}
+
+func editorSettings(personas, mcps bool) models.EditorSettings {
+	return models.EditorSettings{ShowPersonas: personas, ShowMCPs: mcps}
 }

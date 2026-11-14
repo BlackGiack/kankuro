@@ -114,6 +114,7 @@ func (c *Coordinator) handleConfigFingerprint(m configFingerprintMsg) tea.Cmd {
 	return c.handleDataLoaded(*m.data)
 }
 
+//nolint:gocognit // Applies one scoped refresh to its independent consumers.
 func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
 	if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
 		return nil
@@ -128,6 +129,9 @@ func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
 		c.configFingerprint = ""
 	}
 	c.applyDisplayChoices(m.Choices)
+	if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
+		editor.SetChoices(m.EditorChoices)
+	}
 	if c.activeDashboard == "" {
 		for viewType, view := range c.views {
 			if viewType == ViewDashboard || viewType == ViewAgentSwitch || viewType == ViewConversationChoice ||

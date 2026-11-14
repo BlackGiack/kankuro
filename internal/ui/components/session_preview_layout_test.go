@@ -326,8 +326,7 @@ func TestSessionPreviewFitsUnicodeMetadataAndOmitsUnfittingArt(t *testing.T) {
 }
 
 func TestSessionPreviewKeepsBuiltinPuppetIntactWhenItFits(t *testing.T) {
-	puppets := cachedBuiltinPuppets(t)
-	want := ansi.Strip(components.RenderAgentPuppet("kankuro", puppets))
+	want := ansi.Strip(components.RenderPuppetArtwork("kankuro", true, nil))
 	preview := newPreview(t, previewSnapshot("ordinary session"), "kankuro")
 	preview.SetSize(42, 30)
 	out := ansi.Strip(preview.View())

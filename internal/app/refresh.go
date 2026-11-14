@@ -20,6 +20,7 @@ import (
 // coordinator state) holds here by construction.
 type refresher struct {
 	repo         config.Repository
+	editor       cardEditorPort
 	sessionEpoch uint64
 	sessions     *session.Manager
 }
@@ -54,14 +55,20 @@ func (r refresher) loadGlobalConfigData() messages.DataLoadedMsg {
 		puppets = nil
 	}
 
+	var choices contracts.CardEditorChoices
+	if r.editor != nil {
+		choices = r.editor.ReadCardEditorChoices()
+		errs = append(errs, editorChoicesError(choices))
+	}
 	return messages.DataLoadedMsg{
-		Skills:      skills,
-		Personas:    personas,
-		MCPs:        mcps,
-		Workspaces:  workspaces,
-		Puppets:     puppets,
-		Err:         errors.Join(errs...),
-		RegistryErr: errors.Join(errs...),
+		EditorChoices: choices,
+		Skills:        skills,
+		Personas:      personas,
+		MCPs:          mcps,
+		Workspaces:    workspaces,
+		Puppets:       puppets,
+		Err:           errors.Join(errs...),
+		RegistryErr:   errors.Join(errs...),
 	}
 }
 
@@ -105,3 +112,7 @@ func tick() tea.Cmd {
 }
 
 type tickMsg time.Time
+
+func editorChoicesError(choices contracts.CardEditorChoices) error {
+	return errors.Join(choices.Workspaces.Err, choices.Skills.Err, choices.Personas.Err, choices.MCPs.Err, choices.Puppets.Err)
+}

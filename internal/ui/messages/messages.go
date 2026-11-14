@@ -97,11 +97,10 @@ type DashboardCardAction string
 
 const (
 	DashboardCardLaunch DashboardCardAction = "launch"
-	DashboardCardEdit   DashboardCardAction = "edit"
 )
 
 // DashboardCardLoadedMsg carries a full card only to the legacy action adapter
-// that owns launching or editor field preservation.
+// that owns launching.
 type DashboardCardLoadedMsg struct {
 	DashboardID string
 	Generation  uint64
@@ -274,12 +273,33 @@ type ScopedNavigateMsg struct {
 // NavigateBackMsg signals the user wants to return to the previous view.
 type NavigateBackMsg struct{}
 
-// CardSavedMsg signals that an ID card has been saved.
+// EditorCancelMsg ties cancellation to the editor that requested it.
+type EditorCancelMsg struct {
+	DashboardID                string
+	Generation, Epoch, Request uint64
+}
+
+// EditorNavigateMsg ties source navigation to the editor that requested it.
+type EditorNavigateMsg struct {
+	View              ViewType
+	DashboardID       string
+	Generation, Epoch uint64
+}
+
+// CardEditorLoadedMsg carries a detached editor read and its request identity.
+type CardEditorLoadedMsg struct {
+	Choices                    contracts.CardEditorChoices
+	DashboardID, CardID        string
+	Generation, Epoch, Request uint64
+	Data                       contracts.CardEditorData
+	Err                        error
+}
+
 type CardSavedMsg struct {
-	Card        config.IDCard
-	Err         error
-	DashboardID string
-	Generation  uint64
+	Result                     contracts.CardSaveResult
+	Err                        error
+	DashboardID, CardID        string
+	Generation, Epoch, Request uint64
 }
 
 // MCPSavedMsg signals that an MCP server has been saved.
@@ -325,6 +345,7 @@ type DataLoadedMsg struct {
 	Puppets            []config.Puppet
 	Inventory          contracts.ReadResult[contracts.DashboardInventory]
 	Choices            contracts.DisplayChoicesResult
+	EditorChoices      contracts.CardEditorChoices
 
 	// PreviewSessionID/PreviewScrollback carry the current preview's
 	// scrollback alongside a full refresh. The coordinator forwards these to
@@ -356,6 +377,7 @@ type SessionsRefreshedMsg struct {
 	Err                error
 	Inventory          contracts.ReadResult[contracts.DashboardInventory]
 	Choices            contracts.DisplayChoicesResult
+	EditorChoices      contracts.CardEditorChoices
 	PreviewSessionID   string
 	PreviewScrollback  []byte
 }

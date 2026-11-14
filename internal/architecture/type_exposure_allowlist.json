@@ -29,56 +29,49 @@
   },
   {
     "path": "internal/app/callbacks.go",
-    "symbol": "func cardEditorCallbacks @164:45",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config.IDCard",
-    "owner": "5",
-    "reason": "Legacy indirect IDCard exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
-  },
-  {
-    "path": "internal/app/callbacks.go",
-    "symbol": "func conversationChoiceCallbacks @486:53",
+    "symbol": "func conversationChoiceCallbacks @539:53",
     "dependency": "github.com/BlackGiack/kankuro/internal/session.ConversationChoice",
     "owner": "5",
     "reason": "Legacy indirect ConversationChoice exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
   },
   {
     "path": "internal/app/callbacks.go",
-    "symbol": "func mcpCallbacks @395:38",
+    "symbol": "func mcpCallbacks @448:38",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.MCPServer",
     "owner": "5",
     "reason": "Legacy indirect MCPServer exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
   },
   {
     "path": "internal/app/callbacks.go",
-    "symbol": "func settingsCallbacks @379:43",
+    "symbol": "func settingsCallbacks @432:43",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.AppSettings",
     "owner": "5",
     "reason": "Legacy indirect AppSettings exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
   },
   {
     "path": "internal/app/callbacks.go",
-    "symbol": "func sourceManagerCallbacks @212:75",
+    "symbol": "func sourceManagerCallbacks @265:75",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.WorkspaceSource",
     "owner": "5",
     "reason": "Legacy indirect WorkspaceSource exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
   },
   {
     "path": "internal/app/coordinator.go",
-    "symbol": "func NewCoordinator @74:89",
+    "symbol": "func NewCoordinator @80:89",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.AppSettings",
     "owner": "5",
     "reason": "Legacy indirect AppSettings exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
   },
   {
     "path": "internal/app/coordinator.go",
-    "symbol": "func Update @146:45",
+    "symbol": "func Update @153:45",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.AppSettings",
     "owner": "5",
     "reason": "Legacy indirect AppSettings exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
   },
   {
     "path": "internal/app/coordinator.go",
-    "symbol": "func setConversationChoiceError @641:56",
+    "symbol": "func setConversationChoiceError @717:56",
     "dependency": "github.com/BlackGiack/kankuro/internal/session.ConversationBinding",
     "owner": "5",
     "reason": "Legacy indirect ConversationBinding exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
@@ -92,14 +85,14 @@
   },
   {
     "path": "internal/app/coordinator.go",
-    "symbol": "type Coordinator @69:10",
+    "symbol": "type Coordinator @74:10",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.Repository",
     "owner": "7",
     "reason": "Legacy indirect Repository exposure through an application adapter; removal is owned by feature 7 per docs/frontend-boundary.md."
   },
   {
     "path": "internal/app/coordinator.go",
-    "symbol": "type Coordinator @71:10",
+    "symbol": "type Coordinator @77:10",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.Repository",
     "owner": "7",
     "reason": "Legacy indirect Repository exposure through an application adapter; removal is owned by feature 7 per docs/frontend-boundary.md."
@@ -120,7 +113,7 @@
   },
   {
     "path": "internal/app/handlers.go",
-    "symbol": "func handleDataLoaded @117:42",
+    "symbol": "func handleDataLoaded @118:42",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.Skill",
     "owner": "5",
     "reason": "Legacy indirect Skill exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
@@ -134,80 +127,31 @@
   },
   {
     "path": "internal/app/navigation.go",
-    "symbol": "func broadcastData @113:41",
+    "symbol": "func broadcastData @117:41",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.Skill",
     "owner": "5",
     "reason": "Legacy indirect Skill exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
   },
   {
     "path": "internal/app/refresh.go",
-    "symbol": "func loadGlobalConfigData @28:43",
+    "symbol": "func loadGlobalConfigData @29:43",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.Skill",
     "owner": "5",
     "reason": "Legacy indirect Skill exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
   },
   {
     "path": "internal/app/refresh.go",
-    "symbol": "type configFingerprintMsg @97:22",
+    "symbol": "type configFingerprintMsg @104:22",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.Skill",
     "owner": "5",
     "reason": "Legacy indirect Skill exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
   },
   {
     "path": "internal/ui/messages/messages.go",
-    "symbol": "type DataReceiver @346:14",
+    "symbol": "type DataReceiver @367:14",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.Skill",
     "owner": "5",
     "reason": "Legacy indirect Skill exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
-  },
-  {
-    "path": "internal/ui/views/card_editor.go",
-    "symbol": "func NewCardEditor @175:30",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config.IDCard",
-    "owner": "3",
-    "reason": "Legacy indirect IDCard exposure; removal is owned by feature 3 per docs/frontend-boundary.md."
-  },
-  {
-    "path": "internal/ui/views/card_editor.go",
-    "symbol": "func NewCardEditor @175:52",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config.Workspace",
-    "owner": "3",
-    "reason": "Legacy indirect Workspace exposure; removal is owned by feature 3 per docs/frontend-boundary.md."
-  },
-  {
-    "path": "internal/ui/views/card_editor.go",
-    "symbol": "func SetData @345:34",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config.Skill",
-    "owner": "5",
-    "reason": "Legacy indirect Skill exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
-  },
-  {
-    "path": "internal/ui/views/card_editor.go",
-    "symbol": "func focusTargetTable @75:27",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config.AppSettings",
-    "owner": "3",
-    "reason": "Legacy indirect AppSettings exposure; removal is owned by feature 3 per docs/frontend-boundary.md."
-  },
-  {
-    "path": "internal/ui/views/card_editor.go",
-    "symbol": "type CardEditor @128:19",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config.Workspace",
-    "owner": "3",
-    "reason": "Legacy indirect Workspace exposure; removal is owned by feature 3 per docs/frontend-boundary.md."
-  },
-  {
-    "path": "internal/ui/views/card_editor.go",
-    "symbol": "type CardEditor @129:19",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config.Puppet",
-    "owner": "3",
-    "reason": "Legacy indirect Puppet exposure; removal is owned by feature 3 per docs/frontend-boundary.md."
-  },
-  {
-    "path": "internal/ui/views/card_editor.go",
-    "symbol": "type CardEditor @159:12",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config.IDCard",
-    "owner": "3",
-    "reason": "Legacy indirect IDCard exposure; removal is owned by feature 3 per docs/frontend-boundary.md."
   },
   {
     "path": "internal/ui/views/conversation_choice.go",
@@ -287,13 +231,6 @@
     "reason": "Legacy indirect Skill exposure through configuration or selected-card adapter; removal is owned by feature 5 per docs/frontend-boundary.md."
   },
   {
-    "path": "internal/ui/views/puppet_selector_modal.go",
-    "symbol": "func NewPuppetSelectorModal @30:32",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config.Puppet",
-    "owner": "3",
-    "reason": "Legacy indirect Puppet exposure; removal is owned by feature 3 per docs/frontend-boundary.md."
-  },
-  {
     "path": "internal/ui/views/session_launcher.go",
     "symbol": "func NewSessionLauncher @39:62",
     "dependency": "github.com/BlackGiack/kankuro/internal/config.IDCard",
@@ -369,12 +306,5 @@
     "dependency": "github.com/BlackGiack/kankuro/internal/config.WorkspaceSource",
     "owner": "5",
     "reason": "Legacy indirect WorkspaceSource exposure; removal is owned by feature 5 per docs/frontend-boundary.md."
-  },
-  {
-    "path": "internal/ui/views/workspace_picker_modal.go",
-    "symbol": "func NewWorkspacePickerModal @35:33",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config.Workspace",
-    "owner": "3",
-    "reason": "Legacy indirect Workspace exposure; removal is owned by feature 3 per docs/frontend-boundary.md."
   }
 ]

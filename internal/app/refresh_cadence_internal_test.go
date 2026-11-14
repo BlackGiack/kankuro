@@ -159,7 +159,8 @@ func TestMutationRefreshDoesNotWaitForTick(t *testing.T) {
 		t.Fatalf("create card: %v", err)
 	}
 
-	_, cmd := c.Update(messages.CardSavedMsg{Card: saved, DashboardID: "default", Generation: c.viewGeneration})
+	c.currentView = ViewCardEditor
+	_, cmd := c.Update(messages.CardSavedMsg{DashboardID: "default", Generation: c.viewGeneration})
 	if cmd == nil {
 		t.Fatal("expected CardSavedMsg to produce a follow-up cmd")
 	}

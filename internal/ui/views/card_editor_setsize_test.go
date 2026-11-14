@@ -27,7 +27,7 @@ func TestCardEditor_SetSize_Idempotency(t *testing.T) {
 	settings := config.DefaultAppSettings()
 	settings.ShowPersonasInCardEditor = true
 	settings.ShowMCPsInCardEditor = true
-	editor.SetSettings(settings)
+	setEditorSettings(editor, settings)
 
 	// Add many items to lists to trigger overflow if not bounded
 	items := make([]components.CapabilityItem, 20)
@@ -90,7 +90,7 @@ func TestCardEditor_SetSize_SmallTerminal(t *testing.T) {
 	settings := config.DefaultAppSettings()
 	settings.ShowPersonasInCardEditor = true
 	settings.ShowMCPsInCardEditor = true
-	editor.SetSettings(settings)
+	setEditorSettings(editor, settings)
 
 	// Add many items to all 3 lists to trigger minCapListHeight floor
 	items := make([]components.CapabilityItem, 10)

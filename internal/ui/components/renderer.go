@@ -3,7 +3,6 @@ package components
 import (
 	"github.com/BlackGiack/kankuro/internal/ascii"
 	"github.com/BlackGiack/kankuro/internal/ascii/characters"
-	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 func RenderAgentFace(faceStyle string) string {
@@ -16,19 +15,6 @@ func RenderAgentFace(faceStyle string) string {
 	canvas := ascii.NewCanvas(w, 1)
 	face.Render(canvas, 0, 0)
 	return canvas.String()
-}
-
-func RenderAgentPuppet(puppetName string, puppets []config.Puppet) string {
-	if puppetName == "" {
-		puppetName = "kankuro"
-	}
-
-	for _, p := range puppets {
-		if p.Name == puppetName {
-			return RenderPuppetArtwork(puppetName, p.Builtin, p.Lines)
-		}
-	}
-	return RenderPuppetArtwork(puppetName, true, nil)
 }
 
 // RenderPuppetArtwork renders focused artwork data without a registry type.

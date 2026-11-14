@@ -5,10 +5,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
@@ -28,7 +30,7 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 			}
 		},
 		OnEditCard: func(cardID string) tea.Cmd {
-			return dashboardCardCommand(c.actions.service, c.activeDashboard, cardID, c.viewGeneration, messages.DashboardCardEdit)
+			return c.requestCardEditor(cardID)
 		},
 		OnRenameSession: c.renameDashboardSession,
 
@@ -90,18 +92,7 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 			return c.navigationCommand(messages.ViewSettings)
 		},
 
-		OnOpenCardEditor: func() tea.Cmd {
-			editor, ok := c.views[ViewCardEditor].(*views.CardEditor)
-			if !ok {
-				return nil
-			}
-			editor.Reset()
-
-			c.editingCard = config.IDCard{}
-			editor.SetDashboardContext(c.activeDashboard, false)
-
-			return c.navigationCommand(messages.ViewCardEditor)
-		},
+		OnOpenCardEditor: func() tea.Cmd { return c.requestCardEditor("") },
 
 		OnLaunchIDE:      c.launchIDE,
 		OnLaunchTerminal: c.launchTerminal,
@@ -139,15 +130,33 @@ func (c *Coordinator) launchCard(card config.IDCard) tea.Cmd {
 	)
 }
 
-func (c *Coordinator) openCardEditor(card config.IDCard) tea.Cmd {
-	editor, ok := c.views[ViewCardEditor].(*views.CardEditor)
-	if !ok {
-		return nil
+func (c *Coordinator) requestCardEditor(cardID string) tea.Cmd {
+	c.editorEpoch++
+	c.editorRequest++
+	c.editorCardID, c.editorRevision, c.editorSaving, c.editorCompleted = cardID, "", false, false
+	return cardEditorLoadCommand(c.editor, c.activeDashboard, cardID, c.viewGeneration, c.editorEpoch, c.editorRequest)
+}
+
+func cardEditorLoadCommand(service cardEditorPort, dashboardID, cardID string, generation, epoch, request uint64) tea.Cmd {
+	return func() tea.Msg {
+		var data contracts.CardEditorData
+		var err error
+		if cardID == "" {
+			data, err = service.NewCardEditor(dashboardID)
+		} else {
+			data, err = service.LoadCardEditor(dashboardID, cardID)
+		}
+		return messages.CardEditorLoadedMsg{
+			DashboardID: dashboardID,
+			CardID:      cardID,
+			Generation:  generation,
+			Epoch:       epoch,
+			Request:     request,
+			Data:        data,
+			Choices:     service.ReadCardEditorChoices(),
+			Err:         err,
+		}
 	}
-	editor.SetCard(card)
-	c.editingCard = card
-	editor.SetDashboardContext(c.activeDashboard, card.DashboardID != c.activeDashboard)
-	return c.navigationCommand(messages.ViewCardEditor)
 }
 
 // launchIDE snapshots the IDE command here, on the coordinator goroutine:
@@ -161,24 +170,68 @@ func (c *Coordinator) launchTerminal(sessionID string) tea.Cmd {
 	return c.actions.launchTerminal(c.activeDashboard, c.viewGeneration, sessionID, c.settings.TerminalCommand)
 }
 
+func (c *Coordinator) editorNavigationCommand(view messages.ViewType) tea.Cmd {
+	dashboardID, generation, epoch := c.activeDashboard, c.viewGeneration, c.editorEpoch
+	return func() tea.Msg {
+		return messages.EditorNavigateMsg{View: view, DashboardID: dashboardID, Generation: generation, Epoch: epoch}
+	}
+}
+
 func (c *Coordinator) cardEditorCallbacks() views.CardEditorCallbacks {
 	return views.CardEditorCallbacks{
-		OnSave: func(card config.IDCard) tea.Cmd {
-			dashboardID, generation, expected, service := c.activeDashboard, c.viewGeneration, c.editingCard, c.actions.service
+		OnSave: func(draft models.CardEditorDraft) tea.Cmd {
+			if c.editorSaving || c.editorCompleted {
+				return nil
+			}
+			draft = models.CloneCardEditorDraft(draft)
+			c.editorSaving = true
+			if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
+				editor.SetSaving(true)
+			}
+			c.editorRequest++
+			dashboardID, cardID, revision, generation, epoch, request, service := c.activeDashboard, c.editorCardID, c.editorRevision, c.viewGeneration, c.editorEpoch, c.editorRequest, c.editor
 			return func() tea.Msg {
-				var saved config.IDCard
+				var saved contracts.CardSaveResult
 				var err error
-				if card.ID == "" {
-					saved, err = service.CreateCardInDashboard(dashboardID, card)
+				if cardID == "" {
+					saved, err = service.CreateEditorCard(contracts.CreateCardInput{DashboardID: dashboardID, Values: draft.Values})
 				} else {
-					saved, err = service.UpdateCardInDashboard(dashboardID, expected, card)
+					saved, err = service.UpdateEditorCard(
+						contracts.UpdateCardInput{
+							DashboardID:      dashboardID,
+							CardID:           cardID,
+							ExpectedRevision: revision,
+							Changes:          draft.Changes,
+						},
+					)
 				}
-				return messages.CardSavedMsg{Card: saved, Err: err, DashboardID: dashboardID, Generation: generation}
+				return messages.CardSavedMsg{
+					Result:      saved,
+					Err:         err,
+					DashboardID: dashboardID,
+					CardID:      cardID,
+					Generation:  generation,
+					Epoch:       epoch,
+					Request:     request,
+				}
 			}
 		},
-
+		OnReload: func() tea.Cmd {
+			if c.editorSaving {
+				return nil
+			}
+			c.editorEpoch++
+			c.editorRequest++
+			return cardEditorLoadCommand(c.editor, c.activeDashboard, c.editorCardID, c.viewGeneration, c.editorEpoch, c.editorRequest)
+		},
 		OnCancel: func() tea.Cmd {
-			return c.navigationCommand(messages.ViewDashboard)
+			if c.editorSaving {
+				return nil
+			}
+			dashboardID, generation, epoch, request := c.activeDashboard, c.viewGeneration, c.editorEpoch, c.editorRequest
+			return func() tea.Msg {
+				return messages.EditorCancelMsg{DashboardID: dashboardID, Generation: generation, Epoch: epoch, Request: request}
+			}
 		},
 
 		OnOpenSources: func(sourceType string) tea.Cmd {
@@ -192,19 +245,19 @@ func (c *Coordinator) cardEditorCallbacks() views.CardEditorCallbacks {
 				return nil
 			}
 
-			return c.navigationCommand(vt)
+			return c.editorNavigationCommand(vt)
 		},
 
 		OnOpenMCPForm: func() tea.Cmd {
-			return c.navigationCommand(messages.ViewMCPForm)
+			return c.editorNavigationCommand(messages.ViewMCPForm)
 		},
 
 		OnOpenWorkspaces: func() tea.Cmd {
-			return c.navigationCommand(messages.ViewSourceManagerWorkspaces)
+			return c.editorNavigationCommand(messages.ViewSourceManagerWorkspaces)
 		},
 
 		OnOpenPuppetSources: func() tea.Cmd {
-			return c.navigationCommand(messages.ViewSourceManagerPuppets)
+			return c.editorNavigationCommand(messages.ViewSourceManagerPuppets)
 		},
 	}
 }

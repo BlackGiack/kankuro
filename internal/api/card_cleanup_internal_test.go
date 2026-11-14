@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 )
@@ -94,8 +95,23 @@ func TestCardDeletionRetriesPendingWorkspaceCleanupAfterRestart(t *testing.T) {
 	if updated.WorkspaceID == shared.WorkspaceID {
 		t.Fatal("new workspace was not discovered")
 	}
-	if _, errAt97 := service.UpdateCardInDashboard("a", shared, updated); errAt97 != nil {
-		t.Fatal(errAt97)
+	editor, err := service.LoadCardEditor("a", shared.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = service.UpdateEditorCard(contracts.UpdateCardInput{
+		DashboardID: "a", CardID: shared.ID, ExpectedRevision: editor.Revision,
+		Changes: contracts.CardChanges{WorkspaceID: contracts.Change[string]{Present: true, Value: updated.WorkspaceID}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, err := service.ReadDashboardCardDetail("a", shared.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.WorkspaceID != updated.WorkspaceID {
+		t.Fatalf("saved workspace = %q, want %q", saved.WorkspaceID, updated.WorkspaceID)
 	}
 	preflight, err := service.PreflightCardDeletion("a", shared.ID)
 	if err != nil || !preflight.RequiresForeignConfirmation {

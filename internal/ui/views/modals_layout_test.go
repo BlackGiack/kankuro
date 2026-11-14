@@ -55,7 +55,7 @@ func workspaceFixtures(n int) []config.Workspace {
 func newModalEditor(t *testing.T, w, h int, data messages.DataLoadedMsg) *views.CardEditor {
 	t.Helper()
 	e := newLayoutEditor(true, true, 3, false)
-	e.SetData(data)
+	setEditorData(e, data)
 	e.SetSize(w, h)
 	return e
 }
@@ -128,7 +128,7 @@ func TestAgentsMDEditorModalStaysWithinTheScreen(t *testing.T) {
 			for _, sz := range modalSizes {
 				w, h := sz[0], sz[1]
 				e := newLayoutEditor(true, true, 3, false)
-				e.SetCard(config.IDCard{
+				loadEditor(e, config.IDCard{
 					ID:                 "c1",
 					AgentsMD:           content,
 					AgentsMDPath:       strings.Repeat("/long/path", 20),
@@ -157,7 +157,7 @@ func TestAgentsMDEditorModalWrapsLongLines(t *testing.T) {
 	} {
 		for _, sz := range modalSizes[2:] {
 			e := newLayoutEditor(true, true, 3, false)
-			e.SetCard(config.IDCard{ID: "c1", AgentsMD: content})
+			loadEditor(e, config.IDCard{ID: "c1", AgentsMD: content})
 			e.SetSize(sz[0], sz[1])
 			openModal(t, e, views.FocusAgentsMD)
 			uitest.AssertExactRect(t, e.View(), sz[0], sz[1], fmt.Sprintf("%s %dx%d", name, sz[0], sz[1]))
@@ -190,7 +190,7 @@ func TestWorkspacePickerModalIsAnExactBox(t *testing.T) {
 		for _, typed := range []string{"", "a"} {
 			for _, sz := range modalSizes {
 				m := views.NewWorkspacePickerModal()
-				m.SetWorkspaces(workspaceFixtures(n))
+				m.SetWorkspaces(workspaceOptions(workspaceFixtures(n)))
 				m.SetSize(sz[0], sz[1])
 				m.Open()
 				if typed != "" {
@@ -214,7 +214,7 @@ func TestPuppetSelectorModalIsAnIntactBox(t *testing.T) {
 	} {
 		for cursor := range puppets {
 			m := views.NewPuppetSelectorModal()
-			m.SetPuppets(puppets)
+			m.SetPuppets(puppetOptions(puppets))
 			m.SetSelected(puppets[cursor].Name)
 			m.Open()
 			out := m.View()
@@ -365,7 +365,7 @@ func pickerViews(t *testing.T, sz [2]int, ws []config.Workspace) map[string]stru
 		send func(tea.Msg)
 	}
 	m := views.NewWorkspacePickerModal()
-	m.SetWorkspaces(ws)
+	m.SetWorkspaces(workspaceOptions(ws))
 	m.SetSize(sz[0], sz[1])
 	m.Open()
 

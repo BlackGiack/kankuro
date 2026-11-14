@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -49,10 +50,16 @@ func TestPartialPreviewBroadcastDoesNotWipeCardEditor(t *testing.T) {
 	if !ok {
 		t.Fatal("expected *views.CardEditor for ViewCardEditor")
 	}
-	editor.SetCard(card)
+	editor.LoadEditor(
+		contracts.CardEditorData{
+			CardID:  card.ID,
+			CanEdit: true,
+			Values:  contracts.CardValues{Name: card.Name, Driver: card.Driver, WorkspaceID: card.WorkspaceID, SkillIDs: card.SkillIDs},
+		},
+	)
 	coord.Update(messages.ScopedNavigateMsg{View: messages.ViewCardEditor, DashboardID: "default", Generation: 1})
 
-	if got := editor.Card().SkillIDs; len(got) != 1 || got[0] != config.BuiltinSkillMCPCLI {
+	if got := editor.Draft().Values.SkillIDs; len(got) != 1 || got[0] != config.BuiltinSkillMCPCLI {
 		t.Fatalf("card editor lost its skills before the broadcast even ran: %v", got)
 	}
 
@@ -63,7 +70,7 @@ func TestPartialPreviewBroadcastDoesNotWipeCardEditor(t *testing.T) {
 	coord.Update(messages.SessionPreviewRequestedMsg{SessionID: sessionID})
 	coord.Update(messages.SessionOutputMsg{SessionID: sessionID, Output: []byte("hello")})
 
-	got := editor.Card().SkillIDs
+	got := editor.Draft().Values.SkillIDs
 	if len(got) != 1 || got[0] != config.BuiltinSkillMCPCLI {
 		t.Fatalf("card editor's skills were wiped by a partial preview broadcast: %v", got)
 	}
@@ -100,9 +107,15 @@ func TestTransientSkillsReadFailureDoesNotWipeCardEditor(t *testing.T) {
 	if !ok {
 		t.Fatal("expected *views.CardEditor for ViewCardEditor")
 	}
-	editor.SetCard(card)
+	editor.LoadEditor(
+		contracts.CardEditorData{
+			CardID:  card.ID,
+			CanEdit: true,
+			Values:  contracts.CardValues{Name: card.Name, Driver: card.Driver, WorkspaceID: card.WorkspaceID, SkillIDs: card.SkillIDs},
+		},
+	)
 
-	if got := editor.Card().SkillIDs; len(got) != 1 || got[0] != config.BuiltinSkillMCPCLI {
+	if got := editor.Draft().Values.SkillIDs; len(got) != 1 || got[0] != config.BuiltinSkillMCPCLI {
 		t.Fatalf("card editor lost its skills before the read failure even happened: %v", got)
 	}
 
@@ -125,7 +138,7 @@ func TestTransientSkillsReadFailureDoesNotWipeCardEditor(t *testing.T) {
 
 	coord.Update(msg)
 
-	got := editor.Card().SkillIDs
+	got := editor.Draft().Values.SkillIDs
 	if len(got) != 1 || got[0] != config.BuiltinSkillMCPCLI {
 		t.Fatalf("a transient skills.yaml read failure wiped the card editor's skills: %v", got)
 	}

@@ -23,10 +23,7 @@ func TestCoordinator_NavigationKeys(t *testing.T) {
 	_, cmd := coord.Update(tea.KeyPressMsg{Code: 0, Text: "n"})
 	// Execute the captured-context navigation command
 	if cmd != nil {
-		msg := cmd()
-		if navigateMsg, ok := msg.(messages.ScopedNavigateMsg); ok {
-			coord.Update(navigateMsg)
-		}
+		coord.Update(cmd())
 	}
 	if coord.CurrentView() != app.ViewCardEditor {
 		t.Errorf("Expected ViewCardEditor after 'n' key, got %v", coord.CurrentView())

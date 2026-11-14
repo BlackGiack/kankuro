@@ -200,14 +200,10 @@
       "WorkspaceSource"
     ],
     "edges": [
-      "func receiver *Coordinator cardEditorCallbacks body uses config.IDCard",
-      "func receiver *Coordinator cardEditorCallbacks parameter card config.IDCard uses config.IDCard",
-      "func receiver *Coordinator dashboardCallbacks body uses config.IDCard",
       "func receiver *Coordinator deleteSource parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource",
       "func receiver *Coordinator deleteSource parameter sources []config.WorkspaceSource uses config.WorkspaceSource",
       "func receiver *Coordinator launchCard parameter card config.IDCard uses config.IDCard",
       "func receiver *Coordinator mcpCallbacks parameter mcp config.MCPServer uses config.MCPServer",
-      "func receiver *Coordinator openCardEditor parameter card config.IDCard uses config.IDCard",
       "func receiver *Coordinator settingsCallbacks parameter settings config.AppSettings uses config.AppSettings",
       "func receiver *Coordinator sourceManagerCallbacks parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource",
       "func receiver *Coordinator sourceManagerCallbacks parameter source config.WorkspaceSource uses config.WorkspaceSource",
@@ -215,22 +211,18 @@
       "func receiver *Coordinator sourceUpdateMsg body uses config.SyncFailedError"
     ],
     "edge_owners": {
-      "func receiver *Coordinator cardEditorCallbacks body uses config.IDCard": "3",
-      "func receiver *Coordinator cardEditorCallbacks parameter card config.IDCard uses config.IDCard": "3",
-      "func receiver *Coordinator dashboardCallbacks body uses config.IDCard": "3",
-      "func receiver *Coordinator deleteSource parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource": "3",
-      "func receiver *Coordinator deleteSource parameter sources []config.WorkspaceSource uses config.WorkspaceSource": "3",
-      "func receiver *Coordinator launchCard parameter card config.IDCard uses config.IDCard": "3",
-      "func receiver *Coordinator mcpCallbacks parameter mcp config.MCPServer uses config.MCPServer": "3",
-      "func receiver *Coordinator openCardEditor parameter card config.IDCard uses config.IDCard": "3",
-      "func receiver *Coordinator settingsCallbacks parameter settings config.AppSettings uses config.AppSettings": "3",
-      "func receiver *Coordinator sourceManagerCallbacks parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource": "3",
-      "func receiver *Coordinator sourceManagerCallbacks parameter source config.WorkspaceSource uses config.WorkspaceSource": "3",
-      "func receiver *Coordinator sourceManagerCallbacks parameter sources []config.WorkspaceSource uses config.WorkspaceSource": "3",
-      "func receiver *Coordinator sourceUpdateMsg body uses config.SyncFailedError": "3"
+      "func receiver *Coordinator deleteSource parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource": "5",
+      "func receiver *Coordinator deleteSource parameter sources []config.WorkspaceSource uses config.WorkspaceSource": "5",
+      "func receiver *Coordinator launchCard parameter card config.IDCard uses config.IDCard": "4",
+      "func receiver *Coordinator mcpCallbacks parameter mcp config.MCPServer uses config.MCPServer": "5",
+      "func receiver *Coordinator settingsCallbacks parameter settings config.AppSettings uses config.AppSettings": "5",
+      "func receiver *Coordinator sourceManagerCallbacks parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource": "5",
+      "func receiver *Coordinator sourceManagerCallbacks parameter source config.WorkspaceSource uses config.WorkspaceSource": "5",
+      "func receiver *Coordinator sourceManagerCallbacks parameter sources []config.WorkspaceSource uses config.WorkspaceSource": "5",
+      "func receiver *Coordinator sourceUpdateMsg body uses config.SyncFailedError": "5"
     },
     "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
-    "owner": "3/5/7"
+    "owner": "4/5"
   },
   {
     "path": "internal/app/refresh.go",
@@ -281,32 +273,6 @@
     "owner": "2/3/4/5/7"
   },
   {
-    "path": "internal/ui/views/puppet_selector_modal.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "Puppet"
-    ],
-    "edges": [
-      "func builtinPuppetOptions body uses config.Puppet",
-      "func builtinPuppetOptions result <unnamed> []config.Puppet uses config.Puppet",
-      "func puppetArt parameter p config.Puppet uses config.Puppet",
-      "func receiver *PuppetSelectorModal SetPuppets parameter puppets []config.Puppet uses config.Puppet",
-      "func receiver *PuppetSelectorModal renderCell parameter p config.Puppet uses config.Puppet",
-      "type PuppetSelectorModal field puppets []config.Puppet uses config.Puppet"
-    ],
-    "edge_owners": {
-      "func builtinPuppetOptions body uses config.Puppet": "3",
-      "func builtinPuppetOptions result <unnamed> []config.Puppet uses config.Puppet": "3",
-      "func puppetArt parameter p config.Puppet uses config.Puppet": "3",
-      "func receiver *PuppetSelectorModal SetPuppets parameter puppets []config.Puppet uses config.Puppet": "3",
-      "func receiver *PuppetSelectorModal renderCell parameter p config.Puppet uses config.Puppet": "3",
-      "type PuppetSelectorModal field puppets []config.Puppet uses config.Puppet": "3"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "3"
-  },
-  {
     "path": "internal/app/dashboard_list.go",
     "dependency": "github.com/BlackGiack/kankuro/internal/api",
     "rule": "frontend imports backend implementation",
@@ -324,7 +290,7 @@
     "edge_owners": {
       "func cardDeletionPreflightCommand parameter service *api.Service uses api.Service": "7",
       "func confirmCardDeletionCommand parameter service *api.Service uses api.Service": "7",
-      "func dashboardCardCommand parameter service *api.Service uses api.Service": "2",
+      "func dashboardCardCommand parameter service *api.Service uses api.Service": "4",
       "func dashboardDeletionSummary parameter preflight api.DashboardDeletionPreflight uses api.DashboardDeletionPreflight": "7",
       "func retryCardDeletionCommand parameter service *api.Service uses api.Service": "7"
     },
@@ -380,40 +346,6 @@
     "owner": "5"
   },
   {
-    "path": "internal/ui/views/workspace_picker_modal.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "Workspace"
-    ],
-    "edges": [
-      "func receiver *WorkspacePickerModal SetSelectedIDs body uses config.Workspace",
-      "func receiver *WorkspacePickerModal SetWorkspaces parameter workspaces []config.Workspace uses config.Workspace",
-      "func receiver *WorkspacePickerModal filterWorkspaces body uses config.Workspace",
-      "func receiver *WorkspacePickerModal filterWorkspaces parameter ws config.Workspace uses config.Workspace",
-      "func receiver *WorkspacePickerModal filterWorkspaces result <unnamed> []config.Workspace uses config.Workspace",
-      "func receiver *WorkspacePickerModal rememberWorkspace body uses config.Workspace",
-      "func receiver *WorkspacePickerModal rememberWorkspace parameter workspace config.Workspace uses config.Workspace",
-      "type WorkspacePickerModal field selectedWorkspaceInfo map[string]config.Workspace uses config.Workspace",
-      "type WorkspacePickerModal field workspaces []config.Workspace uses config.Workspace",
-      "type workspaceItem field workspace config.Workspace uses config.Workspace"
-    ],
-    "edge_owners": {
-      "func receiver *WorkspacePickerModal SetSelectedIDs body uses config.Workspace": "3",
-      "func receiver *WorkspacePickerModal SetWorkspaces parameter workspaces []config.Workspace uses config.Workspace": "3",
-      "func receiver *WorkspacePickerModal filterWorkspaces body uses config.Workspace": "3",
-      "func receiver *WorkspacePickerModal filterWorkspaces parameter ws config.Workspace uses config.Workspace": "3",
-      "func receiver *WorkspacePickerModal filterWorkspaces result <unnamed> []config.Workspace uses config.Workspace": "3",
-      "func receiver *WorkspacePickerModal rememberWorkspace body uses config.Workspace": "3",
-      "func receiver *WorkspacePickerModal rememberWorkspace parameter workspace config.Workspace uses config.Workspace": "3",
-      "type WorkspacePickerModal field selectedWorkspaceInfo map[string]config.Workspace uses config.Workspace": "3",
-      "type WorkspacePickerModal field workspaces []config.Workspace uses config.Workspace": "3",
-      "type workspaceItem field workspace config.Workspace uses config.Workspace": "3"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "3"
-  },
-  {
     "path": "internal/app/app.go",
     "dependency": "github.com/BlackGiack/kankuro/internal/session",
     "rule": "frontend imports backend implementation",
@@ -449,22 +381,6 @@
     "classification": "test-support"
   },
   {
-    "path": "internal/ui/components/renderer.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "Puppet"
-    ],
-    "edges": [
-      "func RenderAgentPuppet parameter puppets []config.Puppet uses config.Puppet"
-    ],
-    "edge_owners": {
-      "func RenderAgentPuppet parameter puppets []config.Puppet uses config.Puppet": "3"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "3"
-  },
-  {
     "path": "internal/ui/messages/messages.go",
     "dependency": "github.com/BlackGiack/kankuro/internal/config",
     "rule": "frontend imports backend implementation",
@@ -478,7 +394,6 @@
       "Workspace"
     ],
     "edges": [
-      "type CardSavedMsg field Card config.IDCard uses config.IDCard",
       "type DashboardCardLoadedMsg field Card config.IDCard uses config.IDCard",
       "type DataLoadedMsg field MCPs []config.MCPServer uses config.MCPServer",
       "type DataLoadedMsg field Personas []config.Persona uses config.Persona",
@@ -490,8 +405,7 @@
       "type SettingsSavedMsg field Settings config.AppSettings uses config.AppSettings"
     ],
     "edge_owners": {
-      "type CardSavedMsg field Card config.IDCard uses config.IDCard": "3",
-      "type DashboardCardLoadedMsg field Card config.IDCard uses config.IDCard": "3",
+      "type DashboardCardLoadedMsg field Card config.IDCard uses config.IDCard": "4",
       "type DataLoadedMsg field MCPs []config.MCPServer uses config.MCPServer": "5",
       "type DataLoadedMsg field Personas []config.Persona uses config.Persona": "5",
       "type DataLoadedMsg field Puppets []config.Puppet uses config.Puppet": "5",
@@ -634,67 +548,6 @@
     "owner": "5"
   },
   {
-    "path": "internal/ui/views/card_editor.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "AppSettings",
-      "DefaultAppSettings",
-      "IDCard",
-      "MCPServer",
-      "Persona",
-      "Puppet",
-      "Skill",
-      "Workspace"
-    ],
-    "edges": [
-      "func NewCardEditor body uses config.DefaultAppSettings",
-      "func focusTargetTable parameter s config.AppSettings uses config.AppSettings",
-      "func receiver *CardEditor Card result <unnamed> config.IDCard uses config.IDCard",
-      "func receiver *CardEditor Reset body uses config.IDCard",
-      "func receiver *CardEditor SetCard parameter card config.IDCard uses config.IDCard",
-      "func receiver *CardEditor SetSettings parameter settings config.AppSettings uses config.AppSettings",
-      "func receiver *CardEditor Settings result <unnamed> config.AppSettings uses config.AppSettings",
-      "func receiver *CardEditor Workspaces result <unnamed> []config.Workspace uses config.Workspace",
-      "type CardEditor field loaded config.IDCard uses config.IDCard",
-      "type CardEditor field mcps []config.MCPServer uses config.MCPServer",
-      "type CardEditor field personas []config.Persona uses config.Persona",
-      "type CardEditor field puppets []config.Puppet uses config.Puppet",
-      "type CardEditor field settings config.AppSettings uses config.AppSettings",
-      "type CardEditor field skills []config.Skill uses config.Skill",
-      "type CardEditor field workspaces []config.Workspace uses config.Workspace",
-      "type CardEditorCallbacks method OnSave signature field card config.IDCard uses config.IDCard",
-      "type SkillItem field Skill config.Skill uses config.Skill",
-      "type focusTarget method visible signature field <embedded> config.AppSettings uses config.AppSettings",
-      "type mcpItem field mcp config.MCPServer uses config.MCPServer",
-      "type personaItem field persona config.Persona uses config.Persona"
-    ],
-    "edge_owners": {
-      "func NewCardEditor body uses config.DefaultAppSettings": "3",
-      "func focusTargetTable parameter s config.AppSettings uses config.AppSettings": "3",
-      "func receiver *CardEditor Card result <unnamed> config.IDCard uses config.IDCard": "3",
-      "func receiver *CardEditor Reset body uses config.IDCard": "3",
-      "func receiver *CardEditor SetCard parameter card config.IDCard uses config.IDCard": "3",
-      "func receiver *CardEditor SetSettings parameter settings config.AppSettings uses config.AppSettings": "3",
-      "func receiver *CardEditor Settings result <unnamed> config.AppSettings uses config.AppSettings": "3",
-      "func receiver *CardEditor Workspaces result <unnamed> []config.Workspace uses config.Workspace": "3",
-      "type CardEditor field loaded config.IDCard uses config.IDCard": "3",
-      "type CardEditor field mcps []config.MCPServer uses config.MCPServer": "3",
-      "type CardEditor field personas []config.Persona uses config.Persona": "3",
-      "type CardEditor field puppets []config.Puppet uses config.Puppet": "3",
-      "type CardEditor field settings config.AppSettings uses config.AppSettings": "3",
-      "type CardEditor field skills []config.Skill uses config.Skill": "3",
-      "type CardEditor field workspaces []config.Workspace uses config.Workspace": "3",
-      "type CardEditorCallbacks method OnSave signature field card config.IDCard uses config.IDCard": "3",
-      "type SkillItem field Skill config.Skill uses config.Skill": "3",
-      "type focusTarget method visible signature field <embedded> config.AppSettings uses config.AppSettings": "3",
-      "type mcpItem field mcp config.MCPServer uses config.MCPServer": "3",
-      "type personaItem field persona config.Persona uses config.Persona": "3"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "3"
-  },
-  {
     "path": "internal/app/callbacks.go",
     "dependency": "github.com/BlackGiack/kankuro/internal/session",
     "rule": "frontend imports backend implementation",
@@ -737,20 +590,17 @@
     "symbols": [
       "AppSettings",
       "DefaultAppSettings",
-      "IDCard",
       "Repository"
     ],
     "edges": [
       "func NewCoordinator body uses config.DefaultAppSettings",
       "func NewCoordinator parameter repo config.Repository uses config.Repository",
-      "type Coordinator field editingCard config.IDCard uses config.IDCard",
       "type Coordinator field repo config.Repository uses config.Repository",
       "type Coordinator field settings config.AppSettings uses config.AppSettings"
     ],
     "edge_owners": {
       "func NewCoordinator body uses config.DefaultAppSettings": "7",
       "func NewCoordinator parameter repo config.Repository uses config.Repository": "7",
-      "type Coordinator field editingCard config.IDCard uses config.IDCard": "3",
       "type Coordinator field repo config.Repository uses config.Repository": "7",
       "type Coordinator field settings config.AppSettings uses config.AppSettings": "5"
     },

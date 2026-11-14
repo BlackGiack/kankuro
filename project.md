@@ -212,9 +212,10 @@ writes, permissions and explicit persistence-failure behavior when changing stor
 4. **Coordinator errors clear on the next keypress or `ClearErrorMsg`.** Navigation
    does not clear them. Report asynchronous failures through messages so the
    triggering key cannot erase the error immediately.
-5. **The editor overlays the loaded card.** `CardEditor.Card()` assigns edited
-   fields on the card loaded by `SetCard`, preserving fields absent from the UI.
-   Reset loaded state for new-card creation.
+5. **The application preserves unedited card fields.** Editor reads contain only
+   editable values and an opaque full-record revision. Saves apply explicit
+   changes to freshly loaded storage under card admission, rechecking ownership,
+   sharing and the revision. Missing choices do not discard selected IDs.
 6. **Registry read-modify-write is one operation.** Use `Update*Sources(fn)` rather
    than separate list/save calls. A successful save followed by failed sync
    requires a refresh and warning (`config.SyncFailedError`).

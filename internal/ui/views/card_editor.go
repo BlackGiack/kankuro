@@ -9,10 +9,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
@@ -66,7 +67,7 @@ type focusTarget struct {
 	focus       int
 	inputIdx    int // index into CardEditor.inputs, or notAnInput
 	placeholder string
-	visible     func(config.AppSettings) bool // nil means always visible
+	visible     func(models.EditorSettings) bool // nil means always visible
 }
 
 // focusTargetTable returns the focus target table. It is a function rather
@@ -88,11 +89,11 @@ func focusTargetTable() []focusTarget {
 		{focus: FocusSkills, inputIdx: notAnInput},
 		{
 			focus: FocusPersonas, inputIdx: notAnInput,
-			visible: func(s config.AppSettings) bool { return s.ShowPersonasInCardEditor },
+			visible: func(s models.EditorSettings) bool { return s.ShowPersonas },
 		},
 		{
 			focus: FocusMCPs, inputIdx: notAnInput,
-			visible: func(s config.AppSettings) bool { return s.ShowMCPsInCardEditor },
+			visible: func(s models.EditorSettings) bool { return s.ShowMCPs },
 		},
 	}
 }
@@ -104,8 +105,9 @@ const (
 )
 
 type CardEditorCallbacks struct {
-	OnSave              func(card config.IDCard) tea.Cmd
+	OnSave              func(draft models.CardEditorDraft) tea.Cmd
 	OnCancel            func() tea.Cmd
+	OnReload            func() tea.Cmd
 	OnOpenSources       func(sourceType string) tea.Cmd
 	OnOpenMCPForm       func() tea.Cmd
 	OnOpenWorkspaces    func() tea.Cmd
@@ -130,18 +132,21 @@ type CardEditor struct {
 	agentsMDEditor  *AgentsMDEditorModal
 
 	// State
-	loaded           config.IDCard // card as loaded by SetCard; Card() overlays edits onto this
-	focusIndex       int
-	puppet           string
-	workspaceID      string
-	subWorkspaceIDs  []string
-	useTmpWorkspace  bool
-	dashboardControl bool
-	sharingEnabled   bool
-	readOnly         bool
-	shared           bool
-	dashboardID      string
-	agentsMD         AgentsMDState
+	loaded                                                    contracts.CardEditorData
+	focusIndex                                                int
+	puppet                                                    string
+	workspaceID                                               string
+	subWorkspaceIDs                                           []string
+	subWorkspaceEdited, skillEdited, personaEdited, mcpEdited bool
+	useTmpWorkspace                                           bool
+	dashboardControl                                          bool
+	sharingEnabled                                            bool
+	readOnly                                                  bool
+	saveCompleted                                             bool
+	saving                                                    bool
+	shared                                                    bool
+	dashboardID                                               string
+	agentsMD                                                  AgentsMDState
 
 	// scrollOffset is the first form line shown when the form is taller than
 	// the editor. It is derived state: layout() keeps the focused block inside
@@ -149,12 +154,12 @@ type CardEditor struct {
 	scrollOffset int
 
 	// Data
-	workspaces []config.Workspace
-	skills     []config.Skill
-	personas   []config.Persona
-	mcps       []config.MCPServer
-	puppets    []config.Puppet
-	settings   config.AppSettings
+	workspaces []models.WorkspaceOption
+	skills     []models.EditorOption
+	personas   []models.EditorOption
+	mcps       []models.EditorOption
+	puppets    []models.PuppetOption
+	settings   models.EditorSettings
 
 	callbacks CardEditorCallbacks
 }
@@ -212,7 +217,7 @@ func NewCardEditor(callbacks CardEditorCallbacks) *CardEditor {
 		puppetSelector:  NewPuppetSelectorModal(),
 		agentsMDEditor:  NewAgentsMDEditorModal(),
 		puppet:          "kankuro",
-		settings:        config.DefaultAppSettings(),
+		settings:        models.EditorSettings{ShowPersonas: true, ShowMCPs: true},
 		callbacks:       callbacks,
 	}
 }
@@ -223,9 +228,9 @@ func (e *CardEditor) PersonaList() *components.CapabilityList { return e.persona
 
 func (e *CardEditor) MCPList() *components.CapabilityList { return e.mcpList }
 
-func (e *CardEditor) Settings() config.AppSettings { return e.settings }
+func (e *CardEditor) Settings() models.EditorSettings { return e.settings }
 
-func (e *CardEditor) Workspaces() []config.Workspace { return e.workspaces }
+func (e *CardEditor) Workspaces() []models.WorkspaceOption { return slices.Clone(e.workspaces) }
 
 func (e *CardEditor) WorkspaceID() string               { return e.workspaceID }
 func (e *CardEditor) SetWorkspaceID(workspaceID string) { e.workspaceID = workspaceID }
@@ -233,34 +238,13 @@ func (e *CardEditor) SetWorkspaceID(workspaceID string) { e.workspaceID = worksp
 func (e *CardEditor) Puppet() string          { return e.puppet }
 func (e *CardEditor) SetPuppet(puppet string) { e.puppet = puppet }
 
-func (e *CardEditor) EditingID() string { return e.loaded.ID }
+func (e *CardEditor) EditingID() string { return e.loaded.CardID }
 
 func (e *CardEditor) FocusIndex() int { return e.focusIndex }
 
 func (e *CardEditor) Inputs() []textinput.Model { return e.inputs }
 
-func (e *CardEditor) SetSettings(settings config.AppSettings) {
-	// A section going from visible to hidden must capture whatever is
-	// currently selected into e.loaded, since Card() falls back to e.loaded's
-	// value for a hidden section instead of reading the list.
-	//
-	// Guard on the list having items rather than the selection being
-	// non-empty: SelectedIDs() only returns IDs whose items are currently
-	// loaded, so before SetData has populated the list,
-	// "nothing selected" is indistinguishable from "list not populated yet"
-	// and must not wipe a real selection. Checking Items() makes that
-	// distinction, so a genuine deselect-everything edit on a populated list
-	// is still captured (TestCardEditor_HiddenSectionsCaptureDeselection).
-	if e.settings.ShowPersonasInCardEditor && !settings.ShowPersonasInCardEditor {
-		if len(e.personaList.Items()) > 0 {
-			e.loaded.PersonaIDs = e.personaList.SelectedIDs()
-		}
-	}
-	if e.settings.ShowMCPsInCardEditor && !settings.ShowMCPsInCardEditor {
-		if len(e.mcpList.Items()) > 0 {
-			e.loaded.MCPIDs = e.mcpList.SelectedIDs()
-		}
-	}
+func (e *CardEditor) SetSettings(settings models.EditorSettings) {
 	e.settings = settings
 	if !e.isFocusVisible(e.focusIndex) {
 		e.setFocus(e.visibleFocusOrder()[0])
@@ -270,35 +254,30 @@ func (e *CardEditor) SetSettings(settings config.AppSettings) {
 	}
 }
 
-// SetCard populates the form for editing an existing card. The full card is
-// retained in e.loaded so that Card() can overlay edits onto it without
-// dropping fields the form does not expose (e.g. SystemInstruction, Env).
-func (e *CardEditor) SetCard(card config.IDCard) {
-	e.loaded = card
+// LoadEditor replaces the draft and its read metadata.
+func (e *CardEditor) LoadEditor(data contracts.CardEditorData) {
+	e.Reset()
+	data.Values.SubWorkspaceIDs = slices.Clone(data.Values.SubWorkspaceIDs)
+	data.Values.SkillIDs = slices.Clone(data.Values.SkillIDs)
+	data.Values.PersonaIDs = slices.Clone(data.Values.PersonaIDs)
+	data.Values.MCPIDs = slices.Clone(data.Values.MCPIDs)
+	e.loaded = data
+	card := data.Values
 	e.inputs[nameInputIdx].SetValue(card.Name)
 	e.inputs[driverInputIdx].SetValue(card.Driver)
 	e.inputs[modelInputIdx].SetValue(card.Model)
 	e.workspaceID = card.WorkspaceID
 	e.inputs[faceStyleInputIdx].SetValue(card.FaceStyle)
 	e.puppet = card.Puppet
-	if e.puppet == "" {
-		e.puppet = defaultPuppetStyle
-	}
 	e.useTmpWorkspace = card.UseTmpWorkspace
 	e.dashboardControl = card.DashboardControl
 	e.shared = card.Shared
 	e.subWorkspaceIDs = slices.Clone(card.SubWorkspaceIDs)
-	e.skillList.SetSelectedOnly(false)
-	e.agentsMD.Content = card.AgentsMD
-	e.agentsMD.Path = card.AgentsMDPath
-	e.agentsMD.PreferPath = card.AgentsMDPreferPath
-
+	e.agentsMD = AgentsMDState{Content: card.AgentsMD, Path: card.AgentsMDPath, PreferPath: card.AgentsMDPreferPath}
 	e.skillList.SetSelected(card.SkillIDs)
 	e.personaList.SetSelected(card.PersonaIDs)
 	e.mcpList.SetSelected(card.MCPIDs)
-
-	e.focusIndex = 0
-	e.setFocus(0)
+	e.SetDashboardContext(data.DashboardID, !data.CanEdit)
 }
 
 // SetDashboardContext enables shared-card controls and optionally makes a
@@ -323,10 +302,17 @@ func (e *CardEditor) Reset() {
 		e.inputs[i].SetValue("")
 		e.inputs[i].Blur()
 	}
-	e.loaded = config.IDCard{}
+	e.loaded = contracts.CardEditorData{}
+	e.saveCompleted = false
+	e.saving = false
+	e.workspacePicker.Close()
+	e.puppetSelector.Close()
+	e.agentsMDEditor.Close()
+	e.clearSearches()
 	e.sharingEnabled, e.readOnly, e.dashboardID = false, false, ""
 	e.workspaceID = ""
 	e.subWorkspaceIDs = nil
+	e.subWorkspaceEdited, e.skillEdited, e.personaEdited, e.mcpEdited = false, false, false, false
 	e.useTmpWorkspace = false
 	e.dashboardControl = false
 	e.shared = false
@@ -340,81 +326,131 @@ func (e *CardEditor) Reset() {
 	e.setFocus(0)
 }
 
-// SetData replaces successfully loaded registries and preserves existing options
-// and capability selections when an incoming field is nil.
-func (e *CardEditor) SetData(msg messages.DataLoadedMsg) {
-	if msg.Workspaces != nil {
-		e.workspaces = msg.Workspaces
+// SetSaving prevents draft mutations while a submitted snapshot is in flight.
+func (e *CardEditor) SetSaving(saving bool) { e.saving = saving }
+
+// MarkSaveCompleted preserves the draft while requiring an explicit reload
+// before further saves after an offscreen completion.
+func (e *CardEditor) MarkSaveCompleted() {
+	e.saveCompleted = true
+	e.workspacePicker.Close()
+	e.puppetSelector.Close()
+	e.agentsMDEditor.Close()
+}
+
+// SetChoices applies independently successful option reads; failures retain the previous options.
+func (e *CardEditor) SetChoices(choices contracts.CardEditorChoices) {
+	if choices.Workspaces.Attempted && choices.Workspaces.Err == nil {
+		e.workspaces = make([]models.WorkspaceOption, 0, len(choices.Workspaces.Value))
+		for _, v := range choices.Workspaces.Value {
+			e.workspaces = append(e.workspaces, models.WorkspaceOption{ID: v.ID, Name: v.Name, Path: v.Path})
+		}
 		e.workspacePicker.SetWorkspaces(e.workspaces)
 	}
-
-	if msg.Skills != nil {
-		e.skills = msg.Skills
-		skillItems := make([]components.CapabilityItem, len(e.skills))
-		for i, s := range e.skills {
-			skillItems[i] = SkillItem{Skill: s}
-		}
-		e.skillList.SetItems(skillItems)
+	if choices.Skills.Attempted && choices.Skills.Err == nil {
+		e.skills = editorOptions(choices.Skills.Value)
+		e.skillList.SetItems(capabilityItems(e.skills))
 	}
-
-	if msg.Personas != nil {
-		e.personas = msg.Personas
-		personaItems := make([]components.CapabilityItem, len(e.personas))
-		for i, p := range e.personas {
-			personaItems[i] = personaItem{persona: p}
-		}
-		e.personaList.SetItems(personaItems)
+	if choices.Personas.Attempted && choices.Personas.Err == nil {
+		e.personas = editorOptions(choices.Personas.Value)
+		e.personaList.SetItems(capabilityItems(e.personas))
 	}
-
-	if msg.MCPs != nil {
-		e.mcps = msg.MCPs
-		mcpItems := make([]components.CapabilityItem, len(e.mcps))
-		for i, m := range e.mcps {
-			mcpItems[i] = mcpItem{mcp: m}
-		}
-		e.mcpList.SetItems(mcpItems)
+	if choices.MCPs.Attempted && choices.MCPs.Err == nil {
+		e.mcps = editorOptions(choices.MCPs.Value)
+		e.mcpList.SetItems(capabilityItems(e.mcps))
 	}
-
-	if msg.Puppets != nil {
-		e.puppets = msg.Puppets
+	if choices.Puppets.Attempted && choices.Puppets.Err == nil {
+		e.puppets = make([]models.PuppetOption, 0, len(choices.Puppets.Value))
+		for _, v := range choices.Puppets.Value {
+			e.puppets = append(e.puppets, models.PuppetOption{ID: v.ID, Name: v.Name, Lines: slices.Clone(v.Lines), Builtin: v.Builtin})
+		}
 		e.puppetSelector.SetPuppets(e.puppets)
 	}
 }
+func editorOptions(values []contracts.EditorOption) []models.EditorOption {
+	out := make([]models.EditorOption, 0, len(values))
+	for _, v := range values {
+		out = append(out, models.EditorOption{ID: v.ID, Name: v.Name, Description: v.Description})
+	}
+	return out
+}
+func capabilityItems(options []models.EditorOption) []components.CapabilityItem {
+	items := make([]components.CapabilityItem, 0, len(options))
+	for _, option := range options {
+		items = append(items, editorOptionItem{option})
+	}
+	return items
+}
 
-// Card returns the current card data, overlaid onto the card most recently
-// loaded via SetCard (or the zero value for a new card). Every field the
-// form does not expose — SystemInstruction, Env, CreatedAt, ID, and anything
-// added later — is carried through from e.loaded unchanged instead of being
-// silently dropped. Only the fields the form actually edits are assigned
-// below.
-func (e *CardEditor) Card() config.IDCard {
-	card := e.loaded
-	card.Name = strings.TrimSpace(e.inputs[nameInputIdx].Value())
-	card.Driver = strings.TrimSpace(e.inputs[driverInputIdx].Value())
-	card.Model = strings.TrimSpace(e.inputs[modelInputIdx].Value())
-	card.WorkspaceID = e.workspaceID
-	card.FaceStyle = strings.TrimSpace(e.inputs[faceStyleInputIdx].Value())
-	card.Puppet = e.puppet
-	card.UseTmpWorkspace = e.useTmpWorkspace
-	card.DashboardControl = e.dashboardControl
-	if e.sharingEnabled {
-		card.Shared = e.shared
+type editorOptionItem struct{ option models.EditorOption }
+
+func (i editorOptionItem) GetID() string          { return i.option.ID }
+func (i editorOptionItem) GetLabel() string       { return i.option.Name }
+func (i editorOptionItem) GetDescription() string { return i.option.Description }
+
+// Draft captures detached editable values and explicit changes.
+func (e *CardEditor) Draft() models.CardEditorDraft {
+	values := contracts.CardValues{
+		Name:               strings.TrimSpace(e.inputs[nameInputIdx].Value()),
+		Driver:             strings.TrimSpace(e.inputs[driverInputIdx].Value()),
+		Model:              strings.TrimSpace(e.inputs[modelInputIdx].Value()),
+		WorkspaceID:        e.workspaceID,
+		SubWorkspaceIDs:    slices.Clone(e.subWorkspaceIDs),
+		FaceStyle:          strings.TrimSpace(e.inputs[faceStyleInputIdx].Value()),
+		Puppet:             e.puppet,
+		UseTmpWorkspace:    e.useTmpWorkspace,
+		DashboardControl:   e.dashboardControl,
+		Shared:             e.shared,
+		AgentsMD:           e.agentsMD.Content,
+		AgentsMDPath:       e.agentsMD.Path,
+		AgentsMDPreferPath: e.agentsMD.PreferPath,
+		SkillIDs:           e.skillList.AllSelectedIDs(),
+		PersonaIDs:         e.personaList.AllSelectedIDs(),
+		MCPIDs:             e.mcpList.AllSelectedIDs(),
 	}
-	card.SubWorkspaceIDs = slices.Clone(e.subWorkspaceIDs)
-	card.AgentsMD = e.agentsMD.Content
-	card.AgentsMDPath = e.agentsMD.Path
-	card.AgentsMDPreferPath = e.agentsMD.PreferPath
-	card.SkillIDs = e.skillList.SelectedIDs()
-	// A hidden persona/MCP section is not rendered, so its list can't be
-	// read; leave e.loaded's value (set by SetCard, and kept current by
-	// SetSettings when a section transitions to hidden) untouched.
-	if e.settings.ShowPersonasInCardEditor {
-		card.PersonaIDs = e.personaList.SelectedIDs()
+	if e.skillEdited && len(values.SkillIDs) == 0 {
+		values.SkillIDs = []string{}
 	}
-	if e.settings.ShowMCPsInCardEditor {
-		card.MCPIDs = e.mcpList.SelectedIDs()
+	if e.personaEdited && len(values.PersonaIDs) == 0 {
+		values.PersonaIDs = []string{}
 	}
-	return card
+	if e.mcpEdited && len(values.MCPIDs) == 0 {
+		values.MCPIDs = []string{}
+	}
+	old := e.loaded.Values
+	changes := contracts.CardChanges{}
+	changes.Name = contracts.Change[string]{Present: values.Name != old.Name, Value: values.Name}
+	changes.Driver = contracts.Change[string]{Present: values.Driver != old.Driver, Value: values.Driver}
+	changes.Model = contracts.Change[string]{Present: values.Model != old.Model, Value: values.Model}
+	changes.WorkspaceID = contracts.Change[string]{Present: values.WorkspaceID != old.WorkspaceID, Value: values.WorkspaceID}
+	changes.SubWorkspaceIDs = contracts.Change[[]string]{
+		Present: e.subWorkspaceEdited || !slices.Equal(values.SubWorkspaceIDs, old.SubWorkspaceIDs),
+		Value:   values.SubWorkspaceIDs,
+	}
+	changes.FaceStyle = contracts.Change[string]{Present: values.FaceStyle != old.FaceStyle, Value: values.FaceStyle}
+	changes.Puppet = contracts.Change[string]{Present: values.Puppet != old.Puppet, Value: values.Puppet}
+	changes.UseTmpWorkspace = contracts.Change[bool]{Present: values.UseTmpWorkspace != old.UseTmpWorkspace, Value: values.UseTmpWorkspace}
+	changes.DashboardControl = contracts.Change[bool]{
+		Present: values.DashboardControl != old.DashboardControl,
+		Value:   values.DashboardControl,
+	}
+	changes.Shared = contracts.Change[bool]{Present: values.Shared != old.Shared, Value: values.Shared}
+	changes.AgentsMD = contracts.Change[string]{Present: values.AgentsMD != old.AgentsMD, Value: values.AgentsMD}
+	changes.AgentsMDPath = contracts.Change[string]{Present: values.AgentsMDPath != old.AgentsMDPath, Value: values.AgentsMDPath}
+	changes.AgentsMDPreferPath = contracts.Change[bool]{
+		Present: values.AgentsMDPreferPath != old.AgentsMDPreferPath,
+		Value:   values.AgentsMDPreferPath,
+	}
+	changes.SkillIDs = contracts.Change[[]string]{
+		Present: e.skillEdited || !slices.Equal(values.SkillIDs, old.SkillIDs),
+		Value:   values.SkillIDs,
+	}
+	changes.PersonaIDs = contracts.Change[[]string]{
+		Present: e.personaEdited || !slices.Equal(values.PersonaIDs, old.PersonaIDs),
+		Value:   values.PersonaIDs,
+	}
+	changes.MCPIDs = contracts.Change[[]string]{Present: e.mcpEdited || !slices.Equal(values.MCPIDs, old.MCPIDs), Value: values.MCPIDs}
+	return models.CardEditorDraft{Values: values, Changes: changes}
 }
 
 // Init initializes the editor.
@@ -424,27 +460,17 @@ func (e *CardEditor) Init() tea.Cmd {
 
 // Update handles messages.
 func (e *CardEditor) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+	if cmd, handled := e.handlePendingSave(msg); handled {
+		return e, cmd
+	}
 	if e.readOnly {
-		if key, ok := msg.(tea.KeyPressMsg); ok {
-			switch key.Code {
-			case tea.KeyEsc:
-				if e.callbacks.OnCancel != nil {
-					return e, e.callbacks.OnCancel()
-				}
-			case tea.KeyTab:
-				e.CycleFocus(1)
-			case tea.KeyUp:
-				e.handleNav(false)
-			case tea.KeyDown:
-				e.handleNav(true)
-			}
-		}
-		return e, nil
+		return e, e.handleReadOnly(msg)
 	}
 	// Handle data refresh messages
 	if msg, ok := msg.(messages.MCPDeletedMsg); ok {
 		// Remove the deleted MCP from selection
 		e.mcpList.Deselect(msg.MCPID)
+		e.mcpEdited = true
 		// Adjust cursor if needed
 		if e.mcpList.Cursor() >= len(e.mcpList.Items()) && e.mcpList.Cursor() > 0 {
 			e.mcpList.SetCursor(e.mcpList.Cursor() - 1)
@@ -474,6 +500,47 @@ func (e *CardEditor) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	return e.updateFocusedInput(msg)
 }
 
+func (e *CardEditor) handleReadOnly(msg tea.Msg) tea.Cmd {
+	key, ok := msg.(tea.KeyPressMsg)
+	if !ok {
+		return nil
+	}
+	switch key.Code {
+	case tea.KeyEsc:
+		if e.callbacks.OnCancel != nil {
+			return e.callbacks.OnCancel()
+		}
+	case tea.KeyTab:
+		e.CycleFocus(1)
+	case tea.KeyUp:
+		e.handleNav(false)
+	case tea.KeyDown:
+		e.handleNav(true)
+	}
+	return nil
+}
+
+// handlePendingSave keeps an in-flight or completed snapshot from being edited.
+func (e *CardEditor) handlePendingSave(msg tea.Msg) (tea.Cmd, bool) {
+	if !e.saving && !e.saveCompleted {
+		return nil, false
+	}
+	key, isKey := msg.(tea.KeyPressMsg)
+	if !isKey {
+		return nil, true
+	}
+	if e.saving {
+		return nil, true
+	}
+	if key.Code == tea.KeyEsc && e.callbacks.OnCancel != nil {
+		return e.callbacks.OnCancel(), true
+	}
+	if e.saveCompleted && key.String() == "ctrl+r" && e.callbacks.OnReload != nil {
+		return e.callbacks.OnReload(), true
+	}
+	return nil, true
+}
+
 // handleKey processes global key events.
 func (e *CardEditor) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch editorKeyIdentity(keyMsg) {
@@ -487,6 +554,12 @@ func (e *CardEditor) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		e.handleEscape()
 		if e.callbacks.OnCancel != nil {
 			return e.callbacks.OnCancel(), true
+		}
+		return nil, true
+
+	case "ctrl+r":
+		if e.callbacks.OnReload != nil {
+			return e.callbacks.OnReload(), true
 		}
 		return nil, true
 
@@ -525,7 +598,8 @@ func (e *CardEditor) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		if e.focusIndex != FocusSubWorkspaces {
 			return nil, false
 		}
-		e.subWorkspaceIDs = nil
+		e.subWorkspaceIDs = []string{}
+		e.subWorkspaceEdited = true
 		return nil, true
 	case keyCtrlE:
 		return e.handleCtrlE()
@@ -617,21 +691,30 @@ func (e *CardEditor) handleSpace() bool {
 		return true
 
 	case FocusSkills:
-		e.skillList.ToggleSelected()
+		if _, ok := e.skillList.SelectedItem(); ok {
+			e.skillList.ToggleSelected()
+			e.skillEdited = true
+		}
 		return true
 
 	case FocusPersonas:
-		if !e.settings.ShowPersonasInCardEditor {
+		if !e.settings.ShowPersonas {
 			return false
 		}
-		e.personaList.ToggleSelected()
+		if _, ok := e.personaList.SelectedItem(); ok {
+			e.personaList.ToggleSelected()
+			e.personaEdited = true
+		}
 		return true
 
 	case FocusMCPs:
-		if !e.settings.ShowMCPsInCardEditor {
+		if !e.settings.ShowMCPs {
 			return false
 		}
-		e.mcpList.ToggleSelected()
+		if _, ok := e.mcpList.SelectedItem(); ok {
+			e.mcpList.ToggleSelected()
+			e.mcpEdited = true
+		}
 		// Auto-select mcp-cli skill
 		e.autoSelectMCPCLISkill()
 		return true
@@ -655,7 +738,7 @@ func (e *CardEditor) handleCtrlE() (tea.Cmd, bool) {
 		return nil, true
 
 	case FocusPersonas:
-		if !e.settings.ShowPersonasInCardEditor {
+		if !e.settings.ShowPersonas {
 			return nil, false
 		}
 		if e.callbacks.OnOpenSources != nil {
@@ -670,7 +753,7 @@ func (e *CardEditor) handleCtrlE() (tea.Cmd, bool) {
 		return nil, true
 
 	case FocusMCPs:
-		if !e.settings.ShowMCPsInCardEditor {
+		if !e.settings.ShowMCPs {
 			return nil, false
 		}
 		if e.callbacks.OnOpenMCPForm != nil {
@@ -693,7 +776,7 @@ func (e *CardEditor) handleNav(down bool) {
 		}
 
 	case FocusPersonas:
-		if !e.settings.ShowPersonasInCardEditor {
+		if !e.settings.ShowPersonas {
 			return
 		}
 		if down {
@@ -703,7 +786,7 @@ func (e *CardEditor) handleNav(down bool) {
 		}
 
 	case FocusMCPs:
-		if !e.settings.ShowMCPsInCardEditor {
+		if !e.settings.ShowMCPs {
 			return
 		}
 		if down {
@@ -719,13 +802,13 @@ func (e *CardEditor) handleNav(down bool) {
 
 // handleSubmit saves the card.
 func (e *CardEditor) handleSubmit() tea.Cmd {
-	card := e.Card()
+	draft := e.Draft()
 
 	if e.callbacks.OnSave != nil {
-		return e.callbacks.OnSave(card)
+		return e.callbacks.OnSave(draft)
 	}
 
-	e.loaded.ID = ""
+	e.loaded.CardID = ""
 	if e.callbacks.OnCancel != nil {
 		return e.callbacks.OnCancel()
 	}
@@ -760,8 +843,8 @@ func (e *CardEditor) CycleFocus(dir int) {
 func (e *CardEditor) setFocus(index int) {
 	e.focusIndex = index
 	e.skillList.SetFocused(index == FocusSkills)
-	e.personaList.SetFocused(index == FocusPersonas && e.settings.ShowPersonasInCardEditor)
-	e.mcpList.SetFocused(index == FocusMCPs && e.settings.ShowMCPsInCardEditor)
+	e.personaList.SetFocused(index == FocusPersonas && e.settings.ShowPersonas)
+	e.mcpList.SetFocused(index == FocusMCPs && e.settings.ShowMCPs)
 	defer e.syncScroll()
 
 	// Map focus index to input index
@@ -803,12 +886,12 @@ func (e *CardEditor) updateFocusedInput(msg tea.Msg) (component.Model, tea.Cmd) 
 	case FocusSkills:
 		return e, e.updateSkillList(msg)
 	case FocusPersonas:
-		if !e.settings.ShowPersonasInCardEditor {
+		if !e.settings.ShowPersonas {
 			return e, nil
 		}
 		return e, e.updatePersonaList(msg)
 	case FocusMCPs:
-		if !e.settings.ShowMCPsInCardEditor {
+		if !e.settings.ShowMCPs {
 			return e, nil
 		}
 		return e, e.updateMCPList(msg)
@@ -882,6 +965,7 @@ func (e *CardEditor) updateWorkspacePicker(msg tea.Msg) (component.Model, tea.Cm
 	if e.workspacePicker.Confirmed() {
 		if e.focusIndex == FocusSubWorkspaces {
 			e.subWorkspaceIDs = e.workspacePicker.SelectedIDs()
+			e.subWorkspaceEdited = true
 			e.workspacePicker.SetMultiple(false)
 		} else {
 			e.workspaceID = e.workspacePicker.SelectedID()
@@ -935,6 +1019,7 @@ func (e *CardEditor) autoSelectMCPCLISkill() {
 	for _, s := range e.skills {
 		if s.Name == "mcp-cli" {
 			e.skillList.Select(s.ID)
+			e.skillEdited = true
 			return
 		}
 	}
@@ -987,14 +1072,17 @@ func blockOf(focus int, text string) formBlock {
 // that scrolling to the first field scrolls all the way to the top.
 func (e *CardEditor) fieldBlocks() []formBlock {
 	title := "New ID Card"
-	if e.loaded.ID != "" {
+	if e.loaded.CardID != "" {
 		title = "Edit ID Card"
 	}
 	if e.readOnly {
 		title = "ID Card (read-only)"
 	}
+	if e.saveCompleted {
+		title = "Card saved — reload to continue"
+	}
 	if e.sharingEnabled {
-		owner := e.loaded.DashboardID
+		owner := e.loaded.OwnerDashboardID
 		if owner == "" {
 			owner = e.dashboardID
 		}
@@ -1051,10 +1139,10 @@ func listBlock(focus int, l *components.CapabilityList) formBlock {
 // listBlocks returns one block per visible capability list.
 func (e *CardEditor) listBlocks() []formBlock {
 	blocks := []formBlock{listBlock(FocusSkills, e.skillList)}
-	if e.settings.ShowPersonasInCardEditor {
+	if e.settings.ShowPersonas {
 		blocks = append(blocks, listBlock(FocusPersonas, e.personaList))
 	}
-	if e.settings.ShowMCPsInCardEditor {
+	if e.settings.ShowMCPs {
 		blocks = append(blocks, listBlock(FocusMCPs, e.mcpList))
 	}
 	return blocks
@@ -1147,7 +1235,16 @@ func (e *CardEditor) syncScroll() (formLayout, int) {
 // renderForm renders the main form: the visible slice of the form lines, and
 // the help line pinned to the last row.
 func (e *CardEditor) renderForm() string {
-	const help = "Enter=save Tab=next Esc=cancel"
+	help := "Enter=save Tab=next Ctrl+R=reload Esc=cancel"
+	if e.readOnly {
+		help = "Read-only Tab=next Esc=back"
+	}
+	if e.saveCompleted {
+		help = "Saved: Ctrl+R=reload Esc=back"
+	}
+	if e.saving {
+		help = "Saving..."
+	}
 
 	l, win := e.syncScroll()
 	rows := e.visibleRows(l, win)
@@ -1350,10 +1447,10 @@ func (e *CardEditor) SetSize(width, height int) {
 	}
 
 	part := 1
-	if e.settings.ShowPersonasInCardEditor {
+	if e.settings.ShowPersonas {
 		part++
 	}
-	if e.settings.ShowMCPsInCardEditor {
+	if e.settings.ShowMCPs {
 		part++
 	}
 
@@ -1416,27 +1513,3 @@ func (e *CardEditor) isFocusVisible(index int) bool {
 }
 
 // Capability item types
-
-type SkillItem struct {
-	Skill config.Skill
-}
-
-func (i SkillItem) GetID() string          { return i.Skill.ID }
-func (i SkillItem) GetLabel() string       { return i.Skill.Name }
-func (i SkillItem) GetDescription() string { return i.Skill.Description }
-
-type personaItem struct {
-	persona config.Persona
-}
-
-func (i personaItem) GetID() string          { return i.persona.ID }
-func (i personaItem) GetLabel() string       { return i.persona.Name }
-func (i personaItem) GetDescription() string { return i.persona.Source }
-
-type mcpItem struct {
-	mcp config.MCPServer
-}
-
-func (i mcpItem) GetID() string          { return i.mcp.ID }
-func (i mcpItem) GetLabel() string       { return i.mcp.Name }
-func (i mcpItem) GetDescription() string { return i.mcp.Description }

@@ -148,7 +148,7 @@ func TestReadDashboardDataScopesCardsAndSessions(t *testing.T) {
 		repo.FileRepository,
 		config.IDCard{Name: "shared", Driver: "cat", WorkspaceID: workspaceID, DashboardID: "a", Shared: true},
 	)
-	foreign, err := service.CreateCardInDashboard("b", config.IDCard{Name: "foreign", Driver: "cat", WorkspaceID: workspaceID})
+	foreign, err := createCardForTest(service, "b", config.IDCard{Name: "foreign", Driver: "cat", WorkspaceID: workspaceID})
 	if err != nil || foreign.Shared || foreign.DashboardID != "b" {
 		t.Fatalf("new exclusive card: %+v, %v", foreign, err)
 	}
@@ -171,15 +171,15 @@ func TestReadDashboardDataScopesCardsAndSessions(t *testing.T) {
 	}
 	updated := shared
 	updated.Shared = false
-	if _, err := service.UpdateCardInDashboard("a", shared, updated); err == nil {
+	if _, err := updateCardForTest(service, "a", shared, updated); err == nil {
 		t.Fatal("unshared a card referenced by another dashboard")
 	}
-	if _, err := service.UpdateCardInDashboard("b", shared, updated); err == nil {
+	if _, err := updateCardForTest(service, "b", shared, updated); err == nil {
 		t.Fatal("consumer edited foreign card")
 	}
 	updated = shared
 	updated.Name = "updated shared"
-	shared, err = service.UpdateCardInDashboard("a", shared, updated)
+	shared, err = updateCardForTest(service, "a", shared, updated)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -391,7 +391,7 @@ func TestDashboardDeletionManifestClosesAdmissions(t *testing.T) {
 	if _, err := service.LaunchInDashboard(context.Background(), "b", shared.ID); err == nil {
 		t.Fatal("foreign use of deleting owner's card accepted")
 	}
-	if _, err := service.CreateCardInDashboard("a", config.IDCard{Name: "new", Driver: "cat", WorkspaceID: workspaceID}); err == nil {
+	if _, err := createCardForTest(service, "a", config.IDCard{Name: "new", Driver: "cat", WorkspaceID: workspaceID}); err == nil {
 		t.Fatal("card created in deleting dashboard")
 	}
 	if _, err := service.UpdateDashboardDetails("a", "changed", ""); err == nil {

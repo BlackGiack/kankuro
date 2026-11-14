@@ -49,7 +49,12 @@ type Coordinator struct {
 	sessionEpoch         uint64
 	dashboardListRequest uint64
 	dashboardViews       map[string]*views.Dashboard
-	editingCard          config.IDCard
+	editorEpoch          uint64
+	editorRequest        uint64
+	editorCardID         string
+	editorRevision       string
+	editorSaving         bool
+	editorCompleted      bool
 	mcpReturn            ViewType
 	mcpRequest           uint64
 	mcpManagerVisit      uint64
@@ -68,6 +73,7 @@ type Coordinator struct {
 	session *session.Manager
 	refresh refresher
 	reads   dashboardInventoryReader
+	editor  cardEditorPort
 	actions sessionActions
 }
 
@@ -76,8 +82,9 @@ func NewCoordinator(repo config.Repository, sm *session.Manager, service *api.Se
 		repo:           repo,
 		session:        sm,
 		preview:        previewSub{sessions: sm},
-		refresh:        refresher{repo: repo, sessions: sm},
+		refresh:        refresher{repo: repo, sessions: sm, editor: service},
 		reads:          service,
+		editor:         service,
 		actions:        sessionActions{repo: repo, sessions: sm, service: service},
 		views:          make(map[ViewType]component.Model),
 		currentView:    ViewDashboardList,
@@ -258,8 +265,6 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		switch m.Action {
 		case messages.DashboardCardLaunch:
 			return true, c.launchCard(m.Card)
-		case messages.DashboardCardEdit:
-			return true, c.openCardEditor(m.Card)
 		default:
 			return true, nil
 		}
@@ -285,7 +290,29 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 	case messages.PuppetsSyncedMsg:
 		return true, c.refreshDataSeeded()
 
+	case messages.EditorCancelMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || m.Epoch != c.editorEpoch ||
+			m.Request != c.editorRequest ||
+			c.currentView != ViewCardEditor ||
+			c.editorSaving {
+			return true, nil
+		}
+		c.editorEpoch++
+		return true, c.navigateTo(ViewDashboard)
+
+	case messages.EditorNavigateMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || m.Epoch != c.editorEpoch ||
+			c.currentView != ViewCardEditor ||
+			c.editorSaving ||
+			c.editorCompleted {
+			return true, nil
+		}
+		return true, c.navigateTo(convertViewType(m.View))
+
 	case messages.ScopedNavigateMsg:
+		if c.currentView == ViewCardEditor && c.editorSaving {
+			return true, nil
+		}
 		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
 			return true, nil
 		}
@@ -340,14 +367,63 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		}
 		return true, nil
 
-	case messages.CardSavedMsg:
-		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+	case messages.CardEditorLoadedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || m.Epoch != c.editorEpoch ||
+			m.Request != c.editorRequest ||
+			m.CardID != c.editorCardID ||
+			(c.currentView != ViewDashboard && c.currentView != ViewCardEditor) {
 			return true, nil
 		}
 		if m.Err != nil {
 			c.err = m.Err
 			return true, nil
 		}
+		editor, ok := c.views[ViewCardEditor].(*views.CardEditor)
+		if !ok {
+			return true, nil
+		}
+		editor.SetChoices(m.Choices)
+		if err := editorChoicesError(m.Choices); err != nil {
+			c.err = err
+		}
+		editor.LoadEditor(m.Data)
+		c.editorCompleted = false
+		c.editorRevision = m.Data.Revision
+		return true, c.navigateTo(ViewCardEditor)
+
+	case messages.CardSavedMsg:
+		matching := m.DashboardID == c.activeDashboard && m.Generation == c.viewGeneration && m.Epoch == c.editorEpoch &&
+			m.Request == c.editorRequest &&
+			m.CardID == c.editorCardID
+		if matching {
+			c.editorSaving = false
+			if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
+				editor.SetSaving(false)
+			}
+		}
+		if !matching {
+			if m.Err == nil {
+				return true, c.refreshDataSeeded()
+			}
+			return true, nil
+		}
+		if c.currentView != ViewCardEditor {
+			if m.Err != nil {
+				c.err = m.Err
+				return true, nil
+			}
+			c.editorCompleted = true
+			c.editorCardID, c.editorRevision = m.Result.CardID, m.Result.Revision
+			if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
+				editor.MarkSaveCompleted()
+			}
+			return true, c.refreshDataSeeded()
+		}
+		if m.Err != nil {
+			c.err = m.Err
+			return true, nil
+		}
+		c.editorEpoch++
 		return true, tea.Batch(c.refreshDataSeeded(), c.navigateTo(ViewDashboard))
 
 	case messages.MCPSavedMsg:
@@ -369,7 +445,7 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 			if m.Err == nil {
 				c.settings = m.Settings
 				if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
-					editor.SetSettings(m.Settings)
+					editor.SetSettings(editorSettings(m.Settings.ShowPersonasInCardEditor, m.Settings.ShowMCPsInCardEditor))
 				}
 			}
 			return true, c.refreshDataSeeded()
@@ -380,7 +456,7 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		}
 		c.settings = m.Settings
 		if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
-			editor.SetSettings(m.Settings)
+			editor.SetSettings(editorSettings(m.Settings.ShowPersonasInCardEditor, m.Settings.ShowMCPsInCardEditor))
 		}
 		return true, tea.Batch(c.refreshDataSeeded(), c.navigateTo(ViewDashboard))
 

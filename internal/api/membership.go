@@ -128,57 +128,6 @@ func (s *Service) UpdateDashboardDetails(id, name, description string) (config.D
 	return updated, err
 }
 
-// CreateCardInDashboard creates a card in an active dashboard. Its zero-value
-// sharing setting is exclusive; the caller may explicitly select shared.
-func (s *Service) CreateCardInDashboard(dashboardID string, card config.IDCard) (config.IDCard, error) {
-	writer, ok := s.repo.(scopedCardWriter)
-	if !ok {
-		return config.IDCard{}, errors.New("card storage unavailable")
-	}
-	var created config.IDCard
-	err := s.sessions.WithCardReferencesAndSnapshot("", func(_ session.CardReferenceImpact, sessions []session.Snapshot) error {
-		inventory, err := s.loadMembershipInventory(sessions)
-		if err != nil {
-			return err
-		}
-		if !inventory.activeDashboard(dashboardID) {
-			return errors.New("dashboard unavailable")
-		}
-		card.ID, card.DashboardID = "", dashboardID
-		created, err = writer.CreateIDCard(card)
-		return err
-	})
-	return created, err
-}
-
-// UpdateCardInDashboard enforces owner-only editing and refuses unsharing while
-// foreign sessions, saved bindings or pending activations reference the card.
-func (s *Service) UpdateCardInDashboard(dashboardID string, expected, updated config.IDCard) (config.IDCard, error) {
-	writer, ok := s.repo.(scopedCardWriter)
-	if !ok {
-		return config.IDCard{}, errors.New("card storage unavailable")
-	}
-	var saved config.IDCard
-	err := s.sessions.WithCardReferencesAndSnapshot(
-		expected.ID,
-		func(impact session.CardReferenceImpact, sessions []session.Snapshot) error {
-			current, err := s.cardOwnedBy(dashboardID, expected.ID, impact, sessions)
-			if err != nil {
-				return err
-			}
-			if !reflect.DeepEqual(current, expected) || updated.ID != current.ID || updated.DashboardID != dashboardID {
-				return errors.New("card changed; reload before saving")
-			}
-			if current.Shared && !updated.Shared && hasForeignCardReferences(impact, dashboardID) {
-				return errors.New("cannot unshare a card referenced by another dashboard")
-			}
-			saved, err = writer.UpdateIDCard(updated)
-			return err
-		},
-	)
-	return saved, err
-}
-
 // CheckSessionInDashboard revalidates human access without using mutable UI state.
 func (s *Service) CheckSessionInDashboard(dashboardID, sessionID string) error {
 	return s.sessions.WithAdmissionSnapshot(func(snapshot session.AdmissionSnapshot) error {
@@ -457,7 +406,7 @@ func (s *Service) readDashboardData(dashboardID string) (dashboardData, error) {
 	return data, nil
 }
 
-// ReadDashboardCardDetail loads one selected card for the legacy editor/action adapter.
+// ReadDashboardCardDetail loads one selected card for the legacy launch adapter.
 // It preserves stored fields; mutation handlers still revalidate ownership and availability.
 func (s *Service) ReadDashboardCardDetail(dashboardID, cardID string) (config.IDCard, error) {
 	data, err := s.readDashboardData(dashboardID)

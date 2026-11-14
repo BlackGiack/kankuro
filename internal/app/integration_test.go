@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
@@ -163,9 +164,19 @@ func TestCardCRUDFlow(t *testing.T) {
 		WorkspaceID: workspaces[0].ID,
 	}
 
-	editor.(*views.CardEditor).SetCard(testCard)
+	editor.(*views.CardEditor).LoadEditor(
+		contracts.CardEditorData{
+			CanEdit: true,
+			Values: contracts.CardValues{
+				Name:        testCard.Name,
+				Driver:      testCard.Driver,
+				Model:       testCard.Model,
+				WorkspaceID: testCard.WorkspaceID,
+			},
+		},
+	)
 
-	card := editor.(*views.CardEditor).Card()
+	card := editor.(*views.CardEditor).Draft().Values
 	if card.Name != testCard.Name {
 		t.Errorf("Expected card name %s, got %s", testCard.Name, card.Name)
 	}
