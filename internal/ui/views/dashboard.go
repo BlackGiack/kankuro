@@ -11,11 +11,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
@@ -51,10 +51,10 @@ type PendingAction struct {
 // DashboardCallbacks defines callbacks for dashboard actions.
 type DashboardCallbacks struct {
 	OnBack          func() tea.Cmd
-	OnEditCard      func(card config.IDCard) tea.Cmd
+	OnEditCard      func(cardID string) tea.Cmd
 	OnRenameSession func(sessionID, name string) tea.Cmd
 
-	OnLaunchCard func(card config.IDCard) tea.Cmd
+	OnLaunchCard func(cardID string) tea.Cmd
 
 	OnAttach   func(sessionID string) tea.Cmd
 	OnRelaunch func(sessionID string) tea.Cmd
@@ -109,13 +109,11 @@ type Dashboard struct {
 	cardImpactToken       string
 	cardImpactViewport    viewport.Model
 
-	// Data (passed from App)
-	cards    []config.IDCard
-	sessions []session.Snapshot
-	skills   []config.Skill
-	personas []config.Persona
-	mcps     []config.MCPServer
-	puppets  []config.Puppet
+	cardRows        []models.CardRow
+	sessionRows     []models.SessionRow
+	inventory       contracts.DashboardInventory
+	inventoryLoaded bool
+	displayChoices  contracts.DisplayChoices
 
 	// Layout (computed from size)
 	cardsWidth    int
@@ -145,17 +143,10 @@ func NewDashboard(callbacks DashboardCallbacks) *Dashboard {
 		callbacks:   callbacks,
 	}
 
-	d.puppets = []config.Puppet{}
-	d.cardList = components.NewCardList(components.CardListCallbacks{
-		OnSelect: d.callbacks.OnLaunchCard,
-		OnEdit:   d.callbacks.OnEditCard,
-		OnDelete: func(_ string) {
-			// Parent handles via message
-		},
-	})
+	d.cardList = components.NewCardList(components.CardListCallbacks{})
 
 	d.sessionList = components.NewSessionList(components.SessionListCallbacks{
-		OnSelect: func(_ session.Snapshot) tea.Cmd {
+		OnSelect: func(_ models.SessionRow) tea.Cmd {
 			return nil
 		},
 		OnAttach: func(_ string) {
@@ -236,7 +227,7 @@ func (d *Dashboard) applyPendingSessionFocus() {
 	if d.pendingFocusSessionID == "" {
 		return
 	}
-	for _, sess := range d.sessions {
+	for _, sess := range d.sessionRows {
 		if sess.ID != d.pendingFocusSessionID {
 			continue
 		}
@@ -261,7 +252,7 @@ func (d *Dashboard) applyPendingSessionFocus() {
 	}
 }
 
-func matchesSessionQuery(sess session.Snapshot, query string) bool {
+func matchesSessionQuery(sess models.SessionRow, query string) bool {
 	query = strings.ToLower(query)
 	return query == "" || strings.Contains(strings.ToLower(sess.Name), query) ||
 		strings.Contains(strings.ToLower(sess.CardID), query)
@@ -300,56 +291,47 @@ func (d *Dashboard) updateCardImpact(msg tea.Msg) (component.Model, tea.Cmd) {
 	return d, cmd
 }
 
-// SetData updates all child components with fresh data.
-func (d *Dashboard) SetData(msg messages.DataLoadedMsg) {
-	if msg.Cards != nil {
-		d.cards = msg.Cards
-		d.cardList.SetCards(d.cards, d.skills, d.personas)
-	}
-	if msg.Sessions != nil {
-		d.sessions = msg.Sessions
-		d.sessionList.SetSessions(d.sessions, d.cards)
-		d.applyPendingSessionFocus()
-	}
-	if msg.Skills != nil {
-		d.skills = msg.Skills
-		if msg.Cards != nil {
-			d.cardList.SetCards(d.cards, d.skills, d.personas)
+// SetInventory applies whichever focused reads succeeded. A failed read leaves
+// its previous cache intact; a non-nil empty result clears that cache.
+func (d *Dashboard) SetInventory(
+	inventory contracts.ReadResult[contracts.DashboardInventory],
+	choices contracts.DisplayChoicesResult,
+) {
+	changed := false
+	if inventory.Attempted && inventory.Err == nil {
+		owned := inventory.Value
+		owned.Cards = append([]contracts.CardSummary(nil), inventory.Value.Cards...)
+		owned.Sessions = append([]contracts.SessionSummary(nil), inventory.Value.Sessions...)
+		for i := range owned.Cards {
+			owned.Cards[i].SkillIDs = append([]string(nil), inventory.Value.Cards[i].SkillIDs...)
+			owned.Cards[i].PersonaIDs = append([]string(nil), inventory.Value.Cards[i].PersonaIDs...)
 		}
+		d.inventory = owned
+		d.inventoryLoaded = true
+		changed = true
 	}
-	if msg.Personas != nil {
-		d.personas = msg.Personas
-		if msg.Cards != nil {
-			d.cardList.SetCards(d.cards, d.skills, d.personas)
+	if choices.Skills.Attempted && choices.Skills.Err == nil {
+		d.displayChoices.Skills = append([]contracts.NamedChoice(nil), choices.Skills.Value...)
+		changed = true
+	}
+	if choices.Personas.Attempted && choices.Personas.Err == nil {
+		d.displayChoices.Personas = append([]contracts.NamedChoice(nil), choices.Personas.Value...)
+		changed = true
+	}
+	if choices.Puppets.Attempted && choices.Puppets.Err == nil {
+		d.displayChoices.Puppets = append([]contracts.PuppetChoice(nil), choices.Puppets.Value...)
+		for i := range d.displayChoices.Puppets {
+			d.displayChoices.Puppets[i].Lines = append([]string(nil), choices.Puppets.Value[i].Lines...)
 		}
+		changed = true
 	}
-	if msg.MCPs != nil {
-		d.mcps = msg.MCPs
-	}
-	if msg.Puppets != nil {
-		d.puppets = msg.Puppets
-		d.cardList.SetPuppets(d.puppets)
-		d.preview.SetPuppets(d.puppets)
-	}
-
-	d.syncPreviewSelection()
-
-	// Update scrollback if it matches current preview. This full-snapshot
-	// path and SetPreviewData (below) both write to d.preview, but never
-	// concurrently: both run on the main Bubble Tea goroutine.
-	if msg.PreviewSessionID != "" && msg.PreviewSessionID == d.preview.SessionID() {
-		d.preview.SetScrollback(msg.PreviewScrollback)
-	}
-}
-
-// SetSessions replaces the session list and synchronizes the preview selection.
-// A nil slice preserves the previous data.
-func (d *Dashboard) SetSessions(sessions []session.Snapshot) {
-	if sessions == nil {
+	if !changed || !d.inventoryLoaded {
 		return
 	}
-	d.sessions = sessions
-	d.sessionList.SetSessions(d.sessions, d.cards)
+	d.cardRows = models.CardRows(d.inventory.Cards, d.displayChoices)
+	d.sessionRows = models.SessionRows(d.inventory.Sessions, d.inventory.Cards, d.displayChoices)
+	d.cardList.SetRows(d.cardRows)
+	d.sessionList.SetRows(d.sessionRows)
 	d.applyPendingSessionFocus()
 	d.syncPreviewSelection()
 }
@@ -374,19 +356,19 @@ func (d *Dashboard) PreviewSessionID() string {
 
 func (d *Dashboard) syncPreviewSelection() {
 	// If there are no sessions at all, clear preview.
-	if len(d.sessions) == 0 {
+	if len(d.sessionRows) == 0 {
 		d.preview.Clear()
 		return
 	}
 
 	// Check if current preview session still exists
 	currentStillExists := false
-	var currentSess *session.Snapshot
+	var currentSession *models.SessionRow
 	if d.preview.SessionID() != "" {
-		for i := range d.sessions {
-			if d.sessions[i].ID == d.preview.SessionID() {
+		for i := range d.sessionRows {
+			if d.sessionRows[i].ID == d.preview.SessionID() {
 				currentStillExists = true
-				currentSess = &d.sessions[i]
+				currentSession = &d.sessionRows[i]
 				break
 			}
 		}
@@ -394,23 +376,31 @@ func (d *Dashboard) syncPreviewSelection() {
 
 	// If we are NOT in sessions pane AND current preview still exists, just refresh it.
 	if d.focusedPane != PaneSessions && currentStillExists {
-		d.preview.SetSession(currentSess, findCardByID(d.cards, currentSess.CardID))
+		d.preview.SetSession(currentSession)
 		return
 	}
 
 	// Otherwise, try to follow selection.
 	selected, ok := d.sessionList.Selected()
 	if !ok {
-		// If nothing selected but we have sessions, pick first
-		if len(d.sessions) > 0 {
-			selected = d.sessions[0]
-		} else {
+		if len(d.sessionRows) == 0 {
 			d.preview.Clear()
 			return
 		}
+		currentSession = &d.sessionRows[0]
+	} else {
+		for index := range d.sessionRows {
+			if d.sessionRows[index].ID == selected.ID {
+				currentSession = &d.sessionRows[index]
+				break
+			}
+		}
 	}
-
-	d.preview.SetSession(&selected, findCardByID(d.cards, selected.CardID))
+	if currentSession == nil {
+		d.preview.Clear()
+		return
+	}
+	d.preview.SetSession(currentSession)
 }
 
 // FocusedPane returns the currently focused pane.
@@ -419,13 +409,13 @@ func (d *Dashboard) FocusedPane() Pane {
 }
 
 // Cards returns the underlying cards.
-func (d *Dashboard) Cards() []config.IDCard {
-	return d.cards
+func (d *Dashboard) Cards() []models.CardRow {
+	return d.cardList.Cards()
 }
 
 // Sessions returns the underlying sessions.
-func (d *Dashboard) Sessions() []session.Snapshot {
-	return d.sessions
+func (d *Dashboard) Sessions() []models.SessionRow {
+	return d.sessionList.Sessions()
 }
 
 // TogglePane switches between cards and sessions.
@@ -561,9 +551,9 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case "c":
 			return d.handleOpenSettings()
 		case "o":
-			return d.handleLaunchSession(d.callbacks.OnLaunchIDE)
+			return d.handleLaunchSession(d.callbacks.OnLaunchIDE, sessionIDEAvailability)
 		case "t":
-			return d.handleLaunchSession(d.callbacks.OnLaunchTerminal)
+			return d.handleLaunchSession(d.callbacks.OnLaunchTerminal, sessionTerminalAvailability)
 		case "a":
 			return d.handleAttach()
 		case "x":
@@ -571,7 +561,7 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case "s":
 			return d.handleSwitch()
 		case "r":
-			if card, ok := d.cardList.Selected(); d.focusedPane == PaneCards && ok && card.DeletionState == config.CardDeleting &&
+			if card, ok := d.cardList.Selected(); d.focusedPane == PaneCards && ok && card.Retry.Enabled &&
 				d.callbacks.OnRetryCardDeletion != nil {
 				return d.callbacks.OnRetryCardDeletion(card.ID), true
 			}
@@ -592,16 +582,16 @@ func (d *Dashboard) handleEdit() (tea.Cmd, bool) {
 	//nolint:nestif // Card deletion has separate ownership and confirmation paths.
 	if d.focusedPane == PaneCards {
 		if card, ok := d.cardList.Selected(); ok {
-			if card.DeletionState != "" {
+			if !card.Edit.Enabled && !card.Inspect.Enabled {
 				return nil, true
 			}
 			if d.callbacks.OnEditCard != nil {
-				return d.callbacks.OnEditCard(card), true
+				return d.callbacks.OnEditCard(card.ID), true
 			}
 		}
 	}
 	if d.focusedPane == PaneSessions {
-		if sess, ok := d.sessionList.Selected(); ok {
+		if sess, ok := d.sessionList.Selected(); ok && sess.Rename.Enabled {
 			d.renameSessionID = sess.ID
 			d.renameInput.SetValue(sess.Name)
 			d.renameInput.Focus()
@@ -663,7 +653,16 @@ func (d *Dashboard) handleOpenSettings() (tea.Cmd, bool) {
 	}
 	return nil, true
 }
-func (d *Dashboard) handleLaunchSession(launch func(sessionID string) tea.Cmd) (tea.Cmd, bool) {
+func sessionIDEAvailability(row models.SessionRow) contracts.Availability { return row.OpenIDE }
+
+func sessionTerminalAvailability(row models.SessionRow) contracts.Availability {
+	return row.OpenTerminal
+}
+
+func (d *Dashboard) handleLaunchSession(
+	launch func(sessionID string) tea.Cmd,
+	availability func(models.SessionRow) contracts.Availability,
+) (tea.Cmd, bool) {
 	if d.focusedPane != PaneSessions {
 		return nil, true
 	}
@@ -671,6 +670,9 @@ func (d *Dashboard) handleLaunchSession(launch func(sessionID string) tea.Cmd) (
 	sess, ok := d.sessionList.Selected()
 	if !ok {
 		return nil, true
+	}
+	if available := availability(sess); !available.Enabled {
+		return availabilityFeedback(available), true
 	}
 
 	if launch == nil {
@@ -754,13 +756,11 @@ func (d *Dashboard) handleEnter() (tea.Cmd, bool) {
 	}
 
 	if card, ok := d.cardList.Selected(); ok {
-		if card.DeletionState == config.CardDeleting {
-			return func() tea.Msg {
-				return messages.ErrorMsg{Err: errors.New("card deletion in progress; press r to retry")}
-			}, true
+		if !card.Launch.Enabled {
+			return availabilityFeedback(card.Launch), true
 		}
 		if d.callbacks.OnLaunchCard != nil {
-			return d.callbacks.OnLaunchCard(card), true
+			return d.callbacks.OnLaunchCard(card.ID), true
 		}
 	}
 	return nil, true
@@ -772,18 +772,15 @@ func (d *Dashboard) handleSessionEnter() (tea.Cmd, bool) {
 		return nil, true
 	}
 
-	if sess.Status == session.StatusTerminated {
-		if sess.CardDeleted {
-			return func() tea.Msg {
-				return messages.ErrorMsg{Err: errors.New("card deleted: choose another available card")}
-			}, true
-		}
+	if sess.Relaunch.Enabled {
 		if d.callbacks.OnRelaunch != nil {
 			return d.callbacks.OnRelaunch(sess.ID), true
 		}
 		return nil, true
 	}
-
+	if !sess.Attach.Enabled {
+		return availabilityFeedback(firstUnavailable(sess.Relaunch, sess.Attach)), true
+	}
 	if d.callbacks.OnAttach != nil {
 		return d.callbacks.OnAttach(sess.ID), true
 	}
@@ -798,8 +795,11 @@ func (d *Dashboard) handleAttach() (tea.Cmd, bool) {
 	}
 
 	sess, ok := d.sessionList.Selected()
-	if !ok || sess.Status == session.StatusTerminated {
+	if !ok {
 		return nil, true
+	}
+	if !sess.Attach.Enabled {
+		return availabilityFeedback(sess.Attach), true
 	}
 
 	if d.callbacks.OnAttach != nil {
@@ -820,8 +820,8 @@ func (d *Dashboard) handleKill() (tea.Cmd, bool) {
 		return nil, true
 	}
 
-	if sess.Status != session.StatusRunning && sess.Status != session.StatusWaiting {
-		return nil, true
+	if !sess.Stop.Enabled {
+		return availabilityFeedback(sess.Stop), true
 	}
 
 	if d.callbacks.OnKill == nil {
@@ -856,13 +856,11 @@ func (d *Dashboard) handleDeleteSession() (tea.Cmd, bool) {
 		return nil, false
 	}
 
-	if sess.Status != session.StatusTerminated {
-		return func() tea.Msg {
-			return messages.ErrorMsg{Err: errors.New("only terminated sessions can be removed")}
-		}, true
+	if !sess.Remove.Enabled {
+		return availabilityFeedback(sess.Remove), true
 	}
 
-	if sess.UseTmpWorkspace {
+	if sess.TemporaryWorkspace {
 		d.pending = PendingAction{
 			Code:      "delete-session",
 			SessionID: sess.ID,
@@ -886,16 +884,25 @@ func (d *Dashboard) handleDeleteSession() (tea.Cmd, bool) {
 	return cmd, true
 }
 
+func firstUnavailable(values ...contracts.Availability) contracts.Availability {
+	for _, value := range values {
+		if !value.Enabled {
+			return value
+		}
+	}
+	return contracts.Availability{}
+}
+
 func (d *Dashboard) handleDeleteCard() (tea.Cmd, bool) {
 	card, ok := d.cardList.Selected()
 	if !ok {
 		return nil, false
 	}
-	if card.DeletionState == config.CardDeleting {
-		if d.callbacks.OnRetryCardDeletion != nil {
+	if !card.Delete.Enabled {
+		if card.Retry.Enabled && d.callbacks.OnRetryCardDeletion != nil {
 			return d.callbacks.OnRetryCardDeletion(card.ID), true
 		}
-		return nil, true
+		return availabilityFeedback(card.Delete), true
 	}
 
 	d.pending = PendingAction{
@@ -919,7 +926,7 @@ func (d *Dashboard) handleSwitch() (tea.Cmd, bool) {
 	}
 
 	if sess, ok := d.sessionList.Selected(); ok {
-		if sess.Status == session.StatusTerminated {
+		if sess.Switch.Enabled {
 			dashboardID, generation := d.dashboardID, d.dashboardGeneration
 			return func() tea.Msg {
 				return messages.AgentSwitchRequestedMsg{
@@ -930,9 +937,17 @@ func (d *Dashboard) handleSwitch() (tea.Cmd, bool) {
 				}
 			}, true
 		}
+		return availabilityFeedback(sess.Switch), true
 	}
 
 	return nil, false
+}
+
+func availabilityFeedback(value contracts.Availability) tea.Cmd {
+	if value.Enabled || value.Reason == "" {
+		return nil
+	}
+	return func() tea.Msg { return messages.ErrorMsg{Err: errors.New(value.Reason)} }
 }
 
 // updateDeleteModal handles delete confirmation modal.
@@ -1013,7 +1028,7 @@ func (d *Dashboard) updateFocusedPane(msg tea.Msg) (component.Model, tea.Cmd) {
 
 // togglePane switches between cards and sessions.
 func (d *Dashboard) togglePane() {
-	if d.focusedPane == PaneCards && len(d.sessions) > 0 {
+	if d.focusedPane == PaneCards && len(d.sessionRows) > 0 {
 		d.focusedPane = PaneSessions
 	} else {
 		d.focusedPane = PaneCards
@@ -1251,7 +1266,7 @@ func (d *Dashboard) renderSessionsPane() string {
 		d.search.IsActive && d.focusedPane == PaneSessions, d.sessionsWidth)
 
 	var content string
-	if len(d.sessions) == 0 && !d.search.IsActive && d.search.SessionsQuery == "" {
+	if len(d.sessionRows) == 0 && !d.search.IsActive && d.search.SessionsQuery == "" {
 		// Empty state
 		content = renderEmptySessionsState(d.sessionsWidth, d.sessionList.Height)
 	} else {
@@ -1292,7 +1307,7 @@ func (d *Dashboard) footerText(width int) string {
 	if d.dashboardID != "" {
 		navigation = "[Nav] Tab Esc=Dashboards"
 	}
-	if card, ok := d.cardList.Selected(); d.focusedPane == PaneCards && ok && card.DeletionState == config.CardDeleting {
+	if card, ok := d.cardList.Selected(); d.focusedPane == PaneCards && ok && card.Retry.Enabled {
 		pane = "[Card] r=Retry deletion"
 	}
 	if d.focusedPane == PaneSessions {
@@ -1364,17 +1379,6 @@ func renderEmptySessionsState(width, height int) string {
 		Align(lipgloss.Center, lipgloss.Center).
 		Foreground(styles.Gray).
 		Render(crowASCII)
-}
-
-// Helper functions
-
-func findCardByID(cards []config.IDCard, id string) *config.IDCard {
-	for i := range cards {
-		if cards[i].ID == id {
-			return &cards[i]
-		}
-	}
-	return nil
 }
 
 // Dashboard-specific theme colors.

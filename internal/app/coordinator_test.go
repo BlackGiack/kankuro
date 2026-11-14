@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
@@ -64,7 +65,12 @@ func TestCoordinator_DashboardRenameFailureStaysInDialogAndIgnoresStaleResult(t 
 	if !ok {
 		t.Fatal("dashboard view unavailable")
 	}
-	dashboard.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "missing-session", Name: "Session"}}})
+	dashboard.SetInventory(contracts.ReadResult[contracts.DashboardInventory]{Attempted: true, Value: contracts.DashboardInventory{
+		Sessions: []contracts.SessionSummary{{
+			ID: "missing-session", Name: "Session", Status: string(session.StatusTerminated),
+			Rename: contracts.Availability{Enabled: true},
+		}},
+	}}, contracts.DisplayChoicesResult{})
 	dashboard.TogglePane()
 	dashboard.SessionList().SetSelectedByID("missing-session")
 	dashboard.Update(tea.KeyPressMsg{Text: "e"})

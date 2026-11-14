@@ -12,6 +12,7 @@ import (
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
@@ -54,15 +55,16 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 	}
 	_, cmd := coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	var launch messages.SessionLaunchCompletedMsg
-	for _, msg := range collectMsgs(t, cmd) {
+	pending := collectMsgs(t, cmd)
+	for len(pending) > 0 {
+		msg := pending[0]
+		pending = pending[1:]
 		if result, ok := msg.(messages.SessionLaunchCompletedMsg); ok {
 			launch = result
 		}
 		_, followup := coord.Update(msg)
-		if _, isLaunch := msg.(messages.SessionLaunchCompletedMsg); isLaunch {
-			for _, refreshMsg := range collectMsgs(t, followup) {
-				coord.Update(refreshMsg)
-			}
+		if followup != nil {
+			pending = append(pending, collectMsgs(t, followup)...)
 		}
 	}
 	if launch.Err != nil || launch.SessionID == "" {
@@ -132,7 +134,7 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 	}
 }
 
-func hasSessionNamed(sessions []session.Snapshot, name string) bool {
+func hasSessionNamed(sessions []models.SessionRow, name string) bool {
 	for _, sess := range sessions {
 		if sess.Name == name {
 			return true

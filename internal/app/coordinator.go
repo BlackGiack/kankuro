@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
@@ -54,15 +55,19 @@ type Coordinator struct {
 	mcpManagerVisit      uint64
 	mcpDeleteRequest     uint64
 
-	// configFingerprint tracks the last loaded registry stamps. Seeded refreshes
-	// update the baseline; idle ticks skip configuration reads when it is unchanged.
-	configFingerprint map[string]config.FileStamp
+	configFingerprint           contracts.RegistryChangeToken
+	displayChoices              contracts.DisplayChoices
+	refreshRequestID            uint64
+	lastAppliedRefreshRequest   uint64
+	inventoryRequestID          uint64
+	lastAppliedInventoryRequest uint64
 
 	// --- safe from any goroutine: concurrency-safe handles, and helpers that
 	// hold no coordinator pointer ---
 	repo    config.Repository
 	session *session.Manager
 	refresh refresher
+	reads   dashboardInventoryReader
 	actions sessionActions
 }
 
@@ -72,6 +77,7 @@ func NewCoordinator(repo config.Repository, sm *session.Manager, service *api.Se
 		session:        sm,
 		preview:        previewSub{sessions: sm},
 		refresh:        refresher{repo: repo, sessions: sm},
+		reads:          service,
 		actions:        sessionActions{repo: repo, sessions: sm, service: service},
 		views:          make(map[ViewType]component.Model),
 		currentView:    ViewDashboardList,
@@ -224,22 +230,39 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, confirmCardDeletionCommand(c.actions.service, m.DashboardID, m.CardID, m.Token, m.Generation, false)
 
 	case messages.DashboardOpenRequestedMsg:
-		if c.currentView != ViewDashboardList || m.Generation != c.viewGeneration || m.Dashboard.ID == "" ||
-			m.Dashboard.State != config.DashboardActive {
+		if c.currentView != ViewDashboardList || m.Generation != c.viewGeneration || m.DashboardID == "" ||
+			m.DashboardState != contracts.DashboardActive {
 			return true, nil
 		}
-		c.activeDashboard = m.Dashboard.ID
+		c.activeDashboard = m.DashboardID
 		c.viewGeneration++
-		dashboard := c.dashboardViews[m.Dashboard.ID]
+		dashboard := c.dashboardViews[m.DashboardID]
 		if dashboard == nil {
 			dashboard = views.NewDashboard(c.dashboardCallbacks())
-			c.dashboardViews[m.Dashboard.ID] = dashboard
+			c.dashboardViews[m.DashboardID] = dashboard
 		}
-		dashboard.SetDashboardName(m.Dashboard.Name)
-		dashboard.SetDashboardScope(m.Dashboard.ID, c.viewGeneration)
+		dashboard.SetDashboardName(m.DashboardName)
+		dashboard.SetDashboardScope(m.DashboardID, c.viewGeneration)
 		dashboard.SetSize(c.width, c.height-views.CoordinatorRows)
 		c.views[ViewDashboard] = dashboard
 		return true, tea.Batch(c.navigateTo(ViewDashboard), c.refreshDataSeeded())
+
+	case messages.DashboardCardLoadedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || c.currentView != ViewDashboard {
+			return true, nil
+		}
+		if m.Err != nil {
+			c.err = m.Err
+			return true, nil
+		}
+		switch m.Action {
+		case messages.DashboardCardLaunch:
+			return true, c.launchCard(m.Card)
+		case messages.DashboardCardEdit:
+			return true, c.openCardEditor(m.Card)
+		default:
+			return true, nil
+		}
 
 	case messages.DashboardListRequestedMsg:
 
@@ -580,15 +603,14 @@ func (c *Coordinator) refreshConversationChoiceContext() {
 		c.setConversationChoiceError(choiceView, "Session data is unavailable. Cancel and try again.")
 		return
 	}
-	var destination *config.IDCard
-	for i := range dashboard.Cards() {
-		card := dashboard.Cards()[i]
+	destinationDriver := ""
+	for _, card := range dashboard.Cards() {
 		if card.ID == cardID {
-			destination = &card
+			destinationDriver = card.Driver
 			break
 		}
 	}
-	if destination == nil {
+	if destinationDriver == "" {
 		c.setConversationChoiceError(choiceView, "The destination card was removed. Cancel and choose another card.")
 		return
 	}
@@ -613,7 +635,7 @@ func (c *Coordinator) refreshConversationChoiceContext() {
 			return
 		}
 	}
-	choiceView.RefreshContext(sessionID, cardID, destination.Driver, bindings)
+	choiceView.RefreshContext(sessionID, cardID, destinationDriver, bindings)
 }
 
 func (c *Coordinator) setConversationChoiceError(view *views.ConversationChoiceView, message string) {

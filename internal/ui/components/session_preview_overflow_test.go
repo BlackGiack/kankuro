@@ -14,7 +14,7 @@ import (
 func TestSessionPreview_WidthClamp_WideRunes(t *testing.T) {
 	p := components.NewSessionPreview()
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// Wide runes: CJK, Emoji, Box Drawing
 	input := strings.Join([]string{
@@ -55,7 +55,7 @@ func TestSessionPreview_WidthClamp_WideRunes(t *testing.T) {
 func TestSessionPreview_HeightClamp_LongStream(t *testing.T) {
 	p := components.NewSessionPreview()
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// Append 200 short lines
 	for range 200 {
@@ -83,11 +83,11 @@ func TestSessionPreview_HeightClamp_TallPuppet(t *testing.T) {
 	puppets := []config.Puppet{
 		{ID: "tall-id", Name: "tall", Lines: tallPuppetLines, Builtin: false},
 	}
-	p.SetPuppets(puppets)
+	setPreviewPuppets(p, puppets)
 
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
 	card := &config.IDCard{Puppet: "tall"}
-	p.SetSession(snap, card)
+	setPreviewSession(p, snap, card)
 	p.SetScrollback([]byte("some output"))
 
 	h := 20
@@ -106,7 +106,7 @@ func TestSessionPreview_HeightClamp_TallPuppet(t *testing.T) {
 func TestSessionPreview_HardClamp_PathologicalOutput(t *testing.T) {
 	p := components.NewSessionPreview()
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// Inject styled wide content much larger than any reasonable pane.
 	var buf strings.Builder
@@ -136,7 +136,7 @@ func TestSessionPreview_HardClamp_PathologicalOutput(t *testing.T) {
 func TestSessionPreview_OpencodeMixedStream(t *testing.T) {
 	p := components.NewSessionPreview()
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// Combine wide-rune lines, ANSI-like redraws
 	p.AppendScrollback([]byte("Progress: 🚀🚀🚀\r"))

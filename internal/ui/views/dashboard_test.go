@@ -7,20 +7,190 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
-	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 var errTest = errors.New("test")
 
+type dashboardFixture struct {
+	Cards    []config.IDCard
+	Sessions []session.Snapshot
+	Skills   []config.Skill
+	Personas []config.Persona
+	Puppets  []config.Puppet
+}
+
+//nolint:gocognit // Test-only adapter converts existing backend fixtures to focused display contracts.
+func setDashboardData(dashboard *views.Dashboard, msg dashboardFixture) {
+	currentCards := dashboard.Cards()
+	cards := make([]contracts.CardSummary, 0, len(currentCards))
+	for _, card := range currentCards {
+		cards = append(cards, contracts.CardSummary{
+			ID: card.ID, OwnerDashboardID: card.OwnerDashboardID, Shared: card.Shared,
+			Name: card.Name, Driver: card.Driver, Model: card.Model, SkillIDs: card.SkillIDs,
+			PersonaIDs: card.PersonaIDs, Puppet: card.PuppetName, FaceStyle: card.FaceStyle,
+			DeletionState: card.DeletionState, Launch: card.Launch, Edit: card.Edit, Delete: card.Delete,
+			Retry: card.Retry, Inspect: card.Inspect,
+		})
+	}
+	currentSessions := dashboard.SessionList().Sessions()
+	sessions := make([]contracts.SessionSummary, 0, len(currentSessions))
+	for _, row := range currentSessions {
+		sessions = append(sessions, contracts.SessionSummary{
+			ID: row.ID, DashboardID: row.DashboardID, CardID: row.CardID, Name: row.Name,
+			Status: row.Status, StartedAt: row.StartedAt, PID: row.PID, WorkingDir: row.WorkingDir,
+			OriginalDir: row.OriginalDir, TemporaryWorkspace: row.TemporaryWorkspace,
+			CardDeleted: row.CardDeleted, CardUnavailable: row.CardUnavailable,
+			Registration: row.Registration, RegistrationPersistence: row.RegistrationPersistence,
+			RegistrationError: row.RegistrationError, ActiveConversationID: row.ActiveConversationID,
+			ActiveConversationName: row.ActiveConversationName, FaceStyle: row.FaceStyle, Puppet: row.PuppetName,
+			Attach: row.Attach, Relaunch: row.Relaunch, Stop: row.Stop, Remove: row.Remove,
+			Switch: row.Switch, Rename: row.Rename, OpenIDE: row.OpenIDE, OpenTerminal: row.OpenTerminal,
+		})
+	}
+	read := contracts.ReadResult[contracts.DashboardInventory]{}
+	if msg.Cards != nil || msg.Sessions != nil {
+		read.Attempted = true
+		if msg.Cards != nil {
+			cards = make([]contracts.CardSummary, 0, len(msg.Cards))
+			for _, card := range msg.Cards {
+				cards = append(cards, contracts.CardSummary{
+					ID: card.ID, OwnerDashboardID: card.DashboardID, Shared: card.Shared,
+					Name: card.Name, Driver: card.Driver, Model: card.Model, SkillIDs: card.SkillIDs,
+					PersonaIDs: card.PersonaIDs, Puppet: card.Puppet, FaceStyle: card.FaceStyle,
+					DeletionState: card.DeletionState, Launch: contracts.Availability{Enabled: card.DeletionState == ""},
+					Inspect: contracts.Availability{Enabled: true}, Edit: contracts.Availability{Enabled: card.DeletionState == ""},
+					Delete: contracts.Availability{Enabled: card.DeletionState == ""},
+				})
+			}
+		}
+		if msg.Sessions != nil {
+			sessions = make([]contracts.SessionSummary, 0, len(msg.Sessions))
+			for _, item := range msg.Sessions {
+				status := item.Status
+				if status == "" {
+					status = session.StatusTerminated
+				}
+				row := contracts.SessionSummary{
+					ID: item.ID, DashboardID: item.DashboardID, CardID: item.CardID, Name: item.Name,
+					Status: string(status), StartedAt: item.StartedAt, PID: item.PID,
+					WorkingDir: item.WorkingDir, OriginalDir: item.OriginalDir,
+					TemporaryWorkspace: item.UseTmpWorkspace, CardDeleted: item.CardDeleted,
+					Registration: string(item.Registration), RegistrationPersistence: string(item.RegistrationPersistence),
+					RegistrationError: item.RegistrationErr, ActiveConversationID: item.ActiveConversationID,
+				}
+				enabled := contracts.Availability{Enabled: true}
+				unavailable := contracts.Availability{Reason: "unavailable in fixture"}
+				switch status {
+				case session.StatusRunning, session.StatusWaiting:
+					row.Attach, row.Stop, row.Rename, row.OpenIDE, row.OpenTerminal = enabled, enabled, enabled, enabled, enabled
+					row.Remove, row.Relaunch, row.Switch = unavailable, unavailable, unavailable
+				case session.StatusTerminated:
+					row.Remove, row.Relaunch, row.Switch, row.Rename = enabled, enabled, enabled, enabled
+					row.OpenIDE, row.OpenTerminal = enabled, enabled
+					row.Attach, row.Stop = unavailable, unavailable
+				}
+				sessions = append(sessions, row)
+			}
+		}
+		read.Value = contracts.DashboardInventory{Cards: cards, Sessions: sessions}
+	}
+	choices := contracts.DisplayChoicesResult{}
+	if msg.Skills != nil {
+		choices.Skills = contracts.ReadResult[[]contracts.NamedChoice]{
+			Attempted: true,
+			Value:     make([]contracts.NamedChoice, 0, len(msg.Skills)),
+		}
+		for _, item := range msg.Skills {
+			choices.Skills.Value = append(choices.Skills.Value, contracts.NamedChoice{ID: item.ID, Name: item.Name})
+		}
+	}
+	if msg.Personas != nil {
+		choices.Personas = contracts.ReadResult[[]contracts.NamedChoice]{
+			Attempted: true,
+			Value:     make([]contracts.NamedChoice, 0, len(msg.Personas)),
+		}
+		for _, item := range msg.Personas {
+			choices.Personas.Value = append(choices.Personas.Value, contracts.NamedChoice{ID: item.ID, Name: item.Name})
+		}
+	}
+	if msg.Puppets != nil {
+		choices.Puppets = contracts.ReadResult[[]contracts.PuppetChoice]{
+			Attempted: true,
+			Value:     make([]contracts.PuppetChoice, 0, len(msg.Puppets)),
+		}
+		for _, item := range msg.Puppets {
+			choices.Puppets.Value = append(choices.Puppets.Value, contracts.PuppetChoice{
+				ID: item.ID, Name: item.Name, Lines: item.Lines, Builtin: item.Builtin,
+			})
+		}
+	}
+	dashboard.SetInventory(read, choices)
+}
+
+func setDashboardSessions(dashboard *views.Dashboard, sessions []session.Snapshot) {
+	setDashboardData(dashboard, dashboardFixture{Sessions: sessions})
+}
+
+func TestDashboardSetInventoryOwnsAndRetainsFocusedReads(t *testing.T) {
+	dashboard := views.NewDashboard(views.DashboardCallbacks{})
+	inventory := contracts.DashboardInventory{
+		Cards:    []contracts.CardSummary{{ID: "card", Name: "Card", SkillIDs: []string{"skill"}, Puppet: "puppet"}},
+		Sessions: []contracts.SessionSummary{{ID: "session", CardID: "card", Name: "Session", Status: "running", PID: 42}},
+	}
+	choices := contracts.DisplayChoicesResult{
+		Skills: contracts.ReadResult[[]contracts.NamedChoice]{
+			Attempted: true,
+			Value:     []contracts.NamedChoice{{ID: "skill", Name: "Skill name"}},
+		},
+		Puppets: contracts.ReadResult[[]contracts.PuppetChoice]{
+			Attempted: true,
+			Value:     []contracts.PuppetChoice{{ID: "puppet", Name: "puppet", Lines: []string{"art"}}},
+		},
+	}
+	inventoryResult := contracts.ReadResult[contracts.DashboardInventory]{Attempted: true, Value: inventory}
+	dashboard.SetInventory(inventoryResult, choices)
+	inventory.Cards[0].SkillIDs[0] = "changed"
+	choices.Skills.Value[0].Name = "Changed name"
+	choices.Puppets.Value[0].Lines[0] = "changed art"
+
+	card := dashboard.Cards()[0]
+	if len(card.SkillNames) != 1 || card.SkillNames[0] != "Skill name" || card.PuppetLines[0] != "art" {
+		t.Fatalf("focused row aliases source values: %+v", card)
+	}
+
+	updated := contracts.DashboardInventory{
+		Cards:    []contracts.CardSummary{{ID: "card", Name: "Card", SkillIDs: []string{"skill"}}},
+		Sessions: []contracts.SessionSummary{{ID: "new-session", CardID: "card", Name: "New", Status: "waiting"}},
+	}
+	updatedRead := contracts.ReadResult[contracts.DashboardInventory]{Attempted: true, Value: updated}
+	dashboard.SetInventory(updatedRead, contracts.DisplayChoicesResult{})
+	if got := dashboard.Cards()[0].SkillNames[0]; got != "Skill name" {
+		t.Fatalf("failed choice read discarded cached display name: %q", got)
+	}
+	if got := dashboard.SessionList().Sessions()[0].ID; got != "new-session" {
+		t.Fatalf("successful inventory read did not replace sessions: %q", got)
+	}
+	emptyChoices := contracts.DisplayChoicesResult{
+		Skills:   contracts.ReadResult[[]contracts.NamedChoice]{Attempted: true, Value: []contracts.NamedChoice{}},
+		Personas: contracts.ReadResult[[]contracts.NamedChoice]{Attempted: true, Value: []contracts.NamedChoice{}},
+		Puppets:  contracts.ReadResult[[]contracts.PuppetChoice]{Attempted: true, Value: []contracts.PuppetChoice{}},
+	}
+	dashboard.SetInventory(contracts.ReadResult[contracts.DashboardInventory]{}, emptyChoices)
+	if got := dashboard.Cards()[0].SkillNames; len(got) != 0 {
+		t.Fatalf("successful empty choices did not clear resolved names: %v", got)
+	}
+}
+
 func TestDashboard_New(t *testing.T) {
 	callbacks := views.DashboardCallbacks{
-		OnEditCard: func(_ config.IDCard) tea.Cmd {
+		OnEditCard: func(_ string) tea.Cmd {
 			return func() tea.Msg { return nil }
 		},
-		OnLaunchCard: func(_ config.IDCard) tea.Cmd {
+		OnLaunchCard: func(_ string) tea.Cmd {
 			return func() tea.Msg { return nil }
 		},
 	}
@@ -46,7 +216,7 @@ func TestDashboard_SetData(t *testing.T) {
 		{ID: "s1", Name: "Session 1"},
 	}
 
-	d.SetData(messages.DataLoadedMsg{
+	setDashboardData(d, dashboardFixture{
 		Cards:    cards,
 		Sessions: sessions,
 	})
@@ -61,7 +231,7 @@ func TestDashboard_SetData(t *testing.T) {
 
 func TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch(t *testing.T) {
 	d := views.NewDashboard(views.DashboardCallbacks{})
-	d.SetData(messages.DataLoadedMsg{
+	setDashboardData(d, dashboardFixture{
 		Sessions: []session.Snapshot{{ID: "existing", Name: "Existing"}},
 	})
 	d.FocusSession("new")
@@ -73,7 +243,7 @@ func TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch(t *testing
 	if d.Search().SessionsQuery != "Existing" {
 		t.Fatalf("session filter was not established: %+v", d.Search())
 	}
-	d.SetSessions([]session.Snapshot{
+	setDashboardSessions(d, []session.Snapshot{
 		{ID: "new", Name: "New"},
 		{ID: "existing", Name: "Existing"},
 	})
@@ -87,7 +257,7 @@ func TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch(t *testing
 	}
 
 	d.SessionList().SetSelectedByID("existing")
-	d.SetSessions([]session.Snapshot{
+	setDashboardSessions(d, []session.Snapshot{
 		{ID: "existing", Name: "Existing"},
 		{ID: "new", Name: "New"},
 	})
@@ -100,11 +270,11 @@ func TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch(t *testing
 
 func TestDashboard_FocusSessionPreservesMatchingSearch(t *testing.T) {
 	d := views.NewDashboard(views.DashboardCallbacks{})
-	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "existing", Name: "Existing"}}})
+	setDashboardData(d, dashboardFixture{Sessions: []session.Snapshot{{ID: "existing", Name: "Existing"}}})
 	d.TogglePane()
 	setDashboardSearchQuery(d, "New")
 	d.FocusSession("new")
-	d.SetSessions([]session.Snapshot{
+	setDashboardSessions(d, []session.Snapshot{
 		{ID: "existing", Name: "Existing"},
 		{ID: "new", Name: "New session"},
 	})
@@ -123,7 +293,7 @@ func setDashboardSearchQuery(d *views.Dashboard, query string) {
 
 func TestDashboard_TogglePane(t *testing.T) {
 	d := views.NewDashboard(views.DashboardCallbacks{})
-	d.SetData(messages.DataLoadedMsg{
+	setDashboardData(d, dashboardFixture{
 		Sessions: []session.Snapshot{{ID: "s1"}},
 	})
 
@@ -198,7 +368,7 @@ func TestDashboard_RenameSession(t *testing.T) {
 		return func() tea.Msg { return nil }
 	}})
 	d.SetSize(80, 24-views.CoordinatorRows)
-	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "session-1", Name: "Seed"}}})
+	setDashboardData(d, dashboardFixture{Sessions: []session.Snapshot{{ID: "session-1", Name: "Seed"}}})
 	d.TogglePane()
 	d.SessionList().SetSelectedByID("session-1")
 	d.Update(tea.KeyPressMsg{Text: "e"})
@@ -206,7 +376,7 @@ func TestDashboard_RenameSession(t *testing.T) {
 		t.Fatal("rename dialog did not show the selected session name")
 	}
 	d.Update(tea.KeyPressMsg{Text: "é   "})
-	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "session-1", Name: "Refreshed"}}})
+	setDashboardData(d, dashboardFixture{Sessions: []session.Snapshot{{ID: "session-1", Name: "Refreshed"}}})
 	if !strings.Contains(d.View(), "Seedé") {
 		t.Fatal("periodic data refresh discarded the rename draft")
 	}
@@ -251,7 +421,7 @@ func TestDashboard_RenameSessionEmptyUsesIDAndNoSelectionIsNoop(t *testing.T) {
 	if strings.Contains(d.View(), "Rename Session") {
 		t.Fatal("rename dialog opened with no selected session")
 	}
-	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "session-id", Name: "Name"}}})
+	setDashboardData(d, dashboardFixture{Sessions: []session.Snapshot{{ID: "session-id", Name: "Name"}}})
 	d.TogglePane()
 	d.SessionList().SetSelectedByID("session-id")
 	d.Update(tea.KeyPressMsg{Text: "e"})
@@ -279,7 +449,7 @@ func checkRenameDraftDiscard(t *testing.T, action string) {
 	}})
 	d.SetSize(80, 24-views.CoordinatorRows)
 	d.SetDashboardScope("dashboard", 1)
-	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "session-id", Name: "Original"}}})
+	setDashboardData(d, dashboardFixture{Sessions: []session.Snapshot{{ID: "session-id", Name: "Original"}}})
 	d.TogglePane()
 	d.SessionList().SetSelectedByID("session-id")
 	d.Update(tea.KeyPressMsg{Text: "e"})
@@ -327,7 +497,7 @@ func TestDashboard_LaunchTerminalRouting(t *testing.T) {
 				selected = id
 				return func() tea.Msg { return nil }
 			}})
-			d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "target", Status: status}}})
+			setDashboardData(d, dashboardFixture{Sessions: []session.Snapshot{{ID: "target", Status: status}}})
 			d.TogglePane()
 			d.SessionList().SetSelectedByID("target")
 			_, cmd := d.Update(tea.KeyPressMsg{Code: 0, Text: "t"})
@@ -344,14 +514,14 @@ func TestDashboard_LaunchTerminalRouting(t *testing.T) {
 	})
 	d.TogglePane()
 	d.Update(tea.KeyPressMsg{Code: 0, Text: "t"})
-	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "target"}}})
+	setDashboardData(d, dashboardFixture{Sessions: []session.Snapshot{{ID: "target"}}})
 	_, _ = d.Update(tea.KeyPressMsg{Code: 0, Text: "/"})
 	_, _ = d.Update(tea.KeyPressMsg{Code: 0, Text: "t"})
 	if d.Search().CardsQuery != "t" {
 		t.Fatalf("search typing was consumed as action: %+v", d.Search())
 	}
 	noCallback := views.NewDashboard(views.DashboardCallbacks{})
-	noCallback.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "target"}}})
+	setDashboardData(noCallback, dashboardFixture{Sessions: []session.Snapshot{{ID: "target"}}})
 	noCallback.TogglePane()
 	noCallback.SessionList().SetSelectedByID("target")
 	_, cmd := noCallback.Update(tea.KeyPressMsg{Code: 0, Text: "t"})
@@ -360,7 +530,7 @@ func TestDashboard_LaunchTerminalRouting(t *testing.T) {
 	}
 	var ideID string
 	ide := views.NewDashboard(views.DashboardCallbacks{OnLaunchIDE: func(id string) tea.Cmd { ideID = id; return nil }})
-	ide.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{ID: "ide-target"}}})
+	setDashboardData(ide, dashboardFixture{Sessions: []session.Snapshot{{ID: "ide-target"}}})
 	ide.TogglePane()
 	ide.SessionList().SetSelectedByID("ide-target")
 	ide.Update(tea.KeyPressMsg{Code: 0, Text: "o"})
@@ -380,7 +550,7 @@ func TestDashboard_DeleteModal(t *testing.T) {
 	}
 
 	d := views.NewDashboard(callbacks)
-	d.SetData(messages.DataLoadedMsg{
+	setDashboardData(d, dashboardFixture{
 		Sessions: []session.Snapshot{
 			{ID: "s1", Name: "Test Session", UseTmpWorkspace: true, Status: session.StatusTerminated},
 		},
@@ -426,7 +596,7 @@ func TestDashboard_DeleteModal_CancelWithEsc(t *testing.T) {
 	}
 
 	d := views.NewDashboard(callbacks)
-	d.SetData(messages.DataLoadedMsg{
+	setDashboardData(d, dashboardFixture{
 		Sessions: []session.Snapshot{
 			{ID: "s1", Name: "Test Session", UseTmpWorkspace: true, Status: session.StatusTerminated},
 		},
@@ -499,7 +669,7 @@ func TestDashboard_PreviewPersistence(t *testing.T) {
 	cards := []config.IDCard{{ID: "c1", Name: "Card 1"}}
 
 	// Load sessions
-	d.SetData(messages.DataLoadedMsg{
+	setDashboardData(d, dashboardFixture{
 		Sessions: []session.Snapshot{s1, s2},
 		Cards:    cards,
 	})
@@ -525,7 +695,7 @@ func TestDashboard_PreviewPersistence(t *testing.T) {
 	}
 
 	// Remove s2
-	d.SetData(messages.DataLoadedMsg{
+	setDashboardData(d, dashboardFixture{
 		Sessions: []session.Snapshot{s1},
 		Cards:    cards,
 	})
@@ -536,7 +706,7 @@ func TestDashboard_PreviewPersistence(t *testing.T) {
 	}
 
 	// Remove all sessions
-	d.SetData(messages.DataLoadedMsg{
+	setDashboardData(d, dashboardFixture{
 		Sessions: []session.Snapshot{},
 		Cards:    cards,
 	})
@@ -569,7 +739,7 @@ func TestDashboard_MCPActions(t *testing.T) {
 
 func TestDashboard_View(t *testing.T) {
 	d := views.NewDashboard(views.DashboardCallbacks{})
-	d.SetData(messages.DataLoadedMsg{
+	setDashboardData(d, dashboardFixture{
 		Cards:    []config.IDCard{{ID: "c1", Name: "Test Card", Driver: "claude", Model: "claude-3"}},
 		Sessions: []session.Snapshot{{ID: "s1", Name: "Test Session"}},
 	})

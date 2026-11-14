@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/driver"
@@ -104,7 +105,7 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 	coord := NewCoordinator(repo, manager, service)
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coord.Update(
-		messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}},
+		messages.DashboardOpenRequestedMsg{DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive},
 	)
 	coord.Update(coord.refreshData()())
 	request := coord.DashboardCallbacks().OnRelaunch(sessionID)

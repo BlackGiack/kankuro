@@ -530,6 +530,23 @@ func TestContractLeakFixtures(t *testing.T) {
 	}
 }
 
+func TestInspectRejectsBackendLeakThroughContractGraph(t *testing.T) {
+	root := newFixtureRoot(t)
+	writeFixture(t, filepath.Join(root, "internal/ui/views/view.go"), "package views\nimport \""+module+"internal/api/contracts\"")
+	contractSource := "package contracts\nimport \"" + module + "internal/session\"\ntype Row struct{ Snapshot session.Snapshot }"
+	writeFixture(t, filepath.Join(root, "internal/api/contracts/name.go"), contractSource)
+	findings, err := inspect(root, map[string]exception{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, finding := range findings {
+		if finding.path == "internal/api/contracts/name.go" && finding.rule == "contracts import implementation or presentation" {
+			return
+		}
+	}
+	t.Fatalf("whole inspect accepted a backend type leak through the contract package: %#v", findings)
+}
+
 func TestTypedContractGraphFixtures(t *testing.T) {
 	backend := types.NewPackage(module+"internal/session", "session")
 	obj := types.NewTypeName(token.NoPos, backend, "Snapshot", nil)
@@ -1131,6 +1148,11 @@ func frontendTypeGraphFindings(root string, files []string) ([]finding, error) {
 		}
 		packages[pkgPath] = append(packages[pkgPath], s)
 	}
+	for pkgPath := range packages {
+		sort.Slice(packages[pkgPath], func(i, j int) bool {
+			return packages[pkgPath][i].rel < packages[pkgPath][j].rel
+		})
+	}
 	var resolve func(pkg, name string, visiting map[string]bool) string
 	var tainted func(pkg string, f *ast.File, imports map[string]string, expr ast.Expr, shadow map[string]bool, visiting map[string]bool) string
 	tainted = func(pkg string, f *ast.File, imports map[string]string, expr ast.Expr, shadow map[string]bool, visiting map[string]bool) string {
@@ -1138,6 +1160,11 @@ func frontendTypeGraphFindings(root string, files []string) ([]finding, error) {
 		case *ast.SelectorExpr:
 			if id, ok := x.X.(*ast.Ident); ok {
 				dep := imports[id.Name]
+				// Contract package graphs are checked independently below. Their
+				// declarations are intentionally safe frontend-facing types.
+				if isContractPackagePath(dep) {
+					return ""
+				}
 				if forbiddenFrontendImport(dep) {
 					return dep + "." + x.Sel.Name
 				}
@@ -1265,8 +1292,13 @@ func frontendTypeGraphFindings(root string, files []string) ([]finding, error) {
 		return ""
 	}
 	var out []finding
-	for _, group := range packages {
-		for _, s := range group {
+	packagePaths := make([]string, 0, len(packages))
+	for packagePath := range packages {
+		packagePaths = append(packagePaths, packagePath)
+	}
+	sort.Strings(packagePaths)
+	for _, packagePath := range packagePaths {
+		for _, s := range packages[packagePath] {
 			var walkErr error
 			report := func(expr ast.Expr, shadow map[string]bool, edge string) {
 				var walk func(ast.Expr, map[string]bool)

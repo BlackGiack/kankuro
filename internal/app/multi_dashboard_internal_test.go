@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -61,7 +62,7 @@ func TestMultiDashboardDiscardsStaleResultsAndPreservesViews(t *testing.T) {
 	c.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	c.Update(
 		messages.DashboardOpenRequestedMsg{
-			Dashboard:  config.Dashboard{ID: "a", Name: "A", State: config.DashboardActive},
+			DashboardID: "a", DashboardName: "A", DashboardState: contracts.DashboardActive,
 			Generation: c.viewGeneration,
 		},
 	)
@@ -76,7 +77,7 @@ func TestMultiDashboardDiscardsStaleResultsAndPreservesViews(t *testing.T) {
 	c.Update(messages.DashboardListRequestedMsg{DashboardID: c.activeDashboard, Generation: c.viewGeneration})
 	c.Update(
 		messages.DashboardOpenRequestedMsg{
-			Dashboard:  config.Dashboard{ID: "b", Name: "B", State: config.DashboardActive},
+			DashboardID: "b", DashboardName: "B", DashboardState: contracts.DashboardActive,
 			Generation: c.viewGeneration,
 		},
 	)
@@ -100,7 +101,7 @@ func TestMultiDashboardDiscardsStaleResultsAndPreservesViews(t *testing.T) {
 	c.Update(messages.DashboardListRequestedMsg{DashboardID: c.activeDashboard, Generation: c.viewGeneration})
 	c.Update(
 		messages.DashboardOpenRequestedMsg{
-			Dashboard:  config.Dashboard{ID: "a", Name: "A", State: config.DashboardActive},
+			DashboardID: "a", DashboardName: "A", DashboardState: contracts.DashboardActive,
 			Generation: c.viewGeneration,
 		},
 	)

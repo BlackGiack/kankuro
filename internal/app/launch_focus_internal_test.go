@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/session"
@@ -29,10 +30,10 @@ func newLaunchFocusCoordinator(t *testing.T, sessions ...session.Snapshot) (*Coo
 	coordinator := NewCoordinator(repo, manager, api.New(repo, manager))
 	coordinator.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coordinator.Update(messages.DashboardOpenRequestedMsg{
-		Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive},
+		DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive,
 	})
 	dashboard := coordinator.views[ViewDashboard].(*views.Dashboard)
-	dashboard.SetData(messages.DataLoadedMsg{Sessions: sessions})
+	setFocusedSessionSnapshots(dashboard, sessions)
 	return coordinator, dashboard
 }
 
@@ -60,7 +61,7 @@ func TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName(t *testing.T) {
 		View: messages.ViewSessionLauncher, DashboardID: coordinator.activeDashboard, Generation: coordinator.viewGeneration,
 	})
 	coordinator.Update(launchCompleted(coordinator, newSession.ID, nil))
-	dashboard.SetSessions([]session.Snapshot{oldSession, newSession})
+	setFocusedSessionSnapshots(dashboard, []session.Snapshot{oldSession, newSession})
 	assertFocusedSession(t, dashboard, newSession.ID)
 
 	coordinator.Update(messages.ScopedSessionNamedMsg{
@@ -69,7 +70,8 @@ func TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName(t *testing.T) {
 	})
 	stale := messages.SessionsRefreshedMsg{
 		DashboardID: coordinator.activeDashboard, Generation: coordinator.viewGeneration,
-		SessionEpoch: preLaunchEpoch, Sessions: []session.Snapshot{oldSession},
+		SessionEpoch: preLaunchEpoch,
+		Inventory:    contracts.ReadResult[contracts.DashboardInventory]{Attempted: true, Value: sessionInventory(oldSession)},
 	}
 	coordinator.Update(stale)
 	assertFocusedSession(t, dashboard, newSession.ID)
@@ -77,7 +79,8 @@ func TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName(t *testing.T) {
 	newSession.Name = "My task"
 	current := messages.SessionsRefreshedMsg{
 		DashboardID: coordinator.activeDashboard, Generation: coordinator.viewGeneration,
-		SessionEpoch: coordinator.sessionEpoch, Sessions: []session.Snapshot{oldSession, newSession},
+		SessionEpoch: coordinator.sessionEpoch,
+		Inventory:    contracts.ReadResult[contracts.DashboardInventory]{Attempted: true, Value: sessionInventory(oldSession, newSession)},
 	}
 	coordinator.Update(current)
 	assertFocusedSession(t, dashboard, newSession.ID)
@@ -147,10 +150,10 @@ func TestLaunchFocusPendingRequestIsCancelledOnDashboardExit(t *testing.T) {
 		DashboardID: coordinator.activeDashboard, Generation: coordinator.viewGeneration,
 	})
 	coordinator.Update(messages.DashboardOpenRequestedMsg{
-		Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive},
+		DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive,
 	})
 	coordinator.Update(staleLaunch)
-	dashboard.SetSessions([]session.Snapshot{
+	setFocusedSessionSnapshots(dashboard, []session.Snapshot{
 		{ID: "existing", Name: "Existing"},
 		{ID: "new", Name: "New"},
 	})
@@ -158,6 +161,24 @@ func TestLaunchFocusPendingRequestIsCancelledOnDashboardExit(t *testing.T) {
 	if !ok || selected.ID != "existing" || dashboard.FocusedPane() != views.PaneCards {
 		t.Fatalf("pending focus crossed dashboard exit: selected=%+v ok=%v pane=%v", selected, ok, dashboard.FocusedPane())
 	}
+}
+
+func setFocusedSessionSnapshots(dashboard *views.Dashboard, snapshots []session.Snapshot) {
+	dashboard.SetInventory(
+		contracts.ReadResult[contracts.DashboardInventory]{Attempted: true, Value: sessionInventory(snapshots...)},
+		contracts.DisplayChoicesResult{},
+	)
+}
+
+func sessionInventory(snapshots ...session.Snapshot) contracts.DashboardInventory {
+	summaries := make([]contracts.SessionSummary, 0, len(snapshots))
+	for _, snapshot := range snapshots {
+		summaries = append(summaries, contracts.SessionSummary{
+			ID: snapshot.ID, DashboardID: snapshot.DashboardID, CardID: snapshot.CardID, Name: snapshot.Name,
+			Status: string(snapshot.Status), StartedAt: snapshot.StartedAt,
+		})
+	}
+	return contracts.DashboardInventory{Sessions: summaries}
 }
 
 func assertFocusedSession(t *testing.T, dashboard *views.Dashboard, sessionID string) {

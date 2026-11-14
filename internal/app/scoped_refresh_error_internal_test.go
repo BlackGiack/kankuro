@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/BlackGiack/kankuro/internal/api"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -54,7 +55,7 @@ func TestScopedRefreshPreservesDataOnInventoryFailure(t *testing.T) {
 			c.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 			c.Update(
 				messages.DashboardOpenRequestedMsg{
-					Dashboard:  config.Dashboard{ID: "a", Name: "A", State: config.DashboardActive},
+					DashboardID: "a", DashboardName: "A", DashboardState: contracts.DashboardActive,
 					Generation: c.viewGeneration,
 				},
 			)
@@ -111,16 +112,19 @@ func TestScopedRefreshReturnsExplicitEmptyInventory(t *testing.T) {
 	manager := newTestManager(t, repo.Dir(), repo)
 	service := api.New(repo, manager)
 	r := refresher{repo: repo, sessions: manager}
-	full := unwrapRefresh(r.scopedFull(service, "default", 1, "")()).(messages.DataLoadedMsg)
-	if full.Err != nil || full.Cards == nil || full.Sessions == nil || len(full.Cards) != 0 || len(full.Sessions) != 0 {
+	full := unwrapRefresh(r.scopedFull(service, "default", 1, 1, 1, "")()).(messages.DataLoadedMsg)
+	if full.Err != nil || !full.Inventory.Attempted || full.Inventory.Err != nil ||
+		len(full.Inventory.Value.Cards) != 0 || len(full.Inventory.Value.Sessions) != 0 {
 		t.Fatalf("empty full refresh: %+v", full)
 	}
-	tick := r.scopedSessions(service, "default", 1, "")().(messages.SessionsRefreshedMsg)
-	if tick.Err != nil || tick.Cards == nil || tick.Sessions == nil || len(tick.Cards) != 0 || len(tick.Sessions) != 0 {
+	tick := r.scopedSessions(service, "default", 1, 1, "")().(messages.SessionsRefreshedMsg)
+	if tick.Err != nil || !tick.Inventory.Attempted || tick.Inventory.Err != nil ||
+		len(tick.Inventory.Value.Cards) != 0 || len(tick.Inventory.Value.Sessions) != 0 || tick.Choices.Skills.Attempted {
 		t.Fatalf("empty session refresh: %+v", tick)
 	}
-	changed := r.scopedConfigIfChanged(service, "default", 1, nil)().(configFingerprintMsg)
-	if changed.data == nil || changed.data.Err != nil || changed.data.Cards == nil || len(changed.data.Cards) != 0 {
+	changed := r.scopedConfigIfChanged(service, "default", 1, "", 1, 1, "")().(configFingerprintMsg)
+	if changed.data == nil || changed.data.Err != nil || !changed.data.Inventory.Attempted ||
+		changed.data.Inventory.Err != nil || len(changed.data.Inventory.Value.Cards) != 0 {
 		t.Fatalf("empty config refresh: %+v", changed)
 	}
 }

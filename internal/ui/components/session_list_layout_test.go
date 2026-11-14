@@ -80,7 +80,7 @@ func TestSessionListStaysWithinItsBox(t *testing.T) {
 				for h := sessionListMinHeight; h <= 30; h += 3 {
 					sl := components.NewSessionList(components.SessionListCallbacks{})
 					sl.SetSize(w, h)
-					sl.SetSessions(sessions, cards)
+					sl.SetRows(sessionRowsFromSnapshots(sessions, cards))
 					sl.SetSearchQuery(query)
 					label := fmt.Sprintf("sessions=%d query=%q %dx%d", count, query, w, h)
 					uitest.AssertWithin(t, sl.View(), w, h, label)
@@ -101,7 +101,7 @@ func TestSessionListRegistrationDetailsStayWithinTheirRows(t *testing.T) {
 	for _, width := range []int{sessionListMinWidth, 23, 40, 80} {
 		list := components.NewSessionList(components.SessionListCallbacks{})
 		list.SetSize(width, sessionListMinHeight)
-		list.SetSessions(sessions, cards)
+		list.SetRows(sessionRowsFromSnapshots(sessions, cards))
 		uitest.AssertWithin(
 			t,
 			list.View(),
@@ -123,7 +123,7 @@ func TestSessionListKeepsItemRowsInPlace(t *testing.T) {
 			for _, h := range []int{17, 24, 30} {
 				sl := components.NewSessionList(components.SessionListCallbacks{})
 				sl.SetSize(w, h)
-				sl.SetSessions(sessions, cards)
+				sl.SetRows(sessionRowsFromSnapshots(sessions, cards))
 				label := fmt.Sprintf("name#%d %dx%d", i, w, h)
 				assertItemRows(t, sl, h, label)
 			}
@@ -135,7 +135,7 @@ func assertItemRows(t *testing.T, sl *components.SessionList, h int, label strin
 	t.Helper()
 	out := sl.View()
 	rows := strings.Split(ansi.Strip(out), "\n")
-	onPage := sl.List().Paginator.ItemsOnPage(len(sl.List().Items()))
+	onPage := sl.ItemsOnPage()
 	if onPage*sessionItemRows-1 > h {
 		t.Errorf("%s: %d items of %d rows cannot fit in %d:\n%s", label, onPage, sessionItemRows, h, ansi.Strip(out))
 		return
@@ -162,11 +162,11 @@ func TestSessionListEmptyAndFilteredAway(t *testing.T) {
 	sessions, cards := sessionFixtures(5, []string{"alpha"})
 	sl := components.NewSessionList(components.SessionListCallbacks{})
 	sl.SetSize(30, sessionListMinHeight)
-	sl.SetSessions(sessions, cards)
+	sl.SetRows(sessionRowsFromSnapshots(sessions, cards))
 	sl.SetSearchQuery("zzz-matches-nothing")
 	uitest.AssertWithin(t, sl.View(), 30, sessionListMinHeight, "filtered away")
-	if len(sl.List().Items()) != 0 {
-		t.Fatalf("expected the query to match nothing, got %d items", len(sl.List().Items()))
+	if sl.ItemCount() != 0 {
+		t.Fatalf("expected the query to match nothing, got %d items", sl.ItemCount())
 	}
 }
 
@@ -180,7 +180,7 @@ func TestSessionListDescriptionIsValidUTF8(t *testing.T) {
 		"/home/user/🚀/🚀/🚀/🚀/🚀/🚀/🚀/🚀",
 		"/ééééééééééééééééééééééééééééé",
 	} {
-		item := components.SessionListItem{Session: session.Snapshot{ID: "s", WorkingDir: dir}}
+		item := components.SessionListItem{Session: sessionRowsFromSnapshots([]session.Snapshot{{ID: "s", WorkingDir: dir}}, nil)[0]}
 		desc := item.Description()
 		if !utf8.ValidString(desc) {
 			t.Errorf("working dir %q: Description() is not valid UTF-8: %q", dir, desc)
@@ -201,7 +201,7 @@ func TestSessionListFitsEveryWidth(t *testing.T) {
 		for w := 10; w <= 80; w++ {
 			sl := components.NewSessionList(components.SessionListCallbacks{})
 			sl.SetSize(w, sessionListMinHeight)
-			sl.SetSessions(sessions, cards)
+			sl.SetRows(sessionRowsFromSnapshots(sessions, cards))
 			uitest.AssertWithin(t, sl.View(), w, sessionListMinHeight, fmt.Sprintf("sessions=%d width=%d", count, w))
 		}
 	}
@@ -214,6 +214,6 @@ func TestSessionListNameWithTabsFitsWidth(t *testing.T) {
 	sessions, cards := sessionFixtures(3, []string{"name\twith\ttabs and more text"})
 	sl := components.NewSessionList(components.SessionListCallbacks{})
 	sl.SetSize(30, sessionListMinHeight)
-	sl.SetSessions(sessions, cards)
+	sl.SetRows(sessionRowsFromSnapshots(sessions, cards))
 	uitest.AssertWithin(t, sl.View(), 30, sessionListMinHeight, "tab name")
 }

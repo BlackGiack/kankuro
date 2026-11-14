@@ -12,7 +12,7 @@ import (
 func TestSessionPreview_ScrollbackSanitization(t *testing.T) {
 	p := components.NewSessionPreview()
 	p.SetSize(80, 25)
-	p.SetSession(&session.Snapshot{ID: "s1", Name: "Test", Status: session.StatusRunning}, nil)
+	setPreviewSession(p, &session.Snapshot{ID: "s1", Name: "Test", Status: session.StatusRunning}, nil)
 	p.SetScrollback(
 		[]byte("\x1b[32mSuccess\x1b[0m: Operation completed\n\x1b]0;UNSAFE-TITLE\x07Error: None\n\x1b_Ga=d;HIDDEN-PAYLOAD\x07Done"),
 	)
@@ -33,7 +33,7 @@ func TestSessionPreview_OpencodeRedrawScenario(t *testing.T) {
 	p := components.NewSessionPreview()
 	p.SetSize(100, 20)
 	snap := &session.Snapshot{ID: "s1", Name: "Opencode Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// Simulate streaming redraw-style output typical of opencode
 	// Each chunk overwrites previous ones with \r but adds more content.
@@ -89,7 +89,7 @@ func TestSessionPreview_ResizeHandling(t *testing.T) {
 		Status:    session.StatusRunning,
 		StartedAt: time.Now(),
 	}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	view := p.View()
 	if view == "" {
@@ -107,7 +107,7 @@ func TestSessionPreview_KittyIntegration(t *testing.T) {
 		Status:    session.StatusRunning,
 		StartedAt: time.Now(),
 	}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// Kitty keyboard / graphics sequences are now silently swallowed (no
 	// "[image]" or "^K" placeholder text). Surrounding plain text must still

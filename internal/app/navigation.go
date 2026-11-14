@@ -110,16 +110,6 @@ func (c *Coordinator) updateCurrentView(msg tea.Msg) (component.Model, tea.Cmd) 
 	return view.Update(msg)
 }
 
-// currentPreviewSessionID reads the dashboard's active preview session. It
-// must only be called from the main coordinator goroutine (Update/Init), not
-// from inside a tea.Cmd closure - see refreshData.
-func (c *Coordinator) currentPreviewSessionID() string {
-	if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
-		return dashboard.PreviewSessionID()
-	}
-	return ""
-}
-
 func (c *Coordinator) broadcastData(msg messages.DataLoadedMsg) {
 	for _, view := range c.views {
 		if dataReceiver, ok := view.(messages.DataReceiver); ok {

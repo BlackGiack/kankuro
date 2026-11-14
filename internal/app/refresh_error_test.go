@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/configstartup"
@@ -54,7 +55,7 @@ func TestRefreshDataSurfacesErrorAndKeepsPreviousCards(t *testing.T) {
 	coord.Init()
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coord.Update(
-		messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}},
+		messages.DashboardOpenRequestedMsg{DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive},
 	)
 
 	// First refresh: the card is loaded cleanly.
@@ -83,8 +84,8 @@ func TestRefreshDataSurfacesErrorAndKeepsPreviousCards(t *testing.T) {
 	if msg.Err == nil {
 		t.Fatal("expected refreshData to surface the corrupt id_cards.yaml read error")
 	}
-	if msg.Cards != nil {
-		t.Fatalf("expected Cards to be nil on a read error (not an emptied slice), got: %v", msg.Cards)
+	if !msg.Inventory.Attempted || msg.Inventory.Err == nil {
+		t.Fatalf("expected an explicit failed inventory result, got: %+v", msg.Inventory)
 	}
 
 	coord.Update(msg)

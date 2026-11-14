@@ -25,25 +25,28 @@ func RenderAgentPuppet(puppetName string, puppets []config.Puppet) string {
 
 	for _, p := range puppets {
 		if p.Name == puppetName {
-			if p.Builtin {
-				puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", puppetName) })
-				w, h := puppet.Bounds()
-				canvas := ascii.NewCanvas(w, h)
-				puppet.Render(canvas, 0, 0)
-				return canvas.String()
-			}
-			canvas := ascii.NewCanvas(maxLineWidth(p.Lines), len(p.Lines))
-			for i, line := range p.Lines {
-				canvas.DrawText(0, i, line)
-			}
-			return canvas.String()
+			return RenderPuppetArtwork(puppetName, p.Builtin, p.Lines)
 		}
 	}
+	return RenderPuppetArtwork(puppetName, true, nil)
+}
 
-	puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", "kankuro") })
-	w, h := puppet.Bounds()
-	canvas := ascii.NewCanvas(w, h)
-	puppet.Render(canvas, 0, 0)
+// RenderPuppetArtwork renders focused artwork data without a registry type.
+func RenderPuppetArtwork(puppetName string, builtin bool, lines []string) string {
+	if puppetName == "" {
+		puppetName, builtin = "kankuro", true
+	}
+	if builtin {
+		puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", puppetName) })
+		w, h := puppet.Bounds()
+		canvas := ascii.NewCanvas(w, h)
+		puppet.Render(canvas, 0, 0)
+		return canvas.String()
+	}
+	canvas := ascii.NewCanvas(maxLineWidth(lines), len(lines))
+	for i, line := range lines {
+		canvas.DrawText(0, i, line)
+	}
 	return canvas.String()
 }
 

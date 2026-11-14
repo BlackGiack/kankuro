@@ -1,6 +1,7 @@
 package messages
 
 import (
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 )
@@ -86,8 +87,28 @@ type CardDeletionPreparedMsg struct {
 
 // DashboardOpenRequestedMsg asks the coordinator to open a captured identity.
 type DashboardOpenRequestedMsg struct {
-	Dashboard  config.Dashboard
-	Generation uint64
+	DashboardID    string
+	DashboardName  string
+	DashboardState contracts.DashboardState
+	Generation     uint64
+}
+
+type DashboardCardAction string
+
+const (
+	DashboardCardLaunch DashboardCardAction = "launch"
+	DashboardCardEdit   DashboardCardAction = "edit"
+)
+
+// DashboardCardLoadedMsg carries a full card only to the legacy action adapter
+// that owns launching or editor field preservation.
+type DashboardCardLoadedMsg struct {
+	DashboardID string
+	Generation  uint64
+	CardID      string
+	Action      DashboardCardAction
+	Card        config.IDCard
+	Err         error
 }
 
 // DashboardListRequestedMsg returns to the dashboard list without stopping sessions.
@@ -98,7 +119,7 @@ type DashboardListRequestedMsg struct {
 
 // DashboardListLoadedMsg carries a refreshed human dashboard inventory.
 type DashboardListLoadedMsg struct {
-	Dashboards []config.Dashboard
+	Dashboards []contracts.DashboardSummary
 	Err        error
 	RequestID  uint64
 }
@@ -292,16 +313,18 @@ type MCPServerFailedMsg struct{ Err error }
 // DataLoadedMsg contains a full repository snapshot. Nil fields indicate failed reads
 // and preserve receiver data. Preview-only updates use PreviewDataMsg.
 type DataLoadedMsg struct {
-	DashboardID  string
-	Generation   uint64
-	SessionEpoch uint64
-	Cards        []config.IDCard
-	Sessions     []session.Snapshot
-	Skills       []config.Skill
-	Personas     []config.Persona
-	MCPs         []config.MCPServer
-	Workspaces   []config.Workspace
-	Puppets      []config.Puppet
+	DashboardID        string
+	InventoryRequestID uint64
+	RegistryErr        error
+	Generation         uint64
+	SessionEpoch       uint64
+	Skills             []config.Skill
+	Personas           []config.Persona
+	MCPs               []config.MCPServer
+	Workspaces         []config.Workspace
+	Puppets            []config.Puppet
+	Inventory          contracts.ReadResult[contracts.DashboardInventory]
+	Choices            contracts.DisplayChoicesResult
 
 	// PreviewSessionID/PreviewScrollback carry the current preview's
 	// scrollback alongside a full refresh. The coordinator forwards these to
@@ -326,14 +349,15 @@ type DataReceiver interface {
 // SessionsRefreshedMsg carries scoped cards, sessions and preview data with the
 // originating dashboard and generation. Only their consumers receive this update.
 type SessionsRefreshedMsg struct {
-	DashboardID       string
-	Generation        uint64
-	SessionEpoch      uint64
-	Err               error
-	Cards             []config.IDCard
-	Sessions          []session.Snapshot
-	PreviewSessionID  string
-	PreviewScrollback []byte
+	DashboardID        string
+	InventoryRequestID uint64
+	Generation         uint64
+	SessionEpoch       uint64
+	Err                error
+	Inventory          contracts.ReadResult[contracts.DashboardInventory]
+	Choices            contracts.DisplayChoicesResult
+	PreviewSessionID   string
+	PreviewScrollback  []byte
 }
 
 // PreviewDataMsg carries an update to the currently previewed session's

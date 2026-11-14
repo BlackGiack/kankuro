@@ -58,7 +58,7 @@ type dashboardData struct {
 	preview  []byte
 }
 
-func dashboardFixtures(t testing.TB, d dashboardData) messages.DataLoadedMsg {
+func dashboardFixtures(t testing.TB, d dashboardData) dashboardFixture {
 	t.Helper()
 	names := uitest.AdversarialNames
 	puppets := append(append([]config.Puppet(nil), builtinPuppetsForViews(t)...), uitest.UserPuppet(60, 20))
@@ -97,7 +97,7 @@ func dashboardFixtures(t testing.TB, d dashboardData) messages.DataLoadedMsg {
 			Status:     statuses[i%len(statuses)],
 		})
 	}
-	return messages.DataLoadedMsg{Cards: cards, Sessions: sessions, Skills: skills, Puppets: puppets}
+	return dashboardFixture{Cards: cards, Sessions: sessions, Skills: skills, Puppets: puppets}
 }
 
 var previewContentsForDashboard = [][]byte{ //nolint:gochecknoglobals // shared test fixtures
@@ -112,7 +112,7 @@ func newDashboard(t testing.TB, w, rows int, d dashboardData) *views.Dashboard {
 	t.Helper()
 	dash := views.NewDashboard(views.DashboardCallbacks{})
 	dash.SetSize(w, rows-views.CoordinatorRows)
-	dash.SetData(dashboardFixtures(t, d))
+	setDashboardData(dash, dashboardFixtures(t, d))
 	if len(d.preview) > 0 && dash.PreviewSessionID() != "" {
 		dash.SetPreviewData(messages.PreviewDataMsg{SessionID: dash.PreviewSessionID(), Scrollback: d.preview})
 	}
@@ -146,7 +146,7 @@ func TestDashboardRenameLayoutAndScopedFooter(t *testing.T) {
 	}})
 	d.SetSize(80, 24-views.CoordinatorRows)
 	d.SetDashboardScope("dashboard", 1)
-	d.SetData(messages.DataLoadedMsg{Sessions: []session.Snapshot{{
+	setDashboardData(d, dashboardFixture{Sessions: []session.Snapshot{{
 		ID:   "session-id",
 		Name: strings.Repeat("長いセッション名", 12),
 	}}})
@@ -303,7 +303,7 @@ func TestDashboardPaneContentBaselinesAcrossResizeAndStates(t *testing.T) {
 		}
 		dash := views.NewDashboard(views.DashboardCallbacks{})
 		dash.SetSize(size.width, size.height-views.CoordinatorRows)
-		dash.SetData(loaded)
+		setDashboardData(dash, loaded)
 		assertDashboardContentBaselines(t, dash, size.width, "initial cards focus")
 
 		// Selection and scrolling must not change the selected/unselected text

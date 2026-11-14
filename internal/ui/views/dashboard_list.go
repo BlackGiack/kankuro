@@ -10,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -25,12 +25,12 @@ const (
 	dashboardListInputInset    = 8
 )
 
-type dashboardItem struct{ dashboard config.Dashboard }
+type dashboardItem struct{ dashboard contracts.DashboardSummary }
 
 func (i dashboardItem) Title() string { return components.DisplayText(i.dashboard.Name) }
 func (i dashboardItem) Description() string {
 	description := components.DisplayText(i.dashboard.Description)
-	if i.dashboard.State == config.DashboardDeleting {
+	if i.dashboard.State == contracts.DashboardDeleting {
 		return "Deleting — Delete to retry. " + description
 	}
 	return description
@@ -39,7 +39,7 @@ func (i dashboardItem) FilterValue() string { return i.dashboard.Name + " " + i.
 
 // DashboardListCallbacks dispatches commands without exposing coordinator state.
 type DashboardListCallbacks struct {
-	Open            func(config.Dashboard) tea.Cmd
+	Open            func(contracts.DashboardSummary) tea.Cmd
 	Save            func(id, name, description string) tea.Cmd
 	PreflightDelete func(id string) tea.Cmd
 	ConfirmDelete   func(id, token string, foreignConfirmed bool) tea.Cmd
@@ -106,7 +106,7 @@ func NewDashboardList(callbacks DashboardListCallbacks) *DashboardList {
 }
 
 // SetDashboards preserves selection by immutable ID when the inventory refreshes.
-func (v *DashboardList) SetDashboards(dashboards []config.Dashboard) {
+func (v *DashboardList) SetDashboards(dashboards []contracts.DashboardSummary) {
 	selected, _ := v.selected()
 	items := make([]list.Item, 0, len(dashboards))
 	selection := 0
@@ -122,7 +122,7 @@ func (v *DashboardList) SetDashboards(dashboards []config.Dashboard) {
 	}
 }
 
-func (v *DashboardList) selected() (config.Dashboard, bool) {
+func (v *DashboardList) selected() (contracts.DashboardSummary, bool) {
 	item, ok := v.list.SelectedItem().(dashboardItem)
 	return item.dashboard, ok
 }
@@ -188,11 +188,11 @@ func (v *DashboardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if ok {
 		dashboard, selected := v.selected()
 		switch {
-		case key.Code == tea.KeyEnter && selected && dashboard.State == config.DashboardActive:
+		case key.Code == tea.KeyEnter && selected && dashboard.Open.Enabled:
 			if v.callbacks.Open != nil {
 				return v, v.callbacks.Open(dashboard)
 			}
-		case key.Code == tea.KeyEnter && selected && dashboard.State == config.DashboardDeleting:
+		case key.Code == tea.KeyEnter && selected && dashboard.Inspect.Enabled:
 			if v.callbacks.InspectDelete != nil {
 				v.err = nil
 				v.pending = messages.DashboardDeletionPreparedMsg{DashboardID: dashboard.ID}
@@ -201,10 +201,10 @@ func (v *DashboardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 				return v, v.callbacks.InspectDelete(dashboard.ID)
 			}
 		case key.Text == "n":
-			v.openForm(config.Dashboard{})
-		case key.Text == "e" && selected && dashboard.State == config.DashboardActive:
+			v.openForm(contracts.DashboardSummary{})
+		case key.Text == "e" && selected && dashboard.Edit.Enabled:
 			v.openForm(dashboard)
-		case (key.Code == tea.KeyDelete || key.Code == tea.KeyBackspace) && selected && dashboard.State == config.DashboardActive:
+		case (key.Code == tea.KeyDelete || key.Code == tea.KeyBackspace) && selected && dashboard.Delete.Enabled:
 			if v.callbacks.PreflightDelete != nil {
 				v.err = nil
 				v.pending = messages.DashboardDeletionPreparedMsg{DashboardID: dashboard.ID}
@@ -212,7 +212,7 @@ func (v *DashboardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 				v.preparingStatus = false
 				return v, v.callbacks.PreflightDelete(dashboard.ID)
 			}
-		case (key.Code == tea.KeyDelete || key.Code == tea.KeyBackspace) && selected && dashboard.State == config.DashboardDeleting:
+		case (key.Code == tea.KeyDelete || key.Code == tea.KeyBackspace) && selected && dashboard.Retry.Enabled:
 			return v, v.retryDeletion(dashboard.ID)
 		case key.Text == "q":
 			return v, tea.Quit
@@ -223,7 +223,7 @@ func (v *DashboardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	return v, cmd
 }
 
-func (v *DashboardList) openForm(dashboard config.Dashboard) {
+func (v *DashboardList) openForm(dashboard contracts.DashboardSummary) {
 	v.mode, v.editingID, v.focus, v.err = dashboardListModeForm, dashboard.ID, 0, nil
 	v.inputs[0].SetValue(dashboard.Name)
 	v.inputs[1].SetValue(dashboard.Description)
@@ -347,7 +347,7 @@ func (v *DashboardList) View() string {
 		items.SetHeight(max(1, items.Height()-1))
 	}
 	help := "Enter: open  n: new  e: edit  Delete: remove  q: quit"
-	if dashboard.State == config.DashboardDeleting {
+	if dashboard.State == contracts.DashboardDeleting {
 		help = "Enter: details  Delete: retry  n: new  q: quit"
 	}
 	return v.renderPage("Dashboards", body+items.View()+"\n"+styles.HelpStyle.Render(detail), help)

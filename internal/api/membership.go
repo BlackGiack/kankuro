@@ -406,25 +406,24 @@ func (s *Service) availableDashboardCard(dashboardID, cardID string, sessions []
 	return inventory.cards[cardID], true, nil
 }
 
-// DashboardData is a display snapshot for one explicitly selected dashboard.
-// It is not authorization for a subsequent mutation; admissions must revalidate.
-type DashboardData struct {
+// dashboardData is a backend snapshot used only while deriving focused results.
+type dashboardData struct {
 	Cards    []config.IDCard
 	Sessions []session.Snapshot
 }
 
-// ReadDashboardData returns cards available to and sessions owned by dashboardID.
+// readDashboardData returns cards available to and sessions owned by dashboardID.
 // It refuses an invalid inventory rather than broadening the requested scope.
-func (s *Service) ReadDashboardData(dashboardID string) (DashboardData, error) {
+func (s *Service) readDashboardData(dashboardID string) (dashboardData, error) {
 	sessions := s.sessions.List()
 	inventory, err := s.loadMembershipInventory(sessions)
 	if err != nil {
-		return DashboardData{}, err
+		return dashboardData{}, err
 	}
 	if !inventory.activeDashboard(dashboardID) {
-		return DashboardData{}, errors.New("dashboard unavailable")
+		return dashboardData{}, errors.New("dashboard unavailable")
 	}
-	data := DashboardData{Cards: []config.IDCard{}, Sessions: []session.Snapshot{}}
+	data := dashboardData{Cards: []config.IDCard{}, Sessions: []session.Snapshot{}}
 	for _, card := range inventory.cards {
 		if inventory.allowsCard(dashboardID, card.ID) {
 			data.Cards = append(data.Cards, card)
@@ -456,6 +455,21 @@ func (s *Service) ReadDashboardData(dashboardID string) (DashboardData, error) {
 		}
 	}
 	return data, nil
+}
+
+// ReadDashboardCardDetail loads one selected card for the legacy editor/action adapter.
+// It preserves stored fields; mutation handlers still revalidate ownership and availability.
+func (s *Service) ReadDashboardCardDetail(dashboardID, cardID string) (config.IDCard, error) {
+	data, err := s.readDashboardData(dashboardID)
+	if err != nil {
+		return config.IDCard{}, err
+	}
+	for _, card := range data.Cards {
+		if card.ID == cardID {
+			return card, nil
+		}
+	}
+	return config.IDCard{}, fmt.Errorf("card %q is unavailable", cardID)
 }
 
 // membershipInventory is a validated snapshot, not an admission reservation.

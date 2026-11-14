@@ -138,7 +138,12 @@ func TestCardAndCapabilityLookupFailuresRemainVisible(t *testing.T) {
 
 	failingRepo.Repository = repo
 	failingRepo.capabilityReads = 0
-	launchMsgs := collectMsgs(t, coord.DashboardCallbacks().OnLaunchCard(card))
+	loadMsg, ok := coord.DashboardCallbacks().OnLaunchCard(card.ID)().(messages.DashboardCardLoadedMsg)
+	if !ok || loadMsg.Err != nil {
+		t.Fatalf("card lookup failed before launch capability check: %+v", loadMsg)
+	}
+	_, launchCmd := coord.Update(loadMsg)
+	launchMsgs := collectMsgs(t, launchCmd)
 	if !containsCapabilityError(launchMsgs) || failingRepo.capabilityReads == 0 {
 		t.Fatalf("launch did not propagate capability failure: %v", launchMsgs)
 	}

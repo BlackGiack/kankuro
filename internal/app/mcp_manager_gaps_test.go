@@ -11,6 +11,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -90,7 +91,10 @@ func (f *mcpGapFixture) switchDashboard(t *testing.T) {
 	t.Helper()
 	current := f.coord.RefreshData()().(messages.DataLoadedMsg)
 	f.coord.Update(messages.DashboardListRequestedMsg{DashboardID: current.DashboardID, Generation: current.Generation})
-	_, cmd := f.coord.Update(messages.DashboardOpenRequestedMsg{Dashboard: f.other, Generation: current.Generation + 1})
+	_, cmd := f.coord.Update(messages.DashboardOpenRequestedMsg{
+		DashboardID: f.other.ID, DashboardName: f.other.Name,
+		DashboardState: contracts.DashboardActive, Generation: current.Generation + 1,
+	})
 	drive(t, f.coord, cmd)
 	f.open(t)
 }

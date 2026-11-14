@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -25,40 +26,42 @@ type refresher struct {
 
 // loadGlobalConfigData reads registries shared by all dashboards.
 func (r refresher) loadGlobalConfigData() messages.DataLoadedMsg {
+	repo := r.repo
 	var errs []error
-	skills, err := r.repo.ListSkills()
+	skills, err := repo.ListSkills()
 	if err != nil {
 		errs = append(errs, fmt.Errorf("list skills: %w", err))
 		skills = nil
 	}
-	personas, err := r.repo.ListPersonas()
+	personas, err := repo.ListPersonas()
 	if err != nil {
 		errs = append(errs, fmt.Errorf("list personas: %w", err))
 		personas = nil
 	}
-	mcps, err := r.repo.ListMCPs()
+	mcps, err := repo.ListMCPs()
 	if err != nil {
 		errs = append(errs, fmt.Errorf("list mcps: %w", err))
 		mcps = nil
 	}
-	workspaces, err := r.repo.ListWorkspaces()
+	workspaces, err := repo.ListWorkspaces()
 	if err != nil {
 		errs = append(errs, fmt.Errorf("list workspaces: %w", err))
 		workspaces = nil
 	}
-	puppets, err := r.repo.ListPuppets()
+	puppets, err := repo.ListPuppets()
 	if err != nil {
 		errs = append(errs, fmt.Errorf("list puppets: %w", err))
 		puppets = nil
 	}
 
 	return messages.DataLoadedMsg{
-		Skills:     skills,
-		Personas:   personas,
-		MCPs:       mcps,
-		Workspaces: workspaces,
-		Puppets:    puppets,
-		Err:        errors.Join(errs...),
+		Skills:      skills,
+		Personas:    personas,
+		MCPs:        mcps,
+		Workspaces:  workspaces,
+		Puppets:     puppets,
+		Err:         errors.Join(errs...),
+		RegistryErr: errors.Join(errs...),
 	}
 }
 
@@ -82,31 +85,16 @@ func (r refresher) syncPuppets() tea.Cmd {
 	}
 }
 
-// configFingerprintMsg reports the result of a fingerprint check. stamps is
-// only non-nil when the baseline should actually change - the "unchanged"
-// result from configIfChanged deliberately leaves it nil so it never
-// clobbers a newer baseline a concurrent fullSeeded may have just set
-// (see Coordinator.handleConfigFingerprint). data is only non-nil when a
-// registry actually changed and was re-read.
+// configFingerprintMsg carries focused read results and a certified opaque
+// token. Empty tokens never update the baseline; unchanged results carry no data.
 type configFingerprintMsg struct {
-	stamps map[string]config.FileStamp
-	data   *messages.DataLoadedMsg
-}
-
-func fingerprintsEqual(a, b map[string]config.FileStamp) bool {
-	if a == nil || b == nil {
-		return false
-	}
-	if len(a) != len(b) {
-		return false
-	}
-	for name, stampA := range a {
-		stampB, ok := b[name]
-		if !ok || !stampA.ModTime.Equal(stampB.ModTime) || stampA.Size != stampB.Size {
-			return false
-		}
-	}
-	return true
+	token              contracts.RegistryChangeToken
+	requestID          uint64
+	inventoryRequestID uint64
+	dashboardID        string
+	generation         uint64
+	sessionEpoch       uint64
+	data               *messages.DataLoadedMsg
 }
 
 func tick() tea.Cmd {

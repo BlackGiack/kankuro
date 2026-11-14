@@ -256,8 +256,8 @@ func TestTransientCardsReadFailureDoesNotEmptyAgentSwitchCardList(t *testing.T) 
 	if msg.Err == nil {
 		t.Fatal("expected refreshData to surface the corrupt id_cards.yaml read error")
 	}
-	if msg.Cards != nil {
-		t.Fatalf("expected Cards to be nil on a read error (not an emptied slice), got: %v", msg.Cards)
+	if !msg.Inventory.Attempted || msg.Inventory.Err == nil {
+		t.Fatalf("expected an explicit failed inventory result, got: %+v", msg.Inventory)
 	}
 
 	coord.Update(msg)

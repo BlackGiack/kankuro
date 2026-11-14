@@ -47,6 +47,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -109,7 +110,9 @@ func newRaceFixture(t *testing.T, killSession bool) raceFixture {
 
 	c := NewCoordinator(repo, sm, service)
 	c.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	c.Update(messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}})
+	c.Update(messages.DashboardOpenRequestedMsg{
+		DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive,
+	})
 	c.Update(c.refreshDataSeeded()())
 	return raceFixture{coord: c, sessionID: sessionID}
 }
@@ -248,7 +251,7 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 				_, cmd := f.coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 				return cmd
 			},
-			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.SessionLaunchCompletedMsg); return ok }),
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.DashboardCardLoadedMsg); return ok }),
 		},
 		{
 			name: "preview request",

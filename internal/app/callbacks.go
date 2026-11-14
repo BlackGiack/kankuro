@@ -27,21 +27,14 @@ func (c *Coordinator) dashboardCallbacks() views.DashboardCallbacks {
 				return messages.DashboardListRequestedMsg{DashboardID: dashboardID, Generation: generation}
 			}
 		},
-		OnEditCard: func(card config.IDCard) tea.Cmd {
-			editor, ok := c.views[ViewCardEditor].(*views.CardEditor)
-			if !ok {
-				return nil
-			}
-			editor.SetCard(card)
-
-			c.editingCard = card
-			editor.SetDashboardContext(c.activeDashboard, card.DashboardID != c.activeDashboard)
-
-			return c.navigationCommand(messages.ViewCardEditor)
+		OnEditCard: func(cardID string) tea.Cmd {
+			return dashboardCardCommand(c.actions.service, c.activeDashboard, cardID, c.viewGeneration, messages.DashboardCardEdit)
 		},
 		OnRenameSession: c.renameDashboardSession,
 
-		OnLaunchCard: c.launchCard,
+		OnLaunchCard: func(cardID string) tea.Cmd {
+			return dashboardCardCommand(c.actions.service, c.activeDashboard, cardID, c.viewGeneration, messages.DashboardCardLaunch)
+		},
 
 		OnAttach: func(sessionID string) tea.Cmd {
 			return c.requestAttach(sessionID)
@@ -144,6 +137,17 @@ func (c *Coordinator) launchCard(card config.IDCard) tea.Cmd {
 		launch,
 		c.navigationCommand(messages.ViewSessionLauncher),
 	)
+}
+
+func (c *Coordinator) openCardEditor(card config.IDCard) tea.Cmd {
+	editor, ok := c.views[ViewCardEditor].(*views.CardEditor)
+	if !ok {
+		return nil
+	}
+	editor.SetCard(card)
+	c.editingCard = card
+	editor.SetDashboardContext(c.activeDashboard, card.DashboardID != c.activeDashboard)
+	return c.navigationCommand(messages.ViewCardEditor)
 }
 
 // launchIDE snapshots the IDE command here, on the coordinator goroutine:

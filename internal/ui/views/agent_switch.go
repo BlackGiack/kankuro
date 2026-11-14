@@ -8,10 +8,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
-	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
@@ -26,9 +25,7 @@ type AgentSwitchView struct {
 	component.Base
 
 	list        list.Model
-	cards       []config.IDCard
-	skills      []config.Skill
-	personas    []config.Persona
+	cards       []models.CardRow
 	sessionID   string
 	sessionName string
 	searchQuery string
@@ -62,23 +59,26 @@ func (v *AgentSwitchView) SetSession(id, name string) {
 	v.sessionName = name
 }
 
-// SetData preserves each existing registry when its incoming field is nil.
-func (v *AgentSwitchView) SetData(msg messages.DataLoadedMsg) {
-	changed := false
-	if msg.Cards != nil {
-		v.cards = msg.Cards
-		changed = true
+// SetRows replaces switch destinations with focused card rows.
+func (v *AgentSwitchView) SetRows(cards []models.CardRow) {
+	selectedID := ""
+	if item, ok := v.list.SelectedItem().(switchCardItem); ok {
+		selectedID = item.card.ID
 	}
-	if msg.Skills != nil {
-		v.skills = msg.Skills
-		changed = true
+	v.cards = models.CloneCardRows(cards)
+	for index := range v.cards {
+		if v.cards[index].FilterKey == "" {
+			v.cards[index].FilterKey = v.cards[index].Name + " " + v.cards[index].Driver + " " + v.cards[index].Model
+		}
 	}
-	if msg.Personas != nil {
-		v.personas = msg.Personas
-		changed = true
-	}
-	if changed {
-		v.refreshItems()
+	v.refreshItems()
+	if selectedID != "" {
+		for index, item := range v.list.Items() {
+			if row, ok := item.(switchCardItem); ok && row.card.ID == selectedID {
+				v.list.Select(index)
+				return
+			}
+		}
 	}
 }
 
@@ -86,18 +86,20 @@ func (v *AgentSwitchView) refreshItems() {
 	filtered := v.filterCards()
 	items := make([]list.Item, len(filtered))
 	for i, card := range filtered {
-		items[i] = switchCardItem{
-			card:     card,
-			skills:   v.skills,
-			personas: v.personas,
-		}
+		items[i] = switchCardItem{card: card}
 	}
 	v.list.SetItems(items)
 }
 
-func (v *AgentSwitchView) filterCards() []config.IDCard {
-	return components.Filter(v.cards, v.searchQuery, func(card config.IDCard) string {
-		return card.Name + " " + card.Driver + " " + card.Model
+func (v *AgentSwitchView) filterCards() []models.CardRow {
+	available := make([]models.CardRow, 0, len(v.cards))
+	for _, card := range v.cards {
+		if card.Launch.Enabled {
+			available = append(available, card)
+		}
+	}
+	return components.Filter(available, v.searchQuery, func(card models.CardRow) string {
+		return card.FilterKey
 	})
 }
 
@@ -207,9 +209,7 @@ func (v *AgentSwitchView) SetSize(width, height int) {
 
 // switchCardItem wraps a card for display in switch modal.
 type switchCardItem struct {
-	card     config.IDCard
-	skills   []config.Skill
-	personas []config.Persona
+	card models.CardRow
 }
 
 func (i switchCardItem) Title() string       { return i.card.Name }

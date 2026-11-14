@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/BlackGiack/kankuro/internal/api"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/configstartup"
@@ -24,7 +25,7 @@ func newScopedCoordinator(repo config.Repository, manager *session.Manager) *app
 
 func openDefaultDashboard(coordinator *app.Coordinator) {
 	coordinator.Update(
-		messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}},
+		messages.DashboardOpenRequestedMsg{DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive},
 	)
 }
 

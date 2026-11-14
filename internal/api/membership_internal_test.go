@@ -243,21 +243,21 @@ func TestReadDashboardDataScopesCardsAndSessions(t *testing.T) {
 	if err := verify(); err == nil {
 		t.Fatal("changed and restored impact accepted stale confirmation")
 	}
-	data, err := service.ReadDashboardData("b")
+	data, err := service.readDashboardData("b")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(data.Cards) != 2 || len(data.Sessions) != 1 || data.Sessions[0].DashboardID != "b" {
 		t.Fatalf("dashboard b data: %+v", data)
 	}
-	data, err = service.ReadDashboardData("a")
+	data, err = service.readDashboardData("a")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(data.Cards) != 2 || len(data.Sessions) != 1 || data.Sessions[0].DashboardID != "a" {
 		t.Fatalf("dashboard a data: %+v", data)
 	}
-	if _, err := service.ReadDashboardData("unknown"); err == nil {
+	if _, err := service.readDashboardData("unknown"); err == nil {
 		t.Fatal("unknown dashboard accepted")
 	}
 	if _, err := service.ConfirmCardDeletion(context.Background(), "a", shared.ID, preflight.Token, true); err == nil {
@@ -278,7 +278,7 @@ func TestReadDashboardDataScopesCardsAndSessions(t *testing.T) {
 	if err != nil || result.State != "deleted" {
 		t.Fatalf("repeat deletion: %+v, %v", result, err)
 	}
-	data, err = service.ReadDashboardData("b")
+	data, err = service.readDashboardData("b")
 	if err != nil || len(data.Cards) != 1 || data.Cards[0].ID != foreign.ID || len(data.Sessions) != 1 ||
 		data.Sessions[0].CardID != shared.ID ||
 		data.Sessions[0].Status == session.StatusTerminated {
@@ -497,5 +497,118 @@ func TestConfirmedCardDeletionCancelsForeignPendingLaunch(t *testing.T) {
 	}
 	if len(manager.List()) != 0 {
 		t.Fatal("pending activation was published")
+	}
+}
+func TestReadDashboardOverviewReturnsFocusedOwnedRows(t *testing.T) {
+	service, repo, _, _, workspaceID := newServiceFixture(t)
+	if err := os.WriteFile(
+		filepath.Join(repo.Dir(), config.DashboardsFilename),
+		[]byte("schema_version: 1\ndashboards:\n  - {id: a, name: A, state: active}\n"),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	card := saveCard(t, repo.FileRepository, config.IDCard{
+		Name: "Card", Driver: "cat", Model: "m", WorkspaceID: workspaceID, DashboardID: "a",
+	})
+	data, err := service.ReadDashboardOverview("a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data.Dashboard.ID != "a" || len(data.Cards) != 1 || data.Cards[0].ID != card.ID || !data.Cards[0].Launch.Enabled {
+		t.Fatalf("unexpected inventory: %+v", data)
+	}
+}
+
+func TestReadDashboardInventoryExposesRecoveryActions(t *testing.T) {
+	service, repo, _, _, _ := newServiceFixture(t)
+	if err := os.WriteFile(
+		filepath.Join(repo.Dir(), config.DashboardsFilename),
+		[]byte("schema_version: 1\ndashboards:\n  - {id: a, name: A, state: active}\n"),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.BeginDashboardDeletion(config.DashboardDeletion{
+		SchemaVersion: 1, DashboardID: "recover", Name: "Recover",
+		AdmissionsDrained: true, HistoryRemoved: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := service.ReadDashboardInventory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, row := range rows {
+		if row.ID == "recover" {
+			found = row.Recoverable && row.Retry.Enabled && !row.Open.Enabled
+		}
+	}
+	if !found {
+		t.Fatalf("recoverable dashboard row missing: %+v", rows)
+	}
+}
+
+func TestReadRegistryChangeTokenIsStableAndOpaque(t *testing.T) {
+	service, _, _, _, _ := newServiceFixture(t)
+	first, err := service.ReadRegistryChangeToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := service.ReadRegistryChangeToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == "" || first != second {
+		t.Fatalf("unstable token: %q != %q", first, second)
+	}
+}
+
+func TestReadDisplayChoicesCopiesArtwork(t *testing.T) {
+	service, repo, _, _, _ := newServiceFixture(t)
+	puppet := config.Puppet{ID: "custom", Name: "Custom", Lines: []string{"first"}}
+	if err := repo.WritePuppetsFile(config.PuppetsFile{Puppets: []config.Puppet{puppet}}); err != nil {
+		t.Fatal(err)
+	}
+	choices := service.ReadDisplayChoices()
+	if choices.Puppets.Err != nil {
+		t.Fatal(choices.Puppets.Err)
+	}
+	var customIndex = -1
+	for index, choice := range choices.Puppets.Value {
+		if choice.ID == "custom" {
+			customIndex = index
+		}
+	}
+	if customIndex < 0 || choices.Puppets.Value[customIndex].Lines[0] != "first" {
+		t.Fatalf("unexpected display choices: %+v", choices)
+	}
+	choices.Puppets.Value[customIndex].Lines[0] = "changed"
+	reloaded := service.ReadDisplayChoices()
+	for _, choice := range reloaded.Puppets.Value {
+		if choice.ID == "custom" && choice.Lines[0] == "first" {
+			return
+		}
+	}
+	t.Fatal("artwork aliases repository data")
+}
+
+func TestSummarizeSessionAvailabilityForUnavailableCurrentCard(t *testing.T) {
+	terminated := session.Snapshot{
+		ID: "stopped", CardID: "deleted", Status: session.StatusTerminated, CardDeleted: true,
+	}
+	row := summarizeSession(terminated, map[string]config.IDCard{})
+	if row.Relaunch.Enabled || row.Switch.Enabled == false {
+		t.Fatalf("deleted current card should block relaunch and allow destination switching: %+v", row)
+	}
+	if !row.Rename.Enabled || !row.OpenIDE.Enabled || !row.OpenTerminal.Enabled {
+		t.Fatalf("stopped-session rename and workspace actions should remain available: %+v", row)
+	}
+
+	unknown := summarizeSession(session.Snapshot{ID: "unknown", Status: session.Status("mystery")}, nil)
+	if unknown.Attach.Enabled || unknown.Relaunch.Enabled || unknown.Stop.Enabled || unknown.Remove.Enabled ||
+		unknown.Switch.Enabled || unknown.Rename.Enabled || unknown.OpenIDE.Enabled || unknown.OpenTerminal.Enabled {
+		t.Fatalf("unknown session state enabled an unspecified action: %+v", unknown)
 	}
 }

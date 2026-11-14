@@ -15,9 +15,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 )
 
 // countingRepo wraps a real Repository and counts calls to the List* methods
@@ -53,7 +55,9 @@ func newCountingCoordinator(t *testing.T) (*Coordinator, *countingRepo, *config.
 	repo := &countingRepo{Repository: base}
 	sm := newTestManager(t, base.Dir(), base)
 	c := NewCoordinator(repo, sm, api.New(repo, sm))
-	c.Update(messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}})
+	c.Update(messages.DashboardOpenRequestedMsg{
+		DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive,
+	})
 	return c, repo, base
 }
 
@@ -70,7 +74,7 @@ func TestMaybeRefreshConfigSkipsUnchangedRegistry(t *testing.T) {
 	if msg1.data == nil {
 		t.Fatal("expected the first check (no baseline yet) to read the registries")
 	}
-	c.configFingerprint = msg1.stamps
+	c.configFingerprint = msg1.token
 	callsAfterFirst := repo.cardListCalls
 	if callsAfterFirst == 0 {
 		t.Fatal("expected ListIDCards to have been called at least once")
@@ -99,7 +103,7 @@ func TestMaybeRefreshConfigPicksUpFileChange(t *testing.T) {
 	if !ok {
 		t.Fatal("expected a configFingerprintMsg")
 	}
-	c.configFingerprint = msg1.stamps
+	c.configFingerprint = msg1.token
 	callsAfterFirst := repo.cardListCalls
 
 	idCardsPath := filepath.Join(base.Dir(), config.IDCardsFilename)
@@ -167,7 +171,7 @@ func TestMutationRefreshDoesNotWaitForTick(t *testing.T) {
 	}
 
 	dashboard, ok := c.views[ViewDashboard].(interface {
-		Cards() []config.IDCard
+		Cards() []models.CardRow
 	})
 	if !ok {
 		t.Fatal("expected dashboard view with a Cards() accessor")
@@ -220,8 +224,8 @@ func TestFullRefreshSeedsFingerprintBaseline(t *testing.T) {
 	if tickMsg.data != nil {
 		t.Fatal("expected the tick right after a mutation refresh to see an unchanged baseline")
 	}
-	if tickMsg.stamps != nil {
-		t.Fatal("expected an unchanged result to carry nil stamps")
+	if tickMsg.token != "" {
+		t.Fatal("expected an unchanged result to carry no token")
 	}
 	if repo.cardListCalls != callsAfterMutation {
 		t.Fatalf("expected no additional ListIDCards call from the tick, got %d (was %d)",
@@ -233,20 +237,42 @@ func TestFullRefreshSeedsFingerprintBaseline(t *testing.T) {
 func TestUnchangedTickResultDoesNotClobberNewerBaseline(t *testing.T) {
 	c, _, _ := newCountingCoordinator(t)
 
-	newerBaseline := map[string]config.FileStamp{
-		config.IDCardsFilename: {Size: 123},
-	}
-	c.Update(configFingerprintMsg{stamps: newerBaseline})
-	if len(c.configFingerprint) != 1 {
-		t.Fatalf("expected the newer baseline to be adopted, got %v", c.configFingerprint)
+	newerBaseline := contracts.RegistryChangeToken("opaque-newer-token")
+	c.Update(configFingerprintMsg{
+		token:     newerBaseline,
+		requestID: 1,
+		data: &messages.DataLoadedMsg{
+			DashboardID: "default",
+			Generation:  c.viewGeneration,
+		},
+		dashboardID: "default",
+		generation:  c.viewGeneration,
+	})
+	if c.configFingerprint != newerBaseline {
+		t.Fatalf("expected newer baseline to be adopted, got %q", c.configFingerprint)
 	}
 
 	// A stale tick result, captured before the mutation, arrives after it.
-	c.Update(configFingerprintMsg{})
+	c.Update(configFingerprintMsg{requestID: 0})
 
-	if len(c.configFingerprint) != 1 || c.configFingerprint[config.IDCardsFilename].Size != 123 {
-		t.Fatalf("expected the stale unchanged tick result not to clobber the newer baseline, got %v",
-			c.configFingerprint)
+	if c.configFingerprint != newerBaseline {
+		t.Fatalf("expected stale unchanged result not to clobber the newer baseline, got %q", c.configFingerprint)
+	}
+}
+
+func TestNewerUnchangedRefreshInvalidatesOlderChangedResult(t *testing.T) {
+	c, _, _ := newCountingCoordinator(t)
+	c.configFingerprint = "seed"
+	generation := c.viewGeneration
+	c.Update(configFingerprintMsg{
+		requestID: 2, dashboardID: "default", generation: generation,
+	})
+	c.Update(configFingerprintMsg{
+		token: "older-change", requestID: 1, dashboardID: "default", generation: generation,
+		data: &messages.DataLoadedMsg{DashboardID: "default", Generation: generation},
+	})
+	if c.configFingerprint != "seed" {
+		t.Fatalf("older changed refresh replaced the baseline after a newer unchanged result: %q", c.configFingerprint)
 	}
 }
 
@@ -264,7 +290,9 @@ func TestLaunchCardAbortsOnRegistryReadError(t *testing.T) {
 	}
 	sm := newTestManager(t, base.Dir(), base)
 	c := NewCoordinator(base, sm, api.New(base, sm))
-	c.Update(messages.DashboardOpenRequestedMsg{Dashboard: config.Dashboard{ID: "default", Name: "Default", State: config.DashboardActive}})
+	c.Update(messages.DashboardOpenRequestedMsg{
+		DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive,
+	})
 
 	wd := t.TempDir()
 	if saveErr := base.SaveWorkspaceSources([]config.WorkspaceSource{{Path: wd}}); saveErr != nil {
@@ -296,10 +324,15 @@ func TestLaunchCardAbortsOnRegistryReadError(t *testing.T) {
 		t.Fatalf("corrupt skills.yaml: %v", writeErr)
 	}
 
-	cmd := c.dashboardCallbacks().OnLaunchCard(card)
-	if cmd == nil {
+	loadCmd := c.dashboardCallbacks().OnLaunchCard(card.ID)
+	if loadCmd == nil {
 		t.Fatal("expected OnLaunchCard to return a cmd")
 	}
+	loaded, loadSucceeded := loadCmd().(messages.DashboardCardLoadedMsg)
+	if !loadSucceeded {
+		t.Fatalf("expected card-load result, got %T", loaded)
+	}
+	_, cmd := c.Update(loaded)
 
 	var launchMsg *messages.SessionLaunchCompletedMsg
 	for _, m := range collectMsgs(cmd) {

@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
@@ -18,10 +19,13 @@ const dashboardDeletionTimeout = 5 * time.Minute
 func (c *Coordinator) dashboardListCallbacks() views.DashboardListCallbacks {
 	service := c.actions.service
 	return views.DashboardListCallbacks{
-		Open: func(dashboard config.Dashboard) tea.Cmd {
+		Open: func(dashboard contracts.DashboardSummary) tea.Cmd {
 			generation := c.viewGeneration
 			return func() tea.Msg {
-				return messages.DashboardOpenRequestedMsg{Dashboard: dashboard, Generation: generation}
+				return messages.DashboardOpenRequestedMsg{
+					DashboardID: dashboard.ID, DashboardName: dashboard.Name,
+					DashboardState: dashboard.State, Generation: generation,
+				}
 			}
 		},
 		Save: func(id, name, description string) tea.Cmd {
@@ -120,13 +124,32 @@ func dashboardDeletionSummary(preflight api.DashboardDeletionPreflight) []string
 
 func (c *Coordinator) refreshDashboardList() tea.Cmd {
 	c.dashboardListRequest++
-	return dashboardListCommand(c.actions.service, c.dashboardListRequest)
+	return dashboardListCommand(c.reads, c.dashboardListRequest)
 }
 
-func dashboardListCommand(service *api.Service, requestID uint64) tea.Cmd {
+func dashboardListCommand(service dashboardInventoryReader, requestID uint64) tea.Cmd {
 	return func() tea.Msg {
-		dashboards, err := service.ListDashboards()
+		dashboards, err := service.ReadDashboardInventory()
 		return messages.DashboardListLoadedMsg{Dashboards: dashboards, Err: err, RequestID: requestID}
+	}
+}
+
+func dashboardCardCommand(
+	service *api.Service,
+	dashboardID, cardID string,
+	generation uint64,
+	action messages.DashboardCardAction,
+) tea.Cmd {
+	return func() tea.Msg {
+		card, err := service.ReadDashboardCardDetail(dashboardID, cardID)
+		if err != nil {
+			return messages.DashboardCardLoadedMsg{
+				DashboardID: dashboardID, Generation: generation, CardID: cardID, Action: action, Err: err,
+			}
+		}
+		return messages.DashboardCardLoadedMsg{
+			DashboardID: dashboardID, Generation: generation, CardID: cardID, Action: action, Card: card,
+		}
 	}
 }
 

@@ -112,12 +112,12 @@ func cachedBuiltinPuppets(t *testing.T) []config.Puppet {
 func newPreview(t *testing.T, snap *session.Snapshot, puppet string, extra ...config.Puppet) *components.SessionPreview {
 	t.Helper()
 	p := components.NewSessionPreview()
-	p.SetPuppets(append(append([]config.Puppet(nil), cachedBuiltinPuppets(t)...), extra...))
+	setPreviewPuppets(p, append(append([]config.Puppet(nil), cachedBuiltinPuppets(t)...), extra...))
 	var card *config.IDCard
 	if puppet != "" {
 		card = &config.IDCard{ID: "c1", Name: "Master mind", Puppet: puppet}
 	}
-	p.SetSession(snap, card)
+	setPreviewSession(p, snap, card)
 	return p
 }
 
@@ -277,7 +277,7 @@ func TestSessionPreviewFitsUnicodeMetadataAndOmitsUnfittingArt(t *testing.T) {
 	snapshot.WorkingDir = "/workspace/" + strings.Repeat("very-long-directory/", 5) + "プロジェクト/終端"
 	card := &config.IDCard{ID: "card", Name: strings.Repeat("審査", 20), Puppet: wideArt.Name}
 	preview := newPreview(t, snapshot, card.Puppet, wideArt)
-	preview.SetSession(snapshot, card)
+	setPreviewSession(preview, snapshot, card)
 	preview.SetSize(42, 30)
 	out := ansi.Strip(preview.View())
 	rows := strings.Split(out, "\n")
@@ -297,7 +297,7 @@ func TestSessionPreviewFitsUnicodeMetadataAndOmitsUnfittingArt(t *testing.T) {
 
 	marker := config.Puppet{ID: "marker", Name: "marker", Lines: []string{"PUPPET", "art"}}
 	withArt := newPreview(t, snapshot, marker.Name, marker)
-	withArt.SetSession(snapshot, &config.IDCard{ID: card.ID, Name: card.Name, Puppet: marker.Name})
+	setPreviewSession(withArt, snapshot, &config.IDCard{ID: card.ID, Name: card.Name, Puppet: marker.Name})
 	withArt.SetSize(42, 30)
 	artRows := strings.Split(ansi.Strip(withArt.View()), "\n")
 	if !strings.Contains(artRows[0], "PUPPET") || !strings.Contains(artRows[1], "art") {

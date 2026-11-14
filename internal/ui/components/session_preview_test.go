@@ -14,7 +14,7 @@ func TestSessionPreview_RedrawOverwrites(t *testing.T) {
 	p := components.NewSessionPreview()
 	p.SetSize(100, 20)
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// Simulate redraw: Progress updates
 	chunks := [][]byte{
@@ -44,7 +44,7 @@ func TestSessionPreview_StaleContentOnSwitch(t *testing.T) {
 
 	// 1. Session A with output
 	snapA := &session.Snapshot{ID: "A", Name: "Session A"}
-	p.SetSession(snapA, nil)
+	setPreviewSession(p, snapA, nil)
 	p.SetScrollback([]byte("Content from A"))
 
 	if !strings.Contains(p.View(), "Content from A") {
@@ -53,7 +53,7 @@ func TestSessionPreview_StaleContentOnSwitch(t *testing.T) {
 
 	// 2. Switch to Session B with NO output
 	snapB := &session.Snapshot{ID: "B", Name: "Session B"}
-	p.SetSession(snapB, nil)
+	setPreviewSession(p, snapB, nil)
 	// Important: We DON'T call SetScrollback yet, simulating a fresh switch to a session with no data yet
 
 	view := p.View()
@@ -69,7 +69,7 @@ func TestSessionPreview_GrowingLongLine(t *testing.T) {
 	p := components.NewSessionPreview()
 	p.SetSize(60, 20)
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// 1. Initial part
 	p.AppendScrollback([]byte("Long line: "))
@@ -90,7 +90,7 @@ func TestSessionPreview_FreezePrevention(t *testing.T) {
 	p := components.NewSessionPreview()
 	p.SetSize(60, 20)
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// 1. Initial output
 	p.AppendScrollback([]byte("Step 1: Start\n"))
@@ -125,7 +125,7 @@ func TestSessionPreview_Clear(t *testing.T) {
 
 	// Set some data
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 	p.SetScrollback([]byte("output"))
 
 	// Clear
@@ -161,7 +161,7 @@ func TestSessionPreview_SetSession(t *testing.T) {
 		Puppet: "kankuro",
 	}
 
-	p.SetSession(snap, card)
+	setPreviewSession(p, snap, card)
 
 	if p.SessionID() != "s1" {
 		t.Errorf("Expected session ID 's1', got '%s'", p.SessionID())
@@ -171,7 +171,7 @@ func TestSessionPreview_SetSession(t *testing.T) {
 		t.Error("Snapshot should not be nil")
 	}
 
-	if p.Card() == nil {
+	if p.Card() == "" {
 		t.Error("Card should not be nil")
 	}
 }
@@ -205,7 +205,7 @@ func TestSessionPreview_View_WithSession(t *testing.T) {
 		StartedAt:  time.Now(),
 	}
 
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	view := p.View()
 
@@ -235,7 +235,7 @@ func TestSessionPreview_View_WithScrollback(t *testing.T) {
 		StartedAt: time.Now(),
 	}
 
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 	p.SetScrollback([]byte("Line 1\nLine 2\nLine 3"))
 
 	view := p.View()
@@ -297,7 +297,7 @@ func TestRenderStatusBadge(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			badge := components.RenderStatusBadge(tt.status)
+			badge := components.RenderStatusBadge(string(tt.status))
 			if !strings.Contains(badge, tt.label) {
 				t.Errorf("Badge should contain %q", tt.label)
 			}
@@ -316,7 +316,7 @@ func TestSessionPreview_View_WaitingStatus(t *testing.T) {
 		StartedAt: time.Now(),
 	}
 
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	view := p.View()
 
@@ -330,7 +330,7 @@ func TestSessionPreview_MeaningfulHeuristic(t *testing.T) {
 	p := components.NewSessionPreview()
 	p.SetSize(60, 20)
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// 1. Initial meaningful output
 	p.SetScrollback([]byte("Hello, this is a real message from the agent."))
@@ -357,7 +357,7 @@ func TestSessionPreview_Sticky(t *testing.T) {
 	p := components.NewSessionPreview()
 	p.SetSize(60, 20)
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// 1. Initial meaningful output
 	p.SetScrollback([]byte("First meaningful line"))
@@ -385,7 +385,7 @@ func TestSessionPreview_Sticky(t *testing.T) {
 
 	// 4. Session change (should clear cache)
 	snap2 := &session.Snapshot{ID: "s2", Name: "Test 2"}
-	p.SetSession(snap2, nil)
+	setPreviewSession(p, snap2, nil)
 	p.SetScrollback([]byte("\x1b[K")) // Noisy
 	view4 := p.View()
 	if strings.Contains(view4, "Second meaningful line") {
@@ -400,7 +400,7 @@ func TestSessionPreview_CappedSequenceResidue(t *testing.T) {
 	p := components.NewSessionPreview()
 	p.SetSize(60, 20)
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// Part 1: Some initial meaningful text
 	initialText := "Initial meaningful line\n"
@@ -425,7 +425,7 @@ func TestSessionPreview_LargeSetScrollbackNoDiscard(t *testing.T) {
 	p := components.NewSessionPreview()
 	p.SetSize(100, 20)
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// Case 1: Large multiline buffer ( > 16KB but < 256KB)
 	largeMultiline := strings.Repeat("Other lines\n", 1000) + "Final line: important"
@@ -477,7 +477,7 @@ func TestSessionPreview_LineBreakRecovery(t *testing.T) {
 	p := components.NewSessionPreview()
 	p.SetSize(100, 20)
 	snap := &session.Snapshot{ID: "s1", Name: "Test"}
-	p.SetSession(snap, nil)
+	setPreviewSession(p, snap, nil)
 
 	// Case 1: \r as redraw overwrite. "Line 1" is overwritten by "Line 2".
 	p.SetScrollback([]byte("Line 1\rLine 2\rLine 3"))

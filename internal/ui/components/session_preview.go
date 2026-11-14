@@ -9,9 +9,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
@@ -22,6 +22,10 @@ const (
 	PreviewContentHPadding    = 2
 	previewPuppetGap          = 3
 	previewMinTextWidth       = 24
+	sessionScrollbackLimit    = 256 * 1024
+	statusRunning             = "running"
+	statusWaiting             = "waiting"
+	statusTerminated          = "terminated"
 )
 
 // Status badge styles.
@@ -51,10 +55,9 @@ type SessionPreview struct {
 	component.Base
 
 	sessionID           string
-	snapshot            *session.Snapshot
-	card                *config.IDCard
+	snapshot            *models.SessionRow
 	scrollback          []byte
-	puppets             []config.Puppet
+	puppets             []contracts.PuppetChoice
 	lastMeaningfulLines []string
 	lastSessionID       string
 
@@ -75,15 +78,18 @@ func (p *SessionPreview) SetSize(width, height int) {
 	p.Base.SetSize(width, height)
 }
 
-// SetPuppets sets the puppet catalog for rendering.
-func (p *SessionPreview) SetPuppets(puppets []config.Puppet) {
-	p.puppets = puppets
+func (p *SessionPreview) SetPuppetChoices(puppets []contracts.PuppetChoice) {
+	p.puppets = make([]contracts.PuppetChoice, len(puppets))
+	for i, puppet := range puppets {
+		p.puppets[i] = puppet
+		p.puppets[i].Lines = append([]string(nil), puppet.Lines...)
+	}
 }
 
-// SetSession updates the displayed session.
-func (p *SessionPreview) SetSession(snap *session.Snapshot, card *config.IDCard) {
+// SetSession updates the displayed session from an owned presentation row.
+func (p *SessionPreview) SetSession(row *models.SessionRow) {
 	// If the session changed, reset the internal state to avoid stale content
-	if snap == nil || snap.ID != p.sessionID {
+	if row == nil || row.ID != p.sessionID {
 		p.lastMeaningfulLines = nil
 		p.lastSessionID = p.sessionID
 		p.parserState = stateNormal
@@ -93,11 +99,20 @@ func (p *SessionPreview) SetSession(snap *session.Snapshot, card *config.IDCard)
 		p.lineBuf.Reset()
 	}
 
-	p.snapshot = snap
-	p.card = card
-	if snap != nil {
-		p.sessionID = snap.ID
+	if row != nil {
+		owned := *row
+		owned.PuppetLines = append([]string(nil), row.PuppetLines...)
+		for _, puppet := range p.puppets {
+			if puppet.ID == owned.PuppetName || puppet.Name == owned.PuppetName {
+				owned.PuppetBuiltin = puppet.Builtin
+				owned.PuppetLines = append([]string(nil), puppet.Lines...)
+				break
+			}
+		}
+		p.snapshot = &owned
+		p.sessionID = row.ID
 	} else {
+		p.snapshot = nil
 		p.sessionID = ""
 	}
 }
@@ -114,7 +129,7 @@ func (p *SessionPreview) SetScrollback(data []byte) {
 	// If the buffer is at the session manager's limit, it was likely truncated.
 	// We probe the first partial line for residue to avoid misinterpreting
 	// don't misinterpret mid-sequence residue as normal text.
-	if len(data) >= session.ScrollbackLimit {
+	if len(data) >= sessionScrollbackLimit {
 		if i := bytes.IndexByte(data, '\n'); i != -1 {
 			firstLine := data[:i]
 			if isLikelyResidue(string(firstLine)) {
@@ -194,7 +209,6 @@ func (p *SessionPreview) processData(data []byte) {
 func (p *SessionPreview) Clear() {
 	p.sessionID = ""
 	p.snapshot = nil
-	p.card = nil
 	p.scrollback = nil
 	p.lastMeaningfulLines = nil
 	p.lastSessionID = ""
@@ -210,13 +224,16 @@ func (p *SessionPreview) SessionID() string {
 }
 
 // Snapshot returns the current session snapshot.
-func (p *SessionPreview) Snapshot() *session.Snapshot {
+func (p *SessionPreview) Snapshot() *models.SessionRow {
 	return p.snapshot
 }
 
-// Card returns the current ID card.
-func (p *SessionPreview) Card() *config.IDCard {
-	return p.card
+// Card returns the displayed card label.
+func (p *SessionPreview) Card() string {
+	if p.snapshot == nil {
+		return ""
+	}
+	return p.snapshot.CardName
 }
 
 // Scrollback returns the current scrollback data.
@@ -309,11 +326,7 @@ func (p *SessionPreview) renderPreview() string {
 	}
 
 	// Render puppet
-	puppetStyle := "kankuro"
-	if p.card != nil && p.card.Puppet != "" {
-		puppetStyle = p.card.Puppet
-	}
-	puppetStr := RenderAgentPuppet(puppetStyle, p.puppets)
+	puppetStr := RenderPuppetArtwork(p.snapshot.PuppetName, p.snapshot.PuppetBuiltin, p.snapshot.PuppetLines)
 	textWidth := p.Width
 	puppetWidth := renderedBlockWidth(puppetStr)
 	if puppetWidth > 0 && p.Width >= puppetWidth+previewPuppetGap+previewMinTextWidth {
@@ -332,8 +345,8 @@ func (p *SessionPreview) renderPreview() string {
 		renderPreviewField("Started: ", startedStr, textWidth, false),
 	}
 
-	if p.card != nil {
-		headerLines = append(headerLines, renderPreviewField("Card: ", p.card.Name, textWidth, false))
+	if p.snapshot.CardName != "" {
+		headerLines = append(headerLines, renderPreviewField("Card: ", p.snapshot.CardName, textWidth, false))
 	}
 	headerLines = append(headerLines, "")
 
@@ -513,13 +526,13 @@ func (p *SessionPreview) renderNoOutput(height int) string {
 }
 
 // RenderStatusBadge renders the status badge.
-func RenderStatusBadge(status session.Status) string {
+func RenderStatusBadge(status string) string {
 	switch status {
-	case session.StatusRunning:
+	case statusRunning:
 		return StatusRunningStyle.Render("Running")
-	case session.StatusWaiting:
+	case statusWaiting:
 		return StatusWaitingStyle.Render("Waiting")
-	case session.StatusTerminated:
+	case statusTerminated:
 		return StatusTerminatedStyle.Render("Terminated")
 	default:
 		return StatusTerminatedStyle.Render("Unknown")

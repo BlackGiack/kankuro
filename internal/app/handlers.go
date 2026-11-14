@@ -3,7 +3,9 @@ package app
 import (
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
@@ -24,14 +26,20 @@ import (
 func (c *Coordinator) refreshDataSeeded() tea.Cmd {
 	refresh := c.refresh
 	refresh.sessionEpoch = c.sessionEpoch
-	return refresh.scopedFull(c.actions.service, c.activeDashboard, c.viewGeneration, c.currentPreviewSessionID())
+	requestID := c.nextRefreshRequest()
+	inventoryRequestID := c.nextInventoryRequest()
+	return refresh.scopedFull(
+		c.reads, c.activeDashboard, c.viewGeneration, requestID, inventoryRequestID, c.currentPreviewSessionID(),
+	)
 }
 
 // refreshSessions is the idle tick's sessions-only refresh.
 func (c *Coordinator) refreshSessions() tea.Cmd {
 	refresh := c.refresh
 	refresh.sessionEpoch = c.sessionEpoch
-	return refresh.scopedSessions(c.actions.service, c.activeDashboard, c.viewGeneration, c.currentPreviewSessionID())
+	return refresh.scopedSessions(
+		c.reads, c.activeDashboard, c.viewGeneration, c.nextInventoryRequest(), c.currentPreviewSessionID(),
+	)
 }
 
 // maybeRefreshConfig is the idle tick's config half; it hands the current
@@ -39,29 +47,70 @@ func (c *Coordinator) refreshSessions() tea.Cmd {
 func (c *Coordinator) maybeRefreshConfig() tea.Cmd {
 	refresh := c.refresh
 	refresh.sessionEpoch = c.sessionEpoch
-	return refresh.scopedConfigIfChanged(c.actions.service, c.activeDashboard, c.viewGeneration, c.configFingerprint)
+	requestID := c.nextRefreshRequest()
+	inventoryRequestID := c.nextInventoryRequest()
+	return refresh.scopedConfigIfChanged(
+		c.reads, c.activeDashboard, c.viewGeneration, c.configFingerprint, requestID, inventoryRequestID,
+		c.currentPreviewSessionID(),
+	)
+}
+
+func (c *Coordinator) currentPreviewSessionID() string {
+	if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+		return dashboard.PreviewSessionID()
+	}
+	return c.preview.current()
+}
+
+func (c *Coordinator) nextRefreshRequest() uint64 {
+	c.refreshRequestID++
+	return c.refreshRequestID
+}
+
+func (c *Coordinator) nextInventoryRequest() uint64 {
+	c.inventoryRequestID++
+	return c.inventoryRequestID
 }
 
 func (c *Coordinator) hasStaleSessionSnapshot(msg messages.DataLoadedMsg) bool {
-	return msg.Sessions != nil && msg.SessionEpoch < c.sessionEpoch
+	return msg.Inventory.Attempted && msg.SessionEpoch < c.sessionEpoch
 }
 
-// handleConfigFingerprint adopts non-nil stamps and data. An unchanged result
-// must not overwrite a newer baseline from an overlapping mutation refresh.
+func (c *Coordinator) acceptInventorySnapshot(msg *messages.DataLoadedMsg) bool {
+	if c.hasStaleSessionSnapshot(*msg) {
+		return false
+	}
+	if !msg.Inventory.Attempted {
+		return true
+	}
+	if msg.InventoryRequestID < c.lastAppliedInventoryRequest {
+		msg.Inventory = contracts.ReadResult[contracts.DashboardInventory]{}
+		msg.PreviewSessionID = ""
+		msg.PreviewScrollback = nil
+		msg.Err = msg.RegistryErr
+		return true
+	}
+	c.lastAppliedInventoryRequest = msg.InventoryRequestID
+	return true
+}
+
+// handleConfigFingerprint adopts only current, scope-valid results. Unchanged
+// polls carry no data or token and cannot overwrite a forced refresh.
 func (c *Coordinator) handleConfigFingerprint(m configFingerprintMsg) tea.Cmd {
-	if m.data != nil &&
-		(m.data.DashboardID != c.activeDashboard || m.data.Generation != c.viewGeneration) {
+	if m.requestID < c.lastAppliedRefreshRequest ||
+		m.dashboardID != c.activeDashboard || m.generation != c.viewGeneration ||
+		m.sessionEpoch < c.sessionEpoch {
 		return nil
 	}
-	if m.data != nil && c.hasStaleSessionSnapshot(*m.data) {
-		return nil
-	}
-	if m.stamps != nil {
-		c.configFingerprint = m.stamps
-	}
+	c.lastAppliedRefreshRequest = m.requestID
 	if m.data == nil {
 		return nil
 	}
+	if m.data.DashboardID != m.dashboardID || m.data.Generation != m.generation ||
+		m.data.SessionEpoch != m.sessionEpoch || c.hasStaleSessionSnapshot(*m.data) {
+		return nil
+	}
+	c.configFingerprint = m.token
 	return c.handleDataLoaded(*m.data)
 }
 
@@ -69,15 +118,16 @@ func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
 	if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
 		return nil
 	}
-	if c.hasStaleSessionSnapshot(m) {
+	if !c.acceptInventorySnapshot(&m) {
 		return nil
 	}
 	if m.Err != nil {
 		c.err = m.Err
 		// A failed registry read is not a valid fingerprint baseline: retry
 		// even if the underlying file's metadata does not change.
-		c.configFingerprint = nil
+		c.configFingerprint = ""
 	}
+	c.applyDisplayChoices(m.Choices)
 	if c.activeDashboard == "" {
 		for viewType, view := range c.views {
 			if viewType == ViewDashboard || viewType == ViewAgentSwitch || viewType == ViewConversationChoice ||
@@ -91,10 +141,17 @@ func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
 		return nil
 	}
 	c.broadcastData(m)
+	if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+		dashboard.SetInventory(m.Inventory, m.Choices)
+	}
+	if switchView, ok := c.views[ViewAgentSwitch].(*views.AgentSwitchView); ok && m.Inventory.Attempted && m.Inventory.Err == nil {
+		switchView.SetRows(models.CardRows(m.Inventory.Value.Cards, c.displayChoices))
+	}
 	if c.currentView == ViewConversationChoice {
 		c.refreshConversationChoiceContext()
 	}
-	if m.PreviewSessionID != "" {
+	if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok && m.PreviewSessionID != "" &&
+		dashboard.PreviewSessionID() == m.PreviewSessionID {
 		c.broadcastPreview(messages.PreviewDataMsg{
 			SessionID:  m.PreviewSessionID,
 			Scrollback: m.PreviewScrollback,
@@ -112,29 +169,49 @@ func (c *Coordinator) handleSessionsRefreshed(m messages.SessionsRefreshedMsg) t
 	if m.SessionEpoch < c.sessionEpoch {
 		return nil
 	}
+	if !m.Inventory.Attempted || m.InventoryRequestID < c.lastAppliedInventoryRequest {
+		return nil
+	}
+	c.lastAppliedInventoryRequest = m.InventoryRequestID
 	if c.activeDashboard == "" {
 		return nil
 	}
 	if m.Err != nil {
 		c.err = m.Err
 	}
-	partial := messages.DataLoadedMsg{Cards: m.Cards, Sessions: m.Sessions, SessionEpoch: m.SessionEpoch}
-	for _, viewType := range []ViewType{ViewDashboard, ViewAgentSwitch} {
-		if receiver, ok := c.views[viewType].(messages.DataReceiver); ok {
-			receiver.SetData(partial)
-		}
+	if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+		dashboard.SetInventory(m.Inventory, m.Choices)
+	}
+	if switchView, ok := c.views[ViewAgentSwitch].(*views.AgentSwitchView); ok && m.Inventory.Attempted && m.Inventory.Err == nil {
+		switchView.SetRows(models.CardRows(m.Inventory.Value.Cards, c.displayChoices))
 	}
 
 	if c.currentView == ViewConversationChoice {
 		c.refreshConversationChoiceContext()
 	}
-	if m.PreviewSessionID != "" {
+	if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok && m.PreviewSessionID != "" &&
+		dashboard.PreviewSessionID() == m.PreviewSessionID {
 		c.broadcastPreview(messages.PreviewDataMsg{
 			SessionID:  m.PreviewSessionID,
 			Scrollback: m.PreviewScrollback,
 		})
 	}
 	return c.maybeSubscribeAutoSelectedPreview()
+}
+
+func (c *Coordinator) applyDisplayChoices(results contracts.DisplayChoicesResult) {
+	if results.Skills.Attempted && results.Skills.Err == nil {
+		c.displayChoices.Skills = append([]contracts.NamedChoice(nil), results.Skills.Value...)
+	}
+	if results.Personas.Attempted && results.Personas.Err == nil {
+		c.displayChoices.Personas = append([]contracts.NamedChoice(nil), results.Personas.Value...)
+	}
+	if results.Puppets.Attempted && results.Puppets.Err == nil {
+		c.displayChoices.Puppets = append([]contracts.PuppetChoice(nil), results.Puppets.Value...)
+		for i := range c.displayChoices.Puppets {
+			c.displayChoices.Puppets[i].Lines = append([]string(nil), results.Puppets.Value[i].Lines...)
+		}
+	}
 }
 
 // maybeSubscribeAutoSelectedPreview subscribes to a session the dashboard
