@@ -77,3 +77,35 @@ func DisplayText(s string) string {
 		}
 	}, s)
 }
+
+// ClampToSize hard-truncates a rendered string to at most maxHeight rows and
+// at most maxWidth visual columns per row, preserving ANSI escape sequences
+// when possible. As a last-resort safety net, if any line is still wider than
+// maxWidth after ANSI-aware truncation (e.g. malformed escapes, exotic
+// graphemes), it is replaced by a plain-text truncation that strips styling
+// rather than risk layout overflow.
+func ClampToSize(s string, maxWidth, maxHeight int) string {
+	return clampToSize(s, maxWidth, maxHeight)
+}
+
+func clampToSize(s string, maxWidth, maxHeight int) string {
+	if maxWidth <= 0 || maxHeight <= 0 {
+		return ""
+	}
+	lines := strings.Split(s, "\n")
+	if len(lines) > maxHeight {
+		lines = lines[:maxHeight]
+	}
+	for i, line := range lines {
+		if ansi.StringWidth(line) <= maxWidth {
+			continue
+		}
+		clamped := ansi.Truncate(line, maxWidth, "")
+		if ansi.StringWidth(clamped) > maxWidth {
+			// Defensive fallback: strip ANSI and hard-truncate by visual width.
+			clamped = TruncateTail(ansi.Strip(line), maxWidth)
+		}
+		lines[i] = clamped
+	}
+	return strings.Join(lines, "\n")
+}

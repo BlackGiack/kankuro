@@ -7,8 +7,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/styles"
@@ -16,20 +15,22 @@ import (
 
 // SessionLauncherCallbacks defines callbacks for session launcher actions.
 type SessionLauncherCallbacks struct {
-	OnSetNameAsync func(sessionID, name string) tea.Cmd
+	OnSetNameAsync func(sessionID, name, processID string) tea.Cmd
 }
 
 // SessionLauncher is a simple form for launching a new session.
 type SessionLauncher struct {
 	component.Base
 
-	card  config.IDCard
+	card  contracts.CardSummary
 	input textinput.Model
 
 	callbacks SessionLauncherCallbacks
 
 	launchDone bool
 	launchErr  error
+	processID  string
+	effect     contracts.LifecycleEffect
 	sessionID  string
 	err        error
 	naming     bool
@@ -49,7 +50,7 @@ func NewSessionLauncher(callbacks SessionLauncherCallbacks) *SessionLauncher {
 }
 
 // SetCard sets the ID card to launch.
-func (l *SessionLauncher) SetCard(card config.IDCard) {
+func (l *SessionLauncher) SetCard(card contracts.CardSummary) {
 	l.card = card
 }
 
@@ -60,12 +61,14 @@ func (l *SessionLauncher) SetName(name string) {
 
 // Reset clears the launcher.
 func (l *SessionLauncher) Reset() {
-	l.card = config.IDCard{}
+	l.card = contracts.CardSummary{}
 	l.input.SetValue("")
 	l.input.Focus()
 	l.launchDone = false
 	l.launchErr = nil
 	l.sessionID = ""
+	l.processID = ""
+	l.effect = ""
 	l.err = nil
 	l.naming = false
 }
@@ -117,16 +120,11 @@ func (l *SessionLauncher) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// launchFatal reports whether the launch failed outright, meaning no agent
-// process ever started. It is false for session.ErrPersistFailed: there the
-// process is running and the session is fully usable, only its on-disk
-// record failed to save, so the normal name/attach flow should stay
-// available rather than being replaced with a dead end.
-func (l *SessionLauncher) launchFatal() bool {
-	return l.launchErr != nil && !errors.Is(l.launchErr, session.ErrPersistFailed)
-}
+func (l *SessionLauncher) launchFatal() bool { return l.effect != contracts.UsableActivation }
 
 // View renders the launcher.
+//
+//nolint:nestif // The launcher renders each activation outcome and its naming state.
 func (l *SessionLauncher) View() string {
 	var content strings.Builder
 
@@ -136,7 +134,11 @@ func (l *SessionLauncher) View() string {
 
 	if l.launchDone {
 		if l.launchFatal() {
-			content.WriteString(styles.ErrorStyle.Render("Launch failed: "+l.launchErr.Error()) + "\n\n")
+			label := "Launch failed: "
+			if l.effect == contracts.UncertainEffect {
+				label = "Launch outcome uncertain: "
+			}
+			content.WriteString(styles.ErrorStyle.Render(label+l.launchErr.Error()) + "\n\n")
 			content.WriteString(styles.HelpStyle.Render("Press Esc to return"))
 			return content.String()
 		}
@@ -175,18 +177,23 @@ func (l *SessionLauncher) View() string {
 }
 
 // SetLaunchResult sets the result of an asynchronous launch operation.
-func (l *SessionLauncher) SetLaunchResult(sessionID string, err error) {
+func (l *SessionLauncher) SetLaunchResult(result contracts.LifecycleResult) {
 	l.launchDone = true
-	l.launchErr = err
-	l.sessionID = sessionID
-	// Only mirror fatal errors into the top-level banner. An
-	// ErrPersistFailed warning is already rendered inline by View() as part
-	// of the (otherwise normal) success flow; duplicating it into the
-	// top-level banner would show the same message twice.
-	if err != nil && l.launchFatal() {
-		l.err = err
+	if err := result.Validate(); err != nil {
+		result = contracts.LifecycleResult{
+			Effect:         contracts.UncertainEffect,
+			Diagnostic:     err.Error(),
+			DiagnosticCode: contracts.DiagnosticInvalid,
+		}
+	}
+	l.effect, l.sessionID, l.processID = result.Effect, result.SessionID, result.ProcessActivationID
+	l.launchErr = nil
+	if result.Diagnostic != "" {
+		l.launchErr = errors.New(result.Diagnostic)
 	}
 }
+
+func (l *SessionLauncher) ProcessActivationID() string { return l.processID }
 
 // LaunchDone returns true if the launch has completed.
 func (l *SessionLauncher) LaunchDone() bool {
@@ -204,7 +211,7 @@ func (l *SessionLauncher) SessionID() string {
 }
 
 // Card returns the current ID card.
-func (l *SessionLauncher) Card() config.IDCard {
+func (l *SessionLauncher) Card() contracts.CardSummary {
 	return l.card
 }
 
@@ -226,7 +233,7 @@ func (l *SessionLauncher) handleNameSubmit() tea.Cmd {
 		return nil
 	}
 	l.naming = true
-	return l.callbacks.OnSetNameAsync(l.sessionID, name)
+	return l.callbacks.OnSetNameAsync(l.sessionID, name, l.processID)
 }
 
 // SetNameResult releases the pending form and displays a rename failure.

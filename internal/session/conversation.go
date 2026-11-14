@@ -2,7 +2,9 @@ package session
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -391,4 +393,12 @@ func addConversationBinding(s *Session, cardID string, binding ConversationBindi
 		}
 	}
 	s.Conversations[cardID] = append(bindings, binding)
+}
+
+// ConversationOptionIdentity is a deterministic scoped identifier. Display
+// names are intentionally excluded so a rename does not invalidate a choice.
+func ConversationOptionIdentity(sessionID, cardID string, binding ConversationBinding) string {
+	data, _ := json.Marshal([]string{sessionID, cardID, binding.ID, binding.Driver})
+	digest := sha256.Sum256(data)
+	return hex.EncodeToString(digest[:])
 }

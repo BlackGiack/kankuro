@@ -9,9 +9,9 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/ascii"
 	"github.com/BlackGiack/kankuro/internal/ascii/characters"
-	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 )
 
 // PuppetSelectorModal allows selecting a puppet style.
@@ -19,8 +19,10 @@ type PuppetSelectorModal struct {
 	component.Base
 	components.ModalState
 
-	puppets []config.Puppet
-	cursor  int
+	puppets         []models.PuppetOption
+	cursor          int
+	selectedName    string
+	selectedMissing bool
 
 	// cellW, cellH are the art area of every cell, fixed at construction.
 	cellW, cellH int
@@ -36,13 +38,13 @@ func NewPuppetSelectorModal() *PuppetSelectorModal {
 	}
 }
 
-func builtinPuppetOptions() []config.Puppet {
+func builtinPuppetOptions() []models.PuppetOption {
 	defs := characters.BuiltinPuppetLines()
-	puppets := make([]config.Puppet, 0, len(defs))
+	puppets := make([]models.PuppetOption, 0, len(defs))
 	for _, d := range defs {
 		lines := make([]string, len(d.Lines))
 		copy(lines, d.Lines)
-		puppets = append(puppets, config.Puppet{
+		puppets = append(puppets, models.PuppetOption{
 			Name:    d.Name,
 			Builtin: true,
 			Lines:   lines,
@@ -51,23 +53,25 @@ func builtinPuppetOptions() []config.Puppet {
 	return puppets
 }
 
-func (m *PuppetSelectorModal) SetPuppets(puppets []config.Puppet) {
-	if len(puppets) == 0 {
-		m.puppets = builtinPuppetOptions()
-	} else {
-		m.puppets = puppets
+func (m *PuppetSelectorModal) SetPuppets(puppets []models.PuppetOption) {
+	active := m.Selected()
+	m.puppets = make([]models.PuppetOption, len(puppets))
+	for i, p := range puppets {
+		m.puppets[i] = p
+		m.puppets[i].Lines = append([]string(nil), p.Lines...)
 	}
-	if m.cursor >= len(m.puppets) {
-		m.cursor = 0
-	}
+	m.SetSelected(active)
 }
 
 func (m *PuppetSelectorModal) Cursor() int { return m.cursor }
 
 func (m *PuppetSelectorModal) SetSelected(name string) {
+	m.selectedName = name
+	m.selectedMissing = true
 	for i, p := range m.puppets {
 		if p.Name == name {
 			m.cursor = i
+			m.selectedMissing = false
 			return
 		}
 	}
@@ -75,6 +79,9 @@ func (m *PuppetSelectorModal) SetSelected(name string) {
 }
 
 func (m *PuppetSelectorModal) Selected() string {
+	if m.selectedMissing {
+		return m.selectedName
+	}
 	if m.cursor >= 0 && m.cursor < len(m.puppets) {
 		return m.puppets[m.cursor].Name
 	}
@@ -83,21 +90,32 @@ func (m *PuppetSelectorModal) Selected() string {
 
 func (m *PuppetSelectorModal) Init() tea.Cmd { return nil }
 
+//nolint:nestif // Cursor movement and empty options are handled together.
 func (m *PuppetSelectorModal) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.Code {
 		case tea.KeyLeft:
+			if len(m.puppets) == 0 {
+				return m, nil
+			}
+			m.selectedMissing = false
 			if m.cursor > 0 {
 				m.cursor--
 			} else {
 				m.cursor = len(m.puppets) - 1
 			}
+			m.selectedName = m.puppets[m.cursor].Name
 		case tea.KeyRight:
+			if len(m.puppets) == 0 {
+				return m, nil
+			}
+			m.selectedMissing = false
 			if m.cursor < len(m.puppets)-1 {
 				m.cursor++
 			} else {
 				m.cursor = 0
 			}
+			m.selectedName = m.puppets[m.cursor].Name
 		case tea.KeyEnter:
 			m.Confirm()
 		case tea.KeyEsc:
@@ -136,7 +154,7 @@ func builtinCellSize() (int, int) {
 
 // puppetArt returns a puppet's art. User puppets come from files, so their
 // lines are made safe for one row each and are clipped by the caller.
-func puppetArt(p config.Puppet) string {
+func puppetArt(p models.PuppetOption) string {
 	if p.Builtin {
 		puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", p.Name) })
 		w, h := puppet.Bounds()
@@ -166,7 +184,7 @@ func padBlock(block string, w, h int) string {
 
 // renderCell draws one puppet in its fixed cell, with a visible border only
 // when selected. Art is clipped to the cell, never wrapped (invariant 9).
-func (m *PuppetSelectorModal) renderCell(p config.Puppet, selected bool) string {
+func (m *PuppetSelectorModal) renderCell(p models.PuppetOption, selected bool) string {
 	art := padBlock(components.ClipBlock(puppetArt(p), m.cellW, m.cellH), m.cellW, m.cellH)
 
 	style := lipgloss.NewStyle().Border(lipgloss.HiddenBorder())

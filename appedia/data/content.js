@@ -61,9 +61,9 @@ window.APPEDIA_CONTENT = {
       "comes back through Bubble Tea's Update"
     ]
   },
-  "snapshot": "Final worktree on UX commit 474ae3a: MCP registry management, launch/naming focus and session-epoch refresh protection; five suggested dependency updates validated. Ordinary tests and two startup/configuration E2E journeys passed. Current ordinary-suite statement coverage is collected separately; older model-driven native evidence remains historical.",
+  "snapshot": "2026-11-20 · frontend boundary roadmap through 5c80ec8",
   "pitch": "Organize agent configurations and sessions into independent dashboards. Share selected cards across dashboards while keeping each session, workspace identity and conversation binding in its creation dashboard.",
-  "pitch2": "The dashboard-list TUI and authenticated loopback MCP endpoint share one scoped service. The session manager owns processes, credentials and workspace preparation; repositories persist registries, membership and checkpointed recovery. A report dispatcher feeds the existing operation runner and shared message delivery hooks. Configstartup locks and validates configuration before runtime begins.",
+  "pitch2": "Bubble Tea uses independent application contracts through focused capabilities. The application service owns membership and operations. The center keeps the selected-session header above authored reports or bounded workspace information. Raw terminal output is available through the human attachment.",
   "concepts": [
     [
       "Dashboard",
@@ -140,11 +140,6 @@ window.APPEDIA_CONTENT = {
         "MCP tools"
       ],
       [
-        "app",
-        "api",
-        "TUI commands"
-      ],
-      [
         "session",
         "pty",
         "spawn / input"
@@ -153,6 +148,11 @@ window.APPEDIA_CONTENT = {
         "driver",
         "disk",
         "MCP config / trust"
+      ],
+      [
+        "ui",
+        "contracts",
+        "focused contracts"
       ]
     ],
     "flowEdges": [
@@ -165,11 +165,6 @@ window.APPEDIA_CONTENT = {
         "mcp",
         "api",
         "authenticated operations"
-      ],
-      [
-        "app",
-        "api",
-        "human actions"
       ],
       [
         "api",
@@ -190,6 +185,11 @@ window.APPEDIA_CONTENT = {
         "session",
         "disk",
         "records / reports"
+      ],
+      [
+        "ui",
+        "api",
+        "capability calls"
       ]
     ],
     "viewBox": [
@@ -206,10 +206,6 @@ window.APPEDIA_CONTENT = {
       "testenv": [
         1040,
         80
-      ],
-      "app": [
-        350,
-        220
       ],
       "mcp": [
         810,
@@ -282,98 +278,26 @@ window.APPEDIA_CONTENT = {
       "configstartup": [
         580,
         220
+      ],
+      "contracts": [
+        1040,
+        360
+      ],
+      "models": [
+        350,
+        500
+      ],
+      "ui": [
+        350,
+        220
+      ],
+      "terminal": [
+        350,
+        360
       ]
     }
   },
   "packages": {
-    "app": {
-      "label": "UI coordinator",
-      "sub": "commands and navigation",
-      "role": "Coordinates screens, snapshots and asynchronous commands. Launch completion focuses the created session; session epochs discard refresh snapshots that predate a launch or rename.",
-      "files": {
-        "coordinator.go": "the Coordinator struct, Update, message routing",
-        "navigation.go": "navigateTo (rule 2), initViews, resizeAll, broadcasts",
-        "handlers.go": "UI-goroutine halves of refresh and preview",
-        "refresh.go": "refresher: read commands, fingerprint check, tick",
-        "preview.go": "previewSub: live output of the selected session",
-        "session_actions.go": "Session actions, shared workspace-command lookup, IDE and terminal launch commands",
-        "callbacks.go": "every view's callbacks",
-        "attach.go": "raw-PTY attach/detach, Ctrl+K",
-        "size_guard.go": "below 80×24: notice, keys dropped",
-        "app.go": "tea.Model wrapper",
-        "dashboard_list.go": "dashboard inventory, scope-aware callbacks and cascade confirmation",
-        "scoped_refresh.go": "captured scope, generation and fingerprint-aware commands"
-      },
-      "notes": [
-        "Commands capture dashboard ID, view generation, settings and session-data epoch before running off the coordinator goroutine.",
-        "Successful launch and rename advance the epoch so delayed session snapshots cannot displace the selected target.",
-        "Test-only adapters in export_test.go exercise the current scoped handlers.",
-        "MCP forms have explicit return destinations. Manager commands carry dashboard/generation/visit identity; discarded unadmitted confirmations release pending state."
-      ],
-      "rules": [],
-      "key": [
-        "Coordinator",
-        "sessionActions",
-        "refresher"
-      ],
-      "sources": {
-        "refs": [
-          "app.Coordinator.Init",
-          "app.Coordinator.agentSwitchCallbacks",
-          "app.Coordinator.cardEditorCallbacks",
-          "app.Coordinator.conversationChoiceCallbacks",
-          "app.Coordinator.dashboardCallbacks",
-          "app.Coordinator.dashboardListCallbacks",
-          "app.Coordinator.guardKey",
-          "app.Coordinator.handleAgentSwitched",
-          "app.Coordinator.handleConfigFingerprint",
-          "app.Coordinator.handleConversationChoiceRequested",
-          "app.Coordinator.handleDataLoaded",
-          "app.Coordinator.handlePreviewRequest",
-          "app.Coordinator.handleSessionMessages",
-          "app.Coordinator.handleSessionsRefreshed",
-          "app.Coordinator.handleSpecialMessages",
-          "app.Coordinator.launchCard",
-          "app.Coordinator.launchIDE",
-          "app.Coordinator.launchTerminal",
-          "app.Coordinator.maybeRefreshConfig",
-          "app.Coordinator.maybeSubscribeAutoSelectedPreview",
-          "app.Coordinator.mcpCallbacks",
-          "app.Coordinator.navigateTo",
-          "app.Coordinator.navigationCommand",
-          "app.Coordinator.refreshDashboardList",
-          "app.Coordinator.refreshDataSeeded",
-          "app.Coordinator.refreshSessions",
-          "app.Coordinator.requestAttach",
-          "app.Coordinator.requestRelaunch",
-          "app.Coordinator.requestSwitch",
-          "app.Coordinator.resizeAll",
-          "app.Coordinator.sessionLauncherCallbacks",
-          "app.Coordinator.settingsCallbacks",
-          "app.New",
-          "app.NewCoordinator",
-          "app.cardDeletionPreflightCommand",
-          "app.confirmCardDeletionCommand",
-          "app.convertViewType",
-          "app.dashboardDeletionStatus",
-          "app.dashboardDeletionSummary",
-          "app.dashboardListCommand",
-          "app.previewSub.unsubscribe",
-          "app.refresher.scopedConfigIfChanged",
-          "app.refresher.scopedFull",
-          "app.refresher.scopedSessions",
-          "app.retryCardDeletionCommand",
-          "app.scopedAttachCommand",
-          "app.sessionActions.launch",
-          "app.sessionActions.launchIDE",
-          "app.sessionActions.launchTerminal",
-          "app.sessionActions.launchWorkspace",
-          "app.sessionActions.relaunch",
-          "app.sessionActions.switchAgent",
-          "app.Coordinator.renameDashboardSession"
-        ]
-      }
-    },
     "views": {
       "label": "Terminal views",
       "sub": "forms, lists and modals",
@@ -409,11 +333,11 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "views.CardEditor.Card",
+          "views.CardEditor.Draft",
           "views.CardEditor.Reset",
-          "views.CardEditor.SetCard",
+          "views.CardEditor.LoadEditor",
           "views.CardEditor.SetDashboardContext",
-          "views.CardEditor.SetData",
+          "views.CardEditor.SetChoices",
           "views.CardEditor.SetSettings",
           "views.CardEditor.Update",
           "views.CardEditor.fieldBlocks",
@@ -425,11 +349,11 @@ window.APPEDIA_CONTENT = {
           "views.CardEditor.renderWorkspaceLine",
           "views.CardEditor.visibleFocusOrder",
           "views.ConversationChoiceView.RefreshContext",
-          "views.ConversationChoiceView.SelectedBinding",
+          "views.ConversationChoiceView.SelectedOption",
           "views.ConversationChoiceView.Update",
           "views.Dashboard.SetDashboardName",
           "views.Dashboard.SetDashboardScope",
-          "views.Dashboard.SetSessions",
+          "views.Dashboard.SetInventory",
           "views.Dashboard.SetSize",
           "views.Dashboard.ShowCardDeletionImpact",
           "views.Dashboard.Update",
@@ -442,7 +366,7 @@ window.APPEDIA_CONTENT = {
           "views.Dashboard.handleSessionEnter",
           "views.Dashboard.handleSwitch",
           "views.Dashboard.renderBase",
-          "views.Dashboard.renderPreviewPane",
+          "views.Dashboard.renderCenterPane",
           "views.Dashboard.updateCardImpact",
           "views.DashboardCallbacks",
           "views.DashboardList.Init",
@@ -489,7 +413,7 @@ window.APPEDIA_CONTENT = {
       "sub": "scoped async results",
       "role": "Defines scoped launch, naming and refresh events; refresh messages carry a session epoch so pre-mutation snapshots can be rejected.",
       "files": {
-        "messages.go": "all message types, DataReceiver, PreviewReceiver"
+        "messages.go": "UI intents and scoped contract results"
       },
       "notes": [
         "DataLoadedMsg is always a full snapshot; partial updates get their own type. Session snapshots carry the mutation epoch captured when their read started.",
@@ -564,7 +488,7 @@ window.APPEDIA_CONTENT = {
           "session.Manager.ReserveCardDeletion",
           "session.Manager.ReserveCardReferenceForDashboardWithCancel",
           "session.Manager.ReserveDashboardDeletion",
-          "session.Manager.SetNameChecked",
+          "session.Manager.SetNameDetailedChecked",
           "session.Manager.ShutdownStarted",
           "session.Manager.SubmitMessage",
           "session.Manager.TemporaryWorkspaceRoot",
@@ -602,12 +526,11 @@ window.APPEDIA_CONTENT = {
     },
     "components": {
       "label": "UI components",
-      "sub": "lists, text and previews",
+      "sub": "lists, text and center",
       "role": "Reusable terminal widgets; deleted-card sessions remain visible with an explanatory description.",
       "files": {
         "card_list.go": "ID-card rendering, pills, ClipBlock",
         "session_list.go": "sessions pane list",
-        "session_preview.go": "live preview of agent output",
         "capability_list.go": "checklists, search and selected-only filtering, cursor normalization",
         "source_list.go": "source directories list",
         "modal.go": "Modal and ModalState",
@@ -615,12 +538,14 @@ window.APPEDIA_CONTENT = {
         "renderer.go": "puppet rendering",
         "filter.go": "generic search",
         "source_item.go": "source list items",
-        "constants.go": "layout constants"
+        "constants.go": "layout constants",
+        "session_center.go": "Bounded report and workspace presentation"
       },
       "notes": [
         "Fit by display width, never bytes. Clip art, never wrap it (rule 9).",
         "Selected-only mode changes visible items, not the full item collection or selection map. Normalize the cursor after registry and selection changes.",
-        "SourceList retains source-manager defaults while providing configurable labels and bounded MCP-list rendering."
+        "SourceList retains source-manager defaults while providing configurable labels and bounded MCP-list rendering.",
+        "Extractor caveat: implements arrows use method-name matching. SessionCenter.SetData(SessionCenterData) does not satisfy messages.DataReceiver.SetData(DataLoadedMsg); that inferred arrow is false. Open source signatures for authority."
       ],
       "rules": [],
       "key": [],
@@ -637,12 +562,12 @@ window.APPEDIA_CONTENT = {
           "components.Filter",
           "components.SessionList.refreshItems",
           "components.SessionListItem.Description",
-          "components.SessionPreview.handleStateCSI",
+          "components.centerSafeText",
           "components.TruncateHead",
           "components.cardDelegate.Render",
-          "components.renderPreviewField",
-          "components.renderedBlockWidth",
-          "components.wrapPreviewWords"
+          "components.SessionCenter.View",
+          "components.ClampToSize",
+          "components.SessionCenter.View"
         ]
       }
     },
@@ -944,7 +869,9 @@ window.APPEDIA_CONTENT = {
         "persisted_scope.go": "authenticated caller membership",
         "card_confirmation.go": "owner confirmation and foreign impact",
         "dashboard_deletion.go": "checkpointed cascading cleanup",
-        "notifications.go": "owned dispatcher, retry scheduling and report authority"
+        "notifications.go": "owned dispatcher, retry scheduling and report authority",
+        "center_process_unix.go": "Owned Git process-group cancellation",
+        "center_process_other.go": "Non-Unix direct process fallback"
       },
       "rules": [
         "14",
@@ -961,26 +888,26 @@ window.APPEDIA_CONTENT = {
           "api.Service.CheckSessionInDashboard",
           "api.Service.ConfirmCardDeletion",
           "api.Service.ConfirmDashboardDeletion",
-          "api.Service.CreateCardInDashboard",
+          "api.Service.CreateEditorCard",
           "api.Service.CreateDashboard",
           "api.Service.GetDashboardDeletion",
           "api.Service.GetMessage",
           "api.Service.GetSession",
-          "api.Service.LaunchInDashboard",
+          "api.Service.LaunchSession",
           "api.Service.ListDashboards",
           "api.Service.ListSessions",
           "api.Service.PreflightCardDeletion",
           "api.Service.PreflightDashboardDeletion",
-          "api.Service.ReadDashboardData",
+          "api.Service.ReadDashboardOverview",
           "api.Service.RelaunchInDashboard",
-          "api.Service.RemoveInDashboard",
-          "api.Service.RenameInDashboard",
+          "api.Service.RemoveDashboardSession",
+          "api.Service.RenameDashboardSession",
           "api.Service.ResolveCaller",
           "api.Service.RetryCardDeletion",
           "api.Service.RetryDashboardDeletion",
-          "api.Service.StopInDashboard",
+          "api.Service.StopDashboardSession",
           "api.Service.SwitchInDashboard",
-          "api.Service.UpdateCardInDashboard",
+          "api.Service.UpdateEditorCard",
           "api.Service.UpdateDashboardDetails",
           "api.Service.authorizeExistingOperation",
           "api.Service.availableDashboardCard",
@@ -1065,6 +992,131 @@ window.APPEDIA_CONTENT = {
           "configstartup.validateLayoutSessions"
         ]
       }
+    },
+    "contracts": {
+      "label": "api/contracts",
+      "sub": "independent facts",
+      "role": "Define independent application inputs, outcomes and resource contracts consumed by the frontend. No backend storage records or terminal presentation types.",
+      "files": {
+        "center.go": "Reports, workspace entries and subscription contract",
+        "inventory.go": "Dashboard/card/session focused summaries",
+        "card_editor.go": "Editable values and revision changes"
+      },
+      "key": [
+        "SessionReport",
+        "ReportSubscription",
+        "SessionWorkspaceResult",
+        "DashboardInventory"
+      ]
+    },
+    "models": {
+      "label": "ui/models",
+      "sub": "presentation data",
+      "role": "Own display rows, local editor drafts and detached center presentation state. Application policy and persistence remain behind contracts.",
+      "files": {
+        "session_center.go": "Center state and deep-copy boundary"
+      },
+      "key": [
+        "SessionCenterData",
+        "SessionRow",
+        "CardEditorDraft"
+      ]
+    },
+    "ui": {
+      "label": "UI coordinator",
+      "sub": "Scoped command routing",
+      "role": "Owns navigation, captured commands, request ordering, and selected-session resource ownership through consumer capability interfaces.",
+      "files": {
+        "coordinator.go": "the Coordinator struct, Update, message routing",
+        "navigation.go": "navigateTo (rule 2), initViews, resizeAll, broadcasts",
+        "handlers.go": "Apply scoped async results",
+        "refresh.go": "refresher: read commands, fingerprint check, tick",
+        "session_actions.go": "Session actions, shared workspace-command lookup, IDE and terminal launch commands",
+        "callbacks.go": "every view's callbacks",
+        "attach.go": "Hands an owned attachment to the terminal command and processes the result",
+        "size_guard.go": "below 80×24: notice, keys dropped",
+        "app.go": "tea.Model wrapper",
+        "dashboard_list.go": "dashboard inventory, scope-aware callbacks and cascade confirmation",
+        "scoped_refresh.go": "captured scope, generation and fingerprint-aware commands",
+        "center.go": "Center reads, detached navigation cache and recovery"
+      },
+      "notes": [
+        "Commands capture dashboard ID, view generation, settings and session-data epoch before running off the coordinator goroutine.",
+        "Successful launch and rename advance the epoch so delayed session snapshots cannot displace the selected target.",
+        "Test-only adapters in export_test.go exercise the current scoped handlers.",
+        "MCP forms have explicit return destinations. Manager commands carry dashboard/generation/visit identity; discarded unadmitted confirmations release pending state."
+      ],
+      "rules": [],
+      "key": [
+        "Coordinator",
+        "sessionActions",
+        "refresher"
+      ],
+      "sources": {
+        "refs": [
+          "ui.Coordinator.Init",
+          "ui.Coordinator.agentSwitchCallbacks",
+          "ui.Coordinator.cardEditorCallbacks",
+          "ui.Coordinator.conversationChoiceCallbacks",
+          "ui.Coordinator.dashboardCallbacks",
+          "ui.Coordinator.dashboardListCallbacks",
+          "ui.Coordinator.guardKey",
+          "ui.Coordinator.handleSessionMessages",
+          "ui.Coordinator.handleConfigFingerprint",
+          "ui.Coordinator.prepareConversation",
+          "ui.Coordinator.handleDataLoaded",
+          "ui.Coordinator.reconcileCenter",
+          "ui.Coordinator.handleSessionMessages",
+          "ui.Coordinator.handleSessionsRefreshed",
+          "ui.Coordinator.handleSpecialMessages",
+          "ui.Coordinator.launchCard",
+          "ui.Coordinator.launchIDE",
+          "ui.Coordinator.launchTerminal",
+          "ui.Coordinator.maybeRefreshConfig",
+          "ui.Coordinator.reconcileCenter",
+          "ui.Coordinator.mcpCallbacks",
+          "ui.Coordinator.navigateTo",
+          "ui.Coordinator.navigationCommand",
+          "ui.Coordinator.refreshDashboardList",
+          "ui.Coordinator.refreshDataSeeded",
+          "ui.Coordinator.refreshSessions",
+          "ui.Coordinator.requestAttach",
+          "ui.Coordinator.requestRelaunch",
+          "ui.Coordinator.requestSwitch",
+          "ui.Coordinator.resizeAll",
+          "ui.Coordinator.sessionLauncherCallbacks",
+          "ui.Coordinator.settingsCallbacks",
+          "ui.New",
+          "ui.NewCoordinator",
+          "ui.cardDeletionPreflightCommand",
+          "ui.confirmCardDeletionCommand",
+          "ui.convertViewType",
+          "ui.dashboardDeletionStatus",
+          "ui.dashboardDeletionSummary",
+          "ui.dashboardListCommand",
+          "ui.Coordinator.clearCenter",
+          "ui.refresher.scopedConfigIfChanged",
+          "ui.refresher.scopedFull",
+          "ui.refresher.scopedSessions",
+          "ui.retryCardDeletionCommand",
+          "ui.scopedAttachCommand",
+          "ui.sessionActions.launch",
+          "ui.sessionActions.launchWorkspace",
+          "ui.sessionActions.launchWorkspace",
+          "ui.sessionActions.launchWorkspace",
+          "ui.sessionActions.activate",
+          "ui.sessionActions.activate",
+          "ui.Coordinator.renameDashboardSession"
+        ]
+      }
+    },
+    "terminal": {
+      "label": "Human terminal",
+      "sub": "Raw mode and detach",
+      "role": "Owns raw terminal input, keyboard protocol restoration, resize observation and detach for an abstract attachment.",
+      "files": {
+        "attach.go": "Manages the human terminal, attachment input/output, resize and detach"
+      }
     }
   },
   "flowGroups": [
@@ -1079,7 +1131,8 @@ window.APPEDIA_CONTENT = {
         "deleted-session",
         "delete-dashboard",
         "cascade-recovery",
-        "list-errors"
+        "list-errors",
+        "deletion-outcomes"
       ]
     },
     {
@@ -1144,7 +1197,8 @@ window.APPEDIA_CONTENT = {
         "workspace-command-errors",
         "rename-edit",
         "rename-save",
-        "rename-layout"
+        "rename-layout",
+        "attach-disposal"
       ]
     },
     {
@@ -1152,6 +1206,8 @@ window.APPEDIA_CONTENT = {
       "flows": [
         "tick",
         "preview",
+        "center-workspace",
+        "center-recovery",
         "mutation"
       ]
     },
@@ -1217,7 +1273,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "ui",
-          "app.Coordinator"
+          "ui.Coordinator"
         ]
       ],
       "steps": [
@@ -1263,6 +1319,14 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "boot",
+          "repo",
+          "call",
+          "Sync puppet registry before the UI opens",
+          "Runs while holding the configuration lock. Missing or invalid sources are reported as startup warnings and the application continues.",
+          "config.FileRepository.SyncPuppetsFromSources"
+        ],
+        [
+          "boot",
           "mgr",
           "call",
           "Restore sessions and history",
@@ -1298,37 +1362,29 @@ window.APPEDIA_CONTENT = {
           "ui",
           "call",
           "Build list-first UI",
-          "",
-          "app.New"
+          "Pass independent capabilities and any session-load or puppet-sync warnings to the list-first UI.",
+          "ui.New"
         ],
         [
           "boot",
           "http",
           "io",
           "Start loopback MCP",
-          "Authenticated tools use the same service as the UI.",
+          "Start authenticated loopback MCP and set its endpoint on the session manager before any activation.",
           "mcp.Start"
-        ],
-        [
-          "boot",
-          "mgr",
-          "call",
-          "Set MCP endpoint",
-          "Set before any session activation.",
-          "session.Manager.SetMCPEndpoint"
         ],
         [
           "boot",
           "ui",
           "cmd",
           "Initialize entry view and refresh",
-          "Bubble Tea starts from the dashboard list.",
-          "app.Coordinator.Init"
+          "Read the registry baseline after the startup writes have finished. Begin the periodic refresh from the coordinator.",
+          "ui.Coordinator.Init"
         ]
       ],
       "sources": {
         "refs": [
-          "app.New",
+          "ui.New",
           "config.CardRepository",
           "config.DashboardRepository",
           "config.NewFileRepository",
@@ -1343,7 +1399,11 @@ window.APPEDIA_CONTENT = {
           "configstartup.validateJSON",
           "configstartup.validateLayoutHistory",
           "configstartup.validateLayoutSessions",
-          "root.run"
+          "root.run",
+          "config.FileRepository.SyncPuppetsFromSources",
+          "session.Manager.SetMCPEndpoint",
+          "ui.startupErrorCommand",
+          "ui.refresher.scopedFull"
         ]
       }
     },
@@ -1353,7 +1413,7 @@ window.APPEDIA_CONTENT = {
       "participants": [
         [
           "ui",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "main",
@@ -1428,7 +1488,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "coord",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "dash",
@@ -1446,7 +1506,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "tea.WindowSizeMsg",
           "",
-          "app.Coordinator.handleSpecialMessages"
+          "ui.Coordinator.handleSpecialMessages"
         ],
         [
           "coord",
@@ -1454,7 +1514,7 @@ window.APPEDIA_CONTENT = {
           "call",
           "resizeAll → SetSize(w, h − CoordinatorRows)",
           "Every view gets the terminal minus the rows the coordinator keeps back; the dashboard adds them back to fill the screen exactly.",
-          "app.Coordinator.resizeAll"
+          "ui.Coordinator.resizeAll"
         ],
         [
           "coord",
@@ -1470,7 +1530,7 @@ window.APPEDIA_CONTENT = {
           "call",
           "View()",
           "",
-          "app.Coordinator.View"
+          "ui.Coordinator.View"
         ],
         [
           "coord",
@@ -1478,7 +1538,7 @@ window.APPEDIA_CONTENT = {
           "self",
           "tooSmall() → tooSmallView()",
           "Below 80×24 every screen is replaced by a centred notice sized to the terminal.",
-          "app.Coordinator.tooSmallView"
+          "ui.Coordinator.tooSmallView"
         ],
         [
           "dash",
@@ -1494,7 +1554,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "a keypress while too small",
           "",
-          "app.Coordinator.Update"
+          "ui.Coordinator.Update"
         ],
         [
           "coord",
@@ -1502,7 +1562,7 @@ window.APPEDIA_CONTENT = {
           "self",
           "guardKey: dropped (q / Ctrl+C still quit)",
           "A blind keypress must not launch or delete anything. Non-key messages keep flowing, so the screen is current when the terminal grows.",
-          "app.Coordinator.guardKey"
+          "ui.Coordinator.guardKey"
         ]
       ],
       "sources": {
@@ -1526,7 +1586,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "svc",
@@ -1552,15 +1612,15 @@ window.APPEDIA_CONTENT = {
           "key",
           "Launch selected card",
           "",
-          "app.Coordinator.launchCard"
+          "ui.Coordinator.launchCard"
         ],
         [
           "c",
           "svc",
           "call",
-          "LaunchInDashboard(capturedID, cardID)",
-          "",
-          "api.Service.LaunchInDashboard"
+          "LaunchSession(captured scope, card ID)",
+          "Human contract result describes usable activation, warning, failure or uncertain effect.",
+          "api.Service.LaunchSession"
         ],
         [
           "svc",
@@ -1608,7 +1668,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "SessionLaunchCompletedMsg(session ID)",
           "A usable launch advances the session epoch and requests focus for the exact ID.",
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ]
       ],
       "sources": {
@@ -1620,10 +1680,10 @@ window.APPEDIA_CONTENT = {
           "session.Manager.CardReferences",
           "session.Manager.List",
           "session.Manager.ReserveCardReferenceForDashboardWithCancel",
-          "session.Manager.SetNameChecked",
-          "app.Coordinator.handleDataLoaded",
-          "app.Coordinator.handleSessionMessages",
-          "app.Coordinator.handleSessionsRefreshed",
+          "session.Manager.SetNameDetailedChecked",
+          "ui.Coordinator.handleDataLoaded",
+          "ui.Coordinator.handleSessionMessages",
+          "ui.Coordinator.handleSessionsRefreshed",
           "session.Manager.ShutdownStarted",
           "session.Manager.TemporaryWorkspaceRoot",
           "session.Manager.WaitCardReferences",
@@ -1647,12 +1707,12 @@ window.APPEDIA_CONTENT = {
           "views.Dashboard.applyPendingSessionFocus",
           "views.matchesSessionQuery",
           "components.SessionList.refreshItems",
-          "app.Coordinator.hasStaleSessionSnapshot",
+          "ui.Coordinator.hasStaleSessionSnapshot",
           "messages.SessionsRefreshedMsg"
         ],
         "files": [
-          "internal/app/launch_focus_internal_test.go",
-          "internal/app/inline_rename_refresh_internal_test.go",
+          "internal/ui/launch_focus_internal_test.go",
+          "internal/ui/inline_rename_refresh_internal_test.go",
           "internal/ui/components/session_list_test.go",
           "tests/e2e/launch_focus_test.go"
         ]
@@ -1668,7 +1728,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "ui",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "svc",
@@ -1680,7 +1740,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "exec",
-          "app.attachExec"
+          "terminal.Command"
         ]
       ],
       "steps": [
@@ -1690,7 +1750,7 @@ window.APPEDIA_CONTENT = {
           "key",
           "Attach selected session",
           "",
-          "app.Coordinator.requestAttach"
+          "ui.Coordinator.requestAttach"
         ],
         [
           "ui",
@@ -1714,7 +1774,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "ScopedAttachReadyMsg",
           "Discard handles from an obsolete view generation.",
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ],
         [
           "ui",
@@ -1722,7 +1782,7 @@ window.APPEDIA_CONTENT = {
           "cmd",
           "Release UI terminal; run attach",
           "",
-          "app.scopedAttachCommand"
+          "ui.scopedAttachCommand"
         ],
         [
           "exec",
@@ -1730,7 +1790,7 @@ window.APPEDIA_CONTENT = {
           "io",
           "Prepare raw terminal and output",
           "",
-          "app.attachExec.Run"
+          "terminal.Command.Run"
         ],
         [
           "exec",
@@ -1738,7 +1798,7 @@ window.APPEDIA_CONTENT = {
           "go",
           "Pump process output",
           "",
-          "app.attachExec.pumpOutput"
+          "terminal.Command.pumpOutput"
         ],
         [
           "exec",
@@ -1746,7 +1806,7 @@ window.APPEDIA_CONTENT = {
           "call",
           "Pump terminal input",
           "",
-          "app.attachExec.pumpInput"
+          "terminal.Command.pumpInput"
         ],
         [
           "exec",
@@ -1754,7 +1814,7 @@ window.APPEDIA_CONTENT = {
           "call",
           "Forward through locked driver input",
           "",
-          "app.attachExec.forwardInput"
+          "terminal.Command.forwardInput"
         ],
         [
           "exec",
@@ -1762,7 +1822,7 @@ window.APPEDIA_CONTENT = {
           "call",
           "Recognize detach key",
           "Restore terminal state on return.",
-          "app.detectKittyDetach"
+          "terminal.inputDecoder.forward"
         ],
         [
           "exec",
@@ -1770,14 +1830,15 @@ window.APPEDIA_CONTENT = {
           "msg",
           "AttachFinishedMsg",
           "Only matching scope/generation may update the view.",
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ]
       ],
       "sources": {
         "refs": [
-          "app.scopedAttachCommand",
+          "ui.scopedAttachCommand",
           "session.driverInputWriter"
-        ]
+        ],
+        "files": []
       }
     },
     "watch": {
@@ -1861,7 +1922,7 @@ window.APPEDIA_CONTENT = {
     },
     "ide": {
       "title": "Open in IDE",
-      "summary": "Press o in Sessions to start the configured IDE in the selected session’s actual workspace through shared command execution. Completion is a ScopedActionFinishedMsg carrying captured dashboard identity and generation.",
+      "summary": "A captured command calls the application workspace operation, which resolves saved workspace and settings and revalidates scope.",
       "participants": [
         [
           "user",
@@ -1873,7 +1934,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "coord",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "tea",
@@ -1881,7 +1942,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "act",
-          "app.sessionActions"
+          "ui.sessionActions"
         ],
         [
           "ide",
@@ -1920,15 +1981,15 @@ window.APPEDIA_CONTENT = {
           "call",
           "launchIDE(selected ID)",
           "Capture IDECommand on the UI goroutine before constructing a command.",
-          "app.Coordinator.launchIDE"
+          "ui.Coordinator.launchIDE"
         ],
         [
           "tea",
           "act",
           "cmd",
-          "launchIDE(id, command)",
-          "Blocking work executes off the coordinator goroutine.",
-          "app.sessionActions.launchIDE"
+          "launchWorkspace with captured scope/kind",
+          "Frontend returns a command using independent contracts.",
+          "ui.sessionActions.launchWorkspace"
         ],
         [
           "act",
@@ -1942,9 +2003,9 @@ window.APPEDIA_CONTENT = {
           "act",
           "ide",
           "call",
-          "Use saved WorkingDir",
-          "Resolve the existing session workspace after authorization.",
-          "app.sessionActions.launchWorkspaceCommand"
+          "OpenSessionWorkspace(scope, kind)",
+          "Application owns settings lookup and saved-directory validation.",
+          "api.Service.OpenSessionWorkspace"
         ],
         [
           "ide",
@@ -1966,9 +2027,9 @@ window.APPEDIA_CONTENT = {
           "act",
           "coord",
           "msg",
-          "ScopedActionFinishedMsg{Err}",
-          "The shared workspace command returns captured dashboard identity and generation with its error.",
-          "app.sessionActions.launchWorkspace"
+          "launchWorkspace with captured scope/kind",
+          "Frontend returns a command using independent contracts.",
+          "ui.sessionActions.launchWorkspace"
         ],
         [
           "coord",
@@ -1976,7 +2037,7 @@ window.APPEDIA_CONTENT = {
           "self",
           "Apply scoped completion",
           "Reject stale dashboard/generation results; display current errors without navigation.",
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ]
       ],
       "sources": {
@@ -1991,19 +2052,15 @@ window.APPEDIA_CONTENT = {
     },
     "tick": {
       "title": "Refresh only the opened dashboard",
-      "summary": "A single seeded refresh captures dashboard and generation; global capability registries remain global.",
+      "summary": "Inventory and registry refresh use focused contract reads. Center updates have their own subscription and 30-second fallback cadence.",
       "participants": [
         [
-          "loop",
-          "tea"
-        ],
-        [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
-          "refresh",
-          "app.refresher"
+          "r",
+          "ui.refresher"
         ],
         [
           "svc",
@@ -2016,215 +2073,196 @@ window.APPEDIA_CONTENT = {
       ],
       "steps": [
         [
-          "loop",
+          "c",
           "c",
           "msg",
-          "Refresh tick",
-          "tick requests sessions/config refresh.",
-          "app.Coordinator.handleSpecialMessages"
+          "Periodic inventory tick",
+          "Capture scope/generation/epoch and request identities.",
+          "ui.Coordinator.refreshSessions"
         ],
         [
           "c",
-          "c",
-          "call",
-          "Seed baseline",
-          "Seed refresh fingerprint baseline.",
-          "app.Coordinator.refreshDataSeeded"
+          "r",
+          "cmd",
+          "scopedSessions",
+          "No coordinator state is accessed by the command.",
+          "ui.refresher.scopedSessions"
         ],
         [
-          "c",
-          "refresh",
-          "call",
-          "scopedFull",
-          "No seeded flag or unseeded production branch. Failed reads preserve previous data; successful empty reads clear it. Scoped refresh; fingerprint envelope.",
-          "app.refresher.scopedFull"
-        ],
-        [
-          "refresh",
+          "r",
           "svc",
           "call",
-          "Read scope",
-          "ReadDashboardData(capturedID).",
-          "api.Service.ReadDashboardData"
+          "ReadDashboardOverview",
+          "Persisted membership scopes available cards and owned sessions.",
+          "api.Service.ReadDashboardOverview"
         ],
         [
-          "refresh",
+          "r",
           "c",
           "msg",
-          "Apply if current",
-          "Ignores results from another dashboard or an obsolete generation. handleDataLoaded checks scope/generation.",
-          "app.Coordinator.handleDataLoaded"
+          "SessionsRefreshedMsg",
+          "Reject stale snapshots; keep successful data on read failure.",
+          "ui.Coordinator.handleSessionsRefreshed"
         ],
         [
           "c",
           "dash",
           "call",
-          "Apply scoped sessions",
-          "handleSessionsRefreshed applies partial data.",
-          "app.Coordinator.handleSessionsRefreshed"
+          "Apply focused inventory",
+          "",
+          "views.Dashboard.SetInventory"
         ],
         [
           "c",
           "c",
           "call",
-          "Owned preview",
-          "preview subscription only for owned selection.",
-          "app.Coordinator.handlePreviewRequest"
+          "Reconcile center selection without polling workspace",
+          "Only changed selection or increased report limit starts new center work.",
+          "ui.Coordinator.reconcileCenter"
         ]
       ],
       "sources": {
-        "refs": [
-          "app.Coordinator.handleConfigFingerprint",
-          "app.Coordinator.handleDataLoaded",
-          "app.Coordinator.handlePreviewRequest",
-          "app.Coordinator.handleSessionsRefreshed",
-          "app.Coordinator.maybeRefreshConfig",
-          "app.Coordinator.maybeSubscribeAutoSelectedPreview",
-          "app.Coordinator.refreshDataSeeded",
-          "app.Coordinator.refreshSessions",
-          "app.previewSub.unsubscribe",
-          "app.refresher.scopedConfigIfChanged",
-          "app.refresher.scopedFull",
-          "app.refresher.scopedSessions",
-          "components.SessionPreview.handleStateCSI",
-          "config.registryFiles",
-          "messages.AgentSwitchRequestedMsg",
-          "messages.AgentSwitchedMsg",
-          "messages.AttachFinishedMsg",
-          "messages.CardDeletionPreparedMsg",
-          "messages.CardSavedMsg",
-          "messages.ConversationChoiceRequestedMsg",
-          "messages.DashboardDeletionPreparedMsg",
-          "messages.DashboardDeletionStatusMsg",
-          "messages.DashboardListLoadedMsg",
-          "messages.DashboardListRequestedMsg",
-          "messages.DashboardMutationFinishedMsg",
-          "messages.DashboardOpenRequestedMsg",
-          "messages.MCPSavedMsg",
-          "messages.ScopedActionFinishedMsg",
-          "messages.ScopedAttachReadyMsg",
-          "messages.ScopedNavigateMsg",
-          "messages.ScopedSessionNamedMsg",
-          "messages.SessionAttachRequestedMsg",
-          "messages.SessionLaunchCompletedMsg",
-          "messages.SettingsSavedMsg",
-          "session.Data.restore",
-          "session.loadSessions",
-          "session.saveSession",
-          "views.Dashboard.SetSessions",
-          "app.Coordinator.hasStaleSessionSnapshot",
-          "app.refresher.scopedConfigIfChanged",
-          "app.refresher.scopedSessions"
-        ]
+        "files": []
       }
     },
     "preview": {
-      "title": "Live preview",
-      "summary": "The dashboard's centre pane streams the selected session's output.",
+      "title": "Selected-session reports in the center",
+      "summary": "Authored reports span activations. Subscribe before reading; coalesce changes during reads. Healthy report discovery remains immediate, while failed reads wait for timed recovery.",
       "participants": [
-        [
-          "user",
-          "user"
-        ],
         [
           "dash",
           "views.Dashboard"
         ],
         [
-          "coord",
-          "app.Coordinator"
+          "c",
+          "ui.Coordinator"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "store",
+          "session.MessageStore"
         ],
         [
           "sub",
-          "app.previewSub"
+          "api.reportSubscription"
         ],
         [
-          "mgr",
-          "session.Manager"
-        ],
-        [
-          "tea",
-          "tea"
-        ],
-        [
-          "pv",
-          "components.SessionPreview"
+          "panel",
+          "components.SessionCenter"
         ]
       ],
       "steps": [
         [
-          "user",
           "dash",
-          "key",
-          "select another session",
-          "",
-          "views.Dashboard.syncPreviewSelection"
+          "dash",
+          "self",
+          "Reconcile center selection by stable session ID",
+          "Stop or activation changes do not change the selected session identity.",
+          "views.Dashboard.syncCenterSelection"
         ],
         [
           "dash",
-          "coord",
+          "panel",
+          "call",
+          "Refresh the selected-session header",
+          "Keep current name, status, ID, workspace, start time, card and puppet artwork visible. A refresh of the same session preserves its body.",
+          "components.SessionCenter.SetSession"
+        ],
+        [
+          "dash",
+          "c",
           "msg",
-          "SessionPreviewRequestedMsg",
-          "",
-          "app.Coordinator.handlePreviewRequest"
+          "Reconcile selection and size",
+          "Restore matching detached content on return to the same dashboard/session, while canceling old operations. A different selection cannot inherit it.",
+          "ui.Coordinator.reconcileCenter"
         ],
         [
-          "coord",
-          "sub",
-          "call",
-          "subscribe(id)",
-          "Drops the previous subscription first.",
-          "app.previewSub.subscribe"
-        ],
-        [
-          "sub",
-          "mgr",
-          "call",
-          "GetScrollback · SubscribeOutput",
-          "",
-          "session.Manager.SubscribeOutput"
-        ],
-        [
-          "coord",
-          "pv",
-          "call",
-          "broadcastPreview(PreviewDataMsg)",
-          "A partial update: never through SetData (rule 3).",
-          "app.Coordinator.broadcastPreview"
-        ],
-        [
-          "tea",
-          "sub",
+          "c",
+          "svc",
           "cmd",
-          "next(): wait on the channel",
-          "The closure captures only the channel and the ID.",
-          "app.previewSub.next"
+          "SubscribeSessionReports(scope)",
+          "Capture scope/context/generation before the command runs.",
+          "ui.Coordinator.centerSubscribe"
+        ],
+        [
+          "svc",
+          "store",
+          "call",
+          "Capture report and scope signals before reading",
+          "Check dashboard membership before and after setup. The application draws identity from the human dashboard selection.",
+          "api.Service.SubscribeSessionReports"
         ],
         [
           "sub",
-          "coord",
+          "store",
+          "go",
+          "Rearm retained-report changes and revalidate scope",
+          "Committed report additions and removals coalesce into one buffered notice. Lifecycle notices recheck scope separately. Delivery changes wake readers only when they evict retained reports.",
+          "api.watchReportChanges"
+        ],
+        [
+          "c",
+          "svc",
+          "cmd",
+          "ReadSessionReports(scope, row-derived limit)",
+          "Setup completion starts the initial read; notices during a read set one pending follow-up.",
+          "ui.Coordinator.centerRead"
+        ],
+        [
+          "svc",
+          "store",
+          "call",
+          "RecentAuthoredReports",
+          "Dashboard plus reply author filter, timestamp/sequence descending, stable ID tie. Up to 256 reports and 4 MiB; existing durable retention is unchanged.",
+          "session.MessageStore.RecentAuthoredReports"
+        ],
+        [
+          "svc",
+          "c",
           "msg",
-          "SessionOutputMsg",
-          "",
-          "app.Coordinator.handleSessionOutput"
+          "Handle report result",
+          "Successful reports cancel obsolete workspace work; mere store notices leave it running. Failures preserve same-session stale reports and wait for the recovery cadence.",
+          "ui.Coordinator.handleCenter"
         ],
         [
-          "coord",
-          "pv",
+          "c",
+          "panel",
           "call",
-          "accepts? → append, re-arm next()",
-          "Output for a session we have left is ignored.",
-          "app.previewSub.accepts"
+          "Publish detached center data",
+          "Warnings and structured content are copied into presentation state.",
+          "ui.Coordinator.publishCenter"
         ],
         [
-          "coord",
-          "sub",
-          "call",
-          "leaving the dashboard: unsubscribe()",
-          "Clears the ID with the channel, so queued output cannot re-arm the wait.",
-          "app.previewSub.unsubscribe"
+          "panel",
+          "panel",
+          "self",
+          "Render reports beneath the session header",
+          "Keep timestamps on visible reports. Omit older entries that cannot fit a timestamp and body, and compact the newest report into one row when needed.",
+          "components.SessionCenter.View"
         ]
-      ]
+      ],
+      "sources": {
+        "files": [
+          "internal/api/center.go",
+          "internal/session/authored_reports.go",
+          "internal/ui/center.go",
+          "internal/ui/components/session_center.go",
+          "internal/session/messaging.go"
+        ],
+        "refs": [
+          "components.SessionCenter.headerRows",
+          "components.SessionCenter.ReportLimit",
+          "components.RenderPuppetArtwork",
+          "models.CloneSessionRow",
+          "session.MessageStore.ReportsChanged",
+          "session.MessageStore.ReportScopeChanged",
+          "session.MessageStore.signalRecordedReportLocked",
+          "components.centerReportHeader"
+        ]
+      }
     },
     "mutation": {
       "title": "Refresh after a change, and errors",
@@ -2245,11 +2283,11 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "coord",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "ref",
-          "app.refresher"
+          "ui.refresher"
         ],
         [
           "views",
@@ -2264,23 +2302,23 @@ window.APPEDIA_CONTENT = {
           "msg",
           "DataRefreshRequestedMsg",
           "A closure never calls refreshData() itself (rule 1); it asks.",
-          "app.refreshRequestedCmd"
+          "ui.Coordinator.refreshDataSeeded"
         ],
         [
           "tea",
           "ref",
           "cmd",
-          "scopedFull(scope, generation, epoch, previewID)",
+          "scopedFull(scope, generation, epoch, request IDs)",
           "Load global capabilities and scoped cards/sessions, then seed the fingerprint baseline.",
-          "app.refresher.scopedFull"
+          "ui.refresher.scopedFull"
         ],
         [
           "ref",
           "coord",
           "msg",
-          "configFingerprintMsg{stamps, data}",
+          "configFingerprintMsg{token, data}",
           "",
-          "app.Coordinator.handleConfigFingerprint"
+          "ui.Coordinator.handleConfigFingerprint"
         ],
         [
           "coord",
@@ -2288,7 +2326,7 @@ window.APPEDIA_CONTENT = {
           "call",
           "handleDataLoaded → broadcastData",
           "Reject obsolete dashboard/generation and session-epoch snapshots before applying any data; nil failed fields preserve prior values.",
-          "app.Coordinator.handleDataLoaded"
+          "ui.Coordinator.handleDataLoaded"
         ],
         [
           "cmd",
@@ -2296,7 +2334,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "ErrorMsg",
           "Sets the banner (c.err).",
-          "app.Coordinator.handleSpecialMessages"
+          "ui.Coordinator.handleSpecialMessages"
         ],
         [
           "user",
@@ -2304,128 +2342,108 @@ window.APPEDIA_CONTENT = {
           "key",
           "the next keypress",
           "Clears the banner. Navigation alone never does, so an error batched with a navigation survives (rule 4).",
-          "app.Coordinator.Update"
+          "ui.Coordinator.Update"
         ]
       ],
       "sources": {
         "refs": [
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ],
         "files": [
-          "internal/app/terminal_launch_test.go"
+          "internal/ui/terminal_launch_test.go"
         ]
       }
     },
     "editcard": {
-      "title": "Open the card editor",
-      "summary": "The safe way to change screens: prepare the target view in the callback, navigate from a message. The e shortcut still edits cards in the cards pane; in the sessions pane it opens the separate rename dialog.",
+      "title": "Read and open the card editor",
+      "summary": "Scoped reads supply editable values and opaque revision. Async results are checked before navigation.",
       "participants": [
-        [
-          "user",
-          "user"
-        ],
         [
           "dash",
           "views.Dashboard"
         ],
         [
-          "coord",
-          "app.Coordinator"
-        ],
-        [
-          "ed",
-          "views.CardEditor"
-        ],
-        [
-          "tea",
-          "tea"
-        ]
-      ],
-      "steps": [
-        [
-          "user",
-          "dash",
-          "key",
-          "e on a card",
-          "",
-          "views.Dashboard.handleEdit"
-        ],
-        [
-          "dash",
-          "coord",
-          "call",
-          "OnEditCard(card)",
-          "Still inside the dashboard's Update.",
-          "app.Coordinator.dashboardCallbacks"
-        ],
-        [
-          "coord",
-          "ed",
-          "call",
-          "SetCard(card)",
-          "Load the main/sub workspace IDs, temporary boolean and instructions; reset selected-only Skills mode and keep unmanaged card fields.",
-          "views.CardEditor.SetCard"
-        ],
-        [
-          "coord",
-          "tea",
-          "return",
-          "command → NavigateMsg",
-          "Navigating here would store the dashboard under the editor's key (rule 2).",
-          "app.Coordinator.dashboardCallbacks"
-        ],
-        [
-          "tea",
-          "coord",
-          "msg",
-          "NavigateMsg{CardEditor}",
-          "",
-          "app.Coordinator.navigateTo"
-        ],
-        [
-          "coord",
-          "ed",
-          "call",
-          "Init()",
-          "",
-          "views.CardEditor.Init"
-        ]
-      ],
-      "sources": {
-        "refs": [
-          "views.CardEditor.Reset",
-          "views.CardEditor.SetCard",
-          "views.CardEditor.fieldBlocks",
-          "views.editorKeyIdentity"
-        ],
-        "files": [
-          "internal/ui/views/card_editor.go"
-        ]
-      }
-    },
-    "savecard": {
-      "title": "Configure exclusive or shared cards",
-      "summary": "Only the immutable owner edits a card; consumers can use shared cards.",
-      "participants": [
-        [
-          "u",
-          "user"
-        ],
-        [
-          "edit",
-          "views.CardEditor"
-        ],
-        [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "svc",
           "api.Service"
         ],
         [
-          "mgr",
-          "session.Manager"
+          "ed",
+          "views.CardEditor"
+        ]
+      ],
+      "steps": [
+        [
+          "dash",
+          "c",
+          "key",
+          "e on selected card",
+          "",
+          "ui.Coordinator.requestCardEditor"
+        ],
+        [
+          "c",
+          "svc",
+          "cmd",
+          "LoadCardEditor or NewCardEditor",
+          "Capture scope, epoch and request before blocking work.",
+          "ui.cardEditorLoadCommand"
+        ],
+        [
+          "svc",
+          "svc",
+          "call",
+          "Check ownership and project editable values",
+          "Full-record revision belongs to application policy.",
+          "api.Service.LoadCardEditor"
+        ],
+        [
+          "svc",
+          "c",
+          "msg",
+          "CardEditorLoadedMsg",
+          "Discard stale results before changing views.",
+          "ui.Coordinator.handleSpecialMessages"
+        ],
+        [
+          "c",
+          "ed",
+          "call",
+          "LoadEditor(data) and choices",
+          "No complete storage record enters the editor.",
+          "views.CardEditor.LoadEditor"
+        ],
+        [
+          "c",
+          "c",
+          "call",
+          "Navigate outside view Update",
+          "",
+          "ui.Coordinator.navigateTo"
+        ]
+      ],
+      "sources": {
+        "files": []
+      }
+    },
+    "savecard": {
+      "title": "Save explicit card edits against a revision",
+      "summary": "UI submits editable draft and presence-aware changes; application reloads current data, checks owner/revision and preserves unedited fields.",
+      "participants": [
+        [
+          "ed",
+          "views.CardEditor"
+        ],
+        [
+          "c",
+          "ui.Coordinator"
+        ],
+        [
+          "svc",
+          "api.Service"
         ],
         [
           "repo",
@@ -2434,206 +2452,128 @@ window.APPEDIA_CONTENT = {
       ],
       "steps": [
         [
-          "u",
-          "edit",
-          "key",
-          "Shared toggle; owner/read-only context",
-          "",
-          "views.CardEditor.SetDashboardContext"
-        ],
-        [
-          "edit",
-          "edit",
+          "ed",
+          "ed",
           "call",
-          "Card overlays loaded configuration",
-          "Preserves fields outside the form.",
-          "views.CardEditor.Card"
+          "Build editable draft and changes",
+          "",
+          "views.CardEditor.Draft"
         ],
         [
-          "edit",
+          "ed",
           "c",
           "cmd",
-          "OnSave captures expected card revision",
-          "",
-          "app.Coordinator.cardEditorCallbacks"
+          "Capture draft, scope and expected revision",
+          "Clone draft before creating command.",
+          "ui.Coordinator.cardEditorCallbacks"
         ],
         [
           "c",
           "svc",
           "call",
-          "CreateCardInDashboard for new cards",
+          "CreateEditorCard for new records",
           "",
-          "api.Service.CreateCardInDashboard"
+          "api.Service.CreateEditorCard"
         ],
         [
           "c",
           "svc",
           "call",
-          "UpdateCardInDashboard for saved cards",
-          "",
-          "api.Service.UpdateCardInDashboard"
+          "UpdateEditorCard for existing records",
+          "Recheck ownership and full-record revision under admission.",
+          "api.Service.UpdateEditorCard"
         ],
         [
           "svc",
-          "mgr",
+          "svc",
           "call",
-          "WithCardReferencesAndSnapshot",
-          "Serializes owner, revision and foreign-reference checks with activation admission.",
-          "session.Manager.WithCardReferencesAndSnapshot"
+          "Apply only explicit changes",
+          "Preserve fields not exposed/edited by this form.",
+          "api.applyCardChanges"
         ],
         [
           "svc",
           "repo",
-          "call",
-          "UpdateIDCard validates tombstones",
+          "io",
+          "Persist checked current record",
           "",
           "config.FileRepository.UpdateIDCard"
         ]
       ],
       "sources": {
-        "refs": [
-          "api.Service.AttachInDashboard",
-          "api.Service.CheckSessionInDashboard",
-          "api.Service.CreateCardInDashboard",
-          "api.Service.CreateDashboard",
-          "api.Service.LaunchInDashboard",
-          "api.Service.ListDashboards",
-          "api.Service.ReadDashboardData",
-          "api.Service.RelaunchInDashboard",
-          "api.Service.RemoveInDashboard",
-          "api.Service.RenameInDashboard",
-          "api.Service.StopInDashboard",
-          "api.Service.SwitchInDashboard",
-          "api.Service.UpdateCardInDashboard",
-          "api.Service.UpdateDashboardDetails",
-          "api.Service.availableDashboardCard",
-          "api.Service.launchDashboardWithID",
-          "api.Service.listCardTombstones",
-          "api.Service.loadMembershipInventory",
-          "api.hasForeignCardReferences",
-          "api.membershipInventory.activeDashboard",
-          "api.membershipInventory.allowsCard",
-          "api.membershipInventory.allowsSession",
-          "api.membershipInventory.hasTombstone",
-          "api.newMembershipInventory",
-          "api.sessionInDashboard",
-          "api.sessionUsesCard",
-          "app.Coordinator.agentSwitchCallbacks",
-          "app.Coordinator.cardEditorCallbacks",
-          "app.Coordinator.conversationChoiceCallbacks",
-          "app.Coordinator.dashboardCallbacks",
-          "app.Coordinator.launchCard",
-          "app.Coordinator.launchIDE",
-          "app.Coordinator.launchTerminal",
-          "app.Coordinator.mcpCallbacks",
-          "app.Coordinator.navigationCommand",
-          "app.Coordinator.requestRelaunch",
-          "app.Coordinator.requestSwitch",
-          "app.Coordinator.sessionLauncherCallbacks",
-          "app.Coordinator.settingsCallbacks",
-          "components.Filter",
-          "config.FileRepository.CreateIDCard",
-          "config.FileRepository.LoadIDCardsFile",
-          "config.FileRepository.UpdateIDCard",
-          "config.FileRepository.WriteIDCardsFile",
-          "config.validateCardMembershipFormat",
-          "views.CardEditor.Card",
-          "views.CardEditor.Reset",
-          "views.CardEditor.SetCard",
-          "views.CardEditor.SetDashboardContext",
-          "views.CardEditor.SetData",
-          "views.CardEditor.SetSettings",
-          "views.CardEditor.Update",
-          "views.CardEditor.fieldBlocks",
-          "views.CardEditor.handleSpace",
-          "views.CardEditor.renderDashboardControlLine",
-          "views.CardEditor.renderSharedLine",
-          "views.CardEditor.renderTmpWorkspaceLine",
-          "views.CardEditor.visibleFocusOrder",
-          "views.CardEditorCallbacks",
-          "views.focusTargetTable"
-        ]
+        "files": []
       }
     },
     "source": {
-      "title": "Add a source directory",
-      "summary": "Read, change, write and re-sync a registry's sources under one lock.",
+      "title": "Mutate and resync a source through contracts",
+      "summary": "Source manager commands capture expected identity. Application policy chooses the atomic repository operation and returns saved-with-warning outcomes.",
       "participants": [
         [
-          "user",
-          "user"
-        ],
-        [
-          "sm",
+          "view",
           "views.SourceManager"
         ],
         [
-          "coord",
-          "app.Coordinator"
-        ],
-        [
-          "tea",
-          "tea"
+          "svc",
+          "api.Service"
         ],
         [
           "repo",
           "config.FileRepository"
-        ],
-        [
-          "disk",
-          "disk"
         ]
       ],
       "steps": [
         [
-          "user",
-          "sm",
+          "view",
+          "view",
           "key",
-          "add a skills directory",
+          "Capture SourceMutation and expected row identity",
           "",
-          "views.SourceManager.Update"
+          "views.SourceManager.mutate"
         ],
         [
-          "sm",
-          "coord",
-          "call",
-          "SaveSimpleSource(path) → saveSimpleSource",
-          "Chooses UpdateSkillSources, UpdatePersonaSources or UpdatePuppetSources for this screen's type.",
-          "app.Coordinator.saveSimpleSource"
-        ],
-        [
-          "tea",
-          "repo",
+          "view",
+          "svc",
           "cmd",
-          "UpdateSkillSources(mutate)",
-          "Read, apply, write and re-sync under one lock. Never list, change and save in separate calls (rule 6).",
+          "MutateSource(context, input)",
+          "",
+          "api.Service.MutateSource"
+        ],
+        [
+          "svc",
+          "repo",
+          "call",
+          "Update sources under repository lock",
+          "Stale identity rejected; no split read/save mutation.",
+          "api.updatePathSource"
+        ],
+        [
+          "repo",
+          "repo",
+          "io",
+          "Persist and resync registry",
+          "",
           "config.FileRepository.UpdateSkillSources"
         ],
         [
-          "repo",
-          "disk",
-          "io",
-          "skills_sources.yaml, rescan → skills.yaml",
-          "",
-          "config.FileRepository.syncSkillsFromSourcesLocked"
-        ],
-        [
-          "repo",
-          "coord",
+          "svc",
+          "view",
           "msg",
-          "refresh, or refresh + warning, or ErrorMsg",
-          "A save that worked but whose re-sync failed is *config.SyncFailedError: refresh and warn.",
-          "app.Coordinator.sourceUpdateMsg"
+          "Structured saved/refresh/warning result",
+          "Failure after saving retains the refresh requirement.",
+          "views.SourceManager.Update"
         ],
         [
-          "coord",
-          "sm",
-          "call",
-          "SetData → reload the list",
+          "view",
+          "svc",
+          "cmd",
+          "ReadSources for refreshed rows",
           "",
-          "views.SourceManager.SetData"
+          "api.Service.ReadSources"
         ]
-      ]
+      ],
+      "sources": {
+        "files": []
+      }
     },
     "mcp": {
       "title": "Create or edit and save",
@@ -2649,7 +2589,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "f",
@@ -2658,6 +2598,10 @@ window.APPEDIA_CONTENT = {
         [
           "r",
           "config.FileRepository"
+        ],
+        [
+          "svc",
+          "api.Service"
         ]
       ],
       "steps": [
@@ -2675,7 +2619,7 @@ window.APPEDIA_CONTENT = {
           "cmd",
           "Scoped edit request",
           "Reject requests from an earlier visit.",
-          "app.Coordinator.matchesMCPManagerScope"
+          "ui.Coordinator.matchesMCPManagerScope"
         ],
         [
           "c",
@@ -2706,16 +2650,16 @@ window.APPEDIA_CONTENT = {
           "r",
           "cmd",
           "Upsert MCP; return scoped save result",
-          "Command captures repository, scope and form request.",
-          "app.Coordinator.mcpCallbacks"
+          "Command captures the configuration capability, cloned editable fields and scope/request.",
+          "ui.Coordinator.mcpCallbacks"
         ],
         [
-          "r",
-          "r",
+          "c",
+          "svc",
           "call",
-          "Persist validated global definition",
-          "Built-in/shadow protection remains authoritative.",
-          "config.FileRepository.UpsertMCP"
+          "SaveMCP(editable contract)",
+          "Application preserves noneditable metadata and enforces built-in protection before repository save.",
+          "api.Service.SaveMCP"
         ],
         [
           "c",
@@ -2723,7 +2667,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "Return to caller and refresh data",
           "Manager return path avoids previous-view bouncing.",
-          "app.Coordinator.handleSpecialMessages"
+          "ui.Coordinator.handleSpecialMessages"
         ]
       ]
     },
@@ -2749,7 +2693,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "coord",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "ed",
@@ -2758,6 +2702,10 @@ window.APPEDIA_CONTENT = {
         [
           "disk",
           "disk"
+        ],
+        [
+          "svc",
+          "api.Service"
         ]
       ],
       "steps": [
@@ -2775,15 +2723,15 @@ window.APPEDIA_CONTENT = {
           "return",
           "OnSave(settings) command",
           "Return a command; do not navigate from inside view.Update.",
-          "app.Coordinator.settingsCallbacks"
+          "ui.Coordinator.settingsCallbacks"
         ],
         [
-          "tea",
-          "repo",
+          "coord",
+          "svc",
           "cmd",
-          "SaveAppSettings(settings)",
-          "The repository performs its existing locked atomic write.",
-          "config.FileRepository.SaveAppSettings"
+          "SaveSettings(contract)",
+          "Captured configuration capability delegates locked persistence.",
+          "api.Service.SaveSettings"
         ],
         [
           "repo",
@@ -2799,7 +2747,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "SettingsSavedMsg",
           "A write failure becomes an error banner; success replaces c.settings on the UI goroutine.",
-          "app.Coordinator.handleSpecialMessages"
+          "ui.Coordinator.handleSpecialMessages"
         ],
         [
           "coord",
@@ -2814,8 +2762,8 @@ window.APPEDIA_CONTENT = {
           "coord",
           "self",
           "Refresh and navigate to dashboard",
-          "Settings changes affect subsequent commands; commands already built retain their captured string.",
-          "app.Coordinator.navigateTo"
+          "Current-visit successful save applies UI state; later workspace commands resolve settings inside the application operation.",
+          "ui.Coordinator.navigateTo"
         ]
       ],
       "sources": {
@@ -2842,7 +2790,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "coord",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "sm",
@@ -2855,6 +2803,10 @@ window.APPEDIA_CONTENT = {
         [
           "repo",
           "config.FileRepository"
+        ],
+        [
+          "svc",
+          "api.Service"
         ]
       ],
       "steps": [
@@ -2872,7 +2824,7 @@ window.APPEDIA_CONTENT = {
           "call",
           "OnOpenWorkspaces()",
           "Already wired callback; the editor now invokes it.",
-          "app.Coordinator.cardEditorCallbacks"
+          "ui.Coordinator.cardEditorCallbacks"
         ],
         [
           "coord",
@@ -2880,7 +2832,7 @@ window.APPEDIA_CONTENT = {
           "return",
           "NavigateMsg{SourceManagerWorkspaces}",
           "Navigation occurs later in a message handler.",
-          "app.Coordinator.cardEditorCallbacks"
+          "ui.Coordinator.cardEditorCallbacks"
         ],
         [
           "tea",
@@ -2888,38 +2840,38 @@ window.APPEDIA_CONTENT = {
           "msg",
           "navigateTo(workspace sources)",
           "Retain the editor instance and unsaved values.",
-          "app.Coordinator.navigateTo"
+          "ui.Coordinator.navigateTo"
         ],
         [
           "user",
           "sm",
           "key",
-          "Add or edit a workspace source",
-          "Reuses the existing source form.",
+          "Handle structured source mutation result",
+          "Refresh saved changes and retain synchronization warnings.",
           "views.SourceManager.Update"
         ],
         [
           "tea",
-          "repo",
+          "svc",
           "cmd",
-          "UpdateWorkspaceSources(mutate)",
-          "Read, update, save and sync under one lock.",
-          "config.FileRepository.UpdateWorkspaceSources"
+          "MutateSource(workspaces, expected identity)",
+          "Application validates stable workspace-source identity and owns the locked update/sync.",
+          "api.Service.MutateSource"
         ],
         [
           "repo",
           "coord",
           "msg",
-          "Refresh data or refresh + sync warning",
-          "A successful save with failed sync still refreshes.",
-          "app.Coordinator.sourceUpdateMsg"
+          "Handle structured source mutation result",
+          "Refresh saved changes and retain synchronization warnings.",
+          "views.SourceManager.Update"
         ],
         [
           "user",
           "sm",
           "key",
-          "Esc returns to the editor",
-          "NavigateBackMsg preserves the editor state.",
+          "Handle structured source mutation result",
+          "Refresh saved changes and retain synchronization warnings.",
           "views.SourceManager.Update"
         ]
       ],
@@ -2949,7 +2901,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "coord",
-          "app.Coordinator"
+          "ui.Coordinator"
         ]
       ],
       "steps": [
@@ -3005,9 +2957,9 @@ window.APPEDIA_CONTENT = {
           "coord",
           "ed",
           "call",
-          "SetData after registry refresh",
-          "Nil registry fields retain existing items.",
-          "views.CardEditor.SetData"
+          "Apply refreshed choices without clearing unavailable selected IDs",
+          "Failed inventories retain prior valid choices.",
+          "views.CardEditor.SetChoices"
         ],
         [
           "ed",
@@ -3083,9 +3035,9 @@ window.APPEDIA_CONTENT = {
           "ed",
           "ed",
           "self",
-          "Card(): assign boolean",
-          "The persisted YAML field remains a boolean.",
-          "views.CardEditor.Card"
+          "Draft explicit editable values and changes",
+          "Application preserves hidden and unedited fields during save.",
+          "views.CardEditor.Draft"
         ]
       ]
     },
@@ -3210,7 +3162,7 @@ window.APPEDIA_CONTENT = {
       "participants": [
         [
           "coord",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "ed",
@@ -3230,9 +3182,9 @@ window.APPEDIA_CONTENT = {
           "coord",
           "ed",
           "call",
-          "SetData(DataLoadedMsg)",
-          "Only a non-nil workspace snapshot replaces options.",
-          "views.CardEditor.SetData"
+          "Apply refreshed choices without clearing unavailable selected IDs",
+          "Failed inventories retain prior valid choices.",
+          "views.CardEditor.SetChoices"
         ],
         [
           "ed",
@@ -3342,14 +3294,14 @@ window.APPEDIA_CONTENT = {
           "ed",
           "ed",
           "self",
-          "Card(): empty sub IDs",
-          "Clone the empty form selection into SubWorkspaceIDs, preserving other fields. The save-card flow persists this value; retained managed copies and manifests are not deleted.",
-          "views.CardEditor.Card"
+          "Draft explicit editable values and changes",
+          "Application preserves hidden and unedited fields during save.",
+          "views.CardEditor.Draft"
         ]
       ],
       "sources": {
         "refs": [
-          "views.CardEditor.SetCard",
+          "views.CardEditor.LoadEditor",
           "views.CardEditor.handleSpace",
           "views.WorkspacePickerModal.SetSelectedIDs",
           "views.editorKeyIdentity"
@@ -3366,7 +3318,7 @@ window.APPEDIA_CONTENT = {
     },
     "terminal": {
       "title": "Open the selected session in a terminal",
-      "summary": "Press t in the Sessions pane to launch an independently configured terminal in the actual session workspace. Commands capture dashboard identity, generation and command settings.",
+      "summary": "A captured command calls the application workspace operation, which resolves saved workspace and settings and revalidates scope.",
       "participants": [
         [
           "user",
@@ -3378,11 +3330,11 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "coord",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "act",
-          "app.sessionActions"
+          "ui.sessionActions"
         ],
         [
           "mgr",
@@ -3421,7 +3373,7 @@ window.APPEDIA_CONTENT = {
           "call",
           "OnLaunchTerminal(selected ID)",
           "The callback is wired with the IDE callback.",
-          "app.Coordinator.dashboardCallbacks"
+          "ui.Coordinator.dashboardCallbacks"
         ],
         [
           "coord",
@@ -3429,15 +3381,15 @@ window.APPEDIA_CONTENT = {
           "call",
           "Snapshot TerminalCommand by value",
           "Only the coordinator goroutine reads c.settings.",
-          "app.Coordinator.launchTerminal"
+          "ui.Coordinator.launchTerminal"
         ],
         [
           "coord",
           "act",
           "cmd",
-          "Run terminal launch command",
-          "Bubble Tea executes this closure off the UI goroutine.",
-          "app.sessionActions.launchTerminal"
+          "launchWorkspace with captured scope/kind",
+          "Frontend returns a command using independent contracts.",
+          "ui.sessionActions.launchWorkspace"
         ],
         [
           "act",
@@ -3451,9 +3403,9 @@ window.APPEDIA_CONTENT = {
           "act",
           "launch",
           "call",
-          "Launch command in session.WorkingDir",
-          "Use the saved session WorkingDir after the membership check.",
-          "app.sessionActions.launchWorkspaceCommand"
+          "OpenSessionWorkspace(scope, kind)",
+          "Application owns settings lookup and saved-directory validation.",
+          "api.Service.OpenSessionWorkspace"
         ],
         [
           "launch",
@@ -3469,7 +3421,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "ScopedActionFinishedMsg{Err}",
           "Reports process startup, not the external application’s eventual exit.",
-          "app.Coordinator.handleSpecialMessages"
+          "ui.Coordinator.handleSpecialMessages"
         ],
         [
           "coord",
@@ -3477,7 +3429,7 @@ window.APPEDIA_CONTENT = {
           "self",
           "Apply scoped completion",
           "Reject stale dashboard/generation results; display current errors without navigation.",
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ]
       ],
       "sources": {
@@ -3486,7 +3438,7 @@ window.APPEDIA_CONTENT = {
           "views.DashboardCallbacks"
         ],
         "files": [
-          "internal/app/terminal_launch_test.go",
+          "internal/ui/terminal_launch_test.go",
           "internal/ui/views/dashboard_test.go",
           "internal/session/ide_launcher.go"
         ]
@@ -3494,11 +3446,11 @@ window.APPEDIA_CONTENT = {
     },
     "workspace-command-errors": {
       "title": "Report a workspace-command launch error",
-      "summary": "A missing session, workspace, terminal setting or executable returns a completion error; the IDE action uses the same banner handler.",
+      "summary": "A captured command calls the application workspace operation, which resolves saved workspace and settings and revalidates scope.",
       "participants": [
         [
           "act",
-          "app.sessionActions"
+          "ui.sessionActions"
         ],
         [
           "launch",
@@ -3507,7 +3459,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "coord",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "user",
@@ -3527,9 +3479,9 @@ window.APPEDIA_CONTENT = {
           "act",
           "act",
           "self",
-          "Reject empty terminal setting",
-          "Return Terminal command not configured; do not infer an emulator.",
-          "app.sessionActions.launchTerminal"
+          "launchWorkspace with captured scope/kind",
+          "Frontend returns a command using independent contracts.",
+          "ui.sessionActions.launchWorkspace"
         ],
         [
           "act",
@@ -3553,7 +3505,7 @@ window.APPEDIA_CONTENT = {
           "self",
           "Apply matching scoped error",
           "Only a result for the current dashboard/generation changes the banner.",
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ],
         [
           "user",
@@ -3561,7 +3513,7 @@ window.APPEDIA_CONTENT = {
           "key",
           "Next key clears the banner",
           "Existing banner lifecycle is unchanged.",
-          "app.Coordinator.Update"
+          "ui.Coordinator.Update"
         ]
       ],
       "sources": {
@@ -3569,8 +3521,8 @@ window.APPEDIA_CONTENT = {
           "messages.ScopedActionFinishedMsg"
         ],
         "files": [
-          "internal/app/terminal_launch_test.go",
-          "internal/app/command_race_internal_test.go"
+          "internal/ui/terminal_launch_test.go",
+          "internal/ui/command_race_internal_test.go"
         ]
       }
     },
@@ -3588,7 +3540,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "coord",
-          "app.Coordinator"
+          "ui.Coordinator"
         ]
       ],
       "steps": [
@@ -3687,7 +3639,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "ui",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "drv",
@@ -3857,7 +3809,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "ui",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "pick",
@@ -3887,15 +3839,15 @@ window.APPEDIA_CONTENT = {
           "key",
           "Request relaunch or switch",
           "",
-          "app.Coordinator.requestRelaunch"
+          "ui.Coordinator.requestRelaunch"
         ],
         [
           "ui",
-          "snap",
+          "svc",
           "call",
-          "Read per-card saved bindings",
-          "Bindings belong to the existing session; even one binding requires explicit choice.",
-          "session.Manager.GetSession"
+          "ReadConversationPreparationResult",
+          "Application returns scoped, ordered compatibility options; no backend session snapshot enters the UI.",
+          "api.Service.ReadConversationPreparationResult"
         ],
         [
           "ui",
@@ -3911,15 +3863,15 @@ window.APPEDIA_CONTENT = {
           "return",
           "Return explicit choice",
           "",
-          "app.Coordinator.conversationChoiceCallbacks"
+          "ui.Coordinator.conversationChoiceCallbacks"
         ],
         [
           "ui",
           "svc",
           "cmd",
-          "RelaunchInDashboard / SwitchInDashboard",
-          "Pass the captured dashboard, existing session and explicit choice.",
-          "api.Service.SwitchInDashboard"
+          "RelaunchDashboardSession / SwitchSession",
+          "Captured choice and scope; application revalidates bindings and publishes explicit lifecycle outcome.",
+          "api.Service.SwitchSession"
         ],
         [
           "svc",
@@ -3972,14 +3924,14 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "app.Coordinator.handleConversationChoiceRequested",
-          "app.Coordinator.requestSwitch",
+          "ui.Coordinator.prepareConversation",
+          "ui.Coordinator.requestSwitch",
           "session.savedTemporaryRoot",
           "session.validateConversationChoice",
-          "views.AgentSwitchView.SetData",
+          "views.AgentSwitchView.SetRows",
           "views.AgentSwitchView.handleKey",
           "views.ConversationChoiceView.RefreshContext",
-          "views.ConversationChoiceView.SelectedBinding",
+          "views.ConversationChoiceView.SelectedOption",
           "views.ConversationChoiceView.Update"
         ]
       }
@@ -4482,7 +4434,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "svc",
@@ -4510,9 +4462,9 @@ window.APPEDIA_CONTENT = {
           "c",
           "svc",
           "call",
-          "PreflightCardDeletion inventories references",
+          "Prepare card deletion summary",
           "",
-          "api.Service.PreflightCardDeletion"
+          "api.Service.PrepareHumanCardDeletion"
         ],
         [
           "svc",
@@ -4534,9 +4486,9 @@ window.APPEDIA_CONTENT = {
           "u",
           "svc",
           "key",
-          "ConfirmCardDeletion(token, consent)",
+          "Confirm token and consent through the deletion capability",
           "Rechecks owner, revision, expiry and reference-set digest before effects.",
-          "api.Service.ConfirmCardDeletion"
+          "api.Service.ConfirmHumanCardDeletion"
         ],
         [
           "svc",
@@ -4729,83 +4681,66 @@ window.APPEDIA_CONTENT = {
       }
     },
     "dashboard": {
-      "title": "Render owned sessions and available cards",
-      "summary": "The opened dashboard shows its owned sessions and exclusive/shared available cards, with native conversation choice and bounded metadata. Session-pane help includes e=Rename, and its modal owns input until save or cancel.",
+      "title": "Render owned sessions, cards and session center",
+      "summary": "The dashboard keeps its three-pane layout. Center reports or workspace facts replace terminal artwork/output; session actions remain in the session list.",
       "participants": [
         [
-          "user",
-          "user"
-        ],
-        [
-          "editor",
-          "views.CardEditor"
+          "dash",
+          "views.Dashboard"
         ],
         [
           "list",
           "components.SessionListItem"
         ],
         [
-          "preview",
-          "components.SessionPreview"
-        ],
-        [
-          "dash",
-          "views.Dashboard"
+          "panel",
+          "components.SessionCenter"
         ]
       ],
       "steps": [
         [
-          "user",
-          "editor",
-          "key",
-          "Toggle Dashboard Control",
-          "Requires Kankuro MCP selection to become effective.",
-          "views.CardEditor.renderDashboardControlLine"
+          "dash",
+          "dash",
+          "call",
+          "Apply contract inventory and retain identity selection",
+          "Failed inventory reads preserve valid data; successful empty snapshots clear it.",
+          "views.Dashboard.SetInventory"
         ],
         [
           "list",
           "list",
           "self",
-          "Show starting / delivery state in session list",
+          "Render session metadata and available action hints",
           "",
           "components.SessionListItem.Description"
         ],
         [
-          "preview",
-          "preview",
-          "self",
-          "Reserve text width beside complete puppet art",
-          "Long paths fit by cell width; omit art when too narrow.",
-          "components.SessionPreview.renderPreview"
+          "dash",
+          "panel",
+          "call",
+          "Synchronize selected stable session",
+          "Changing identity clears unrelated content; activation changes do not.",
+          "views.Dashboard.syncCenterSelection"
         ],
         [
-          "preview",
-          "preview",
+          "panel",
+          "panel",
           "self",
-          "Wrap centered empty preview text",
-          "Avoid double border-width deduction and broken words.",
-          "components.SessionPreview.renderPlaceholder"
+          "Render reports or workspace facts in available area",
+          "Warnings, timestamps and display-column wrapping are presentation concerns.",
+          "components.SessionCenter.View"
         ],
         [
           "dash",
           "dash",
           "self",
-          "Keep pane alignment across sizes and selection",
-          "",
-          "views.Dashboard.View"
+          "Keep pane alignment across sizes",
+          "No live terminal output subscription.",
+          "views.Dashboard.renderCenterPane"
         ]
       ],
       "sources": {
-        "refs": [
-          "components.SessionList.refreshItems",
-          "components.cardDelegate.Render",
-          "components.renderPreviewField",
-          "components.renderedBlockWidth",
-          "components.wrapPreviewWords",
-          "views.Dashboard.renderPreviewPane",
-          "views.Dashboard.footerText",
-          "views.Dashboard.View"
-        ]
+        "files": []
       }
     },
     "workspace": {
@@ -5049,7 +4984,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "svc",
@@ -5083,7 +5018,7 @@ window.APPEDIA_CONTENT = {
           "cmd",
           "Save callback captures view generation",
           "",
-          "app.Coordinator.dashboardListCallbacks"
+          "ui.Coordinator.dashboardListCallbacks"
         ],
         [
           "c",
@@ -5144,7 +5079,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "dash",
@@ -5170,7 +5105,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "DashboardOpenRequestedMsg",
           "Captures dashboard identity and increments view generation.",
-          "app.Coordinator.handleSpecialMessages"
+          "ui.Coordinator.handleSpecialMessages"
         ],
         [
           "c",
@@ -5184,9 +5119,9 @@ window.APPEDIA_CONTENT = {
           "c",
           "svc",
           "call",
-          "ReadDashboardData(openedID)",
+          "ReadDashboardOverview(openedID)",
           "",
-          "api.Service.ReadDashboardData"
+          "api.Service.ReadDashboardOverview"
         ],
         [
           "u",
@@ -5201,8 +5136,8 @@ window.APPEDIA_CONTENT = {
           "c",
           "msg",
           "DashboardListRequestedMsg",
-          "Drops the preview subscription and invalidates old scoped results.",
-          "app.Coordinator.handleSpecialMessages"
+          "Drops the center subscription and invalidates old scoped results.",
+          "ui.Coordinator.handleSpecialMessages"
         ],
         [
           "u",
@@ -5215,24 +5150,24 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "app.Coordinator.Init",
-          "app.Coordinator.dashboardListCallbacks",
-          "app.Coordinator.guardKey",
-          "app.Coordinator.handleAgentSwitched",
-          "app.Coordinator.handleConversationChoiceRequested",
-          "app.Coordinator.handleSessionMessages",
-          "app.Coordinator.handleSpecialMessages",
-          "app.Coordinator.navigateTo",
-          "app.Coordinator.refreshDashboardList",
-          "app.Coordinator.resizeAll",
-          "app.NewCoordinator",
-          "app.cardDeletionPreflightCommand",
-          "app.confirmCardDeletionCommand",
-          "app.convertViewType",
-          "app.dashboardDeletionStatus",
-          "app.dashboardDeletionSummary",
-          "app.dashboardListCommand",
-          "app.retryCardDeletionCommand",
+          "ui.Coordinator.Init",
+          "ui.Coordinator.dashboardListCallbacks",
+          "ui.Coordinator.guardKey",
+          "ui.Coordinator.handleSessionMessages",
+          "ui.Coordinator.prepareConversation",
+          "ui.Coordinator.handleSessionMessages",
+          "ui.Coordinator.handleSpecialMessages",
+          "ui.Coordinator.navigateTo",
+          "ui.Coordinator.refreshDashboardList",
+          "ui.Coordinator.resizeAll",
+          "ui.NewCoordinator",
+          "ui.cardDeletionPreflightCommand",
+          "ui.confirmCardDeletionCommand",
+          "ui.convertViewType",
+          "ui.dashboardDeletionStatus",
+          "ui.dashboardDeletionSummary",
+          "ui.dashboardListCommand",
+          "ui.retryCardDeletionCommand",
           "views.Dashboard.SetDashboardName",
           "views.Dashboard.SetDashboardScope",
           "views.Dashboard.SetSize",
@@ -5356,7 +5291,7 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "api.DashboardData",
+          "contracts.DashboardInventory",
           "api.New",
           "api.Service.GetSession",
           "api.Service.ListSessions",
@@ -5385,7 +5320,7 @@ window.APPEDIA_CONTENT = {
           "api.sessionInDashboard",
           "api.sessionUsesCard",
           "session.Manager.List",
-          "session.Manager.SetNameChecked",
+          "session.Manager.SetNameDetailedChecked",
           "session.Manager.ShutdownStarted",
           "session.Manager.listLocked",
           "session.NewManager",
@@ -5404,7 +5339,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "svc",
@@ -5426,7 +5361,7 @@ window.APPEDIA_CONTENT = {
           "key",
           "Attach selected session",
           "",
-          "app.Coordinator.requestAttach"
+          "ui.Coordinator.requestAttach"
         ],
         [
           "c",
@@ -5450,43 +5385,43 @@ window.APPEDIA_CONTENT = {
           "call",
           "ScopedAttachReadyMsg rejects stale handles",
           "",
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ],
         [
           "launch",
           "svc",
           "call",
-          "Name a newly launched session",
+          "RenameDashboardSession",
           "Launcher naming still attaches after success. Existing-session e rename uses DashboardSessionRenamedMsg and only refreshes.",
-          "api.Service.RenameInDashboard"
+          "api.Service.RenameDashboardSession"
         ],
         [
           "c",
           "svc",
           "call",
-          "StopInDashboard validates owned target",
+          "StopDashboardSession validates owned target",
           "",
-          "api.Service.StopInDashboard"
+          "api.Service.StopDashboardSession"
         ],
         [
           "c",
           "svc",
           "call",
-          "RemoveInDashboard retains removal guards",
+          "RemoveDashboardSession retains removal guards",
           "",
-          "api.Service.RemoveInDashboard"
+          "api.Service.RemoveDashboardSession"
         ]
       ],
       "sources": {
         "refs": [
-          "app.Coordinator.requestAttach",
-          "app.scopedAttachCommand",
-          "app.sessionActions.launch",
-          "app.sessionActions.launchIDE",
-          "app.sessionActions.launchTerminal",
-          "app.sessionActions.launchWorkspace",
-          "app.sessionActions.relaunch",
-          "app.sessionActions.switchAgent",
+          "ui.Coordinator.requestAttach",
+          "ui.scopedAttachCommand",
+          "ui.sessionActions.launch",
+          "ui.sessionActions.launchWorkspace",
+          "ui.sessionActions.launchWorkspace",
+          "ui.sessionActions.launchWorkspace",
+          "ui.sessionActions.activate",
+          "ui.sessionActions.activate",
           "session.Manager.AttachChecked",
           "views.SessionLauncher.Reset",
           "views.SessionLauncher.SetNameResult",
@@ -5622,7 +5557,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "dash",
@@ -5640,7 +5575,7 @@ window.APPEDIA_CONTENT = {
           "return",
           "ReadDashboardData includes CardDeleted",
           "",
-          "api.Service.ReadDashboardData"
+          "api.Service.ReadDashboardOverview"
         ],
         [
           "c",
@@ -5787,14 +5722,14 @@ window.APPEDIA_CONTENT = {
           "api.Service.prepareDashboardDeletion",
           "api.dashboardConfirmation",
           "api.dashboardImpactDigest",
-          "app.Coordinator.dashboardListCallbacks",
-          "app.Coordinator.refreshDashboardList",
-          "app.cardDeletionPreflightCommand",
-          "app.confirmCardDeletionCommand",
-          "app.dashboardDeletionStatus",
-          "app.dashboardDeletionSummary",
-          "app.dashboardListCommand",
-          "app.retryCardDeletionCommand",
+          "ui.Coordinator.dashboardListCallbacks",
+          "ui.Coordinator.refreshDashboardList",
+          "ui.cardDeletionPreflightCommand",
+          "ui.confirmCardDeletionCommand",
+          "ui.dashboardDeletionStatus",
+          "ui.dashboardDeletionSummary",
+          "ui.dashboardListCommand",
+          "ui.retryCardDeletionCommand",
           "config.DashboardTombstone",
           "config.dashboardTombstonesFile",
           "session.AdmissionSnapshot",
@@ -5963,7 +5898,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "svc",
@@ -5985,7 +5920,7 @@ window.APPEDIA_CONTENT = {
           "cmd",
           "PreflightDelete / InspectDelete command",
           "",
-          "app.Coordinator.dashboardListCallbacks"
+          "ui.Coordinator.dashboardListCallbacks"
         ],
         [
           "c",
@@ -6724,7 +6659,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "coord",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "svc",
@@ -6754,31 +6689,31 @@ window.APPEDIA_CONTENT = {
           "call",
           "dashboardCallbacks → rename command",
           "The callback captures service, dashboard ID and generation on the UI goroutine.",
-          "app.Coordinator.dashboardCallbacks"
+          "ui.Coordinator.dashboardCallbacks"
         ],
         [
           "coord",
           "svc",
           "cmd",
           "renameDashboardSession",
-          "Execute RenameInDashboard using captured values.",
-          "app.Coordinator.renameDashboardSession"
+          "Execute RenameDashboardSession using captured values.",
+          "ui.Coordinator.renameDashboardSession"
         ],
         [
           "svc",
           "manager",
           "call",
-          "RenameInDashboard → SetNameChecked",
+          "RenameDashboardSession → SetNameDetailedChecked",
           "Existing membership policy runs under manager admission.",
-          "api.Service.RenameInDashboard"
+          "api.Service.RenameDashboardSession"
         ],
         [
           "manager",
           "disk",
           "io",
-          "SetNameChecked: persist session",
+          "SetNameDetailedChecked: persist session",
           "Reject lifecycle conflicts; update memory before saving, so save failure is not rollback.",
-          "session.Manager.SetNameChecked"
+          "session.Manager.SetNameDetailedChecked"
         ],
         [
           "coord",
@@ -6786,7 +6721,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "handleSessionMessages(result)",
           "DashboardSessionRenamedMsg must match dashboard, generation and current view. A successful inline rename also advances the session epoch so older refreshes cannot restore the old name.",
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ],
         [
           "coord",
@@ -6802,7 +6737,7 @@ window.APPEDIA_CONTENT = {
           "call",
           "refreshDataSeeded",
           "Refresh after success or failure. No launch, switch, restart or attach request.",
-          "app.Coordinator.refreshDataSeeded"
+          "ui.Coordinator.refreshDataSeeded"
         ]
       ],
       "sources": {
@@ -6810,7 +6745,7 @@ window.APPEDIA_CONTENT = {
           "messages.DashboardSessionRenamedMsg"
         ],
         "files": [
-          "internal/app/coordinator_test.go",
+          "internal/ui/coordinator_test.go",
           "internal/ui/views/dashboard_test.go"
         ]
       }
@@ -6889,7 +6824,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "m",
@@ -6911,7 +6846,7 @@ window.APPEDIA_CONTENT = {
           "cmd",
           "Request MCP configuration",
           "Callback now names the manager.",
-          "app.Coordinator.dashboardCallbacks"
+          "ui.Coordinator.dashboardCallbacks"
         ],
         [
           "c",
@@ -6919,7 +6854,7 @@ window.APPEDIA_CONTENT = {
           "call",
           "Open manager; assign visit scope",
           "Navigation remains on the coordinator goroutine.",
-          "app.Coordinator.navigateTo"
+          "ui.Coordinator.navigateTo"
         ],
         [
           "c",
@@ -6982,19 +6917,19 @@ window.APPEDIA_CONTENT = {
           "views.mcpManagerItem.Display",
           "views.mcpManagerItem.ID",
           "views.NewMCPManager",
-          "app.Coordinator.initViews",
-          "app.convertViewType"
+          "ui.Coordinator.initViews",
+          "ui.convertViewType"
         ],
         "files": [
           "feature-mcpedit.md",
           "internal/ui/views/mcp_manager_test.go",
-          "internal/app/navigation_test.go"
+          "internal/ui/navigation_test.go"
         ]
       }
     },
     "mcp-delete": {
       "title": "Confirm deletion of a global MCP",
-      "summary": "Delete opens a named modal; confirmation invokes repository policy and refreshes consumers.",
+      "summary": "Delete opens a named modal; confirmation invokes application policy and refreshes consumers.",
       "participants": [
         [
           "u",
@@ -7006,15 +6941,19 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "a",
-          "app.sessionActions"
+          "ui.sessionActions"
         ],
         [
           "r",
           "config.FileRepository"
+        ],
+        [
+          "svc",
+          "api.Service"
         ]
       ],
       "steps": [
@@ -7048,7 +6987,7 @@ window.APPEDIA_CONTENT = {
           "cmd",
           "Deliver scoped delete request",
           "Pending state blocks repeated Delete.",
-          "app.Coordinator.matchesMCPManagerScope"
+          "ui.Coordinator.matchesMCPManagerScope"
         ],
         [
           "c",
@@ -7064,15 +7003,15 @@ window.APPEDIA_CONTENT = {
           "cmd",
           "Run deletion outside UI goroutine",
           "Stable ID is passed rather than a row index.",
-          "app.sessionActions.deleteMCPFromManager"
+          "ui.deleteMCPFromManagerCommand"
         ],
         [
           "a",
-          "r",
+          "svc",
           "call",
-          "DeleteMCP(id)",
-          "Rejects referenced cards, built-in and missing IDs.",
-          "config.FileRepository.DeleteMCP"
+          "DeleteConfiguredMCP(id)",
+          "Application revalidates built-in/reference rules and delegates persistence.",
+          "api.Service.DeleteConfiguredMCP"
         ],
         [
           "a",
@@ -7080,7 +7019,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "Deletion result",
           "Success triggers global refresh; current errors stay visible.",
-          "app.Coordinator.handleSpecialMessages"
+          "ui.Coordinator.handleSpecialMessages"
         ],
         [
           "c",
@@ -7106,7 +7045,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "t",
@@ -7152,7 +7091,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "Deliver old command",
           "Scope comparison rejects it even if manager is current again.",
-          "app.Coordinator.matchesMCPManagerScope"
+          "ui.Coordinator.matchesMCPManagerScope"
         ],
         [
           "c",
@@ -7168,7 +7107,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "An admitted deletion eventually finishes",
           "Success still refreshes global registry; no result-driven navigation.",
-          "app.Coordinator.handleSpecialMessages"
+          "ui.Coordinator.handleSpecialMessages"
         ]
       ],
       "sources": {
@@ -7179,8 +7118,8 @@ window.APPEDIA_CONTENT = {
           "messages.MCPManagerDeletedMsg"
         ],
         "files": [
-          "internal/app/mcp_manager_gaps_test.go",
-          "internal/app/mcp_manager_review_test.go"
+          "internal/ui/mcp_manager_gaps_test.go",
+          "internal/ui/mcp_manager_review_test.go"
         ]
       }
     },
@@ -7198,15 +7137,19 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "a",
-          "app.sessionActions"
+          "ui.sessionActions"
         ],
         [
           "r",
           "config.FileRepository"
+        ],
+        [
+          "svc",
+          "api.Service"
         ]
       ],
       "steps": [
@@ -7223,8 +7166,8 @@ window.APPEDIA_CONTENT = {
           "c",
           "cmd",
           "MCPDeleteRequestedMsg",
-          "Coordinator delegates repository work.",
-          "app.Coordinator.handleSpecialMessages"
+          "Coordinator delegates application work.",
+          "ui.Coordinator.handleSpecialMessages"
         ],
         [
           "c",
@@ -7232,15 +7175,15 @@ window.APPEDIA_CONTENT = {
           "cmd",
           "deleteMCP",
           "Existing card reference policy is reused.",
-          "app.sessionActions.deleteMCP"
+          "ui.deleteMCPCommand"
         ],
         [
           "a",
-          "r",
+          "svc",
           "call",
-          "DeleteMCP",
-          "Referenced saved cards still prevent deletion.",
-          "config.FileRepository.DeleteMCP"
+          "DeleteConfiguredMCP(id)",
+          "Application revalidates built-in/reference rules and delegates persistence.",
+          "api.Service.DeleteConfiguredMCP"
         ],
         [
           "a",
@@ -7248,13 +7191,13 @@ window.APPEDIA_CONTENT = {
           "msg",
           "Centralize completion and refresh",
           "Preserve editor deselection, refresh the registry globally.",
-          "app.Coordinator.handleSpecialMessages"
+          "ui.Coordinator.handleSpecialMessages"
         ]
       ]
     },
     "launch-focus": {
       "title": "Keep the created session selected through naming and detach",
-      "summary": "Launch/name completion and fresh snapshots maintain one selected ID and preview; old epochs cannot displace it.",
+      "summary": "Launch/name completion and fresh snapshots maintain one selected ID and center; old epochs cannot displace it.",
       "participants": [
         [
           "u",
@@ -7262,7 +7205,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "c",
-          "app.Coordinator"
+          "ui.Coordinator"
         ],
         [
           "mgr",
@@ -7274,7 +7217,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "ref",
-          "app.refresher"
+          "ui.refresher"
         ],
         [
           "dash",
@@ -7286,7 +7229,7 @@ window.APPEDIA_CONTENT = {
         ],
         [
           "preview",
-          "components.SessionPreview"
+          "components.SessionCenter"
         ]
       ],
       "steps": [
@@ -7296,7 +7239,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "SessionLaunchCompletedMsg(session ID)",
           "A usable launch advances the session epoch and requests focus for the exact ID.",
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ],
         [
           "c",
@@ -7304,7 +7247,7 @@ window.APPEDIA_CONTENT = {
           "call",
           "Focus the new session",
           "If its snapshot is not loaded yet, the one-shot focus waits for session data.",
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ],
         [
           "u",
@@ -7320,7 +7263,7 @@ window.APPEDIA_CONTENT = {
           "msg",
           "ScopedSessionNamedMsg(session ID, name)",
           "Advance the session epoch and keep focus pending until refreshed data contains that name.",
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ],
         [
           "ref",
@@ -7328,15 +7271,15 @@ window.APPEDIA_CONTENT = {
           "msg",
           "Delayed old-epoch refresh",
           "Reject snapshots started before launch or rename, even within the same dashboard generation.",
-          "app.Coordinator.handleSessionsRefreshed"
+          "ui.Coordinator.handleSessionsRefreshed"
         ],
         [
           "ref",
           "dash",
           "msg",
           "Current session snapshot",
-          "Select by ID, clear search only when it hides the target, and sync preview.",
-          "app.Coordinator.handleDataLoaded"
+          "Select by ID, clear search only when it hides the target, and sync center.",
+          "ui.Coordinator.handleDataLoaded"
         ],
         [
           "u",
@@ -7344,23 +7287,23 @@ window.APPEDIA_CONTENT = {
           "key",
           "Ctrl+K to detach",
           "The detach refresh retains the selected ID; later refreshes do not steal focus again.",
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ],
         [
           "dash",
           "list",
           "call",
-          "Rebuild session list and preview by selected ID",
+          "Rebuild session list and center by selected ID",
           "Session-list ordering changes do not displace the created session.",
-          "views.Dashboard.SetSessions"
+          "views.Dashboard.SetInventory"
         ],
         [
           "dash",
           "preview",
           "call",
-          "Sync preview with focused session",
-          "Session action hints and preview agree with the selected session.",
-          "views.Dashboard.syncPreviewSelection"
+          "sync center with focused session",
+          "Session action hints and center agree with the selected session.",
+          "views.Dashboard.syncCenterSelection"
         ]
       ],
       "sources": {
@@ -7372,10 +7315,10 @@ window.APPEDIA_CONTENT = {
           "session.Manager.CardReferences",
           "session.Manager.List",
           "session.Manager.ReserveCardReferenceForDashboardWithCancel",
-          "session.Manager.SetNameChecked",
-          "app.Coordinator.handleDataLoaded",
-          "app.Coordinator.handleSessionMessages",
-          "app.Coordinator.handleSessionsRefreshed",
+          "session.Manager.SetNameDetailedChecked",
+          "ui.Coordinator.handleDataLoaded",
+          "ui.Coordinator.handleSessionMessages",
+          "ui.Coordinator.handleSessionsRefreshed",
           "session.Manager.ShutdownStarted",
           "session.Manager.TemporaryWorkspaceRoot",
           "session.Manager.WaitCardReferences",
@@ -7399,24 +7342,356 @@ window.APPEDIA_CONTENT = {
           "views.Dashboard.applyPendingSessionFocus",
           "views.matchesSessionQuery",
           "components.SessionList.refreshItems",
-          "app.Coordinator.hasStaleSessionSnapshot",
+          "ui.Coordinator.hasStaleSessionSnapshot",
           "messages.SessionsRefreshedMsg"
         ],
         "files": [
-          "internal/app/launch_focus_internal_test.go",
-          "internal/app/inline_rename_refresh_internal_test.go",
+          "internal/ui/launch_focus_internal_test.go",
+          "internal/ui/inline_rename_refresh_internal_test.go",
           "internal/ui/components/session_list_test.go",
           "tests/e2e/launch_focus_test.go"
         ]
       }
+    },
+    "center-workspace": {
+      "title": "Workspace facts when reports are empty",
+      "summary": "Inspect the saved actual workspace on initial empty/fallback loading or a scheduled refresh. Failed attempts without cache still wait for the 30-second retry; healthy report events do not restart workspace work.",
+      "participants": [
+        [
+          "c",
+          "ui.Coordinator"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "panel",
+          "components.SessionCenter"
+        ]
+      ],
+      "steps": [
+        [
+          "c",
+          "c",
+          "msg",
+          "Successful empty report read, or failed read without report cache",
+          "Initial workspace loading is immediate; after an attempt, only a due refresh enables another inspection. A failed history read remains a warning, never proof of empty history.",
+          "ui.Coordinator.handleCenter"
+        ],
+        [
+          "c",
+          "svc",
+          "cmd",
+          "ReadSessionWorkspace(scope)",
+          "Cancelable read; independent report events can preempt it.",
+          "ui.Coordinator.centerWorkspace"
+        ],
+        [
+          "svc",
+          "svc",
+          "call",
+          "Validate scope and resolve saved actual directory",
+          "Use the session WorkingDir, including temporary copies; revalidate after I/O.",
+          "api.Service.ReadSessionWorkspace"
+        ],
+        [
+          "svc",
+          "svc",
+          "call",
+          "Inspect directory and discover repository metadata",
+          "Missing/inaccessible workspaces error; do not recreate them.",
+          "api.inspectWorkspace"
+        ],
+        [
+          "svc",
+          "svc",
+          "io",
+          "Discover Git paths and inspect with isolated configuration",
+          "Build a private Git directory from selected data, including the active split index when present. Disable fsmonitor and hooks. Configured clean filters and repositories with submodules use a labelled directory fallback.",
+          "api.inspectGitWorkspace"
+        ],
+        [
+          "svc",
+          "svc",
+          "call",
+          "Parse Git records, including rename origin",
+          "Parse NUL-delimited porcelain v2, preserve rename origins, and cap results at 1,000 entries. Git commands use argv, bounded output and a deadline. Unix cancellation and output overflow terminate the owned process group.",
+          "api.parseGitStatus"
+        ],
+        [
+          "svc",
+          "svc",
+          "io",
+          "Non-Git or labelled Git-error fallback: list immediate children",
+          "A metadata or status error is visible alongside the fallback when directory access succeeds. Include dotfiles and optional stat metadata without recursion.",
+          "api.listWorkspace"
+        ],
+        [
+          "svc",
+          "c",
+          "msg",
+          "Structured workspace result and warnings",
+          "Late results cannot overwrite reports. Failed workspace data stays marked stale until actual replacement workspace data or report content succeeds; history-only reads cannot certify its freshness.",
+          "ui.Coordinator.handleCenter"
+        ],
+        [
+          "c",
+          "panel",
+          "call",
+          "Render Git or directory information beneath the header",
+          "Render root-relative Git entries or directory metadata; sanitize each name, rename origin and symlink target independently from multiline reports. The header stays visible when a report takes over the body.",
+          "components.SessionCenter.renderWorkspace"
+        ]
+      ],
+      "sources": {
+        "files": [
+          "internal/api/center_workspace.go",
+          "internal/api/center_workspace_linux.go",
+          "internal/api/center_workspace_other.go",
+          "internal/api/center_process_unix.go",
+          "internal/api/center_process_other.go",
+          "internal/api/center_git.go"
+        ],
+        "refs": [
+          "api.configureGitProcess",
+          "api.killGitProcess",
+          "api.runGitWithEnv",
+          "api.gitStatusSettings",
+          "api.linkSharedGitIndex"
+        ]
+      }
+    },
+    "center-recovery": {
+      "title": "Center recovery and resource release",
+      "summary": "Cancel selection-scoped work on navigation, but preserve a detached successful-content cache for the same dashboard and stable session. Recovery cadence and workspace freshness remain independent of retained content.",
+      "participants": [
+        [
+          "c",
+          "ui.Coordinator"
+        ],
+        [
+          "sub",
+          "api.reportSubscription"
+        ],
+        [
+          "clock",
+          "ui.systemCenterClock"
+        ],
+        [
+          "dash",
+          "views.Dashboard"
+        ]
+      ],
+      "steps": [
+        [
+          "c",
+          "c",
+          "msg",
+          "Read failure or unexpected subscription closure",
+          "Coalesce notices after report failure. Track workspaceAttempted/workspaceDue separately from cache presence; retain workspaceStale across successful-empty and failed report reads.",
+          "ui.Coordinator.handleCenter"
+        ],
+        [
+          "c",
+          "clock",
+          "cmd",
+          "Schedule 30-second retry only when idle",
+          "No duplicate timer while setup/read/workspace work is active.",
+          "ui.Coordinator.centerSchedule"
+        ],
+        [
+          "clock",
+          "clock",
+          "io",
+          "Wait for timer or cancellation",
+          "Context cancellation stops pending waits.",
+          "ui.systemCenterClock.Wait"
+        ],
+        [
+          "clock",
+          "c",
+          "msg",
+          "Timer generation/request checked",
+          "Resubscribe first if disconnected, otherwise reread reports.",
+          "ui.Coordinator.handleCenter"
+        ],
+        [
+          "dash",
+          "c",
+          "msg",
+          "Resize or selected-session reconciliation",
+          "Return restores matching successful content before subscribe/reread; failed history keeps cached reports stale, successful empty clears them, and another selection inherits nothing.",
+          "ui.Coordinator.reconcileCenter"
+        ],
+        [
+          "c",
+          "sub",
+          "call",
+          "Suspend on navigation: detach cache, cancel operations",
+          "suspendCenter saves detached same-dashboard/session report or workspace content, then clearCenter cancels reads, timer and subscription. Returning restores only a matching selection; scope loss discards it.",
+          "ui.Coordinator.suspendCenter"
+        ],
+        [
+          "c",
+          "dash",
+          "call",
+          "Scope rejection clears cached selected-session content",
+          "Block immediate retry for the same invalid selection.",
+          "ui.Coordinator.invalidateCenterScope"
+        ]
+      ],
+      "sources": {
+        "files": [
+          "internal/ui/center.go",
+          "internal/ui/navigation.go",
+          "internal/ui/ui.go"
+        ]
+      }
+    },
+    "attach-disposal": {
+      "title": "Dispose of stale attachments",
+      "summary": "A confirmed missing session cancels acquisition and closes queued handles.",
+      "participants": [
+        [
+          "coord",
+          "ui.Coordinator"
+        ],
+        [
+          "owner",
+          "ui.attachmentOwner"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "term",
+          "terminal.Command"
+        ]
+      ],
+      "steps": [
+        [
+          "coord",
+          "owner",
+          "call",
+          "Capture session and dashboard ownership",
+          "",
+          "ui.attachmentOwner.begin"
+        ],
+        [
+          "coord",
+          "svc",
+          "cmd",
+          "Acquire scoped attachment",
+          "",
+          "api.Service.AttachInDashboard"
+        ],
+        [
+          "coord",
+          "owner",
+          "call",
+          "Invalidate missing target",
+          "Uses a successful, newer inventory or explicit removal.",
+          "ui.attachmentOwner.invalidateMissing"
+        ],
+        [
+          "svc",
+          "owner",
+          "return",
+          "Publish or close late resource",
+          "",
+          "ui.attachmentOwner.publish"
+        ],
+        [
+          "coord",
+          "term",
+          "call",
+          "Run a still-current attachment",
+          "",
+          "ui.scopedAttachCommand"
+        ]
+      ]
+    },
+    "deletion-outcomes": {
+      "title": "Show deletion progress and retry",
+      "summary": "Opaque tokens authorize a rechecked operation, and UI feedback follows its authoritative outcome.",
+      "participants": [
+        [
+          "list",
+          "views.DashboardList"
+        ],
+        [
+          "ui",
+          "ui.Coordinator"
+        ],
+        [
+          "svc",
+          "api.Service"
+        ],
+        [
+          "disk",
+          "config.FileRepository"
+        ]
+      ],
+      "steps": [
+        [
+          "list",
+          "svc",
+          "cmd",
+          "Prepare dashboard deletion summary",
+          "",
+          "api.Service.PrepareHumanDashboardDeletion"
+        ],
+        [
+          "list",
+          "svc",
+          "cmd",
+          "Confirm token and foreign impact",
+          "",
+          "api.Service.ConfirmHumanDashboardDeletion"
+        ],
+        [
+          "svc",
+          "disk",
+          "io",
+          "Persist intent before teardown",
+          "",
+          "config.FileRepository.BeginDashboardDeletion"
+        ],
+        [
+          "svc",
+          "svc",
+          "call",
+          "Run cascade and checkpoint work",
+          "",
+          "api.Service.runDashboardDeletion"
+        ],
+        [
+          "svc",
+          "ui",
+          "msg",
+          "Project completed or pending progress",
+          "",
+          "api.dashboardDeletionProgress"
+        ],
+        [
+          "ui",
+          "list",
+          "call",
+          "Show outcome and available retry",
+          "",
+          "views.DashboardList.ShowDeletionResult"
+        ]
+      ]
     }
   },
   "rules": [
     {
       "n": "1",
       "title": "No tea.Cmd closure touches coordinator state",
-      "ref": "app.Coordinator",
-      "why": "A command's closure runs on its own goroutine. Reading or writing c.views, c.preview, c.currentView, c.err or c.settings there is a concurrent access that can crash the app. Snapshot what you need before returning the closure.",
+      "ref": "ui.Coordinator",
+      "why": "A command's closure runs on its own goroutine. Reading or writing c.views, c.center, c.currentView, c.err or c.settings there is a concurrent access that can crash the app. Snapshot what you need before returning the closure.",
       "check": "Capture IDs, generation and settings by value. Run the coordinator command-closure race regression; external test adapters call the real scoped route.",
       "flows": [
         "tick",
@@ -7426,19 +7701,19 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "app.Coordinator.launchIDE",
-          "app.Coordinator.launchTerminal",
-          "app.sessionActions.launchWorkspaceCommand"
+          "ui.Coordinator.launchIDE",
+          "ui.Coordinator.launchTerminal",
+          "api.Service.OpenSessionWorkspace"
         ],
         "files": [
-          "internal/app/command_race_internal_test.go"
+          "internal/ui/command_race_internal_test.go"
         ]
       }
     },
     {
       "n": "2",
       "title": "Never navigate from inside a view's Update",
-      "ref": "app.Coordinator.navigateTo",
+      "ref": "ui.Coordinator.navigateTo",
       "why": "Update writes the view back into c.views[c.currentView] after the view returns. Navigating during that call stores the old view under the new key; it once replaced the dashboard with the agent-switch view.",
       "check": "Navigate from handleSpecialMessages / handleSessionMessages. See navigateTo's doc comment.",
       "flows": [
@@ -7451,7 +7726,7 @@ window.APPEDIA_CONTENT = {
       "title": "DataLoadedMsg is always a full snapshot",
       "ref": "messages.DataLoadedMsg",
       "why": "A nil field means \"that registry could not be read this round, keep what you have\". Wiping a list makes CapabilityList.SelectedIDs() drop items, and the next save silently loses the card's skills.",
-      "check": "Every SetData guards each field with if msg.X != nil; partial updates use PreviewDataMsg or SessionsRefreshedMsg.",
+      "check": "Focused read results carry explicit attempted/error state. Failed inventories retain prior choices; center data is published separately through SetCenterData, not a partial DataLoadedMsg.",
       "flows": [
         "tick",
         "preview"
@@ -7460,7 +7735,7 @@ window.APPEDIA_CONTENT = {
     {
       "n": "4",
       "title": "The error banner clears on the next keypress",
-      "ref": "app.Coordinator.Update",
+      "ref": "ui.Coordinator.Update",
       "why": "Navigation leaves it alone, so an ErrorMsg batched beside a NavigateMsg survives in either order.",
       "check": "TestErrorSurvivesNavigationInEitherOrder, TestKeyPressClearsBanner.",
       "flows": [
@@ -7469,20 +7744,20 @@ window.APPEDIA_CONTENT = {
       ],
       "sources": {
         "refs": [
-          "app.Coordinator.handleSessionMessages"
+          "ui.Coordinator.handleSessionMessages"
         ],
         "files": [
-          "internal/app/error_banner_test.go",
-          "internal/app/terminal_launch_test.go"
+          "internal/ui/error_banner_test.go",
+          "internal/ui/terminal_launch_test.go"
         ]
       }
     },
     {
       "n": "5",
-      "title": "The card editor overlays, it does not rebuild",
-      "ref": "views.CardEditor.Card",
-      "why": "Card() overlays only edited fields onto the loaded card. New boolean/sub workspace controls must preserve environment, system instructions, timestamps and hidden sections.",
-      "check": "TestCardEditorPreservesUnmanagedFields and TestCtrlXClearsOnlySubWorkspaceSelection.",
+      "title": "Application saves preserve unedited card fields",
+      "ref": "api.Service.UpdateEditorCard",
+      "why": "The UI carries only editable values and explicit changes. Application policy reloads storage and checks ownership and opaque full-record revision before applying those changes.",
+      "check": "Card editor and API membership/revision tests; missing choices must not erase selected IDs.",
       "flows": [
         "savecard",
         "sub-clear"
@@ -7682,7 +7957,7 @@ window.APPEDIA_CONTENT = {
     {
       "n": "22",
       "title": "Ignore obsolete asynchronous UI results",
-      "ref": "app.Coordinator.handleDataLoaded",
+      "ref": "ui.Coordinator.handleDataLoaded",
       "why": "Capture dashboard/generation before commands, plus the session epoch for refreshes and manager visit for MCP edits/deletes. Late work must not retarget another view or displace a newly launched/renamed selection.",
       "check": "Scoped command-race tests, cross-dashboard MCP tests, and full/session/fingerprint stale-refresh tests.",
       "flows": [
@@ -7776,10 +8051,54 @@ window.APPEDIA_CONTENT = {
           "views.MCPManager.Update"
         ],
         "files": [
-          "internal/app/mcp_manager_review_test.go",
+          "internal/ui/mcp_manager_review_test.go",
           "tests/e2e/mcp_manager_test.go"
         ]
       }
+    },
+    {
+      "n": "30",
+      "title": "Reports belong to stable author sessions",
+      "ref": "session.MessageStore.RecentAuthoredReports",
+      "why": "Parent message sender and reply author differ. Filter author and dashboard across activations; never present received messages or wake-up records as authored reports.",
+      "check": "Authored report projection, bounds/reload and dashboard scope tests.",
+      "flows": [
+        "preview"
+      ]
+    },
+    {
+      "n": "31",
+      "title": "Report failure is not empty history",
+      "ref": "ui.Coordinator.handleCenter",
+      "why": "Report failure is not empty history. Preserve stale report content or labelled workspace fallback. A history-only read cannot clear workspace staleness; only successful workspace replacement or report takeover can.",
+      "check": "Center failure-policy and workspace classification tests.",
+      "flows": [
+        "preview",
+        "center-workspace",
+        "center-recovery"
+      ]
+    },
+    {
+      "n": "32",
+      "title": "Subscribe before reading; cancel obsolete center work",
+      "ref": "api.Service.SubscribeSessionReports",
+      "why": "Capture both signals before the initial read and rearm before forwarding. Retained content changes wake readers, while lifecycle events independently recheck scope. Failed reads and workspace inspection retain their recovery cadence.",
+      "check": "First-read and rearm races, report eviction and failed persistence, scope loss without a report change, and fake-clock recovery tests.",
+      "flows": [
+        "preview",
+        "center-recovery"
+      ]
+    },
+    {
+      "n": "33",
+      "title": "Content cache outlives navigation operations",
+      "ref": "ui.Coordinator.suspendCenter",
+      "why": "Stopping reads/subscriptions on navigation must not erase usable same-session reports or workspace facts. Cache detached data keyed by dashboard and stable session, clear on scope loss/other selection, and let confirmed empty reads replace history.",
+      "check": "Navigation report/workspace fallback, confirmed-empty clearing and selection/scope regressions.",
+      "flows": [
+        "preview",
+        "center-recovery"
+      ]
     }
   ],
   "tasks": [
@@ -7815,18 +8134,20 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Change attach / detach / keys during attach",
-      "a": "app/attach.go.",
+      "a": "Start in internal/ui/terminal/attach.go for human terminal input and display. The coordinator hands it an owned attachment through the attachment capability.",
       "refs": [
-        "app.attachExec"
+        "terminal.Command",
+        "ui.scopedAttachCommand",
+        "api.Service.AttachInDashboard"
       ],
       "flow": "attach"
     },
     {
       "q": "Add a field to ID cards",
-      "a": "Update config.IDCard and validation, then SetCard, Reset, Card and the focus table in the editor. Preserve unmanaged fields and add coverage for loading/saving the new field.",
+      "a": "Add the storage field, then explicitly choose whether it belongs in editable contracts/drafts. Application saves preserve unedited fields and validate full-record revisions; never round-trip full storage records through the UI.",
       "refs": [
         "config.IDCard",
-        "views.CardEditor.Card"
+        "views.CardEditor.Draft"
       ]
     },
     {
@@ -7841,8 +8162,8 @@ window.APPEDIA_CONTENT = {
       "q": "Add a screen",
       "a": "A new type in ui/views; register it in initViews, add a ViewType, wire its callbacks in callbacks.go.",
       "refs": [
-        "app.Coordinator.initViews",
-        "app.ViewType"
+        "ui.Coordinator.initViews",
+        "ui.ViewType"
       ],
       "flow": "editcard"
     },
@@ -7850,8 +8171,8 @@ window.APPEDIA_CONTENT = {
       "q": "Add a message",
       "a": "Declare it in messages.go and route it through the coordinator. Partial data gets its own type; async view results carry dashboard ID and generation. Separate dashboard rename completion from launch naming because their success actions differ.",
       "refs": [
-        "app.Coordinator.handleSpecialMessages",
-        "app.Coordinator.handleSessionMessages",
+        "ui.Coordinator.handleSpecialMessages",
+        "ui.Coordinator.handleSessionMessages",
         "messages.ScopedActionFinishedMsg",
         "messages.DashboardSessionRenamedMsg"
       ]
@@ -7900,9 +8221,9 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Change the minimum terminal size",
-      "a": "views/constants.go and app/size_guard.go.",
+      "a": "views/constants.go and ui/size_guard.go.",
       "refs": [
-        "app.Coordinator.tooSmall"
+        "ui.Coordinator.tooSmall"
       ],
       "flow": "resize"
     },
@@ -7910,7 +8231,7 @@ window.APPEDIA_CONTENT = {
       "q": "Change refresh behaviour",
       "a": "refresh.go for the commands, handlers.go for applying results, and config.Fingerprint. Capture session epochs with snapshots and reject old epochs before data or fingerprints are applied.",
       "refs": [
-        "app.refresher",
+        "ui.refresher",
         "config.FileRepository.Fingerprint"
       ],
       "flow": "tick"
@@ -7922,16 +8243,17 @@ window.APPEDIA_CONTENT = {
         "api.Service",
         "api.OperationRunner",
         "mcp.addLifecycleTools",
-        "app.sessionActions"
+        "ui.sessionActions"
       ],
       "flow": "control"
     },
     {
-      "q": "Change the preview subscription",
-      "a": "previewSub and the preview handlers.",
+      "q": "Change center updates or fallback behavior",
+      "a": "Start with the consumer-owned center port, application report/workspace operations and coordinator state machine. Preserve subscribe-before-read, same-session stale content, workspace cancellation and 30-second recovery. Report content changes and lifecycle scope checks use separate signals.",
       "refs": [
-        "app.previewSub",
-        "app.Coordinator.handleSessionOutput"
+        "ui.centerPort",
+        "api.Service.SubscribeSessionReports",
+        "ui.Coordinator.handleCenter"
       ],
       "flow": "preview"
     },
@@ -7939,13 +8261,13 @@ window.APPEDIA_CONTENT = {
       "q": "Change how IDE or terminal windows open",
       "a": "Capture settings and scope, check session membership, then launch the configured command in the saved WorkingDir. Completion stays tied to its originating view.",
       "refs": [
-        "app.sessionActions.launchWorkspace",
+        "ui.sessionActions.launchWorkspace",
         "session.LaunchWorkspaceCommand"
       ],
       "flow": "terminal",
       "sources": {
         "files": [
-          "internal/app/terminal_launch_test.go",
+          "internal/ui/terminal_launch_test.go",
           "internal/session/ide_launcher_test.go"
         ]
       }
@@ -7992,14 +8314,14 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Change session names or activation snapshots",
-      "a": "For existing-session e rename, start at Dashboard.handleEdit/updateRename, the captured coordinator callback and its dedicated completion message. Reuse RenameInDashboard and SetNameChecked; refresh on either result and preserve process identity. Launch naming keeps its separate attach flow. For operation snapshots, keep inspectionFromSnapshot as the single conversion. Launch naming retains focus by ID and confirmed name; inline rename invalidates older session refreshes.",
+      "a": "For existing-session e rename, start at Dashboard.handleEdit/updateRename, the captured coordinator callback and its dedicated completion message. Reuse RenameDashboardSession and SetNameDetailedChecked; refresh on either result and preserve process identity. Launch naming keeps its separate attach flow. For operation snapshots, keep inspectionFromSnapshot as the single conversion. Launch naming retains focus by ID and confirmed name; inline rename invalidates older session refreshes.",
       "refs": [
         "views.Dashboard.handleEdit",
         "views.Dashboard.updateRename",
-        "app.Coordinator.renameDashboardSession",
+        "ui.Coordinator.renameDashboardSession",
         "messages.DashboardSessionRenamedMsg",
-        "api.Service.RenameInDashboard",
-        "session.Manager.SetNameChecked",
+        "api.Service.RenameDashboardSession",
+        "session.Manager.SetNameDetailedChecked",
         "api.inspectionFromSnapshot"
       ],
       "flow": "rename-save"
@@ -8118,7 +8440,7 @@ window.APPEDIA_CONTENT = {
       "refs": [
         "views.MCPManager",
         "views.MCPForm",
-        "app.Coordinator.mcpCallbacks",
+        "ui.Coordinator.mcpCallbacks",
         "config.FileRepository.DeleteMCP"
       ],
       "flow": "mcp-open"
@@ -8127,12 +8449,24 @@ window.APPEDIA_CONTENT = {
       "q": "Change launch selection or stale-refresh protection",
       "a": "The coordinator advances session epochs on launch and rename. Dashboard focus waits for the exact ID/name, clears only a hiding session search, and is consumed once. SessionList preserves selected ID across reordering.",
       "refs": [
-        "app.Coordinator.hasStaleSessionSnapshot",
+        "ui.Coordinator.hasStaleSessionSnapshot",
         "views.Dashboard.FocusSession",
         "views.Dashboard.FocusSessionAfterRename",
         "components.SessionList.refreshItems"
       ],
       "flow": "launch"
+    },
+    {
+      "q": "Change workspace inspection limits or classification",
+      "a": "Read the saved workspace through the API. Git inspection assembles a private data directory, adds the referenced split index, and falls back visibly on Git errors or unsupported configurations.",
+      "refs": [
+        "api.Service.ReadSessionWorkspace",
+        "api.inspectWorkspace",
+        "api.listWorkspace",
+        "api.inspectGitWorkspace",
+        "api.linkSharedGitIndex"
+      ],
+      "flow": "center-workspace"
     }
   ],
   "storage": {
@@ -8287,7 +8621,7 @@ window.APPEDIA_CONTENT = {
     "Current ordinary-suite statement coverage is collected with atomic instrumentation and matching source/run provenance; it does not execute E2E-tagged tests. The 2026-11-09 profile is archived with its original metadata and is not a paired baseline for a coverage delta.",
     "Model-driven E2E runs require a provider/model choice and total token budget covering retries, per tests/e2e/AGENTS.md. Ordinary tests and model-free screenshot preflight need no model call.",
     "Current MCP and startup-only launch-focus E2E journeys pass with the upgraded UI dependencies. They capture actual terminal checkpoints, without model tasks or pixel-baseline comparisons.",
-    "Validation retained one intermittent TestPreviewImmediateUpdate race-run failure; ten focused repetitions and a full app race rerun passed. This is not reported as a clean initial broad race run."
+    "Step 6 center source assertions are linked with exact source hashes and explicit limits. This Appedia refresh does not rerun application tests or claim feature approval; changed historical assessments remain unassessed."
   ],
   "glossary": [
     [
@@ -8412,8 +8746,539 @@ window.APPEDIA_CONTENT = {
     ]
   ],
   "tests": {
-    "scope": "Project-wide functional assessment retained and reassessed against current source; MCP management and launch-focus added with fresh ordinary and E2E evidence. Current ordinary-suite statement coverage is recorded separately from these functional assessments. The older model-driven native registration failure remains explicitly historical.",
+    "scope": "Current source and ordinary Go suite at 5c80ec8. Earlier Linux terminal captures, native-model runs and statement coverage retain their original provenance. Live Codex recall and combined all-failure recovery remain open.",
     "features": [
+      {
+        "id": "boundary",
+        "title": "Architecture enforcement",
+        "area": "Roadmap verification",
+        "summary": "Checks package direction and reviewed exception sets.",
+        "scenarios": [
+          {
+            "id": "assertion",
+            "title": "Architecture enforcement",
+            "dimension": "behavior",
+            "summary": "Checks package direction and reviewed exception sets.",
+            "status": "tested",
+            "flows": [
+              "startup"
+            ],
+            "evidence": [
+              "boundary"
+            ],
+            "limit": "The checker is static. Runtime behavior has separate evidence."
+          }
+        ]
+      },
+      {
+        "id": "card-save",
+        "title": "Preserve hidden card fields",
+        "area": "Roadmap verification",
+        "summary": "Checks retained fields and rejection of a stale revision.",
+        "scenarios": [
+          {
+            "id": "assertion",
+            "title": "Preserve hidden card fields",
+            "dimension": "behavior",
+            "summary": "Checks retained fields and rejection of a stale revision.",
+            "status": "tested",
+            "flows": [
+              "savecard"
+            ],
+            "evidence": [
+              "card-save"
+            ],
+            "limit": "API and repository seam."
+          }
+        ]
+      },
+      {
+        "id": "card-race",
+        "title": "Concurrent card saves",
+        "area": "Roadmap verification",
+        "summary": "Only one of two saves with the same revision succeeds.",
+        "scenarios": [
+          {
+            "id": "assertion",
+            "title": "Concurrent card saves",
+            "dimension": "behavior",
+            "summary": "Only one of two saves with the same revision succeeds.",
+            "status": "tested",
+            "flows": [
+              "savecard"
+            ],
+            "evidence": [
+              "card-race"
+            ],
+            "limit": "Concurrent service updates in a controlled fixture."
+          }
+        ]
+      },
+      {
+        "id": "source-edit",
+        "title": "Reject a reordered source",
+        "area": "Roadmap verification",
+        "summary": "Rejects stale row identity after reorder and addresses duplicate rows.",
+        "scenarios": [
+          {
+            "id": "assertion",
+            "title": "Reject a reordered source",
+            "dimension": "behavior",
+            "summary": "Rejects stale row identity after reorder and addresses duplicate rows.",
+            "status": "tested",
+            "flows": [
+              "source"
+            ],
+            "evidence": [
+              "source-edit"
+            ],
+            "limit": "Backend source mutation path."
+          }
+        ]
+      },
+      {
+        "id": "conversation",
+        "title": "Revalidate scope and conversation",
+        "area": "Roadmap verification",
+        "summary": "Checks scoped action revalidation and stale conversation choice handling.",
+        "scenarios": [
+          {
+            "id": "assertion",
+            "title": "Revalidate scope and conversation",
+            "dimension": "behavior",
+            "summary": "Checks scoped action revalidation and stale conversation choice handling.",
+            "status": "tested",
+            "flows": [
+              "resume"
+            ],
+            "evidence": [
+              "conversation"
+            ],
+            "limit": "Controlled backend session fixture."
+          }
+        ]
+      },
+      {
+        "id": "center-history",
+        "title": "Render retained reports after reconstruction",
+        "area": "Roadmap verification",
+        "summary": "Reads a retained report through a reconstructed manager and coordinator.",
+        "scenarios": [
+          {
+            "id": "assertion",
+            "title": "Render retained reports after reconstruction",
+            "dimension": "behavior",
+            "summary": "Reads a retained report through a reconstructed manager and coordinator.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-history"
+            ],
+            "limit": "Exercises backend/UI seam without rendering a live terminal restart."
+          }
+        ]
+      },
+      {
+        "id": "center-switch",
+        "title": "Reject late center reads",
+        "area": "Roadmap verification",
+        "summary": "Changes selection during a read and checks stale data cannot populate the new center.",
+        "scenarios": [
+          {
+            "id": "assertion",
+            "title": "Reject late center reads",
+            "dimension": "behavior",
+            "summary": "Changes selection during a read and checks stale data cannot populate the new center.",
+            "status": "tested",
+            "flows": [
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-switch"
+            ],
+            "limit": "Controlled coordinator timing."
+          }
+        ]
+      },
+      {
+        "id": "pty-detach",
+        "title": "Restore terminal after detach",
+        "area": "Roadmap verification",
+        "summary": "Checks resize, legacy and Kitty detach, and equality of terminal state before and after.",
+        "scenarios": [
+          {
+            "id": "assertion",
+            "title": "Restore terminal after detach",
+            "dimension": "interaction",
+            "summary": "Checks resize, legacy and Kitty detach, and equality of terminal state before and after.",
+            "status": "tested",
+            "flows": [
+              "attach"
+            ],
+            "evidence": [
+              "pty-detach"
+            ],
+            "limit": "Linux PTY fixture."
+          }
+        ]
+      },
+      {
+        "id": "pty-split",
+        "title": "Keep a split detach sequence local",
+        "area": "Roadmap verification",
+        "summary": "Feeds the detach bytes in two reads and checks that only preceding ordinary bytes were forwarded.",
+        "scenarios": [
+          {
+            "id": "assertion",
+            "title": "Keep a split detach sequence local",
+            "dimension": "interaction",
+            "summary": "Feeds the detach bytes in two reads and checks that only preceding ordinary bytes were forwarded.",
+            "status": "tested",
+            "flows": [
+              "attach"
+            ],
+            "evidence": [
+              "pty-split"
+            ],
+            "limit": "Deterministic decoder test. The full binary run corroborates the behavior."
+          }
+        ]
+      },
+      {
+        "id": "missing-attach",
+        "title": "Close an obsolete attachment",
+        "area": "Roadmap verification",
+        "summary": "Checks immediate close and rejection after full and sessions-only refresh confirm absence.",
+        "scenarios": [
+          {
+            "id": "assertion",
+            "title": "Close an obsolete attachment",
+            "dimension": "behavior",
+            "summary": "Checks immediate close and rejection after full and sessions-only refresh confirm absence.",
+            "status": "tested",
+            "flows": [
+              "attach-disposal"
+            ],
+            "evidence": [
+              "missing-attach"
+            ],
+            "limit": "Coordinator fixture with controlled ownership."
+          }
+        ]
+      },
+      {
+        "id": "mcp-scope",
+        "title": "Keep dashboard scope through HTTP",
+        "area": "Roadmap verification",
+        "summary": "Exercises dashboard scope through the MCP server transport.",
+        "scenarios": [
+          {
+            "id": "assertion",
+            "title": "Keep dashboard scope through HTTP",
+            "dimension": "behavior",
+            "summary": "Exercises dashboard scope through the MCP server transport.",
+            "status": "tested",
+            "flows": [
+              "control"
+            ],
+            "evidence": [
+              "mcp-scope"
+            ],
+            "limit": "Local transport and test identities."
+          }
+        ]
+      },
+      {
+        "id": "delete",
+        "title": "Retain deletion progress after read failure",
+        "area": "Roadmap verification",
+        "summary": "Checks execution progress stays visible when a subsequent status read fails.",
+        "scenarios": [
+          {
+            "id": "assertion",
+            "title": "Retain deletion progress after read failure",
+            "dimension": "behavior",
+            "summary": "Checks execution progress stays visible when a subsequent status read fails.",
+            "status": "tested",
+            "flows": [
+              "deletion-outcomes"
+            ],
+            "evidence": [
+              "delete"
+            ],
+            "limit": "Coordinator and view fixture."
+          }
+        ]
+      },
+      {
+        "id": "runtime-gaps",
+        "title": "Runtime coverage gaps",
+        "area": "Verification limits",
+        "summary": "The budget-limited recall and verification beyond Linux remain open.",
+        "scenarios": [
+          {
+            "id": "platform",
+            "title": "Terminal behavior outside Linux",
+            "dimension": "interaction",
+            "summary": "Run native lifecycle and terminal restoration on other supported host platforms.",
+            "status": "unassessed",
+            "flows": [
+              "attach",
+              "resize"
+            ],
+            "limit": "All captured runtime evidence is from Linux."
+          }
+        ]
+      },
+      {
+        "id": "codex-token-free",
+        "title": "Codex startup and session lifecycle",
+        "area": "Linux terminal E2E",
+        "summary": "Real Codex CLI in a disposable workspace with a dummy credential and loopback model endpoint. The terminal harness never submits a prompt.",
+        "scenarios": [
+          {
+            "id": "idle-attach",
+            "title": "Launch, name and reattach to Codex",
+            "dimension": "interaction",
+            "summary": "Ctrl+K returns to the dashboard. Reattach keeps the created process and session selected.",
+            "status": "tested",
+            "flows": [
+              "launch-focus",
+              "attach"
+            ],
+            "evidence": [
+              "tui-codex",
+              "tui-launch-focus"
+            ],
+            "captures": [
+              "tui-codex-attached",
+              "tui-codex-dashboard",
+              "tui-codex-reattached"
+            ],
+            "limit": "No prompt was submitted."
+          },
+          {
+            "id": "resize",
+            "title": "Reject undersized terminal and recover",
+            "dimension": "layout",
+            "summary": "At 60×20, the size warning appears. Returning to 120×40 restores the dashboard.",
+            "status": "tested",
+            "flows": [
+              "resize"
+            ],
+            "evidence": [
+              "tui-codex"
+            ],
+            "captures": [
+              "tui-codex-minimum-size"
+            ],
+            "limit": "Checks two terminal sizes on Linux."
+          },
+          {
+            "id": "workspace-refresh",
+            "title": "Refresh non-Git workspace facts",
+            "dimension": "behavior",
+            "summary": "A new file appears in the center after the initial directory listing.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "tui-codex"
+            ],
+            "captures": [
+              "tui-codex-workspace-initial",
+              "tui-codex-workspace-updated"
+            ],
+            "limit": "Uses the actual Codex workspace and waits for the live refresh."
+          },
+          {
+            "id": "stop-relaunch",
+            "title": "Relaunch the stopped Codex session",
+            "dimension": "interaction",
+            "summary": "The same Kankuro session ID and working directory acquire a new Codex PID.",
+            "status": "tested",
+            "flows": [
+              "stop-delete",
+              "resume"
+            ],
+            "evidence": [
+              "tui-codex"
+            ],
+            "captures": [
+              "tui-codex-stopped",
+              "tui-codex-relaunched"
+            ],
+            "limit": "Relaunch uses a new conversation. Native conversation recall is separate."
+          },
+          {
+            "id": "report-restart",
+            "title": "Reconstruct the selected session’s authored report",
+            "dimension": "behavior",
+            "summary": "The selected author has a seeded report after Codex relaunch and Kankuro restart.",
+            "status": "tested",
+            "flows": [
+              "preview",
+              "center-recovery"
+            ],
+            "evidence": [
+              "tui-codex"
+            ],
+            "captures": [
+              "tui-codex-report-after-relaunch",
+              "tui-codex-restart-report"
+            ],
+            "limit": "Seeded a report through the real store. No live report tool call was made."
+          },
+          {
+            "id": "git-refresh",
+            "title": "Refresh clean and changed Git state",
+            "dimension": "behavior",
+            "summary": "The center shows a clean tree, then an untracked file after it is created.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "tui-codex-git"
+            ],
+            "captures": [
+              "tui-codex-git-workspace-initial",
+              "tui-codex-git-workspace-updated"
+            ],
+            "limit": "The live terminal checks an untracked file. Rename and malformed Git parsing remain backend assertions."
+          },
+          {
+            "id": "report-relaunch",
+            "title": "Preserve reports through Codex relaunch",
+            "dimension": "behavior",
+            "summary": "The same stopped report author starts a new Codex process. Its existing report remains visible after detach and Kankuro restart.",
+            "status": "tested",
+            "flows": [
+              "preview",
+              "resume"
+            ],
+            "evidence": [
+              "tui-codex-git"
+            ],
+            "captures": [
+              "tui-codex-git-report-after-relaunch",
+              "tui-codex-git-restart-report"
+            ],
+            "limit": "A previous report is seeded and retained by session ID. No model was used to author a new report."
+          }
+        ]
+      },
+      {
+        "id": "mcp-terminal-registry",
+        "title": "MCP configuration screens",
+        "area": "Linux terminal E2E",
+        "summary": "The project’s model-free tui-test journey drives the registry screens and checks persistence.",
+        "scenarios": [
+          {
+            "id": "registry-edit",
+            "title": "Create and edit a custom MCP",
+            "dimension": "interaction",
+            "summary": "The custom MCP is created, renamed and retains its command.",
+            "status": "tested",
+            "flows": [
+              "mcp",
+              "mcp-open"
+            ],
+            "evidence": [
+              "tui-mcp"
+            ],
+            "captures": [
+              "tui-mcp-list",
+              "tui-mcp-new",
+              "tui-mcp-edit",
+              "tui-mcp-edited-list"
+            ],
+            "limit": "Uses a placeholder command and never starts it."
+          },
+          {
+            "id": "registry-delete",
+            "title": "Cancel and confirm MCP deletion",
+            "dimension": "interaction",
+            "summary": "Cancel retains the custom entry. Confirmation removes it and preserves the protected built-in.",
+            "status": "tested",
+            "flows": [
+              "mcp-delete"
+            ],
+            "evidence": [
+              "tui-mcp"
+            ],
+            "captures": [
+              "tui-mcp-confirm",
+              "tui-mcp-deleted"
+            ],
+            "limit": "Tests one custom server and the built-in at 80×24."
+          }
+        ]
+      },
+      {
+        "id": "luna-model-journey",
+        "title": "Live Codex Luna registration, reporting and recall",
+        "area": "Linux terminal E2E",
+        "summary": "The opt-in token-usage journey exercises the real Codex CLI with GPT-6 Luna and an authenticated local Kankuro MCP.",
+        "scenarios": [
+          {
+            "id": "registration",
+            "title": "Register the actual Codex conversation",
+            "dimension": "behavior",
+            "summary": "Kankuro persisted a named Codex binding for the selected session. The rollout recorded the first completed turn.",
+            "status": "tested",
+            "flows": [
+              "registration"
+            ],
+            "evidence": [
+              "tui-luna"
+            ],
+            "limit": "One real Luna conversation. Relaunch with the saved binding remains unverified."
+          },
+          {
+            "id": "live-report",
+            "title": "Show an authored progress report in the center",
+            "dimension": "interaction",
+            "summary": "The first live progress report replaced the workspace directory view. MCP verified the report text, kind, correlation and author.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "tui-luna"
+            ],
+            "captures": [
+              "tui-luna-workspace-before-report",
+              "tui-luna-live-report"
+            ],
+            "limit": "One first report on Linux. The run ended before stop or relaunch."
+          },
+          {
+            "id": "recall",
+            "title": "Resume and recall context",
+            "dimension": "interaction",
+            "summary": "Choose the real saved conversation after stopping Codex and verify recall of the code from its earlier turn.",
+            "status": "partial",
+            "flows": [
+              "resume",
+              "attach"
+            ],
+            "evidence": [
+              "tui-luna"
+            ],
+            "limit": "The binding was persisted. The first turn exceeded the 60,000 total input threshold, so this run ended before resume and recall.",
+            "priority": "First",
+            "suggestion": "Bound model requests between tool exchanges and capture sanitized per-request usage before another live run.",
+            "reason": "One interactive turn used 129,209 input tokens before the total check could stop the test.",
+            "captures": [
+              "tui-luna-input-overage"
+            ]
+          }
+        ]
+      },
       {
         "id": "configuration-startup",
         "title": "Configuration startup",
@@ -8461,6 +9326,23 @@ window.APPEDIA_CONTENT = {
               "exclusive-lock"
             ],
             "limit": "Same-process lock contention on Linux; no cross-platform or subprocess assertion."
+          },
+          {
+            "id": "puppet-sync-order",
+            "title": "Finish puppet sync before loading the dashboard",
+            "dimension": "behavior",
+            "summary": "Read the first registry baseline after the puppet registry is ready. A missing source is a warning and the dashboard still opens with valid artwork.",
+            "status": "tested",
+            "flows": [
+              "startup",
+              "tick"
+            ],
+            "evidence": [
+              "startup-puppet-ordered",
+              "startup-puppet-terminal",
+              "refresh-token-retry"
+            ],
+            "limit": "Linux terminal observation and targeted unit assertions. Source latency was not measured."
           }
         ]
       },
@@ -8488,14 +9370,15 @@ window.APPEDIA_CONTENT = {
               "refs": [
                 "views.DashboardList.Update",
                 "views.DashboardList.updateForm",
-                "app.Coordinator.dashboardListCallbacks",
+                "ui.Coordinator.dashboardListCallbacks",
                 "api.Service.CreateDashboard",
                 "config.FileRepository.UpdateDashboardDetails"
               ]
             },
             "suggestion": "Select a dashboard, edit with e, save and reorder/refresh inventory; assert name/description, immutable selected ID and scoped completion.",
             "priority": "Next",
-            "reason": "Name sorting changes can move the cursor to a different dashboard even when saved IDs remain valid."
+            "reason": "Name sorting changes can move the cursor to a different dashboard even when saved IDs remain valid.",
+            "previousStatus": "partial"
           },
           {
             "id": "list-errors",
@@ -8514,11 +9397,12 @@ window.APPEDIA_CONTENT = {
             "sources": {
               "refs": [
                 "views.DashboardList.Update",
-                "app.Coordinator.dashboardListCallbacks",
+                "ui.Coordinator.dashboardListCallbacks",
                 "api.Service.GetDashboardDeletion",
                 "views.DashboardList.View"
               ]
-            }
+            },
+            "previousStatus": "tested"
           }
         ]
       },
@@ -8544,7 +9428,8 @@ window.APPEDIA_CONTENT = {
             "evidence": [
               "read-dashboard-data-scopes-cards-and-sessions"
             ],
-            "limit": "Service/repository/manager fixture with cat processes; no keyboard or MCP transport assertions."
+            "limit": "Service/repository/manager fixture with cat processes; no keyboard or MCP transport assertions.",
+            "previousStatus": "tested"
           },
           {
             "id": "revalidate-launch",
@@ -8558,7 +9443,8 @@ window.APPEDIA_CONTENT = {
             "evidence": [
               "scoped-launch-revalidates-changed-card-before-publication"
             ],
-            "limit": "Injected workspace-copy gate; does not simulate every registry mutation."
+            "limit": "Injected workspace-copy gate; does not simulate every registry mutation.",
+            "previousStatus": "tested"
           }
         ]
       },
@@ -8613,7 +9499,8 @@ window.APPEDIA_CONTENT = {
             "evidence": [
               "confirmed-card-deletion-cancels-foreign-pending-launch"
             ],
-            "limit": "Controlled copier and service entry points; no confirmation-modal rendering."
+            "limit": "Controlled copier and service entry points; no confirmation-modal rendering.",
+            "previousStatus": "tested"
           },
           {
             "id": "restart-cascade",
@@ -8651,7 +9538,8 @@ window.APPEDIA_CONTENT = {
                 "api.Service.cleanupCardPending",
                 "session.Manager.RemoveResidual"
               ]
-            }
+            },
+            "previousStatus": "tested"
           }
         ]
       },
@@ -8665,7 +9553,7 @@ window.APPEDIA_CONTENT = {
             "id": "stale-results",
             "title": "Discard results from a previously opened dashboard",
             "dimension": "behavior",
-            "summary": "Checks foreign preview rejection, stale refresh/navigation/attach isolation, current cards/sessions and restoration of the original view instance.",
+            "summary": "Checks foreign center rejection, stale refresh/navigation/attach isolation, current cards/sessions and restoration of the original view instance.",
             "status": "tested",
             "flows": [
               "tick",
@@ -8676,7 +9564,8 @@ window.APPEDIA_CONTENT = {
             "evidence": [
               "multi-dashboard-discards-stale-results-and-preserves-views"
             ],
-            "limit": "Drives coordinator messages directly with real local cat sessions; not an end-to-end terminal journey."
+            "limit": "Drives coordinator messages directly with real local cat sessions; not an end-to-end terminal journey.",
+            "previousStatus": "tested"
           },
           {
             "id": "fingerprints",
@@ -8690,7 +9579,8 @@ window.APPEDIA_CONTENT = {
             "evidence": [
               "maybe-refresh-config-skips-unchanged-registry"
             ],
-            "limit": "Counting repository fixture; does not establish every filesystem timestamp boundary."
+            "limit": "Counting repository fixture; does not establish every filesystem timestamp boundary.",
+            "previousStatus": "tested"
           }
         ]
       },
@@ -8756,7 +9646,7 @@ window.APPEDIA_CONTENT = {
             "id": "preserve-fields",
             "title": "Edit a name without losing other card fields",
             "dimension": "behavior",
-            "summary": "Seeds every card field with nonzero data, edits Name, and compares the entire returned card with the expected overlay.",
+            "summary": "Saves a name-only draft through the editor service, compares every other persisted field apart from UpdatedAt, and rejects a stale revision.",
             "status": "tested",
             "flows": [
               "editcard",
@@ -8765,21 +9655,23 @@ window.APPEDIA_CONTENT = {
             "evidence": [
               "card-editor-preserves-unmanaged-fields"
             ],
-            "limit": "Editor model round trip; repository persistence and read-only consumer policy are assessed elsewhere."
+            "limit": "Service and repository assertions. The UI draft is covered separately.",
+            "previousStatus": "tested"
           },
           {
             "id": "control-toggle",
             "title": "Round-trip Dashboard Control through Space",
             "dimension": "interaction",
             "summary": "Focuses the control row, toggles off/on and checks Card().DashboardControl.",
-            "status": "tested",
+            "status": "unassessed",
             "flows": [
               "savecard"
             ],
             "evidence": [
               "dashboard-control-card-editor-toggle-round-trip"
             ],
-            "limit": "Does not prove deployed activation authority or MCP permission changes."
+            "limit": "Does not prove deployed activation authority or MCP permission changes. The changed test source needs a fresh assertion review.",
+            "previousStatus": "tested"
           },
           {
             "id": "focused-field",
@@ -8793,7 +9685,8 @@ window.APPEDIA_CONTENT = {
             "evidence": [
               "card-editor-focused-field-always-visible"
             ],
-            "limit": "Rendered text and model focus; no screenshot, native terminal or image baseline."
+            "limit": "Rendered text and model focus; no screenshot, native terminal or image baseline.",
+            "previousStatus": "tested"
           },
           {
             "id": "skill-filter",
@@ -8819,7 +9712,8 @@ window.APPEDIA_CONTENT = {
             },
             "suggestion": "Send Ctrl+S on Skills and outside Skills; check header, search subset, saved selections and second-toggle restoration.",
             "priority": "Next",
-            "reason": "SetSelectedOnly coverage alone cannot detect a broken keyboard binding."
+            "reason": "SetSelectedOnly coverage alone cannot detect a broken keyboard binding.",
+            "previousStatus": "partial"
           },
           {
             "id": "temporary-toggle",
@@ -8839,9 +9733,10 @@ window.APPEDIA_CONTENT = {
                 "views.CardEditor.handleSpace",
                 "views.CardEditor.renderTmpWorkspaceLine",
                 "views.CardEditor.handleSubmit",
-                "views.CardEditor.Card"
+                "views.CardEditor.Draft"
               ]
-            }
+            },
+            "previousStatus": "tested"
           }
         ]
       },
@@ -8863,7 +9758,8 @@ window.APPEDIA_CONTENT = {
             "evidence": [
               "ctrl-x-clears-only-sub-workspace-selection"
             ],
-            "limit": "In-memory editor; filesystem copies and registry writes are outside this test."
+            "limit": "In-memory editor; filesystem copies and registry writes are outside this test.",
+            "previousStatus": "tested"
           },
           {
             "id": "sub-picker",
@@ -8886,7 +9782,8 @@ window.APPEDIA_CONTENT = {
                 "views.WorkspacePickerModal.rebuildList",
                 "views.WorkspacePickerModal.Update"
               ]
-            }
+            },
+            "previousStatus": "tested"
           },
           {
             "id": "picker-refresh",
@@ -8903,13 +9800,14 @@ window.APPEDIA_CONTENT = {
             "limit": "Controlled DataLoadedMsg refreshes in the model; no screenshot or source-registry race claim.",
             "sources": {
               "refs": [
-                "views.CardEditor.SetData",
+                "views.CardEditor.SetChoices",
                 "views.WorkspacePickerModal.SetWorkspaces",
                 "views.WorkspacePickerModal.rememberWorkspace",
                 "views.WorkspacePickerModal.filterWorkspaces",
                 "views.WorkspacePickerModal.refreshItems"
               ]
-            }
+            },
+            "previousStatus": "tested"
           }
         ]
       },
@@ -8920,26 +9818,11 @@ window.APPEDIA_CONTENT = {
         "summary": "Preserve loaded editor state, manage workspace sources and report synchronization failures.",
         "scenarios": [
           {
-            "id": "preview-broadcast",
-            "title": "Preserve skills when queued preview output arrives",
-            "dimension": "behavior",
-            "summary": "Asserts a loaded builtin skill selection survives an injected preview/output message while the editor is open.",
-            "status": "tested",
-            "flows": [
-              "preview",
-              "mutation"
-            ],
-            "evidence": [
-              "partial-preview-broadcast-does-not-wipe-card-editor"
-            ],
-            "limit": "Deliberately re-arms a subscription to model late messages; does not prove normal editor preview subscription behavior."
-          },
-          {
             "id": "sync-warning",
             "title": "Warn and refresh after a saved source fails to sync",
             "dimension": "behavior",
             "summary": "Checks emitted sync error, refresh request and durable saved source path despite failed scanning.",
-            "status": "tested",
+            "status": "unassessed",
             "flows": [
               "source",
               "mutation"
@@ -8947,13 +9830,14 @@ window.APPEDIA_CONTENT = {
             "evidence": [
               "save-simple-source-surfaces-sync-failure"
             ],
-            "limit": "One missing skill-source path through callbacks; no full source-manager UI journey."
+            "limit": "One missing skill-source path through callbacks; no full source-manager UI journey. The changed test source needs a fresh assertion review.",
+            "previousStatus": "tested"
           },
           {
             "id": "workspace-sources",
             "title": "Visit workspace sources and return to the unsaved card",
             "dimension": "interaction",
-            "summary": "Repository callbacks preserve workspace-source identity and reject malformed registry mutations. Search reviewed: internal/ui/views/{card_editor*,workspace_picker*,source_manager*}_test.go and internal/app/{navigation,integration,source_save,source_sync_warning}_test.go; Ctrl+E/OnOpenWorkspaces call sites.",
+            "summary": "Repository callbacks preserve workspace-source identity and reject malformed registry mutations. Search reviewed: internal/ui/views/{card_editor*,workspace_picker*,source_manager*}_test.go and internal/ui/{navigation,integration,source_save,source_sync_warning}_test.go; Ctrl+E/OnOpenWorkspaces call sites.",
             "status": "partial",
             "flows": [
               "workspace-sources"
@@ -8963,26 +9847,27 @@ window.APPEDIA_CONTENT = {
               "save-workspace-source-aborts-on-malformed-registry",
               "delete-workspace-source-aborts-on-malformed-registry"
             ],
-            "limit": "Searched editor/navigation/source tests: no direct assertion of Ctrl+E from both Workspace/Sub Workspaces, source edit, Esc return and preservation of the unsaved card was found.",
+            "limit": "Searched editor/navigation/source tests: no direct assertion of Ctrl+E from both Workspace/Sub Workspaces, source edit, Esc return and preservation of the unsaved card was found. The changed test source needs a fresh assertion review.",
             "sources": {
               "refs": [
                 "views.CardEditor.handleCtrlE",
-                "app.Coordinator.cardEditorCallbacks",
-                "app.Coordinator.navigateTo",
+                "ui.Coordinator.cardEditorCallbacks",
+                "ui.Coordinator.navigateTo",
                 "views.SourceManager.Update",
                 "config.FileRepository.UpdateWorkspaceSources"
               ]
             },
             "suggestion": "Drive Ctrl+E from each workspace field, save a source, return with Esc and compare the unsaved card/focus.",
             "priority": "Next",
-            "reason": "Cross-view refresh can overwrite unsaved editor state even when repository callbacks work."
+            "reason": "Cross-view refresh can overwrite unsaved editor state even when repository callbacks work.",
+            "previousStatus": "partial"
           },
           {
             "id": "source-crud",
             "title": "Create, edit and delete source rows through keys",
             "dimension": "interaction",
             "summary": "Successful callback/reload transitions and synchronous/asynchronous deletion errors have concrete assertions.",
-            "status": "tested",
+            "status": "partial",
             "flows": [
               "source",
               "mutation"
@@ -8992,14 +9877,15 @@ window.APPEDIA_CONTENT = {
               "source-list-delete-error",
               "source-manager-delete-error"
             ],
-            "limit": "Component/callback fixtures; full source persistence and unsaved-editor return are separate boundaries."
+            "limit": "Component/callback fixtures; full source persistence and unsaved-editor return are separate boundaries. The changed test source needs a fresh assertion review.",
+            "previousStatus": "tested"
           },
           {
             "id": "destination-refresh",
             "title": "Apply source and card refreshes to actual views",
             "dimension": "behavior",
             "summary": "Nonempty persisted data is delivered to source lists and dashboard cards; updates and removals cannot be satisfied by repository-only assertions.",
-            "status": "tested",
+            "status": "partial",
             "flows": [
               "mutation",
               "source"
@@ -9008,7 +9894,8 @@ window.APPEDIA_CONTENT = {
               "source-refresh-destination",
               "card-refresh-destination"
             ],
-            "limit": "In-process coordinator views; not every registry or external filesystem change."
+            "limit": "In-process coordinator views; not every registry or external filesystem change. The changed test source needs a fresh assertion review.",
+            "previousStatus": "tested"
           },
           {
             "id": "corrupt-registry",
@@ -9023,20 +9910,6 @@ window.APPEDIA_CONTENT = {
               "isolated-registry-corruption"
             ],
             "limit": "Repository card validation; no TUI save error journey."
-          },
-          {
-            "id": "preview-sanitization",
-            "title": "Preserve preview text while removing control effects",
-            "dimension": "behavior",
-            "summary": "Rendering retains concrete output and rejects OSC title/Kitty control payloads.",
-            "status": "tested",
-            "flows": [
-              "preview"
-            ],
-            "evidence": [
-              "preview-sanitization-contract"
-            ],
-            "limit": "Styled component output, not native-terminal appearance."
           },
           {
             "id": "blank-canvas",
@@ -9077,19 +9950,20 @@ window.APPEDIA_CONTENT = {
               "terminal-launch-through-dashboard",
               "settings-save-failure-visible"
             ],
-            "limit": "Failed save composition is now directly asserted. No single successful key→durable YAML→refreshed editor visibility→return-navigation journey is asserted.",
+            "limit": "Failed save composition is now directly asserted. No single successful key→durable YAML→refreshed editor visibility→return-navigation journey is asserted. The changed test source needs a fresh assertion review.",
             "sources": {
               "refs": [
                 "views.SettingsView.handleEditEnter",
-                "app.Coordinator.settingsCallbacks",
+                "ui.Coordinator.settingsCallbacks",
                 "config.FileRepository.SaveAppSettings",
                 "config.AppSettings",
-                "app.Coordinator.handleSpecialMessages"
+                "ui.Coordinator.handleSpecialMessages"
               ]
             },
             "suggestion": "Add a successful coordinator save journey checking durable YAML, editor visibility refresh and dashboard return.",
             "priority": "First",
-            "reason": "The reported error test never executes its error command; failed persistence must not look like a successful save."
+            "reason": "The reported error test never executes its error command; failed persistence must not look like a successful save.",
+            "previousStatus": "partial"
           },
           {
             "id": "settings-edit",
@@ -9114,7 +9988,8 @@ window.APPEDIA_CONTENT = {
                 "views.SettingsView.updateEdit",
                 "views.SettingsView.syncFocus"
               ]
-            }
+            },
+            "previousStatus": "tested"
           },
           {
             "id": "settings-layout",
@@ -9138,7 +10013,8 @@ window.APPEDIA_CONTENT = {
                 "views.SettingsView.updateEdit",
                 "views.SettingsView.syncFocus"
               ]
-            }
+            },
+            "previousStatus": "tested"
           }
         ]
       },
@@ -9153,14 +10029,15 @@ window.APPEDIA_CONTENT = {
             "title": "Submit every loaded field without loss",
             "dimension": "interaction",
             "summary": "Presses Enter and asserts one save with exact ID/name/command/args/CWD/URL/env/headers, including an argument containing a comma.",
-            "status": "tested",
+            "status": "unassessed",
             "flows": [
               "mcp"
             ],
             "evidence": [
               "m-c-p-form-round-trips-every-field"
             ],
-            "limit": "Callback payload only; does not connect to that server or persist the configuration."
+            "limit": "Callback payload only; does not connect to that server or persist the configuration. The changed test source needs a fresh assertion review.",
+            "previousStatus": "tested"
           }
         ]
       },
@@ -9184,26 +10061,27 @@ window.APPEDIA_CONTENT = {
               "launch-workspace-command-executes-in-workspace",
               "terminal-launch-reports-configuration-and-lookup-errors"
             ],
-            "limit": "No retained test drives a successful o command through the coordinator and asserts the actual IDE child cwd/argv. The real child test covers the common launcher, and the IDE callback is directly tested for missing configuration.",
+            "limit": "No retained test drives a successful o command through the coordinator and asserts the actual IDE child cwd/argv. The real child test covers the common launcher, and the IDE callback is directly tested for missing configuration. The changed test source needs a fresh assertion review.",
             "sources": {
               "refs": [
                 "views.Dashboard.handleKey",
                 "views.Dashboard.handleLaunchSession",
-                "app.Coordinator.launchIDE",
-                "app.sessionActions.launchIDE",
+                "ui.Coordinator.launchIDE",
+                "ui.sessionActions.launchWorkspace",
                 "api.Service.CheckSessionInDashboard"
               ]
             },
             "suggestion": "Drive o with an isolated helper executable configured as IDECommand and assert the child cwd/argv and scoped completion.",
             "priority": "Next",
-            "reason": "Terminal and IDE settings are independent; shared-launcher coverage does not prove successful IDE wiring."
+            "reason": "Terminal and IDE settings are independent; shared-launcher coverage does not prove successful IDE wiring.",
+            "previousStatus": "partial"
           },
           {
             "id": "terminal",
             "title": "Launch a terminal in the actual selected workspace",
             "dimension": "interaction",
             "summary": "A coordinator key journey launches a real helper child in the temporary session workspace and checks its arguments and successful scoped completion.",
-            "status": "tested",
+            "status": "partial",
             "flows": [
               "terminal"
             ],
@@ -9212,23 +10090,24 @@ window.APPEDIA_CONTENT = {
               "dashboard_-launch-terminal-routing",
               "launch-workspace-command-executes-in-workspace"
             ],
-            "limit": "The child is a test executable, not a graphical terminal emulator; only one configured command template is exercised here.",
+            "limit": "The child is a test executable, not a graphical terminal emulator; only one configured command template is exercised here. The changed test source needs a fresh assertion review.",
             "sources": {
               "refs": [
                 "views.Dashboard.handleKey",
                 "views.Dashboard.handleLaunchSession",
-                "app.Coordinator.dashboardCallbacks",
-                "app.Coordinator.launchTerminal",
-                "app.sessionActions.launchTerminal"
+                "ui.Coordinator.dashboardCallbacks",
+                "ui.Coordinator.launchTerminal",
+                "ui.sessionActions.launchWorkspace"
               ]
-            }
+            },
+            "previousStatus": "tested"
           },
           {
             "id": "workspace-command-errors",
             "title": "Report workspace command configuration and spawn failures",
             "dimension": "behavior",
             "summary": "Tests check command/path failures and delivery of a spawn failure to the coordinator error banner.",
-            "status": "tested",
+            "status": "partial",
             "flows": [
               "workspace-command-errors"
             ],
@@ -9236,16 +10115,17 @@ window.APPEDIA_CONTENT = {
               "terminal-launch-reports-configuration-and-lookup-errors",
               "launch-workspace-command-errors"
             ],
-            "limit": "Checks the listed API/callback cases and banner presence; not exact error copy or external app startup errors after exec succeeds.",
+            "limit": "Checks the listed API/callback cases and banner presence; not exact error copy or external app startup errors after exec succeeds. The changed test source needs a fresh assertion review.",
             "sources": {
               "refs": [
                 "api.Service.CheckSessionInDashboard",
-                "app.sessionActions.launchTerminal",
+                "ui.sessionActions.launchWorkspace",
                 "session.LaunchWorkspaceCommand",
                 "messages.ScopedActionFinishedMsg",
-                "app.Coordinator.handleSessionMessages"
+                "ui.Coordinator.handleSessionMessages"
               ]
-            }
+            },
+            "previousStatus": "tested"
           }
         ]
       },
@@ -9260,14 +10140,15 @@ window.APPEDIA_CONTENT = {
             "title": "Submit only compatible bindings",
             "dimension": "interaction",
             "summary": "Checks a matching Claude binding is submitted and a selected Codex binding cannot be submitted to the Claude activation.",
-            "status": "tested",
+            "status": "unassessed",
             "flows": [
               "resume"
             ],
             "evidence": [
               "conversation-choice-requires-explicit-compatible-choice"
             ],
-            "limit": "Picker callback boundary; native CLI resume is outside scope."
+            "limit": "Picker callback boundary; native CLI resume is outside scope. The changed test source needs a fresh assertion review.",
+            "previousStatus": "tested"
           }
         ]
       },
@@ -9307,14 +10188,15 @@ window.APPEDIA_CONTENT = {
             "title": "Launch a process through dashboard input",
             "dimension": "interaction",
             "summary": "Executed dashboard-key commands publish a live cat process and persist its session identity and workspace.",
-            "status": "tested",
+            "status": "unassessed",
             "flows": [
               "launch"
             ],
             "evidence": [
               "dashboard-launch-persisted"
             ],
-            "limit": "Local process and application policy; native-agent behavior is assessed separately."
+            "limit": "Local process and application policy; native-agent behavior is assessed separately. The changed test source needs a fresh assertion review.",
+            "previousStatus": "tested"
           }
         ]
       },
@@ -9456,19 +10338,20 @@ window.APPEDIA_CONTENT = {
               "rename-rename-restart",
               "rename-cancel-draft"
             ],
-            "limit": "Existing-session rename has direct successful refresh/restart and cancellation assertions. A complete dashboard stop/remove journey and raw attachExec detach/terminal restoration remain outside the retained assertions.",
+            "limit": "Existing-session rename has direct successful refresh/restart and cancellation assertions. A complete dashboard stop/remove journey and raw terminal detach and restoration remain outside the retained assertions. The changed test source needs a fresh assertion review.",
             "sources": {
               "refs": [
-                "app.Coordinator.requestAttach",
+                "ui.Coordinator.requestAttach",
                 "api.Service.AttachInDashboard",
                 "session.Manager.AttachChecked",
-                "app.Coordinator.handleSessionMessages",
-                "api.Service.RenameInDashboard"
+                "ui.Coordinator.handleSessionMessages",
+                "api.Service.RenameDashboardSession"
               ]
             },
             "suggestion": "Drive stop/remove through the coordinator and assert removal effects; add a project-owned terminal detach/restoration journey.",
             "priority": "First",
-            "reason": "Scoped asynchronous actions and raw attachment cross ownership and terminal-state boundaries."
+            "reason": "Scoped asynchronous actions and raw attachment cross ownership and terminal-state boundaries.",
+            "previousStatus": "partial"
           },
           {
             "id": "stop-delete",
@@ -9845,13 +10728,15 @@ window.APPEDIA_CONTENT = {
               "native-agent-terminal-journey",
               "m-c-p-c-l-i-registers-conversation-for-live-activation",
               "claude-resume-lifecycle-uses-selected-native-i-d",
-              "session-attach-replay"
+              "session-attach-replay",
+              "tui-luna",
+              "tui-codex"
             ],
-            "limit": "Single OpenCode 2.2.6/OpenRouter run; no other CLI/provider or image baseline comparison. Failure at register; later journey checkpoints remain unverified. Free Models Router may choose different backing models; responsiveness does not establish tool execution.",
+            "limit": "Single OpenCode 2.2.6/OpenRouter run; no other CLI/provider or image baseline comparison. Failure at register; later journey checkpoints remain unverified. Free Models Router may choose different backing models; responsiveness does not establish tool execution. The separate current Codex runs verify idle lifecycle, live registration and report takeover. Live recall remains open.",
             "sources": {
               "refs": [
-                "app.Coordinator.launchCard",
-                "api.Service.LaunchInDashboard",
+                "ui.Coordinator.launchCard",
+                "api.Service.LaunchSession",
                 "session.Manager.ReserveCardReferenceForDashboardWithCancel",
                 "session.Manager.LaunchInDashboardWithIDContext",
                 "session.Manager.bindPendingWorkspace"
@@ -9910,10 +10795,10 @@ window.APPEDIA_CONTENT = {
             "limit": "Spawn is overridden; these are actual manager lifecycle and argument assertions, not a native CLI run.",
             "sources": {
               "refs": [
-                "app.Coordinator.requestRelaunch",
+                "ui.Coordinator.requestRelaunch",
                 "session.Manager.GetSession",
                 "views.ConversationChoiceView.SetContext",
-                "app.Coordinator.conversationChoiceCallbacks",
+                "ui.Coordinator.conversationChoiceCallbacks",
                 "api.Service.SwitchInDashboard"
               ]
             }
@@ -9933,11 +10818,11 @@ window.APPEDIA_CONTENT = {
             "limit": "Does not exercise attachExec terminal mode, Ctrl+K or SIGWINCH.",
             "sources": {
               "refs": [
-                "app.Coordinator.requestAttach",
+                "ui.Coordinator.requestAttach",
                 "api.Service.AttachInDashboard",
                 "session.Manager.AttachChecked",
-                "app.Coordinator.handleSessionMessages",
-                "app.scopedAttachCommand"
+                "ui.Coordinator.handleSessionMessages",
+                "ui.scopedAttachCommand"
               ]
             }
           }
@@ -9951,12 +10836,12 @@ window.APPEDIA_CONTENT = {
         "sources": {
           "refs": [
             "views.Dashboard.handleEdit",
-            "app.Coordinator.renameDashboardSession"
+            "ui.Coordinator.renameDashboardSession"
           ],
           "files": [
             "internal/ui/views/dashboard.go",
-            "internal/app/callbacks.go",
-            "internal/app/coordinator.go"
+            "internal/ui/callbacks.go",
+            "internal/ui/coordinator.go"
           ]
         },
         "scenarios": [
@@ -9964,43 +10849,46 @@ window.APPEDIA_CONTENT = {
             "id": "draft-retry",
             "title": "Edit a stable draft and retry a failure",
             "dimension": "interaction",
-            "status": "tested",
+            "status": "unassessed",
             "evidence": [
               "rename-draft"
             ],
-            "limit": "Stub callback; no filesystem or full cancellation journey.",
+            "limit": "Stub callback; no filesystem or full cancellation journey. The changed test source needs a fresh assertion review.",
             "flows": [
               "rename-edit"
             ],
-            "summary": "Captured target, normalized Unicode input, draft survives refresh, duplicate suppression, retry after error."
+            "summary": "Captured target, normalized Unicode input, draft survives refresh, duplicate suppression, retry after error.",
+            "previousStatus": "tested"
           },
           {
             "id": "blank-name",
             "title": "Blank name falls back to session ID",
             "dimension": "behavior",
-            "status": "tested",
+            "status": "unassessed",
             "evidence": [
               "rename-blank"
             ],
-            "limit": "Does not prove empty sessions-pane behavior.",
+            "limit": "Does not prove empty sessions-pane behavior. The changed test source needs a fresh assertion review.",
             "flows": [
               "rename-save"
             ],
-            "summary": "Blank input submits the session ID."
+            "summary": "Blank input submits the session ID.",
+            "previousStatus": "tested"
           },
           {
             "id": "stale-result",
             "title": "Reject stale generation and retain save error",
             "dimension": "behavior",
-            "status": "tested",
+            "status": "unassessed",
             "evidence": [
               "rename-scoped"
             ],
-            "limit": "Missing target fixture; success and stale dashboard ID are not directly asserted.",
+            "limit": "Missing target fixture; success and stale dashboard ID are not directly asserted. The changed test source needs a fresh assertion review.",
             "flows": [
               "rename-save"
             ],
-            "summary": "Real command error stays in dialog; stale generation leaves pending state intact."
+            "summary": "Real command error stays in dialog; stale generation leaves pending state intact.",
+            "previousStatus": "tested"
           },
           {
             "id": "layout",
@@ -10014,7 +10902,8 @@ window.APPEDIA_CONTENT = {
             "flows": [
               "rename-layout"
             ],
-            "summary": "Long error bounds at 80×24 and 120×40, visible save/cancel controls and scoped rename footer."
+            "summary": "Long error bounds at 80×24 and 120×40, visible save/cancel controls and scoped rename footer.",
+            "previousStatus": "tested"
           },
           {
             "id": "search",
@@ -10028,7 +10917,8 @@ window.APPEDIA_CONTENT = {
             "flows": [
               "rename-edit"
             ],
-            "summary": "Existing search consumes typed t/e/s/t and Esc exits search."
+            "summary": "Existing search consumes typed t/e/s/t and Esc exits search.",
+            "previousStatus": "tested"
           },
           {
             "id": "persist-error",
@@ -10048,29 +10938,31 @@ window.APPEDIA_CONTENT = {
             "id": "launch-naming",
             "title": "Retain separate launch-name retry flow",
             "dimension": "interaction",
-            "status": "tested",
+            "status": "unassessed",
             "evidence": [
               "rename-launcher"
             ],
-            "limit": "Unchanged launcher test does not assert dashboard success avoids attachment.",
+            "limit": "Unchanged launcher test does not assert dashboard success avoids attachment. The changed test source needs a fresh assertion review.",
             "flows": [
               "launch"
             ],
-            "summary": "Existing launcher naming waits for result and permits retry."
+            "summary": "Existing launcher naming waits for result and permits retry.",
+            "previousStatus": "tested"
           },
           {
             "id": "success-restart",
             "title": "Successful dashboard rename survives restart",
             "dimension": "behavior",
-            "status": "tested",
+            "status": "unassessed",
             "evidence": [
               "rename-rename-restart"
             ],
-            "limit": "Local cat process and ordinary coordinator events; no native-agent terminal rendering journey.",
+            "limit": "Local cat process and ordinary coordinator events; no native-agent terminal rendering journey. The changed test source needs a fresh assertion review.",
             "flows": [
               "rename-save"
             ],
-            "summary": "The coordinator saves through the real service, immediately refreshes the selected name without attachment/navigation, preserves the running process and reloads the name after restart."
+            "summary": "The coordinator saves through the real service, immediately refreshes the selected name without attachment/navigation, preserves the running process and reloads the name after restart.",
+            "previousStatus": "tested"
           },
           {
             "id": "cancel",
@@ -10084,7 +10976,8 @@ window.APPEDIA_CONTENT = {
             "flows": [
               "rename-edit"
             ],
-            "summary": "Esc and both dashboard-scope changes discard the draft without invoking save; reopening restores the original name."
+            "summary": "Esc and both dashboard-scope changes discard the draft without invoking save; reopening restores the original name.",
+            "previousStatus": "tested"
           }
         ]
       },
@@ -10096,7 +10989,7 @@ window.APPEDIA_CONTENT = {
         "sources": {
           "refs": [
             "views.MCPManager.Update",
-            "app.Coordinator.handleSpecialMessages"
+            "ui.Coordinator.handleSpecialMessages"
           ],
           "files": [
             "feature-mcpedit.md"
@@ -10116,13 +11009,14 @@ window.APPEDIA_CONTENT = {
               "mcp-navigation"
             ],
             "limit": "In-process keys and messages; no native terminal.",
-            "summary": "Nested cancel navigation"
+            "summary": "Nested cancel navigation",
+            "previousStatus": "tested"
           },
           {
             "id": "edit",
             "title": "Edit metadata and create a clean New record",
             "dimension": "behavior",
-            "status": "tested",
+            "status": "partial",
             "flows": [
               "mcp"
             ],
@@ -10133,14 +11027,15 @@ window.APPEDIA_CONTENT = {
               "mcp-write-failure-retry",
               "mcp-mcp-terminal-journey"
             ],
-            "limit": "Isolated real repository; no restart persistence test.",
-            "summary": "Edit metadata and create a clean New record"
+            "limit": "Isolated real repository; no restart persistence test. The changed test source needs a fresh assertion review.",
+            "summary": "Edit metadata and create a clean New record",
+            "previousStatus": "tested"
           },
           {
             "id": "delete",
             "title": "Delete admission and delayed request recovery",
             "dimension": "interaction",
-            "status": "tested",
+            "status": "partial",
             "flows": [
               "mcp-delete",
               "mcp-stale"
@@ -10153,14 +11048,15 @@ window.APPEDIA_CONTENT = {
               "mcp-write-failure-retry",
               "mcp-mcp-terminal-journey"
             ],
-            "limit": "Same dashboard only; delayed result must not change current view.",
-            "summary": "Delete admission and delayed request recovery"
+            "limit": "Same dashboard only; delayed result must not change current view. The changed test source needs a fresh assertion review.",
+            "summary": "Delete admission and delayed request recovery",
+            "previousStatus": "tested"
           },
           {
             "id": "policy",
             "title": "Protected and referenced definitions remain intact",
             "dimension": "behavior",
-            "status": "tested",
+            "status": "partial",
             "flows": [
               "mcp-delete"
             ],
@@ -10169,14 +11065,15 @@ window.APPEDIA_CONTENT = {
               "mcp-protected",
               "mcp-repository-retained"
             ],
-            "limit": "No injected filesystem write failure or foreign-dashboard reference integration case.",
-            "summary": "Protected and referenced definitions remain intact"
+            "limit": "No injected filesystem write failure or foreign-dashboard reference integration case. The changed test source needs a fresh assertion review.",
+            "summary": "Protected and referenced definitions remain intact",
+            "previousStatus": "tested"
           },
           {
             "id": "bounds",
             "title": "Long list and modal stay within bounds",
             "dimension": "layout",
-            "status": "tested",
+            "status": "unassessed",
             "flows": [
               "mcp-open",
               "mcp-delete"
@@ -10184,13 +11081,14 @@ window.APPEDIA_CONTENT = {
             "evidence": [
               "mcp-long-list"
             ],
-            "limit": "80×22 component bounds; no actual application screenshot or position-baseline comparison.",
+            "limit": "80×22 component bounds; no actual application screenshot or position-baseline comparison. The changed test source needs a fresh assertion review.",
             "summary": "Long list and modal stay within bounds",
             "captures": [
               "mcp-edited-list",
               "mcp-confirm",
               "mcp-deleted"
-            ]
+            ],
+            "previousStatus": "tested"
           },
           {
             "id": "source-reuse",
@@ -10204,7 +11102,8 @@ window.APPEDIA_CONTENT = {
               "mcp-sources-retained"
             ],
             "limit": "Direct component tests only; workspace CRUD covered by suite but not exhaustively assessed here.",
-            "summary": "Existing source-list navigation remains usable"
+            "summary": "Existing source-list navigation remains usable",
+            "previousStatus": "tested"
           },
           {
             "id": "faults",
@@ -10222,7 +11121,8 @@ window.APPEDIA_CONTENT = {
               "mcp-write-failure-retry"
             ],
             "limit": "Deterministic coordinator command delivery with real file storage; ENOSPC injected at the repository boundary. Physical disk fault handling is not claimed.",
-            "summary": "Cross-dashboard delayed command/result and write-error recovery boundaries now have direct Go assertions."
+            "summary": "Cross-dashboard delayed command/result and write-error recovery boundaries now have direct Go assertions.",
+            "previousStatus": "tested"
           },
           {
             "id": "visual",
@@ -10259,78 +11159,82 @@ window.APPEDIA_CONTENT = {
           "refs": [
             "views.Dashboard.FocusSession",
             "views.Dashboard.FocusSessionAfterRename",
-            "app.Coordinator.hasStaleSessionSnapshot"
+            "ui.Coordinator.hasStaleSessionSnapshot"
           ],
           "files": [
-            "internal/app/launch_focus_internal_test.go",
-            "internal/app/inline_rename_refresh_internal_test.go",
+            "internal/ui/launch_focus_internal_test.go",
+            "internal/ui/inline_rename_refresh_internal_test.go",
             "tests/e2e/launch_focus_test.go"
           ]
         },
         "scenarios": [
           {
             "id": "completion",
-            "title": "Select the created ID and align preview",
-            "summary": "Select the created ID and align preview",
-            "status": "tested",
+            "title": "Select the created ID and align center",
+            "summary": "Select the created ID and align center",
+            "status": "unassessed",
             "dimension": "interaction",
             "evidence": [
               "focus-completion",
               "focus-search"
             ],
-            "limit": "Coordinator/view fixtures; actual terminal checkpoint is separate.",
+            "limit": "Coordinator/view fixtures; actual terminal checkpoint is separate. The changed test source needs a fresh assertion review.",
             "flows": [
               "launch-focus"
             ],
-            "captures": []
+            "captures": [],
+            "previousStatus": "tested"
           },
           {
             "id": "epochs",
             "title": "Reject old launch and inline-rename refreshes",
             "summary": "Reject old launch and inline-rename refreshes",
-            "status": "tested",
+            "status": "unassessed",
             "dimension": "behavior",
             "evidence": [
               "focus-epochs",
               "rename-epochs"
             ],
-            "limit": "Covers full/session/fingerprint delivery with deterministic events.",
+            "limit": "Covers full/session/fingerprint delivery with deterministic events. The changed test source needs a fresh assertion review.",
             "flows": [
               "launch-focus"
             ],
-            "captures": []
+            "captures": [],
+            "previousStatus": "tested"
           },
           {
             "id": "scope",
             "title": "Keep warnings usable and ignore canceled/stale focus",
             "summary": "Keep warnings usable and ignore canceled/stale focus",
-            "status": "tested",
+            "status": "unassessed",
             "dimension": "behavior",
             "evidence": [
               "focus-warning",
               "focus-stale",
               "focus-cancel"
             ],
-            "limit": "Controlled error/scope messages; no physical filesystem outage.",
+            "limit": "Controlled error/scope messages; no physical filesystem outage. The changed test source needs a fresh assertion review.",
             "flows": [
               "launch-focus"
             ],
-            "captures": []
+            "captures": [],
+            "previousStatus": "tested"
           },
           {
             "id": "ordering",
             "title": "Keep selection stable when newer sessions arrive",
             "summary": "Keep selection stable when newer sessions arrive",
-            "status": "tested",
+            "status": "unassessed",
             "dimension": "interaction",
             "evidence": [
               "focus-order"
             ],
-            "limit": "List component identity assertion, no terminal key decoder.",
+            "limit": "List component identity assertion, no terminal key decoder. The changed test source needs a fresh assertion review.",
             "flows": [
               "launch-focus"
             ],
-            "captures": []
+            "captures": [],
+            "previousStatus": "tested"
           },
           {
             "id": "terminal",
@@ -10339,7 +11243,8 @@ window.APPEDIA_CONTENT = {
             "status": "tested",
             "dimension": "interaction",
             "evidence": [
-              "launch-focus-terminal"
+              "launch-focus-terminal",
+              "tui-launch-focus"
             ],
             "limit": "Codex startup only at 120×40; no model task or image baseline.",
             "flows": [
@@ -10352,9 +11257,1200 @@ window.APPEDIA_CONTENT = {
             ]
           }
         ]
+      },
+      {
+        "id": "session-center",
+        "title": "Selected-session center",
+        "area": "Dashboard",
+        "summary": "Authored reports, bounded workspace facts and cancelable event/recovery orchestration.",
+        "sources": {
+          "refs": [
+            "api.Service.ReadSessionReports",
+            "ui.Coordinator.handleCenter",
+            "components.SessionCenter.View"
+          ]
+        },
+        "scenarios": [
+          {
+            "id": "author-order",
+            "title": "Filter authors and stable timestamp ties",
+            "dimension": "behavior",
+            "summary": "Rejects received/foreign reports, checks timestamp/sequence/ID order, omission, detached results, invalid limit and cancellation.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-author-order"
+            ],
+            "limit": "In-memory store fixture; not a full agent journey.",
+            "sources": {
+              "files": [
+                "internal/session/authored_reports_test.go"
+              ]
+            }
+          },
+          {
+            "id": "reload",
+            "title": "Bounds and durable reconstruction across activations",
+            "dimension": "behavior",
+            "summary": "Reloads retained history, clamps to 256 reports, preserves activation attribution and creates no notifications.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-reload"
+            ],
+            "limit": "Synthetic persisted history; does not execute a process relaunch.",
+            "sources": {
+              "files": [
+                "internal/session/authored_reports_test.go"
+              ]
+            }
+          },
+          {
+            "id": "takeover",
+            "title": "First report rejects late workspace data",
+            "dimension": "behavior",
+            "summary": "An event reads reports while retaining ongoing workspace work; successful report content cancels it, and late workspace data cannot overwrite reports.",
+            "status": "tested",
+            "flows": [
+              "preview",
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-takeover"
+            ],
+            "limit": "Direct coordinator messages and fake port; no terminal I/O.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "coalesce",
+            "title": "Coalesce changes and release obsolete setup",
+            "dimension": "behavior",
+            "summary": "Multiple changes produce one follow-up and stale setup/current subscriptions are released after clear.",
+            "status": "tested",
+            "flows": [
+              "preview",
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-coalesce"
+            ],
+            "limit": "Deterministic state transitions; not an OS goroutine leak audit.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "scope",
+            "title": "Scope removal clears selected content",
+            "dimension": "behavior",
+            "summary": "Scope rejection clears cached reports and blocks immediate retry for unchanged invalid selection.",
+            "status": "tested",
+            "flows": [
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-scope"
+            ],
+            "limit": "Fake scope result; real membership separately tested.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "retry",
+            "title": "One 30-second recovery timer",
+            "dimension": "behavior",
+            "summary": "Fake clock observes 30 seconds, excludes overlapping timer/setup and triggers resubscription first.",
+            "status": "tested",
+            "flows": [
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-retry"
+            ],
+            "limit": "No wall-clock or long-lived live-terminal observation.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "failures",
+            "title": "Stale reports, empty success and workspace warnings",
+            "dimension": "behavior",
+            "summary": "Read failure retains stale reports, confirmed empty clears them, workspace failure retains same-session data/warnings, clear drops content.",
+            "status": "tested",
+            "flows": [
+              "preview",
+              "center-workspace",
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-failures"
+            ],
+            "limit": "Selected state-machine paths; not exhaustive cross-product of failures.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "closed",
+            "title": "Closed subscription preserves reports and schedules retry",
+            "dimension": "behavior",
+            "summary": "Unexpected stream closure preserves cached reports and sets warning/retry state.",
+            "status": "tested",
+            "flows": [
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-closed"
+            ],
+            "limit": "Tests scheduling, not a complete subsequent recovery journey.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "fit",
+            "title": "Safe bounded report rendering",
+            "dimension": "layout",
+            "summary": "ANSI stripped; report text retained within 20×4; changing session clears it; zero size is safe.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-fit"
+            ],
+            "limit": "One explicit size plus zero-size boundary; no pixel comparison or complete resize/refetch journey.",
+            "sources": {
+              "files": [
+                "internal/ui/components/session_center_test.go"
+              ]
+            }
+          },
+          {
+            "id": "service-scope",
+            "title": "Human scoped read and coalesced updates",
+            "dimension": "behavior",
+            "summary": "Real service reads authored progress after subscription signal, rejects foreign dashboard and allows idempotent release.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-service-scope"
+            ],
+            "limit": "Messaging harness injects records; no native model execution.",
+            "sources": {
+              "files": [
+                "internal/api/center_test.go"
+              ]
+            }
+          },
+          {
+            "id": "initial-read",
+            "title": "Report before initial read and after session stop",
+            "dimension": "behavior",
+            "summary": "Report inserted after subscribe is read immediately and signals; stopping session keeps reports readable; cancellation closes changes.",
+            "status": "tested",
+            "flows": [
+              "preview",
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-initial-read"
+            ],
+            "limit": "No full relaunch journey or screenshot.",
+            "sources": {
+              "files": [
+                "internal/api/center_test.go"
+              ]
+            }
+          },
+          {
+            "id": "rearm",
+            "title": "Change during signal rearming",
+            "dimension": "behavior",
+            "summary": "Controlled channels close while watch rearming is paused; a notice is retained and cancellation ends stream.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-rearm"
+            ],
+            "limit": "Direct subscription helper fixture, not a stress/load measurement.",
+            "sources": {
+              "files": [
+                "internal/api/center_test.go"
+              ]
+            }
+          },
+          {
+            "id": "saved-path",
+            "title": "Resolve the saved session workspace",
+            "dimension": "behavior",
+            "summary": "Uses the session saved directory and rejects foreign scope.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-saved-path"
+            ],
+            "limit": "Harness has a normal workspace; temporary identity checked separately.",
+            "sources": {
+              "files": [
+                "internal/api/center_test.go"
+              ]
+            }
+          },
+          {
+            "id": "temporary-path",
+            "title": "Resolve a temporary session copy",
+            "dimension": "behavior",
+            "summary": "Launches a cat session into a temporary copy and reads exactly its saved WorkingDir.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-temporary-path"
+            ],
+            "limit": "Does not invoke a model or assert recursive copy contents.",
+            "sources": {
+              "files": [
+                "internal/api/center_test.go"
+              ]
+            }
+          },
+          {
+            "id": "inventory-failure",
+            "title": "Membership read errors are not empty history",
+            "dimension": "behavior",
+            "summary": "Corrupt card inventory makes the report read fail explicitly.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-inventory-failure"
+            ],
+            "limit": "One corrupted registry boundary.",
+            "sources": {
+              "files": [
+                "internal/api/center_test.go"
+              ]
+            }
+          },
+          {
+            "id": "git-directory",
+            "title": "Clean, non-Git and full-repository changes",
+            "dimension": "behavior",
+            "summary": "Checks clean Git vs non-Git, staged rename plus unstaged modification and newline untracked path while reading from a subdirectory.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-git-directory"
+            ],
+            "limit": "Temporary real Git fixture; conflict/submodule variants not asserted here.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "bounded-directory",
+            "title": "Bound inventory, reject missing/canceled/malformed reads",
+            "dimension": "behavior",
+            "summary": "More than 1,000 entries truncates; missing path and canceled inspection error; malformed/partial Git records rejected.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-bounded-directory"
+            ],
+            "limit": "Metadata access error combinations are not exhaustive.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "symlink-fallback",
+            "title": "Symlink target and missing Git warning",
+            "dimension": "behavior",
+            "summary": "Immediate hidden/symlink rows retain link target; unavailable Git yields warned directory fallback.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-symlink-fallback"
+            ],
+            "limit": "Unix fixture, not cross-platform owner/group verification.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "linked-worktree",
+            "title": "Inspect a linked Git worktree",
+            "dimension": "behavior",
+            "summary": "Real linked worktree is classified as Git and reports its modified tracked file.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-linked-worktree"
+            ],
+            "limit": "Single worktree and tracked-path example.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "git-timeout",
+            "title": "Bound status records and cancel subprocess",
+            "dimension": "behavior",
+            "summary": "Status entries cap at 1,000; a busy fake Git is canceled by an explicit short deadline.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-git-timeout"
+            ],
+            "limit": "Does not wait out the production ten-second timeout.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "git-output",
+            "title": "Terminate Git when output exceeds limit",
+            "dimension": "behavior",
+            "summary": "Unbounded fake Git output fails on output budget before outer context expires.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-git-output"
+            ],
+            "limit": "Checks stdout budget, not every stderr variant.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "live-resize-journey",
+            "title": "Live resize, relaunch and all-failure recovery journey",
+            "dimension": "interaction",
+            "summary": "A complete real terminal journey through resize/refetch, session relaunch and combined failure recovery has not been reviewed for this Appedia refresh.",
+            "status": "unassessed",
+            "flows": [
+              "preview",
+              "center-workspace",
+              "center-recovery"
+            ],
+            "evidence": [],
+            "limit": "The model-free terminal cases verify resize, relaunch and report retention. A single live all-failure recovery journey remains unverified.",
+            "suggestion": "Add a project-owned isolated terminal journey checking growth/refetch, relaunch continuity and recovery labels.",
+            "priority": "Next",
+            "reason": "Unit/state-machine assertions do not establish the complete visible journey."
+          },
+          {
+            "id": "failed-read-clock",
+            "title": "Report failures coalesce changes until timer",
+            "dimension": "behavior",
+            "summary": "Repeated store notices do not advance report requests while degraded; firing the fake clock allows exactly one retry and repeated failure reschedules recovery.",
+            "status": "tested",
+            "flows": [
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-failed-read-clock"
+            ],
+            "limit": "Coordinator/fake-clock boundary, no live terminal.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "workspace-clock",
+            "title": "Events retain cached and in-flight workspace reads",
+            "dimension": "behavior",
+            "summary": "Empty event reads do not refresh cached workspace before timer; a due timer refreshes it, and notices do not cancel/restart slow workspace work.",
+            "status": "tested",
+            "flows": [
+              "center-workspace",
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-workspace-clock"
+            ],
+            "limit": "Deterministic coordinator transitions, not real Git load timing.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "failed-workspace-clock",
+            "title": "Failed initial workspace without cache waits for retry",
+            "dimension": "behavior",
+            "summary": "Initial load occurs immediately; after failure without cache, repeated healthy empty report reads cannot retry workspace until fake clock fires.",
+            "status": "tested",
+            "flows": [
+              "center-workspace",
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-failed-workspace-clock"
+            ],
+            "limit": "Tests policy state with fake application capability.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "workspace-freshness",
+            "title": "Workspace stale state survives history-only reads",
+            "dimension": "behavior",
+            "summary": "Failed cached workspace remains stale through successful-empty and failed history reads and retry; successful workspace replacement or report takeover clears it.",
+            "status": "tested",
+            "flows": [
+              "center-workspace",
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-workspace-freshness"
+            ],
+            "limit": "Coordinator state assertions; complete live journey remains unassessed.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "inherited-pipes",
+            "title": "Bound inherited pipes on cancellation and output overflow",
+            "dimension": "behavior",
+            "summary": "Fake Git starts a pipe-holding descendant; both deadline and output-limit paths finish before the child normal exit, using bounded WaitDelay.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-inherited-pipes"
+            ],
+            "limit": "Unix shell/helper fixture with elapsed-time tolerance; not a process-tree termination guarantee.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "path-rows",
+            "title": "Paths and symlink targets cannot forge rows",
+            "dimension": "layout",
+            "summary": "Git current/original paths, directory names and symlink targets flatten control whitespace; assertions reject forged status/warning rows and check display width.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-path-rows"
+            ],
+            "limit": "200-column renderer fixture; not pixel comparison.",
+            "sources": {
+              "files": [
+                "internal/ui/components/session_center_test.go"
+              ]
+            }
+          },
+          {
+            "id": "multiline",
+            "title": "Preserve multiline report bodies separately",
+            "dimension": "layout",
+            "summary": "Report first/second lines retain their newline after introducing path-specific sanitization.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-multiline"
+            ],
+            "limit": "Component render at 80×8, no native terminal.",
+            "sources": {
+              "files": [
+                "internal/ui/components/session_center_test.go"
+              ]
+            }
+          },
+          {
+            "id": "navigation-reports",
+            "title": "Return to cached reports and clear on empty",
+            "dimension": "interaction",
+            "summary": "Navigation detaches successful reports and cancels resources; return restores the same session, a failed reread renders cached reports stale, and confirmed empty remains cleared after another round trip.",
+            "status": "tested",
+            "flows": [
+              "preview",
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-navigation-reports"
+            ],
+            "limit": "Coordinator/navigation/component boundary with fake report reads; no native terminal journey.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "navigation-isolation",
+            "title": "Navigation cache cannot move to another selection",
+            "dimension": "interaction",
+            "summary": "Switching selected stable session while away restores no prior-session workspace or reports.",
+            "status": "tested",
+            "flows": [
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-navigation-isolation"
+            ],
+            "limit": "One dashboard/two-session fixture; not an exhaustive multi-dashboard journey.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "navigation-workspace",
+            "title": "Restore workspace fallback and discard on scope loss",
+            "dimension": "interaction",
+            "summary": "Same-session navigation restores workspace data through a report error; scope rejection clears live and saved content.",
+            "status": "tested",
+            "flows": [
+              "center-workspace",
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-navigation-workspace"
+            ],
+            "limit": "Fake report/scope results, with separate service membership tests.",
+            "sources": {
+              "files": [
+                "internal/ui/center_internal_test.go"
+              ]
+            }
+          },
+          {
+            "id": "helper-cancel",
+            "title": "Unix cancellation terminates owned Git helpers",
+            "dimension": "behavior",
+            "summary": "A controlled Git fixture starts a child process. Cancellation returns promptly, the child exits, and an unrelated process survives.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-helper-cancel"
+            ],
+            "limit": "Unix process-group fixture; no equivalent process-tree guarantee is established for non-Unix fallback or helpers that escape the group.",
+            "sources": {
+              "files": [
+                "internal/api/center_process_unix_test.go"
+              ]
+            }
+          },
+          {
+            "id": "helper-output",
+            "title": "Unix output limit terminates helper group",
+            "dimension": "behavior",
+            "summary": "Fake Git with a sleep child exceeds output budget; command errors and helper is no longer running.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-helper-output"
+            ],
+            "limit": "Unix helper fixture; zombie state counts as terminated pending OS parent reaping.",
+            "sources": {
+              "files": [
+                "internal/api/center_process_unix_test.go"
+              ]
+            }
+          },
+          {
+            "id": "header-kind",
+            "title": "Keep time and kind in final two rows",
+            "dimension": "layout",
+            "summary": "80×2 keeps full date/time, blocked kind and body; 20×2 uses compact time while retaining kind and body.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-header-kind"
+            ],
+            "limit": "Two explicit widths; does not assert every kind/width combination or screenshot comparison.",
+            "sources": {
+              "files": [
+                "internal/ui/components/session_center_test.go"
+              ]
+            }
+          },
+          {
+            "id": "selected-header",
+            "title": "Keep the selected-session header above reports and workspace details",
+            "dimension": "layout",
+            "summary": "The selected session keeps its metadata, badge and puppet when the report body replaces workspace information. At minimum size, the narrower header leaves space for content.",
+            "status": "tested",
+            "flows": [
+              "preview",
+              "center-workspace",
+              "resize",
+              "launch-focus"
+            ],
+            "evidence": [
+              "center-header-render",
+              "center-header-size",
+              "tui-launch-focus",
+              "tui-codex"
+            ],
+            "captures": [
+              "launch-focus-dashboard",
+              "tui-header-minimum",
+              "tui-codex-report-after-relaunch"
+            ],
+            "limit": "Component assertions and Linux terminal checkpoints at 120×40 and 80×24. No pixel-baseline comparison."
+          },
+          {
+            "id": "split-index",
+            "title": "Read split indexes in ordinary and linked worktrees",
+            "dimension": "behavior",
+            "summary": "Both ordinary and linked worktrees using split indexes return the modified tracked file as Git status.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-split-index"
+            ],
+            "limit": "Real local Git on Linux.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "helper-isolation",
+            "title": "Keep Git helpers out of background inspection",
+            "dimension": "behavior",
+            "summary": "A split-index repository reports clean status with fsmonitor disabled. Configured clean filters trigger the labelled fallback without executing the sentinel helper.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-helper-isolation"
+            ],
+            "limit": "Covers fsmonitor and the configured clean-filter fallback.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "metadata-fallback",
+            "title": "Retain directory entries after a Git metadata error",
+            "dimension": "behavior",
+            "summary": "A failing metadata probe yields a warning and preserves a readable file in the directory listing.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-metadata-fallback"
+            ],
+            "limit": "A symlink loop triggers the metadata error.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "report-signal-eviction",
+            "title": "Only delivery changes that evict reports wake the center",
+            "dimension": "behavior",
+            "summary": "An ordinary delivery update wakes general waiters only. Evicting retained replies wakes report readers.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-report-signal-eviction"
+            ],
+            "limit": "Uses a near-capacity message store with legacy replies.",
+            "sources": {
+              "files": [
+                "internal/session/messaging_review_test.go"
+              ]
+            }
+          },
+          {
+            "id": "report-signal-commit",
+            "title": "Ignore report retries and failed writes",
+            "dimension": "behavior",
+            "summary": "A persisted report wakes report readers. Replaying the report or failing a new write leaves the signal unchanged.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-report-signal-commit"
+            ],
+            "limit": "Message-store test with a forced persistence error.",
+            "sources": {
+              "files": [
+                "internal/session/messaging_review_test.go"
+              ]
+            }
+          },
+          {
+            "id": "report-scope-signal",
+            "title": "Recheck scope independently of report updates",
+            "dimension": "behavior",
+            "summary": "The subscription closes on scope loss without requiring a report change.",
+            "status": "tested",
+            "flows": [
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-report-scope-signal"
+            ],
+            "limit": "Application service fixture.",
+            "sources": {
+              "files": [
+                "internal/api/center_test.go"
+              ]
+            }
+          },
+          {
+            "id": "report-timestamp-fit",
+            "title": "Omit reports that cannot keep a timestamp",
+            "dimension": "layout",
+            "summary": "When an older report cannot fit with its timestamp, omit it. A newest report can use a compact one-row timestamp.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-report-timestamp-fit"
+            ],
+            "limit": "Component assertions at bounded sizes.",
+            "sources": {
+              "files": [
+                "internal/ui/components/session_center_test.go"
+              ]
+            }
+          }
+        ]
       }
     ],
     "evidence": [
+      {
+        "id": "boundary",
+        "name": "TestFrontendBoundary",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/architecture/boundary_test.go",
+        "line": 39,
+        "endLine": 56,
+        "proves": "Checks package direction and reviewed exception sets.",
+        "limits": "The checker is static. Runtime behavior has separate evidence.",
+        "reviewedHash": "7d5b2dae45b6a152df35434f934a406ff8d571c021100a6313a4ba2f34c99c5f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.012769099Z",
+          "scope": "TestFrontendBoundary in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "card-save",
+        "name": "TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/card_editor_test.go",
+        "line": 13,
+        "endLine": 71,
+        "proves": "Checks retained fields and rejection of a stale revision.",
+        "limits": "API and repository seam.",
+        "reviewedHash": "2e3bf5470ef576551b7c48d70456e1c000b9b5d0e0701895df1fd2be0cf2736a",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.082324791Z",
+          "scope": "TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "card-race",
+        "name": "TestEditorConcurrentSavesOnlyOneSucceeds",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/card_editor_test.go",
+        "line": 73,
+        "endLine": 108,
+        "proves": "Only one of two saves with the same revision succeeds.",
+        "limits": "Concurrent service updates in a controlled fixture.",
+        "reviewedHash": "2e3bf5470ef576551b7c48d70456e1c000b9b5d0e0701895df1fd2be0cf2736a",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.089462961Z",
+          "scope": "TestEditorConcurrentSavesOnlyOneSucceeds in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "source-edit",
+        "name": "TestSourceIdentityRejectsReorderAndAddressesDuplicates",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/configuration_sources_test.go",
+        "line": 15,
+        "endLine": 50,
+        "proves": "Rejects stale row identity after reorder and addresses duplicate rows.",
+        "limits": "Backend source mutation path.",
+        "reviewedHash": "78aec81ee4767f1306b28c9e041709521bf44e57f3431c8855fb2ee5f7d2bd02",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:00.13931537Z",
+          "scope": "TestSourceIdentityRejectsReorderAndAddressesDuplicates in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "conversation",
+        "name": "TestSessionContractsRevalidateScopeAndChoice",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/session_actions_internal_test.go",
+        "line": 45,
+        "endLine": 103,
+        "proves": "Checks scoped action revalidation and stale conversation choice handling.",
+        "limits": "Controlled backend session fixture.",
+        "reviewedHash": "ce4f5155846cf316e86d0b4434e32c983998b9964e27aab070dd5cb175fe82a6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:00.111351672Z",
+          "scope": "TestSessionContractsRevalidateScopeAndChoice in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-history",
+        "name": "TestCenterReportSurvivesBackendReconstruction",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/center_integration_internal_test.go",
+        "line": 16,
+        "endLine": 72,
+        "proves": "Reads a retained report through a reconstructed manager and coordinator.",
+        "limits": "Exercises backend/UI seam without rendering a live terminal restart.",
+        "reviewedHash": "6f5ad56984d7167bf861bb7b3ff437e1defad2c43b52799d0007756372ac631a",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.765947188Z",
+          "scope": "TestCenterReportSurvivesBackendReconstruction in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-switch",
+        "name": "TestCenterSwitchWhileReadInFlight",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/center_internal_test.go",
+        "line": 513,
+        "endLine": 534,
+        "proves": "Changes selection during a read and checks stale data cannot populate the new center.",
+        "limits": "Controlled coordinator timing.",
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.795438756Z",
+          "scope": "TestCenterSwitchWhileReadInFlight in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "pty-detach",
+        "name": "TestTerminalPTYDetachAndRestoration",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/terminal/pty_test.go",
+        "line": 66,
+        "endLine": 145,
+        "proves": "Checks resize, legacy and Kitty detach, and equality of terminal state before and after.",
+        "limits": "Linux PTY fixture.",
+        "reviewedHash": "a4359460934eee6d61f2ffd6dc5b2f4a3b9e340a3b2b7081bbf9484334ff2eb6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.517785348Z",
+          "scope": "TestTerminalPTYDetachAndRestoration in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "pty-split",
+        "name": "TestInputDecoderSplitDetach",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/terminal/attach_test.go",
+        "line": 116,
+        "endLine": 131,
+        "proves": "Feeds the detach bytes in two reads and checks that only preceding ordinary bytes were forwarded.",
+        "limits": "Deterministic decoder test. The full binary run corroborates the behavior.",
+        "reviewedHash": "f54b9ca0a25861678b6ec4d5fe79adcd858b18f35ca732426ae3d101cf0d1630",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.315513593Z",
+          "scope": "TestInputDecoderSplitDetach in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "missing-attach",
+        "name": "TestMissingSessionClosesQueuedAttachment",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/attachment_missing_internal_test.go",
+        "line": 47,
+        "endLine": 77,
+        "proves": "Checks immediate close and rejection after full and sessions-only refresh confirm absence.",
+        "limits": "Coordinator fixture with controlled ownership.",
+        "reviewedHash": "2f535a287c4801d876f2f175f4bcc6a8b6887075989db8456c4bb5eb92058aba",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.330566382Z",
+          "scope": "TestMissingSessionClosesQueuedAttachment in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "mcp-scope",
+        "name": "TestDashboardScopeOverHTTP",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/mcp/dashboard_scope_test.go",
+        "line": 21,
+        "endLine": 171,
+        "proves": "Exercises dashboard scope through the MCP server transport.",
+        "limits": "Local transport and test identities.",
+        "reviewedHash": "e3c654827f59c2ffffe968a2862c16726b89fd878aeef26745a364ce9098685c",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.245667568Z",
+          "scope": "TestDashboardScopeOverHTTP in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "delete",
+        "name": "TestDashboardExecutionProgressSurvivesStatusReadFailure",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/deletion_presentation_internal_test.go",
+        "line": 97,
+        "endLine": 137,
+        "proves": "Checks execution progress stays visible when a subsequent status read fails.",
+        "limits": "Coordinator and view fixture.",
+        "reviewedHash": "5ce881d26236dad53fe14596642d9e4fb51841d8875f19c7640d83b8b2258bf1",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.132758481Z",
+          "scope": "TestDashboardExecutionProgressSurvivesStatusReadFailure in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "tui-codex",
+        "name": "TestCodexOfflineWorkspaceAndReports/directory",
+        "kind": "E2E",
+        "method": "automated",
+        "integration": "project",
+        "file": "tests/e2e/codex_offline_test.go",
+        "proves": "Launches, names, detaches, reattaches, stops and relaunches idle Codex against a directory workspace. Checks refresh, size recovery, report retention and Kankuro restart.",
+        "limits": "Linux only. The report is seeded through the real store. Codex receives no model prompts.",
+        "reviewedHash": "86f758dde6cd5f32afdf4c6985b3cc65d73b23ce15c5fc287775fff5e82599ad",
+        "result": {
+          "status": "passed",
+          "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/directory$' -count=1 -timeout=3m -v",
+          "at": "2026-11-19T21:26:35.969656818Z",
+          "scope": "Launches, names, detaches, reattaches, stops and relaunches idle Codex against a directory workspace. Checks refresh, size recovery, report retention and Kankuro restart.",
+          "revision": "WORKTREE",
+          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+        },
+        "line": 19,
+        "endLine": 31
+      },
+      {
+        "id": "tui-launch-focus",
+        "name": "TestNativeLaunchFocusReturn",
+        "kind": "E2E",
+        "method": "automated",
+        "integration": "project",
+        "file": "tests/e2e/launch_focus_test.go",
+        "proves": "Checks dashboard focus after detach and reattaches to the same Codex PID.",
+        "limits": "Codex starts with a dummy credential and receives no prompt.",
+        "reviewedHash": "184d18511e5b57237f13f3aa354262969079275e5d6cecf4c920c974ac416c3e",
+        "result": {
+          "status": "passed",
+          "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeLaunchFocusReturn$' -count=1 -timeout=3m -v",
+          "at": "2026-11-19T21:27:15.182353193Z",
+          "scope": "Checks dashboard focus after detach and reattaches to the same Codex PID.",
+          "revision": "WORKTREE",
+          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+        },
+        "line": 28,
+        "endLine": 32
+      },
+      {
+        "id": "tui-codex-git",
+        "name": "TestCodexOfflineWorkspaceAndReports/git",
+        "kind": "E2E",
+        "method": "automated",
+        "integration": "project",
+        "file": "tests/e2e/codex_offline_test.go",
+        "proves": "Launches, names, detaches, reattaches, stops and relaunches idle Codex against a git workspace. Checks refresh, size recovery, report retention and Kankuro restart.",
+        "limits": "Linux only. The report is seeded through the real store. Codex receives no model prompts.",
+        "reviewedHash": "86f758dde6cd5f32afdf4c6985b3cc65d73b23ce15c5fc287775fff5e82599ad",
+        "result": {
+          "status": "passed",
+          "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/git$' -count=1 -timeout=3m -v",
+          "at": "2026-11-19T21:27:11.45966887Z",
+          "scope": "Launches, names, detaches, reattaches, stops and relaunches idle Codex against a git workspace. Checks refresh, size recovery, report retention and Kankuro restart.",
+          "revision": "WORKTREE",
+          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+        },
+        "line": 19,
+        "endLine": 31
+      },
+      {
+        "id": "tui-mcp",
+        "name": "TestMCPManagerJourney",
+        "kind": "E2E",
+        "method": "automated",
+        "integration": "project",
+        "file": "tests/e2e/mcp_manager_test.go",
+        "proves": "Creates, edits and deletes a custom MCP, checks persistence and cancel, and preserves the protected built-in at 80 by 24 cells.",
+        "limits": "Registry interaction only. The custom service is never started.",
+        "reviewedHash": "0b63e84ab8c3c871017132e66b9a9c3866d6d83d517e59ca1d71a3710a4b92bf",
+        "result": {
+          "status": "passed",
+          "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+          "at": "2026-11-19T21:27:17.210608058Z",
+          "scope": "Creates, edits and deletes a custom MCP, checks persistence and cancel, and preserves the protected built-in at 80 by 24 cells.",
+          "revision": "WORKTREE",
+          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+        },
+        "line": 27,
+        "endLine": 113
+      },
+      {
+        "id": "tui-luna",
+        "name": "TestNativeAgentJourney",
+        "kind": "E2E",
+        "method": "automated",
+        "integration": "project",
+        "file": "tests/e2e/codex_token_usage_test.go",
+        "proves": "The 60,000-input-budget run registered a Codex conversation and confirmed the first live progress report and its attribution.",
+        "limits": "The first turn consumed 129,209 input tokens (117,376 cached) and 1,013 output tokens. The total input usage check failed before resume or recall. No second prompt was sent.",
+        "reviewedHash": "562d7f76ec8e6e7c38609ffeddc887755c6a6f77812f9e37cdc696c16a876426",
+        "result": {
+          "status": "failed",
+          "command": "./tests/e2e/run token-usage",
+          "at": "2026-11-18T21:47:36.773848345Z",
+          "scope": "The 60,000-input-budget run registered a Codex conversation and confirmed the first live progress report and its attribution.",
+          "revision": "WORKTREE",
+          "fingerprint": "68189939a8365fc1cb81f7b61d700cffdea80f639bca768fdabd0809d0bd2b6e"
+        },
+        "line": 37,
+        "endLine": 91
+      },
       {
         "id": "fresh-initialization-and-partial-root",
         "name": "TestFreshInitializationAndPartialRoot",
@@ -10362,17 +12458,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/configstartup/startup_test.go",
         "line": 10,
-        "endLine": 31,
+        "endLine": 30,
         "proves": "Checks that fresh startup validates and that a partial root fails with the missing-marker diagnostic.",
         "limits": "Calls configuration startup directly; does not start the full TUI/MCP composition root.",
         "reviewedHash": "23def849d1afd7463ecca53123cd3035b705f5cd4ef39e1b7a2fc5782fd55c31",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.715942183Z",
-          "scope": "TestFreshInitializationAndPartialRoot; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:06:55.063401182Z",
+          "scope": "TestFreshInitializationAndPartialRoot in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -10382,17 +12478,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/configstartup/validate_test.go",
         "line": 20,
-        "endLine": 49,
+        "endLine": 48,
         "proves": "Validates a known-good fixture before each corrupt session/operation/message/cursor/card record, then checks rejection and exact original bytes.",
         "limits": "Five explicit fixture cases; not arbitrary schema fuzzing.",
         "reviewedHash": "a79b37b8df4a3e2f94e517171046fa8d1f212cd9e52cb5075ac05f7c7789b9ca",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.727411172Z",
-          "scope": "TestValidateLayoutRejectsInvalidRecordsWithoutRewriting; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:06:55.077244132Z",
+          "scope": "TestValidateLayoutRejectsInvalidRecordsWithoutRewriting in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -10402,1337 +12498,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/configstartup/startup_test.go",
         "line": 42,
-        "endLine": 65,
+        "endLine": 64,
         "proves": "A second AcquireLock fails while held and succeeds after Close.",
         "limits": "Same-process lock contention on Linux; no cross-platform or subprocess assertion.",
         "reviewedHash": "23def849d1afd7463ecca53123cd3035b705f5cd4ef39e1b7a2fc5782fd55c31",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.716070833Z",
-          "scope": "TestExclusiveLock; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "read-dashboard-data-scopes-cards-and-sessions",
-        "name": "TestReadDashboardDataScopesCardsAndSessions",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/membership_internal_test.go",
-        "line": 139,
-        "endLine": 309,
-        "proves": "Checks private/shared visibility, consumer edit denial, dashboard-local sessions, stale/foreign deletion confirmation, surviving foreign sessions and switching away from a deleted card.",
-        "limits": "Service/repository/manager fixture with cat processes; no keyboard or MCP transport assertions.",
-        "reviewedHash": "7788a680a0548d68f4a1d3ee5108c3ca6f219d435c34e55cd3ce6306b42e5cb2",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.914872882Z",
-          "scope": "TestReadDashboardDataScopesCardsAndSessions; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "scoped-launch-revalidates-changed-card-before-publication",
-        "name": "TestScopedLaunchRevalidatesChangedCardBeforePublication",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/membership_internal_test.go",
-        "line": 403,
-        "endLine": 460,
-        "proves": "Blocks copying, changes sharing, then asserts no publication and release of the pending reservation.",
-        "limits": "Injected workspace-copy gate; does not simulate every registry mutation.",
-        "reviewedHash": "7788a680a0548d68f4a1d3ee5108c3ca6f219d435c34e55cd3ce6306b42e5cb2",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.932543752Z",
-          "scope": "TestScopedLaunchRevalidatesChangedCardBeforePublication; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "confirmed-card-deletion-cancels-foreign-pending-launch",
-        "name": "TestConfirmedCardDeletionCancelsForeignPendingLaunch",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/membership_internal_test.go",
-        "line": 461,
-        "endLine": 502,
-        "proves": "Asserts foreign pending impact, required confirmation, cancelled launch and no published session.",
-        "limits": "Controlled copier and service entry points; no confirmation-modal rendering.",
-        "reviewedHash": "7788a680a0548d68f4a1d3ee5108c3ca6f219d435c34e55cd3ce6306b42e5cb2",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.938806011Z",
-          "scope": "TestConfirmedCardDeletionCancelsForeignPendingLaunch; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "dashboard-cascade-resumes-after-restart",
-        "name": "TestDashboardCascadeResumesAfterRestart",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/dashboard_deletion_internal_test.go",
-        "line": 132,
-        "endLine": 186,
-        "proves": "Persists deleting intent, checks admission denial, rebuilds manager/service, removes owned session while preserving the foreign session and permits idempotent retry.",
-        "limits": "In-process restart against real files; no OS kill/power-loss simulation.",
-        "reviewedHash": "ba7b77503150f21a09e4c47a8818dc09064dfaf30c0fe1b292e713807c78af6a",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.77520059Z",
-          "scope": "TestDashboardCascadeResumesAfterRestart; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "multi-dashboard-discards-stale-results-and-preserves-views",
-        "name": "TestMultiDashboardDiscardsStaleResultsAndPreservesViews",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/app/multi_dashboard_internal_test.go",
-        "line": 19,
-        "endLine": 111,
-        "proves": "Checks foreign preview rejection, stale refresh/navigation/attach isolation, current cards/sessions and restoration of the original view instance.",
-        "limits": "Drives coordinator messages directly with real local cat sessions; not an end-to-end terminal journey.",
-        "reviewedHash": "d946df2c92262a773d61a2e7670f54cfdfaf4dc7e2a780b6ebeb11ec3466b8a5",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.666897041Z",
-          "scope": "TestMultiDashboardDiscardsStaleResultsAndPreservesViews; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "maybe-refresh-config-skips-unchanged-registry",
-        "name": "TestMaybeRefreshConfigSkipsUnchangedRegistry",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/app/refresh_cadence_internal_test.go",
-        "line": 63,
-        "endLine": 94,
-        "proves": "Counts ListIDCards calls and asserts an unchanged fingerprint produces no additional registry read.",
-        "limits": "Counting repository fixture; does not establish every filesystem timestamp boundary.",
-        "reviewedHash": "5949b61fea145c448014776b5d2b37e945c67497ad99f79d7be77c5515ba94ae",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.672500281Z",
-          "scope": "TestMaybeRefreshConfigSkipsUnchangedRegistry; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "coordinator-too-small-screen-is-exact",
-        "name": "TestCoordinatorTooSmallScreenIsExact",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/app/size_guard_test.go",
-        "line": 26,
-        "endLine": 46,
-        "proves": "Sweeps widths 1–85 and heights 1–27; checks exact notice rectangle below 80×24 and notice removal at supported sizes.",
-        "limits": "String/cell layout assertions; no emulator font or image comparison.",
-        "reviewedHash": "fcb14dea1373d1c821a7ef0039bfa0ec28484fb5005502e0546068b3366028b3",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:05.684013886Z",
-          "scope": "TestCoordinatorTooSmallScreenIsExact; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "coordinator-drops-keys-when-too-small",
-        "name": "TestCoordinatorDropsKeysWhenTooSmall",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/app/size_guard_test.go",
-        "line": 54,
-        "endLine": 70,
-        "proves": "Checks that n, Enter, Tab, Backspace and c return no commands and do not change the active view at three undersized dimensions.",
-        "limits": "Selected keys and sizes only; paste is not asserted here.",
-        "reviewedHash": "fcb14dea1373d1c821a7ef0039bfa0ec28484fb5005502e0546068b3366028b3",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:05.705936575Z",
-          "scope": "TestCoordinatorDropsKeysWhenTooSmall; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "dashboard-list-requires-explicit-quit",
-        "name": "TestDashboardListRequiresExplicitQuit",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/app/dashboard_list_keys_test.go",
-        "line": 11,
-        "endLine": 45,
-        "proves": "Checks repeated Esc/Ctrl+C keep the dashboard list open at normal and small sizes and q returns QuitMsg.",
-        "limits": "Coordinator-level input assertions; no physical terminal signal delivery.",
-        "reviewedHash": "80762c5bb8bd9b5ed61a61ebd9268f056982d976e359b06c63dee8726b588763",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.017818592Z",
-          "scope": "TestDashboardListRequiresExplicitQuit; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "card-editor-preserves-unmanaged-fields",
-        "name": "TestCardEditorPreservesUnmanagedFields",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/card_editor_test.go",
-        "line": 122,
-        "endLine": 183,
-        "proves": "Seeds every card field with nonzero data, edits Name, and compares the entire returned card with the expected overlay.",
-        "limits": "Editor model round trip; repository persistence and read-only consumer policy are assessed elsewhere.",
-        "reviewedHash": "2a7332fafb47cd5df346dea1eff1d549fd80c41d83b4c9122dd3cd1490fda622",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:58.638108503Z",
-          "scope": "TestCardEditorPreservesUnmanagedFields; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "dashboard-control-card-editor-toggle-round-trip",
-        "name": "TestDashboardControlCardEditorToggleRoundTrip",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/card_editor_test.go",
-        "line": 184,
-        "endLine": 200,
-        "proves": "Focuses the control row, toggles off/on and checks Card().DashboardControl.",
-        "limits": "Does not prove deployed activation authority or MCP permission changes.",
-        "reviewedHash": "2a7332fafb47cd5df346dea1eff1d549fd80c41d83b4c9122dd3cd1490fda622",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:58.639084563Z",
-          "scope": "TestDashboardControlCardEditorToggleRoundTrip; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "ctrl-x-clears-only-sub-workspace-selection",
-        "name": "TestCtrlXClearsOnlySubWorkspaceSelection",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/card_editor_test.go",
-        "line": 223,
-        "endLine": 275,
-        "proves": "Checks Ctrl+X clears selected/missing IDs, preserves all other card fields and focus, invokes no save/cancel, shows the hint and ignores plain x.",
-        "limits": "In-memory editor; filesystem copies and registry writes are outside this test.",
-        "reviewedHash": "2a7332fafb47cd5df346dea1eff1d549fd80c41d83b4c9122dd3cd1490fda622",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:58.643277152Z",
-          "scope": "TestCtrlXClearsOnlySubWorkspaceSelection; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "card-editor-focused-field-always-visible",
-        "name": "TestCardEditorFocusedFieldAlwaysVisible",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/card_editor_layout_test.go",
-        "line": 262,
-        "endLine": 286,
-        "proves": "Checks every expected focus target remains visible with optional sections on/off, empty/large lists and minimum-sized form heights.",
-        "limits": "Rendered text and model focus; no screenshot, native terminal or image baseline.",
-        "reviewedHash": "36ac1bf09e7ef1d2e10115628f1ca6f164065619c422eaeb2021556770442626",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:58.030879304Z",
-          "scope": "TestCardEditorFocusedFieldAlwaysVisible; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "partial-preview-broadcast-does-not-wipe-card-editor",
-        "name": "TestPartialPreviewBroadcastDoesNotWipeCardEditor",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/app/preview_broadcast_test.go",
-        "line": 19,
-        "endLine": 72,
-        "proves": "Asserts a loaded builtin skill selection survives an injected preview/output message while the editor is open.",
-        "limits": "Deliberately re-arms a subscription to model late messages; does not prove normal editor preview subscription behavior.",
-        "reviewedHash": "74eb2a13274325ddfa009e0aae169d37bbe0febb6d2828e54c54d22c3cf08ffa",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.300699448Z",
-          "scope": "TestPartialPreviewBroadcastDoesNotWipeCardEditor; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "save-simple-source-surfaces-sync-failure",
-        "name": "TestSaveSimpleSourceSurfacesSyncFailure",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/app/source_sync_warning_test.go",
-        "line": 17,
-        "endLine": 70,
-        "proves": "Checks emitted sync error, refresh request and durable saved source path despite failed scanning.",
-        "limits": "One missing skill-source path through callbacks; no full source-manager UI journey.",
-        "reviewedHash": "16ae0ac11a321a83ff10b4b5d3cffb060f66a816805c5a30b497a8ee890a2f9d",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:05.80242298Z",
-          "scope": "TestSaveSimpleSourceSurfacesSyncFailure; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "m-c-p-form-round-trips-every-field",
-        "name": "TestMCPFormRoundTripsEveryField",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/mcp_form_test.go",
-        "line": 148,
-        "endLine": 203,
-        "proves": "Presses Enter and asserts one save with exact ID/name/command/args/CWD/URL/env/headers, including an argument containing a comma.",
-        "limits": "Callback payload only; does not connect to that server or persist the configuration.",
-        "reviewedHash": "3e58b28d6fdcfbbc1c0f45984f19da8e223ef6c872f2212d1393492235248e6f",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.513482413Z",
-          "scope": "TestMCPFormRoundTripsEveryField; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "conversation-choice-requires-explicit-compatible-choice",
-        "name": "TestConversationChoiceRequiresExplicitCompatibleChoice",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/conversation_choice_test.go",
-        "line": 16,
-        "endLine": 47,
-        "proves": "Checks a matching Claude binding is submitted and a selected Codex binding cannot be submitted to the Claude activation.",
-        "limits": "Picker callback boundary; native CLI resume is outside scope.",
-        "reviewedHash": "bd540f8c7e3ac081fad2910f159272fde91d53d1b07cbbf26797de2d877b1021",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:58.674249451Z",
-          "scope": "TestConversationChoiceRequiresExplicitCompatibleChoice; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "activation-rejects-unavailable-saved-workspace",
-        "name": "TestActivationRejectsUnavailableSavedWorkspace",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/workspace_validation_test.go",
-        "line": 27,
-        "endLine": 117,
-        "proves": "For relaunch/switch and original/temporary paths, checks missing/file errors, no extra Spawn, preserved session identity/content, and successful single-spawn retry after restoring the directory.",
-        "limits": "Controlled driver counts and filesystem fixtures; no real Codex/Claude execution.",
-        "reviewedHash": "e484a44ee3d38d1551068285e2471f861dd497b11af4cc4503256e6e81574550",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:18.030479824Z",
-          "scope": "TestActivationRejectsUnavailableSavedWorkspace; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "read-sub-workspace-descriptors-does-not-prepare-workspace",
-        "name": "TestReadSubWorkspaceDescriptorsDoesNotPrepareWorkspace",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/sub_workspaces_inspection_test.go",
-        "line": 11,
-        "endLine": 41,
-        "proves": "Checks descriptor identity/path, absence of a newly created tmp directory and unavailable status for corrupt manifests.",
-        "limits": "Read-only helper only; copy collision and multi-selection journeys remain separate.",
-        "reviewedHash": "47b304b52e9a80c1587c84b7b469e5cab9c4696c3769199011887bbdeda0c3a7",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:07.018106997Z",
-          "scope": "TestReadSubWorkspaceDescriptorsDoesNotPrepareWorkspace; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "relaunch-refreshes-only-kankuro-m-c-p-after-restart",
-        "name": "TestRelaunchRefreshesOnlyKankuroMCPAfterRestart",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/relaunch_mcp_test.go",
-        "line": 16,
-        "endLine": 92,
-        "proves": "Checks invalid config blocks relaunch without rewriting, then preserves instructions/custom server/metadata, rotates token, revokes the old credential and uses the new endpoint.",
-        "limits": "Local files and cat process across in-process restart; no native CLI MCP handshake.",
-        "reviewedHash": "d6d0f89ec7ac16c4c2395b51aeae0d31ba9bcab099c7395fd6806a03cc127526",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.821670683Z",
-          "scope": "TestRelaunchRefreshesOnlyKankuroMCPAfterRestart; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "trust-invalid-configuration-preserved",
-        "name": "TestTrustInvalidConfigurationPreserved",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/driver/trust_test.go",
-        "line": 86,
-        "endLine": 115,
-        "proves": "Checks PrepareWorkspace errors and byte-identical original configuration for Codex TOML, Claude JSON and a wrong-typed projects field.",
-        "limits": "Isolated HOME; no installed native CLI trust acceptance.",
-        "reviewedHash": "c3c5f502e8c165b4b78aeea83d59d1301a13bd91b3dd1233565c1709f8f9c3f2",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:57.242431346Z",
-          "scope": "TestTrustInvalidConfigurationPreserved; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "shutdown-during-spawn-kills-the-new-process",
-        "name": "TestShutdownDuringSpawnKillsTheNewProcess",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/shutdown_test.go",
-        "line": 161,
-        "endLine": 196,
-        "proves": "Checks shutdown blocks for an in-flight relaunch, returns ErrManagerClosed after release, kills the spawned driver and leaves terminated status.",
-        "limits": "Gated test driver; does not simulate every OS process-group behavior.",
-        "reviewedHash": "c3feacc7073ff6582b64bf6830985cb9c7a26005624752028f9c7dd862320d42",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.481817694Z",
-          "scope": "TestShutdownDuringSpawnKillsTheNewProcess; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "shutdown-waits-for-temporary-workspace-preparation",
-        "name": "TestShutdownWaitsForTemporaryWorkspacePreparation",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/shutdown_test.go",
-        "line": 235,
-        "endLine": 276,
-        "proves": "Blocks the copier, asserts Shutdown waits, then checks closed-manager launch error and an empty temporary root.",
-        "limits": "Injected copier; does not prove native cp cancellation under every filesystem.",
-        "reviewedHash": "c3feacc7073ff6582b64bf6830985cb9c7a26005624752028f9c7dd862320d42",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.689039183Z",
-          "scope": "TestShutdownWaitsForTemporaryWorkspacePreparation; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "data-round-trip-copies-every-field",
-        "name": "TestDataRoundTripCopiesEveryField",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/mapping_internal_test.go",
-        "line": 12,
-        "endLine": 35,
-        "proves": "Fills fields with nonzero values and compares all persisted values through data/restore and snapshot, excluding intentional schema/status transformations.",
-        "limits": "Pure mapping; no disk durability assertion or complete clone-alias isolation claim.",
-        "reviewedHash": "7a24af59808ff28547db62ea979f2028b08a805bd1ae443bbd7bef97a9f77831",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.97018627Z",
-          "scope": "TestDataRoundTripCopiesEveryField; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "report-notification-initial-state-is-durable-and-idempotent",
-        "name": "TestReportNotificationInitialStateIsDurableAndIdempotent",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/messaging_test.go",
-        "line": 46,
-        "endLine": 91,
-        "proves": "Checks pending for completed/blocked/question and not_required for progress; reopen/retry returns the same report ID and one stored item with the expected state.",
-        "limits": "Message store on disk; no prompt delivery or agent processing.",
-        "reviewedHash": "e853b5124ff8cf803fb6075b18985c8739e9ef4a7d766771631879e2aaff8007",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.791244424Z",
-          "scope": "TestReportNotificationInitialStateIsDurableAndIdempotent; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "progress-replies-persist-before-completion",
-        "name": "TestProgressRepliesPersistBeforeCompletion",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/messaging_test.go",
-        "line": 218,
-        "endLine": 259,
-        "proves": "Checks progress deduplication, rejection of a changed kind under the same request ID, and ordered progress/completed reports after reopening.",
-        "limits": "Does not observe whether a live CLI continues working after progress.",
-        "reviewedHash": "e853b5124ff8cf803fb6075b18985c8739e9ef4a7d766771631879e2aaff8007",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.793450414Z",
-          "scope": "TestProgressRepliesPersistBeforeCompletion; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "restart-marks-admitted-notification-uncertain",
-        "name": "TestRestartMarksAdmittedNotificationUncertain",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/messaging_test.go",
-        "line": 260,
-        "endLine": 325,
-        "proves": "Checks recovery marks admitted delivery uncertain while preserving the accepted obligation and request identity.",
-        "limits": "Constructed durable records; no process crash at an actual PTY write.",
-        "reviewedHash": "e853b5124ff8cf803fb6075b18985c8739e9ef4a7d766771631879e2aaff8007",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.794096964Z",
-          "scope": "TestRestartMarksAdmittedNotificationUncertain; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "report-automatically-notifies-original-controller",
-        "name": "TestReportAutomaticallyNotifiesOriginalController",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/messaging_review_test.go",
-        "line": 481,
-        "endLine": 520,
-        "proves": "Denies the worker a general send, observes controller PTY output containing message/reply IDs and no-report-reply guidance, and checks sensitive report content is absent.",
-        "limits": "Real local PTY harness; receipt of bytes is not proof an AI agent processed or fetched the report.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:57.619733686Z",
-          "scope": "TestReportAutomaticallyNotifiesOriginalController; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "saved-notification-survives-reporter-stopping",
-        "name": "TestSavedNotificationSurvivesReporterStopping",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/messaging_review_test.go",
-        "line": 654,
-        "endLine": 684,
-        "proves": "Stops dispatcher, saves report, kills reporter, restarts runner and waits for notification output.",
-        "limits": "Same application process and local harness; not an application-wide restart.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:57.870628913Z",
-          "scope": "TestSavedNotificationSurvivesReporterStopping; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "stopped-original-activation-makes-notification-unavailable",
-        "name": "TestStoppedOriginalActivationMakesNotificationUnavailable",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/messaging_review_test.go",
-        "line": 685,
-        "endLine": 708,
-        "proves": "Stops/relaunches the original sender, attempts dispatch and checks unavailable notification state.",
-        "limits": "State assertion for one activation replacement; not arbitrary authorization races.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:57.91535088Z",
-          "scope": "TestStoppedOriginalActivationMakesNotificationUnavailable; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "notification-retries-after-queue-capacity-returns",
-        "name": "TestNotificationRetriesAfterQueueCapacityReturns",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/messaging_review_test.go",
-        "line": 521,
-        "endLine": 577,
-        "proves": "Fills queue, checks pending obligation and request ID survive rejection, drains queue, starts workers and observes notification with the same request ID.",
-        "limits": "Controlled runner/queue; no native agent readiness proof.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:57.666367803Z",
-          "scope": "TestNotificationRetriesAfterQueueCapacityReturns; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "notification-reconciliation-uses-delivery-evidence",
-        "name": "TestNotificationReconciliationUsesDeliveryEvidence",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/messaging_review_test.go",
-        "line": 578,
-        "endLine": 653,
-        "proves": "Checks state mapping, advances the attempt only for not-submitted delivery and verifies stale reconciliation does not downgrade or advance it again.",
-        "limits": "Constructed persisted delivery states; concrete driver byte-write boundaries need their own tests.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:57.814122415Z",
-          "scope": "TestNotificationReconciliationUsesDeliveryEvidence; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "concurrent-notification-dispatch-admits-one-attempt",
-        "name": "TestConcurrentNotificationDispatchAdmitsOneAttempt",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/messaging_review_test.go",
-        "line": 828,
-        "endLine": 858,
-        "proves": "Runs twelve dispatchers against the same obligation and asserts one matching runner operation.",
-        "limits": "One controlled interleaving; this run did not use the race detector.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:59.039145432Z",
-          "scope": "TestConcurrentNotificationDispatchAdmitsOneAttempt; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "notification-scheduling-preserves-recipient-order-and-fairness",
-        "name": "TestNotificationSchedulingPreservesRecipientOrderAndFairness",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/messaging_review_test.go",
-        "line": 925,
-        "endLine": 951,
-        "proves": "Checks one recipient backs off without suppressing another and keeps its accepted predecessor ahead of a later pending report.",
-        "limits": "Pure scheduling function with fixed time; no throughput benchmark.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:59.07518189Z",
-          "scope": "TestNotificationSchedulingPreservesRecipientOrderAndFairness; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "launch-workspace-command-executes-in-workspace",
-        "name": "TestLaunchWorkspaceCommandExecutesInWorkspace",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/ide_launcher_test.go",
-        "line": 69,
-        "endLine": 79,
-        "reviewedHash": "77686722e24693b846bff6f8047659d01ba9757df42d8e0fed047c940f32849f",
-        "proves": "The helper runWorkspaceLauncherCase starts a real child and asserts absolute cwd, exact placeholder multiplicity, quoted paths with spaces and preservation of ordinary arguments.",
-        "limits": "Assertions reside in runWorkspaceLauncherCase at internal/session/ide_launcher_test.go:80, called by this table-driven test. Uses the test executable, not an IDE GUI.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:02.15047283Z",
-          "scope": "TestLaunchWorkspaceCommandExecutesInWorkspace; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "dashboard_-launch-terminal-routing",
-        "name": "TestDashboard_LaunchTerminalRouting",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/dashboard_test.go",
-        "line": 322,
-        "endLine": 371,
-        "reviewedHash": "c920b81707a08ff6e6af8c1a5cc5d4a9e5f7a702861887fe5797bfa1b68d4b48",
-        "proves": "Checks the terminal callback receives the selected session for running/waiting/terminated states, ignores no-selection/search/nil callback cases, and checks o selects the expected IDE session.",
-        "limits": "View callback assertions only; no command execution or external UI.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.506123793Z",
-          "scope": "TestDashboard_LaunchTerminalRouting; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "terminal-launch-through-dashboard",
-        "name": "TestTerminalLaunchThroughDashboard",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/app/terminal_launch_test.go",
-        "line": 43,
-        "endLine": 115,
-        "reviewedHash": "0c4f6d7c1e26657e6fdcff703800126c243b5fe46651caf4ac4098da1a673cb7",
-        "proves": "Drives Tab/t through coordinator and executes the command; child record must contain the actual temporary WorkingDir in cwd/args and differ from OriginalDir.",
-        "limits": "Real local helper process rather than a graphical terminal emulator; one configured launch shape.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:05.827426238Z",
-          "scope": "TestTerminalLaunchThroughDashboard; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "terminal-launch-reports-configuration-and-lookup-errors",
-        "name": "TestTerminalLaunchReportsConfigurationAndLookupErrors",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/app/terminal_launch_test.go",
-        "line": 149,
-        "endLine": 213,
-        "reviewedHash": "0c4f6d7c1e26657e6fdcff703800126c243b5fe46651caf4ac4098da1a673cb7",
-        "proves": "Checks missing/foreign scope, missing IDE/terminal commands, failed executable and absent workspace; feeds spawn failure back and asserts the coordinator banner is set.",
-        "limits": "Most cases invoke callbacks directly. The banner assertion establishes error presence, not its full displayed text.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:05.836167808Z",
-          "scope": "TestTerminalLaunchReportsConfigurationAndLookupErrors; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "settings-view_-save-in-edit-mode",
-        "name": "TestSettingsView_SaveInEditMode",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/settings_test.go",
-        "line": 57,
-        "endLine": 80,
-        "reviewedHash": "85c62ee5ef6b2dd5b79feec61a07cc1209a8b03a085c634307c2587c5eec7d7d",
-        "proves": "Checks Enter calls OnSave with the edited IDE command and returns the view to display mode.",
-        "limits": "In-memory callback payload only; does not execute the asynchronous repository save.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:07.248780925Z",
-          "scope": "TestSettingsView_SaveInEditMode; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "settings-view_-terminal-command-focus-save-and-cancel",
-        "name": "TestSettingsView_TerminalCommandFocusSaveAndCancel",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/settings_test.go",
-        "line": 136,
-        "endLine": 164,
-        "reviewedHash": "85c62ee5ef6b2dd5b79feec61a07cc1209a8b03a085c634307c2587c5eec7d7d",
-        "proves": "Checks Tab/Shift+Tab preserve separate command text, Enter trims/saves both fields, and Esc restores both saved inputs after further edits.",
-        "limits": "View model callback boundary only; no YAML write.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:07.249061595Z",
-          "scope": "TestSettingsView_TerminalCommandFocusSaveAndCancel; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "settings-view_-toggle-rows",
-        "name": "TestSettingsView_ToggleRows",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/settings_test.go",
-        "line": 81,
-        "endLine": 102,
-        "reviewedHash": "85c62ee5ef6b2dd5b79feec61a07cc1209a8b03a085c634307c2587c5eec7d7d",
-        "proves": "Tab focuses the two visibility toggles, Space changes them, and settings values reflect the changes.",
-        "limits": "Does not execute coordinator persistence or check every focus wrap boundary.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:07.248995744Z",
-          "scope": "TestSettingsView_ToggleRows; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "settings-view_-long-commands-stay-within-size",
-        "name": "TestSettingsView_LongCommandsStayWithinSize",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/settings_test.go",
-        "line": 165,
-        "endLine": 176,
-        "reviewedHash": "85c62ee5ef6b2dd5b79feec61a07cc1209a8b03a085c634307c2587c5eec7d7d",
-        "proves": "For display/edit mode at 80×20 and 120×36, checks rows/display widths, no injected ANSI/newline text, retained controls and edit cancel help.",
-        "limits": "String/cell assertions rather than terminal screenshots; helper assertSettingsFits is at settings_test.go:181.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:07.250798044Z",
-          "scope": "TestSettingsView_LongCommandsStayWithinSize; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "app-settings-persistence",
-        "name": "TestAppSettingsPersistence",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/config/app_settings_test.go",
-        "line": 13,
-        "endLine": 56,
-        "reviewedHash": "c592744c5bf639742840eff42c89f67ca9d7280245e9bfdfa11301f3914c272d",
-        "proves": "Checks default command/visibility settings, saves independent IDE/terminal commands and visibility options, then reads back exact AppSettings equality.",
-        "limits": "Repository Save/Get against the same repository instance; no real app restart or coordinated navigation assertion.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.716000153Z",
-          "scope": "TestAppSettingsPersistence; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "workspace-source-i-d-assigned-and-preserved-on-edit",
-        "name": "TestWorkspaceSourceIDAssignedAndPreservedOnEdit",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/app/source_save_test.go",
-        "line": 203,
-        "endLine": 257,
-        "reviewedHash": "ad2cf273e0e9665d3397e7fa3d5c16d937c303dc3b5fb1233031eceb6a8bf3c5",
-        "proves": "Executes source save/edit callbacks, then checks a nonempty repository-assigned ID survives a change of IsRoot.",
-        "limits": "Does not drive Ctrl+E, the source form or navigation back to an unsaved card.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:05.79729125Z",
-          "scope": "TestWorkspaceSourceIDAssignedAndPreservedOnEdit; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "save-workspace-source-aborts-on-malformed-registry",
-        "name": "TestSaveWorkspaceSourceAbortsOnMalformedRegistry",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/app/source_save_test.go",
-        "line": 115,
-        "endLine": 155,
-        "reviewedHash": "ad2cf273e0e9665d3397e7fa3d5c16d937c303dc3b5fb1233031eceb6a8bf3c5",
-        "proves": "Executes the workspace save command against malformed source YAML, checks ErrorMsg and byte-identical failed-read input.",
-        "limits": "Callback error boundary only; no source-manager key journey.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:05.786941181Z",
-          "scope": "TestSaveWorkspaceSourceAbortsOnMalformedRegistry; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "delete-workspace-source-aborts-on-malformed-registry",
-        "name": "TestDeleteWorkspaceSourceAbortsOnMalformedRegistry",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/app/source_save_test.go",
-        "line": 156,
-        "endLine": 202,
-        "reviewedHash": "ad2cf273e0e9665d3397e7fa3d5c16d937c303dc3b5fb1233031eceb6a8bf3c5",
-        "proves": "Executes delete callback against malformed workspace sources and checks ErrorMsg without modifying the original bytes.",
-        "limits": "Does not check successful deletion refresh or return navigation.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:05.79153707Z",
-          "scope": "TestDeleteWorkspaceSourceAbortsOnMalformedRegistry; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "selected-only-skill-cursor-normalizes-after-registry-refresh",
-        "name": "TestSelectedOnlySkillCursorNormalizesAfterRegistryRefresh",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/card_editor_test.go",
-        "line": 201,
-        "endLine": 222,
-        "reviewedHash": "2a7332fafb47cd5df346dea1eff1d549fd80c41d83b4c9122dd3cd1490fda622",
-        "proves": "Enables selected-only directly, removes a selected skill during registry refresh, checks cursor normalization to A and that Space toggles A.",
-        "limits": "Does not send Ctrl+S or assert header indicator, search intersection or re-enabling all items.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:58.641615782Z",
-          "scope": "TestSelectedOnlySkillCursorNormalizesAfterRegistryRefresh; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "sub-workspace-picker-multiple-unresolved-and-main-modes",
-        "name": "TestSubWorkspacePickerMultipleUnresolvedAndMainModes",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/workspace_picker_test.go",
-        "line": 77,
-        "endLine": 128,
-        "reviewedHash": "56f8d29c821f80c7d198b88b8a45ce36502fea738c742a25e62a36fc438a756d",
-        "proves": "Drives the sub-picker through missing selection repair, search, provisional toggles, cancel, confirmation of two IDs, main-picker mode reset and saving both sub IDs.",
-        "limits": "In-memory form/view sequence; does not copy sub-workspace files or persist the card repository.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:07.263170084Z",
-          "scope": "TestSubWorkspacePickerMultipleUnresolvedAndMainModes; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "sub-workspace-new-selection-survives-registry-refresh",
-        "name": "TestSubWorkspaceNewSelectionSurvivesRegistryRefresh",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/workspace_picker_test.go",
-        "line": 129,
-        "endLine": 177,
-        "reviewedHash": "56f8d29c821f80c7d198b88b8a45ce36502fea738c742a25e62a36fc438a756d",
-        "proves": "Checks a newly selected workspace remains visible as missing after refresh, cancel does not commit, explicit missing-row deselection works, and confirming a missing checked ID retains it.",
-        "limits": "View/registry-message fixture, not concurrent disk registry scanning.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:07.269702663Z",
-          "scope": "TestSubWorkspaceNewSelectionSurvivesRegistryRefresh; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "launch-workspace-command-errors",
-        "name": "TestLaunchWorkspaceCommandErrors",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/ide_launcher_test.go",
-        "line": 155,
-        "endLine": 172,
-        "reviewedHash": "77686722e24693b846bff6f8047659d01ba9757df42d8e0fed047c940f32849f",
-        "proves": "Checks unconfigured/whitespace command, empty/missing workspace path and missing executable return the expected sentinels or an error.",
-        "limits": "Shared launcher API tests, not every caller-specific banner or concurrent filesystem change.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:02.15061457Z",
-          "scope": "TestLaunchWorkspaceCommandErrors; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "activation-published-before-startup-delay",
-        "name": "TestActivationPublishedBeforeStartupDelay",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/startup_integration_test.go",
-        "line": 56,
-        "endLine": 110,
-        "reviewedHash": "1847caf3b093d5208ab0c5fd95a41f44dededa6ffbab7daa7730fc1e37e35a25",
-        "proves": "Checks a published real cat activation reports starting/process-started and permits immediate attachment; controlled timer transitions to active without enabling MCP-disabled delivery.",
-        "limits": "Injected startup clock/driver preparation; does not assert native CLI task readiness.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:07.000527357Z",
-          "scope": "TestActivationPublishedBeforeStartupDelay; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "startup-admission-and-registration-are-independent",
-        "name": "TestStartupAdmissionAndRegistrationAreIndependent",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/session/startup_boundary_test.go",
-        "line": 73,
-        "endLine": 114,
-        "reviewedHash": "deb0728efc7f561909d61e939dfae8e0ea17909c240d0f18e74c6ba591b576fd",
-        "proves": "Registers a conversation during starting, checks early delivery rejection, then advances the controlled startup timer and verifies admission becomes available.",
-        "limits": "Controlled clock/manager fixture, not native CLI processing.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:01.336299952Z",
-          "scope": "TestStartupAdmissionAndRegistrationAreIndependent; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "inspection-conversion-preserves-activation-snapshot",
-        "name": "TestInspectionConversionPreservesActivationSnapshot",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/inspection_runtime_test.go",
-        "line": 11,
-        "endLine": 40,
-        "reviewedHash": "6df6907a9f82ded9c9630b78044cc58fe22938ac554baadb19ec322a3efaa60a",
-        "proves": "Checks inspection copies activation/startup/delivery fields, serialized historical effects stay unchanged after source snapshot mutation and old data does not fabricate runtime fields.",
-        "limits": "Pure conversion/serialization test, separate from transport.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.805084578Z",
-          "scope": "TestInspectionConversionPreservesActivationSnapshot; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "dashboard-scope-over-h-t-t-p",
-        "name": "TestDashboardScopeOverHTTP",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/mcp/dashboard_scope_test.go",
-        "line": 21,
-        "endLine": 172,
-        "reviewedHash": "9b762f25ed9999928f3bcb4d29513636fb34986351fef01c4e11f5689e31efa4",
-        "proves": "Authenticates two dashboards over the real Streamable HTTP SDK client, checks peer session discovery excludes caller and foreign sessions.",
-        "limits": "Only list_sessions transport scope is asserted here; no external AI client.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:57.060497875Z",
-          "scope": "TestDashboardScopeOverHTTP; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "operation-runner-creates-once-and-replays-request",
-        "name": "TestOperationRunnerCreatesOnceAndReplaysRequest",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/service_test.go",
-        "line": 156,
-        "endLine": 455,
-        "reviewedHash": "592e2d9e09e30a20069d19b9395846eea1222bdc6a1fc71dbfa75c3165318792",
-        "proves": "With real cat sessions, checks deployed controller/registration-only authority, scoped discovery/inspection/create, duplicate concurrent create identity, request conflicts, cross-dashboard denials, lifecycle replay/restart and cancellation.",
-        "limits": "In-process service/runner fixture; no TUI or installed native-agent client. Tests the declared finite set of authorization and operation cases.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:59.524544126Z",
-          "scope": "TestOperationRunnerCreatesOnceAndReplaysRequest; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "unauthenticated-discovery-is-denied",
-        "name": "TestUnauthenticatedDiscoveryIsDenied",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/service_test.go",
-        "line": 142,
-        "endLine": 155,
-        "reviewedHash": "592e2d9e09e30a20069d19b9395846eea1222bdc6a1fc71dbfa75c3165318792",
-        "proves": "Checks empty credentials cannot list cards/sessions or inspect a target.",
-        "limits": "Service rejection assertions without transport status assertions.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:59.251895841Z",
-          "scope": "TestUnauthenticatedDiscoveryIsDenied; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "final-journal-write-failure-returns-outcome-and-recovers-interrupted",
-        "name": "TestFinalJournalWriteFailureReturnsOutcomeAndRecoversInterrupted",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/service_test.go",
-        "line": 456,
-        "endLine": 535,
-        "reviewedHash": "592e2d9e09e30a20069d19b9395846eea1222bdc6a1fc71dbfa75c3165318792",
-        "proves": "Injects failure after a successful creation effect, checks usable target/result with warning, in-memory replay without another session, and interrupted recovery without auto-execution.",
-        "limits": "Injected journal write seam and in-process runner restart, not OS crash/power-loss.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:59.556599765Z",
-          "scope": "TestFinalJournalWriteFailureReturnsOutcomeAndRecoversInterrupted; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "operation-queue-bound-and-disconnected-wait-return-promptly",
-        "name": "TestOperationQueueBoundAndDisconnectedWaitReturnPromptly",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/service_test.go",
-        "line": 951,
-        "endLine": 1120,
-        "reviewedHash": "592e2d9e09e30a20069d19b9395846eea1222bdc6a1fc71dbfa75c3165318792",
-        "proves": "Fills worker/queue gates, checks prompt return on disconnected waits, capacity_exhausted, eventual completed effects and truthful success-with-warning when cancellation arrives after publication.",
-        "limits": "Finite controlled worker interleavings and deadlines; not a throughput or starvation proof.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:59.84234434Z",
-          "scope": "TestOperationQueueBoundAndDisconnectedWaitReturnPromptly; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "operation-journal-recovers-interrupted-and-fails-closed-on-corruption",
-        "name": "TestOperationJournalRecoversInterruptedAndFailsClosedOnCorruption",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/service_test.go",
-        "line": 1121,
-        "endLine": 1154,
-        "reviewedHash": "592e2d9e09e30a20069d19b9395846eea1222bdc6a1fc71dbfa75c3165318792",
-        "proves": "Writes a running record, checks interrupted recovery with warning and verifies a corrupt journal sets loadErr to block mutation admission.",
-        "limits": "Constructed journal records and runner state; no actual process crash.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:59.8428063Z",
-          "scope": "TestOperationJournalRecoversInterruptedAndFailsClosedOnCorruption; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "messaging-operations-pin-activations-and-persist-explicit-reports",
-        "name": "TestMessagingOperationsPinActivationsAndPersistExplicitReports",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/service_test.go",
-        "line": 1782,
-        "endLine": 1900,
-        "reviewedHash": "592e2d9e09e30a20069d19b9395846eea1222bdc6a1fc71dbfa75c3165318792",
-        "proves": "Checks target activation inspection, submitted send result, stable replay identity, changed-text conflict, stored text, worker report permission and removal of history on recipient deletion.",
-        "limits": "Local service/PTY fixtures; submission is byte evidence, not an agent acknowledgment or processing proof.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:00.044800369Z",
-          "scope": "TestMessagingOperationsPinActivationsAndPersistExplicitReports; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "ordinary-message-journal-rejection-rolls-back-history-and-retries",
-        "name": "TestOrdinaryMessageJournalRejectionRollsBackHistoryAndRetries",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/messaging_shared_delivery_test.go",
-        "line": 78,
-        "endLine": 121,
-        "reviewedHash": "cbc127688b33201d49f397a3c95256bac975c8ca541718803b12274124b47fd7",
-        "proves": "Injects journal admission failure, checks no intent/receipt survives, then retries and replays the same request with the original message identity.",
-        "limits": "Controlled write failure; no later partial PTY write claim.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:59.147339046Z",
-          "scope": "TestOrdinaryMessageJournalRejectionRollsBackHistoryAndRetries; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "ordinary-message-queue-rejection-releases-reservation-and-preserves-replay",
-        "name": "TestOrdinaryMessageQueueRejectionReleasesReservationAndPreservesReplay",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/messaging_shared_delivery_test.go",
-        "line": 34,
-        "endLine": 77,
-        "reviewedHash": "cbc127688b33201d49f397a3c95256bac975c8ca541718803b12274124b47fd7",
-        "proves": "Fills operation queue, checks capacity rejection leaves no message, then retries/replays same message ID and stops recipient without a retained reservation.",
-        "limits": "Controlled queue/worker fixture rather than unbounded production load.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:59.112647198Z",
-          "scope": "TestOrdinaryMessageQueueRejectionReleasesReservationAndPreservesReplay; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "service-remove-session-delegates-guards-cleanup-and-manager-errors",
-        "name": "TestServiceRemoveSessionDelegatesGuardsCleanupAndManagerErrors",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/service_test.go",
-        "line": 1672,
-        "endLine": 1733,
-        "reviewedHash": "592e2d9e09e30a20069d19b9395846eea1222bdc6a1fc71dbfa75c3165318792",
-        "proves": "Rejects removal of a running session, removes a stopped temporary workspace, propagates session-record cleanup failure and closed-manager activation error.",
-        "limits": "Service/manager and real filesystem fixture; not the dashboard confirmation key sequence.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:59.998265502Z",
-          "scope": "TestServiceRemoveSessionDelegatesGuardsCleanupAndManagerErrors; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "resolve-capabilities-adds-m-c-p-access-skill-only-when-kankuro-m-c-p-selected",
-        "name": "TestResolveCapabilitiesAddsMCPAccessSkillOnlyWhenKankuroMCPSelected",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/api/service_test.go",
-        "line": 1192,
-        "endLine": 1222,
-        "reviewedHash": "592e2d9e09e30a20069d19b9395846eea1222bdc6a1fc71dbfa75c3165318792",
-        "proves": "Checks mcp-cli is absent without Kankuro MCP, both protocol skills appear once with Kankuro selection and explicit mcp-cli selection does not duplicate either.",
-        "limits": "Tests capability selection, not instruction following by an AI agent.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:59.84684967Z",
-          "scope": "TestResolveCapabilitiesAddsMCPAccessSkillOnlyWhenKankuroMCPSelected; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "embedded-m-c-p-c-l-i-skill-deploys-through-config",
-        "name": "TestEmbeddedMCPCLISkillDeploysThroughConfig",
-        "method": "automated",
-        "integration": "project",
-        "file": "main_test.go",
-        "line": 13,
-        "endLine": 41,
-        "reviewedHash": "a7d91caf10f7521dc017c9a9317d878331cf2ebe5dfdc853fea56bbe5ec70b5a",
-        "proves": "Checks embedded mcp-cli bytes/metadata and exact deployed SKILL.md bytes through the real driver deployment.",
-        "limits": "Uses builtin lookup only as fixture setup for the live deployment path; does not establish any runtime need for that lookup helper.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.696139914Z",
-          "scope": "TestEmbeddedMCPCLISkillDeploysThroughConfig; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "embedded-kankuro-puppet-skill-deploys-through-config",
-        "name": "TestEmbeddedKankuroPuppetSkillDeploysThroughConfig",
-        "method": "automated",
-        "integration": "project",
-        "file": "main_test.go",
-        "line": 42,
-        "endLine": 62,
-        "reviewedHash": "a7d91caf10f7521dc017c9a9317d878331cf2ebe5dfdc853fea56bbe5ec70b5a",
-        "proves": "Checks canonical embedded puppet skill metadata and byte-identical driver deployment to the expected skill folder.",
-        "limits": "File deployment only; no evidence that an installed CLI reads or follows the skill.",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.696863434Z",
-          "scope": "TestEmbeddedKankuroPuppetSkillDeploysThroughConfig; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:06:55.063552322Z",
+          "scope": "TestExclusiveLock in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -11741,19 +12517,19 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/ui/views/dashboard_list_test.go",
-        "line": 159,
-        "endLine": 179,
-        "reviewedHash": "f5fe6b22f5ee6c2d978eef517df6c89fb4791816878d6f24d9c114ab7e8d2fee",
+        "reviewedHash": "2217d2cb2378bd49456d51cb12c352bee8f4033d229fe5297211727dea37c806",
         "proves": "Drives n, rejects empty name, edits name/description and asserts callback values.",
         "limits": "Create-form callback only; no edit-form submission, repository write or selected-ID refresh assertion.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.485135534Z",
-          "scope": "TestDashboardListCreatesNamedDashboard; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:09.578769989Z",
+          "scope": "TestDashboardListCreatesNamedDashboard in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 171,
+        "endLine": 190
       },
       {
         "id": "dashboard-details-through-service",
@@ -11761,78 +12537,198 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/membership_internal_test.go",
-        "line": 348,
-        "endLine": 370,
-        "reviewedHash": "7788a680a0548d68f4a1d3ee5108c3ca6f219d435c34e55cd3ce6306b42e5cb2",
+        "reviewedHash": "5c03e0ca7fa22fb2f702ffc7ab2a5ee661a6fb521c75935bdd83dc1719f97f46",
         "proves": "Creates and updates dashboard details, then checks the single returned inventory entry equals the update and retains the created identity.",
         "limits": "Service/repository test; no dashboard-list form key journey.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.914962342Z",
-          "scope": "TestDashboardDetailsThroughService; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:06:56.427411117Z",
+          "scope": "TestDashboardDetailsThroughService in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 348,
+        "endLine": 369
       },
       {
-        "id": "session-attach-replay",
-        "name": "TestSessionAttachReplay",
+        "id": "dashboard-list-shows-deletion-preparation-and-status-errors",
+        "name": "TestDashboardListShowsDeletionPreparationAndStatusErrors",
         "method": "automated",
         "integration": "project",
-        "file": "internal/session/attach_test.go",
-        "line": 11,
-        "endLine": 52,
-        "reviewedHash": "50a58baf339a4b8439246f3d2e98a6ec453af1063d2a190efd536e99adb6a4f4",
-        "proves": "Writes hello through a real cat attachment, closes it, reattaches and asserts exact replayed scrollback.",
-        "limits": "Manager handles only; does not run attachExec raw terminal mode, Ctrl+K or resize synchronization.",
+        "file": "internal/ui/views/dashboard_list_test.go",
+        "reviewedHash": "2217d2cb2378bd49456d51cb12c352bee8f4033d229fe5297211727dea37c806",
+        "proves": "At three sizes, drives preflight/status keys, feeds multiline/ANSI failure messages and checks visible bounded errors that clear after cancel or successful retry.",
+        "limits": "View/message assertions; fake callbacks do not execute the deletion service. Helper assertDashboardDeletionErrorVisible supplies the bounds/sanitization oracle.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:01.489860464Z",
-          "scope": "TestSessionAttachReplay; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:09.5642564Z",
+          "scope": "TestDashboardListShowsDeletionPreparationAndStatusErrors in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 28,
+        "endLine": 69
       },
       {
-        "id": "session-launcher-waits-for-name-result-and-allows-retry",
-        "name": "TestSessionLauncherWaitsForNameResultAndAllowsRetry",
+        "id": "dashboard-list-bounds-long-deletion-error-when-list-becomes-empty",
+        "name": "TestDashboardListBoundsLongDeletionErrorWhenListBecomesEmpty",
         "method": "automated",
         "integration": "project",
-        "file": "internal/ui/views/session_launcher_test.go",
-        "line": 121,
-        "endLine": 147,
-        "reviewedHash": "b868fdd3452c53f4f8f4967f63bf6084d84bb354fa020067ec9d3446a866c4e4",
-        "proves": "Checks name submission starts once, duplicate Enter is suppressed while pending, an error is shown and another Enter can retry.",
-        "limits": "In-memory naming callback/result boundary; not a persisted service rename.",
+        "file": "internal/ui/views/dashboard_list_test.go",
+        "reviewedHash": "2217d2cb2378bd49456d51cb12c352bee8f4033d229fe5297211727dea37c806",
+        "proves": "Keeps a long CJK cleanup error visible after the dashboard inventory becomes empty and checks the view stays within 80×21.",
+        "limits": "One narrow view state; not a screenshot or actual retry service run.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:07.248557364Z",
-          "scope": "TestSessionLauncherWaitsForNameResultAndAllowsRetry; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:09.56558524Z",
+          "scope": "TestDashboardListBoundsLongDeletionErrorWhenListBecomesEmpty in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 82,
+        "endLine": 94
       },
       {
-        "id": "set-name-propagates-persist-failure",
-        "name": "TestSetNamePropagatesPersistFailure",
+        "id": "read-dashboard-data-scopes-cards-and-sessions",
+        "name": "TestReadDashboardDataScopesCardsAndSessions",
         "method": "automated",
         "integration": "project",
-        "file": "internal/session/lifecycle_test.go",
-        "line": 412,
-        "endLine": 456,
-        "reviewedHash": "20a260206ef6895110aafb86e5bd2811799a452e27066a795d75135ee00cff4b",
-        "proves": "Makes the session-record directory unwritable and asserts the checked name operation propagates its persistence error.",
-        "limits": "Permission-based test skips as root; manager fixture is not the complete UI rename path.",
+        "file": "internal/api/membership_internal_test.go",
+        "proves": "Checks private/shared visibility, consumer edit denial, dashboard-local sessions, stale/foreign deletion confirmation, surviving foreign sessions and switching away from a deleted card.",
+        "limits": "Service/repository/manager fixture with cat processes; no keyboard or MCP transport assertions.",
+        "reviewedHash": "5c03e0ca7fa22fb2f702ffc7ab2a5ee661a6fb521c75935bdd83dc1719f97f46",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.359369767Z",
-          "scope": "TestSetNamePropagatesPersistFailure; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:06:56.415437928Z",
+          "scope": "TestReadDashboardDataScopesCardsAndSessions in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 139,
+        "endLine": 308
+      },
+      {
+        "id": "scoped-launch-revalidates-changed-card-before-publication",
+        "name": "TestScopedLaunchRevalidatesChangedCardBeforePublication",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/membership_internal_test.go",
+        "proves": "Blocks copying, changes sharing, then asserts no publication and release of the pending reservation.",
+        "limits": "Injected workspace-copy gate; does not simulate every registry mutation.",
+        "reviewedHash": "5c03e0ca7fa22fb2f702ffc7ab2a5ee661a6fb521c75935bdd83dc1719f97f46",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.460837244Z",
+          "scope": "TestScopedLaunchRevalidatesChangedCardBeforePublication in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 403,
+        "endLine": 458
+      },
+      {
+        "id": "dashboard-scope-over-h-t-t-p",
+        "name": "TestDashboardScopeOverHTTP",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/mcp/dashboard_scope_test.go",
+        "line": 21,
+        "endLine": 171,
+        "reviewedHash": "e3c654827f59c2ffffe968a2862c16726b89fd878aeef26745a364ce9098685c",
+        "proves": "Authenticates two dashboards over the real Streamable HTTP SDK client, checks peer session discovery excludes caller and foreign sessions.",
+        "limits": "Only list_sessions transport scope is asserted here; no external AI client.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.245667568Z",
+          "scope": "TestDashboardScopeOverHTTP in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "operation-runner-creates-once-and-replays-request",
+        "name": "TestOperationRunnerCreatesOnceAndReplaysRequest",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/service_test.go",
+        "line": 164,
+        "endLine": 461,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
+        "proves": "With real cat sessions, checks deployed controller/registration-only authority, scoped discovery/inspection/create, duplicate concurrent create identity, request conflicts, cross-dashboard denials, lifecycle replay/restart and cancellation.",
+        "limits": "In-process service/runner fixture; no TUI or installed native-agent client. Tests the declared finite set of authorization and operation cases.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:59.473328871Z",
+          "scope": "TestOperationRunnerCreatesOnceAndReplaysRequest in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "unauthenticated-discovery-is-denied",
+        "name": "TestUnauthenticatedDiscoveryIsDenied",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/service_test.go",
+        "line": 150,
+        "endLine": 161,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
+        "proves": "Checks empty credentials cannot list cards/sessions or inspect a target.",
+        "limits": "Service rejection assertions without transport status assertions.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:59.162837516Z",
+          "scope": "TestUnauthenticatedDiscoveryIsDenied in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "confirmed-card-deletion-cancels-foreign-pending-launch",
+        "name": "TestConfirmedCardDeletionCancelsForeignPendingLaunch",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/membership_internal_test.go",
+        "proves": "Asserts foreign pending impact, required confirmation, cancelled launch and no published session.",
+        "limits": "Controlled copier and service entry points; no confirmation-modal rendering.",
+        "reviewedHash": "5c03e0ca7fa22fb2f702ffc7ab2a5ee661a6fb521c75935bdd83dc1719f97f46",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.474424083Z",
+          "scope": "TestConfirmedCardDeletionCancelsForeignPendingLaunch in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 461,
+        "endLine": 501
+      },
+      {
+        "id": "dashboard-cascade-resumes-after-restart",
+        "name": "TestDashboardCascadeResumesAfterRestart",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/dashboard_deletion_internal_test.go",
+        "line": 132,
+        "endLine": 184,
+        "proves": "Persists deleting intent, checks admission denial, rebuilds manager/service, removes owned session while preserving the foreign session and permits idempotent retry.",
+        "limits": "In-process restart against real files; no OS kill/power-loss simulation.",
+        "reviewedHash": "abc20c154ff0e19f4923ad649195d14945e477961cb8114cf97ad6bb7736398a",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.211417864Z",
+          "scope": "TestDashboardCascadeResumesAfterRestart in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -11841,159 +12737,198 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/card_cleanup_internal_test.go",
-        "line": 15,
-        "endLine": 152,
-        "reviewedHash": "cf170f60e2b5f59b84be6a7001d43fb756a631a4b235a31129fac5b71032392b",
+        "reviewedHash": "d9286cfb104e002db652973ffe28a6085d9b023f762c4ad4a983146bca3157f7",
         "proves": "Blocks a foreign pending copy, edits the card workspace, checks failed cleanup persists the original exact paths/error in a tombstone, then restarts and retries cleanup without removing a foreign session.",
         "limits": "Permission-based non-root filesystem fixture; in-process restart, not hard OS termination.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.722598682Z",
-          "scope": "TestCardDeletionRetriesPendingWorkspaceCleanupAfterRestart; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "dashboard-list-shows-deletion-preparation-and-status-errors",
-        "name": "TestDashboardListShowsDeletionPreparationAndStatusErrors",
-        "method": "automated",
-        "integration": "project",
-        "file": "internal/ui/views/dashboard_list_test.go",
+          "at": "2026-11-20T00:06:55.075301782Z",
+          "scope": "TestCardDeletionRetriesPendingWorkspaceCleanupAfterRestart in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
         "line": 16,
-        "endLine": 58,
-        "reviewedHash": "f5fe6b22f5ee6c2d978eef517df6c89fb4791816878d6f24d9c114ab7e8d2fee",
-        "proves": "At three sizes, drives preflight/status keys, feeds multiline/ANSI failure messages and checks visible bounded errors that clear after cancel or successful retry.",
-        "limits": "View/message assertions; fake callbacks do not execute the deletion service. Helper assertDashboardDeletionErrorVisible supplies the bounds/sanitization oracle.",
+        "endLine": 167
+      },
+      {
+        "id": "multi-dashboard-discards-stale-results-and-preserves-views",
+        "name": "TestMultiDashboardDiscardsStaleResultsAndPreservesViews",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/multi_dashboard_internal_test.go",
+        "proves": "Checks that foreign sessions cannot take over the center, stale settings navigation, refresh and attach cannot cross dashboard scope, and returning restores the original view.",
+        "limits": "Drives coordinator messages directly with real local cat sessions; not an end-to-end terminal journey.",
+        "reviewedHash": "7749e986fb4965d6a54c9b4ec20cedf1b4fb4a725b5a8604c85a1c90ac011ccb",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.474655015Z",
-          "scope": "TestDashboardListShowsDeletionPreparationAndStatusErrors; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:07:04.40770914Z",
+          "scope": "TestMultiDashboardDiscardsStaleResultsAndPreservesViews in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 20,
+        "endLine": 111
+      },
+      {
+        "id": "maybe-refresh-config-skips-unchanged-registry",
+        "name": "TestMaybeRefreshConfigSkipsUnchangedRegistry",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/refresh_cadence_internal_test.go",
+        "proves": "Counts ListIDCards calls and asserts an unchanged fingerprint produces no additional registry read.",
+        "limits": "Counting repository fixture; does not establish every filesystem timestamp boundary.",
+        "reviewedHash": "fb6873bd0118f5a210db8ee56d2c92ad12e3c55aec1b7dca83f9f72ad669786a",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.415628549Z",
+          "scope": "TestMaybeRefreshConfigSkipsUnchangedRegistry in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 67,
+        "endLine": 94
+      },
+      {
+        "id": "coordinator-too-small-screen-is-exact",
+        "name": "TestCoordinatorTooSmallScreenIsExact",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/size_guard_test.go",
+        "line": 26,
+        "endLine": 45,
+        "proves": "Sweeps widths 1–85 and heights 1–27; checks exact notice rectangle below 80×24 and notice removal at supported sizes.",
+        "limits": "String/cell layout assertions; no emulator font or image comparison.",
+        "reviewedHash": "0801b02c0bbba2fc83c94692410ff7ad170275438ea78e8a12e56f587f220950",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:09.522864064Z",
+          "scope": "TestCoordinatorTooSmallScreenIsExact in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
-        "id": "dashboard-list-bounds-long-deletion-error-when-list-becomes-empty",
-        "name": "TestDashboardListBoundsLongDeletionErrorWhenListBecomesEmpty",
+        "id": "coordinator-drops-keys-when-too-small",
+        "name": "TestCoordinatorDropsKeysWhenTooSmall",
         "method": "automated",
         "integration": "project",
-        "file": "internal/ui/views/dashboard_list_test.go",
-        "line": 70,
-        "endLine": 83,
-        "reviewedHash": "f5fe6b22f5ee6c2d978eef517df6c89fb4791816878d6f24d9c114ab7e8d2fee",
-        "proves": "Keeps a long CJK cleanup error visible after the dashboard inventory becomes empty and checks the view stays within 80×21.",
-        "limits": "One narrow view state; not a screenshot or actual retry service run.",
+        "file": "internal/ui/size_guard_test.go",
+        "line": 54,
+        "endLine": 69,
+        "proves": "Checks that n, Enter, Tab, Backspace and c return no commands and do not change the active view at three undersized dimensions.",
+        "limits": "Selected keys and sizes only; paste is not asserted here.",
+        "reviewedHash": "0801b02c0bbba2fc83c94692410ff7ad170275438ea78e8a12e56f587f220950",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.475441804Z",
-          "scope": "TestDashboardListBoundsLongDeletionErrorWhenListBecomesEmpty; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:07:09.57031494Z",
+          "scope": "TestCoordinatorDropsKeysWhenTooSmall in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
-        "id": "queued-delivery-cancellation-releases-reservation-without-submitting",
-        "name": "TestQueuedDeliveryCancellationReleasesReservationWithoutSubmitting",
+        "id": "dashboard-list-requires-explicit-quit",
+        "name": "TestDashboardListRequiresExplicitQuit",
         "method": "automated",
         "integration": "project",
-        "file": "internal/api/messaging_shared_delivery_test.go",
-        "line": 122,
-        "endLine": 230,
-        "reviewedHash": "cbc127688b33201d49f397a3c95256bac975c8ca541718803b12274124b47fd7",
-        "proves": "For ordinary and notification queues, cancels before execution, starts a worker, checks not-submitted delivery, successful target stop and absence of message markers in captured output.",
-        "limits": "Controlled runner/worker plus PTY bytes; ordinary uses public cancellation, notification cancels the captured task authority directly.",
+        "file": "internal/ui/dashboard_list_keys_test.go",
+        "line": 11,
+        "endLine": 44,
+        "proves": "Checks repeated Esc/Ctrl+C keep the dashboard list open at normal and small sizes and q returns QuitMsg.",
+        "limits": "Coordinator-level input assertions; no physical terminal signal delivery.",
+        "reviewedHash": "bf4a7614f4eabbcc3f4871f1baa0fb1bceaa11a211b6a1af3dc8e25c11a552ec",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:59.197479973Z",
-          "scope": "TestQueuedDeliveryCancellationReleasesReservationWithoutSubmitting; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:07:07.067406993Z",
+          "scope": "TestDashboardListRequiresExplicitQuit in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
-        "id": "queued-message-reservations-cannot-deadlock-stop-workers-or-shutdown",
-        "name": "TestQueuedMessageReservationsCannotDeadlockStopWorkersOrShutdown",
+        "id": "card-editor-preserves-unmanaged-fields",
+        "name": "TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision",
         "method": "automated",
         "integration": "project",
-        "file": "internal/api/messaging_review_test.go",
-        "line": 179,
-        "endLine": 289,
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
-        "proves": "Queues delivery reservations alongside stop operations, cancels sends, waits for stop and checks runner Shutdown returns before deadline with all targets terminated.",
-        "limits": "Finite controlled worker interleaving for ordinary sends; dispatcher shutdown during a real notification write is not directly asserted.",
+        "file": "internal/api/card_editor_test.go",
+        "proves": "Saves a name-only draft through the editor service, compares every other persisted field apart from UpdatedAt, and rejects a stale revision.",
+        "limits": "Service and repository assertions. The UI draft is covered separately.",
+        "reviewedHash": "2e3bf5470ef576551b7c48d70456e1c000b9b5d0e0701895df1fd2be0cf2736a",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:57.187253348Z",
-          "scope": "TestQueuedMessageReservationsCannotDeadlockStopWorkersOrShutdown; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:06:55.082324791Z",
+          "scope": "TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 13,
+        "endLine": 71
       },
       {
-        "id": "deleting-report-history-cancels-admitted-notification",
-        "name": "TestDeletingReportHistoryCancelsAdmittedNotification",
+        "id": "dashboard-control-card-editor-toggle-round-trip",
+        "name": "TestDashboardControlCardEditorToggleRoundTrip",
         "method": "automated",
         "integration": "project",
-        "file": "internal/api/messaging_review_test.go",
-        "line": 751,
-        "endLine": 817,
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
-        "proves": "Publishes admitted notification intent, deletes dashboard history, then checks submission rejects and notifications stay absent rather than recreating deleted history.",
-        "limits": "Direct manager/store admission sequence; no raw agent prompt-processing claim.",
+        "file": "internal/ui/views/card_editor_test.go",
+        "proves": "Prior assessment: Focuses the control row, toggles off/on and checks Card().DashboardControl.",
+        "limits": "Does not prove deployed activation authority or MCP permission changes. The current source differs from that assessment and needs a fresh assertion review.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:58.995301444Z",
-          "scope": "TestDeletingReportHistoryCancelsAdmittedNotification; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:06:58.282823223Z",
+          "scope": "TestDashboardControlCardEditorToggleRoundTrip in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 117,
+        "endLine": 132
       },
       {
-        "id": "m-c-p-c-l-i-registers-conversation-for-live-activation",
-        "name": "TestMCPCLIRegistersConversationForLiveActivation",
+        "id": "card-editor-focused-field-always-visible",
+        "name": "TestCardEditorFocusedFieldAlwaysVisible",
         "method": "automated",
         "integration": "project",
-        "file": "internal/session/conversation_test.go",
-        "line": 63,
-        "endLine": 334,
-        "reviewedHash": "67dbeb8f4c470db473e3a379e88aa76d2a2e187a372bea1e622d224a5a6ac758",
-        "proves": "Runs a shell child using the installed mcp-cli against the real MCP endpoint, checks reserved-env isolation, binding persistence/warnings/retry, stale credentials, explicit choice and card/session-local bindings across restart.",
-        "limits": "Interoperability test uses a shell/cat agent; it is not an installed Codex/Claude CLI accepting native resume. Skips when mcp-cli is absent; the recorded endpoint run passed.",
+        "file": "internal/ui/views/card_editor_layout_test.go",
+        "proves": "Checks every expected focus target remains visible with optional sections on/off, empty/large lists and minimum-sized form heights.",
+        "limits": "Rendered text and model focus; no screenshot, native terminal or image baseline.",
+        "reviewedHash": "7141769f13e792759d3829b8f3e932c7c000347e7299804e123f4086ad001580",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:02.018737467Z",
-          "scope": "TestMCPCLIRegistersConversationForLiveActivation; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:06:57.408397971Z",
+          "scope": "TestCardEditorFocusedFieldAlwaysVisible in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 261,
+        "endLine": 284
       },
       {
-        "id": "claude-resume-lifecycle-uses-selected-native-i-d",
-        "name": "TestClaudeResumeLifecycleUsesSelectedNativeID",
+        "id": "selected-only-skill-cursor-normalizes-after-registry-refresh",
+        "name": "TestSelectedOnlySkillCursorNormalizesAfterRegistryRefresh",
         "method": "automated",
         "integration": "project",
-        "file": "internal/session/claude_resume_test.go",
-        "line": 70,
-        "endLine": 182,
-        "reviewedHash": "7f6768bfaccb7c57e03c66b33d35eb4165bbced868a119c602240ac4500aa144",
-        "proves": "Captures fresh/saved/new and A→B→A Claude arguments, checks original workspace marker survives and conversation IDs stay card-local.",
-        "limits": "Overrides Spawn and PrepareWorkspace with a capture driver; never starts the installed Claude CLI.",
+        "file": "internal/ui/views/card_editor_test.go",
+        "reviewedHash": "44c7108f0140a1b65fd0be99095f06eed0aed3dde214bfa852762592b9b33c62",
+        "proves": "Enables selected-only directly, removes a selected skill during registry refresh, checks cursor normalization to A and that Space toggles A.",
+        "limits": "Does not send Ctrl+S or assert header indicator, search intersection or re-enabling all items.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:01.510357493Z",
-          "scope": "TestClaudeResumeLifecycleUsesSelectedNativeID; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:06:58.284782873Z",
+          "scope": "TestSelectedOnlySkillCursorNormalizesAfterRegistryRefresh in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 134,
+        "endLine": 154
       },
       {
         "id": "temporary-workspace-space-save",
@@ -12002,40 +12937,157 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "kind": "unit",
         "file": "internal/ui/views/card_editor_test.go",
-        "proves": "Focuses Use Tmp Workspace, sends Space for false→true→false, then saves each boolean through OnSave and checks the complete normalized card.",
+        "proves": "Starts with each temporary-workspace setting, toggles it with Space, and checks the saved draft materializes to the expected card.",
         "limits": "Card editor model/key/callback boundary; no terminal screenshot or repository write.",
-        "line": 644,
-        "endLine": 681,
-        "reviewedHash": "2a7332fafb47cd5df346dea1eff1d549fd80c41d83b4c9122dd3cd1490fda622",
+        "reviewedHash": "44c7108f0140a1b65fd0be99095f06eed0aed3dde214bfa852762592b9b33c62",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:58.673864221Z",
-          "scope": "TestTemporaryWorkspaceSpaceAndSave; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:06:58.338328699Z",
+          "scope": "TestTemporaryWorkspaceSpaceAndSave in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 577,
+        "endLine": 614
       },
       {
-        "id": "settings-save-failure-visible",
-        "name": "TestSettingsSaveFailureRemainsVisible",
+        "id": "ctrl-x-clears-only-sub-workspace-selection",
+        "name": "TestCtrlXClearsOnlySubWorkspaceSelection",
         "method": "automated",
         "integration": "project",
-        "kind": "integration",
-        "file": "internal/app/settings_error_test.go",
-        "proves": "Edits settings through coordinator Update, executes the real save callback command, delivers SettingsSavedMsg, and checks the visible error, retained view/edit and unchanged persisted settings.",
-        "limits": "Repository wrapper injects save failure; successful save/editor-refresh composition remains separately partial.",
-        "line": 27,
-        "endLine": 74,
-        "reviewedHash": "dc56c003ff77c0b7e63ab091d05d3ab6458ad83c6ef408368d8f9ce58c5e6a27",
+        "file": "internal/ui/views/card_editor_test.go",
+        "proves": "Checks Ctrl+X clears selected/missing IDs, preserves all other card fields and focus, invokes no save/cancel, shows the hint and ignores plain x.",
+        "limits": "In-memory editor; filesystem copies and registry writes are outside this test.",
+        "reviewedHash": "44c7108f0140a1b65fd0be99095f06eed0aed3dde214bfa852762592b9b33c62",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.620934791Z",
-          "scope": "TestSettingsSaveFailureRemainsVisible; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:06:58.287758233Z",
+          "scope": "TestCtrlXClearsOnlySubWorkspaceSelection in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 156,
+        "endLine": 207
+      },
+      {
+        "id": "sub-workspace-picker-multiple-unresolved-and-main-modes",
+        "name": "TestSubWorkspacePickerMultipleUnresolvedAndMainModes",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/views/workspace_picker_test.go",
+        "reviewedHash": "acb43ccbe9c0f371f3a284acd766b098320b4d10251568a5662d6de843d89d2f",
+        "proves": "Drives the sub-picker through missing selection repair, search, provisional toggles, cancel, confirmation of two IDs, main-picker mode reset and saving both sub IDs.",
+        "limits": "In-memory form/view sequence; does not copy sub-workspace files or persist the card repository.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:10.951246973Z",
+          "scope": "TestSubWorkspacePickerMultipleUnresolvedAndMainModes in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 77,
+        "endLine": 129
+      },
+      {
+        "id": "sub-workspace-new-selection-survives-registry-refresh",
+        "name": "TestSubWorkspaceNewSelectionSurvivesRegistryRefresh",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/views/workspace_picker_test.go",
+        "reviewedHash": "acb43ccbe9c0f371f3a284acd766b098320b4d10251568a5662d6de843d89d2f",
+        "proves": "Checks a newly selected workspace remains visible as missing after refresh, cancel does not commit, explicit missing-row deselection works, and confirming a missing checked ID retains it.",
+        "limits": "View/registry-message fixture, not concurrent disk registry scanning.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:10.971340082Z",
+          "scope": "TestSubWorkspaceNewSelectionSurvivesRegistryRefresh in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 131,
+        "endLine": 178
+      },
+      {
+        "id": "save-simple-source-surfaces-sync-failure",
+        "name": "TestSaveSimpleSourceSurfacesSyncFailure",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/source_sync_warning_test.go",
+        "proves": "Prior assessment: Checks emitted sync error, refresh request and durable saved source path despite failed scanning.",
+        "limits": "One missing skill-source path through callbacks; no full source-manager UI journey. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:09.725791758Z",
+          "scope": "TestSaveSimpleSourceSurfacesSyncFailure in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 13,
+        "endLine": 28
+      },
+      {
+        "id": "workspace-source-i-d-assigned-and-preserved-on-edit",
+        "name": "TestWorkspaceSourceIDAssignedAndPreservedOnEdit",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/source_save_test.go",
+        "proves": "Prior assessment: Executes source save/edit callbacks, then checks a nonempty repository-assigned ID survives a change of IsRoot.",
+        "limits": "Does not drive Ctrl+E, the source form or navigation back to an unsaved card. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:09.719932808Z",
+          "scope": "TestWorkspaceSourceIDAssignedAndPreservedOnEdit in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 67,
+        "endLine": 98
+      },
+      {
+        "id": "save-workspace-source-aborts-on-malformed-registry",
+        "name": "TestSourceMutationAbortsOnMalformedRegistry",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/source_save_test.go",
+        "reviewedHash": "c48d3ee8f0fe52cdf7e8d02622215662b3eb2a1af2f3218ceb6ddc2b244e5955",
+        "proves": "The workspace create case uses the source manager callback and checks a failed result and unchanged malformed YAML.",
+        "limits": "Coordinator callback and repository fixture. It does not assert the displayed error.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:09.713677419Z",
+          "scope": "TestSourceMutationAbortsOnMalformedRegistry in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 15,
+        "endLine": 65
+      },
+      {
+        "id": "delete-workspace-source-aborts-on-malformed-registry",
+        "name": "TestSourceMutationAbortsOnMalformedRegistry",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/source_save_test.go",
+        "reviewedHash": "c48d3ee8f0fe52cdf7e8d02622215662b3eb2a1af2f3218ceb6ddc2b244e5955",
+        "proves": "The workspace delete case uses a valid source identity and checks a failed result and unchanged malformed YAML.",
+        "limits": "Coordinator callback and repository fixture. It does not assert the displayed error.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:09.713677419Z",
+          "scope": "TestSourceMutationAbortsOnMalformedRegistry in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 15,
+        "endLine": 65
       },
       {
         "id": "source-list-key-crud",
@@ -12044,19 +13096,18 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "kind": "integration",
         "file": "internal/ui/components/source_list_integration_test.go",
-        "proves": "Drives new/edit/save/delete keys, checks store/display equality, form/list transitions, callback counts, and automatic refresh/reload after successful callbacks.",
-        "limits": "In-memory source store; does not establish filesystem persistence.",
-        "line": 15,
-        "endLine": 76,
-        "reviewedHash": "8db1b7fa376767dcf736a0916f53f142d2545069e37a5b34c9bd81ce29d26668",
+        "proves": "Prior assessment: Drives new/edit/save/delete keys, checks store/display equality, form/list transitions, callback counts, and automatic refresh/reload after successful callbacks.",
+        "limits": "In-memory source store; does not establish filesystem persistence. The current source differs from that assessment and needs a fresh assertion review.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:01.844135306Z",
-          "scope": "TestSourceListIntegration_CRUD; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:06:57.750951484Z",
+          "scope": "TestSourceListIntegration_CRUD in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 15,
+        "endLine": 78
       },
       {
         "id": "source-list-delete-error",
@@ -12067,17 +13118,17 @@ window.APPEDIA_CONTENT = {
         "file": "internal/ui/components/source_list_test.go",
         "proves": "Drives delete on index 1; checks callback invocation, nil returned command, unchanged cursor/items, and zero refresh/reload calls on synchronous callback failure.",
         "limits": "Component error contract; the callback owns error reporting.",
-        "line": 285,
-        "endLine": 308,
-        "reviewedHash": "5a3a7e6203cc8b929a5aefff15098c9871e12b589602a6f1d8dcaf190487d212",
+        "reviewedHash": "9f7c6ae7caf62037b2131c47e7e669a9b1d520fe3f68193add2229f5bee5cf8f",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:01.844695986Z",
-          "scope": "TestSourceList_HandleDelete_CallbackError; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:06:57.751438435Z",
+          "scope": "TestSourceList_HandleDelete_CallbackError in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 285,
+        "endLine": 307
       },
       {
         "id": "source-manager-delete-error",
@@ -12086,61 +13137,18 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "kind": "integration",
         "file": "internal/ui/views/source_manager_test.go",
-        "proves": "Drives deletion through SourceManager.Update, checks selected index, returned asynchronous ErrorMsg and preserved items after reload.",
-        "limits": "Callback fixture emits the asynchronous error; repository failure coverage is separate.",
-        "line": 195,
-        "endLine": 233,
-        "reviewedHash": "d26d45240dbdbbf44017bd99a3953a3deab304cef8933da3aa067ad27710d60d",
+        "proves": "Prior assessment: Drives deletion through SourceManager.Update, checks selected index, returned asynchronous ErrorMsg and preserved items after reload.",
+        "limits": "Callback fixture emits the asynchronous error; repository failure coverage is separate. The current source differs from that assessment and needs a fresh assertion review.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:07.251624274Z",
-          "scope": "TestSourceManager_Delete; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "preview-sanitization-contract",
-        "name": "TestSessionPreview_ScrollbackSanitization",
-        "method": "automated",
-        "integration": "project",
-        "kind": "unit",
-        "file": "internal/ui/components/session_preview_integration_test.go",
-        "proves": "Checks visible Success/Error/Done text survives while OSC title and Kitty payload/control effects are removed.",
-        "limits": "Styled component rendering; no native terminal or every possible escape sequence.",
-        "line": 12,
-        "endLine": 31,
-        "reviewedHash": "2a3683ddd211d7ab5ba94831b6878a090d83919999138b64de833222108871c7",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:58.518516179Z",
-          "scope": "TestSessionPreview_ScrollbackSanitization; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "dashboard-launch-persisted",
-        "name": "TestFullSessionLaunchFlow",
-        "method": "automated",
-        "integration": "project",
-        "kind": "integration",
-        "file": "internal/app/integration_test.go",
-        "proves": "Drives dashboard Enter, executes launch commands, verifies a running process and reads the persisted session/card/dashboard/workspace identity.",
-        "limits": "Real local cat process; no native-agent task execution or raw-terminal attachment.",
-        "line": 19,
-        "endLine": 134,
-        "reviewedHash": "1707c86e4737e0fd967dd80bd5ea6dd74f8ca4a07c3159cdf0431dd505fa98a5",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.07210313Z",
-          "scope": "TestFullSessionLaunchFlow; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:10.934234675Z",
+          "scope": "TestSourceManager_Delete in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 117,
+        "endLine": 148
       },
       {
         "id": "source-refresh-destination",
@@ -12148,20 +13156,19 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "kind": "integration",
-        "file": "internal/app/integration_test.go",
-        "proves": "Navigates to source management, changes persisted sources, delivers refresh results and checks actual list additions/removals.",
-        "limits": "Coordinator/repository integration; does not cover the unsaved editor Ctrl+E return journey.",
-        "line": 186,
-        "endLine": 215,
-        "reviewedHash": "1707c86e4737e0fd967dd80bd5ea6dd74f8ca4a07c3159cdf0431dd505fa98a5",
+        "file": "internal/ui/integration_test.go",
+        "proves": "Prior assessment: Navigates to source management, changes persisted sources, delivers refresh results and checks actual list additions/removals.",
+        "limits": "Coordinator/repository integration; does not cover the unsaved editor Ctrl+E return journey. The current source differs from that assessment and needs a fresh assertion review.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.084304499Z",
-          "scope": "TestSourceManagementFlow; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:07.217300912Z",
+          "scope": "TestSourceManagementFlow in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 201,
+        "endLine": 241
       },
       {
         "id": "card-refresh-destination",
@@ -12169,20 +13176,20 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "kind": "integration",
-        "file": "internal/app/integration_test.go",
+        "file": "internal/ui/integration_test.go",
         "proves": "Checks an initially empty dashboard then verifies refreshed cards and changed names in the actual destination view.",
         "limits": "Coordinator/repository integration, not every capability registry.",
-        "line": 462,
-        "endLine": 500,
-        "reviewedHash": "1707c86e4737e0fd967dd80bd5ea6dd74f8ca4a07c3159cdf0431dd505fa98a5",
+        "reviewedHash": "d27c90db3dd77bf8b7c401b856705cd8973cab6f582c431df6f8f14b8d5976a9",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.137399637Z",
-          "scope": "TestCoordinatorDataPropagation; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:07.304722755Z",
+          "scope": "TestCoordinatorDataPropagation in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 487,
+        "endLine": 524
       },
       {
         "id": "isolated-registry-corruption",
@@ -12194,15 +13201,15 @@ window.APPEDIA_CONTENT = {
         "proves": "Each skills/personas/MCP corruption case starts from a passing repository and requires the failing registry filename.",
         "limits": "Malformed YAML paths; not arbitrary registry semantic corruption.",
         "line": 208,
-        "endLine": 226,
+        "endLine": 225,
         "reviewedHash": "9b01386e6b4ab1b5aa57181b11235d30eb05c52cfc559c5a4c7465b87e767786",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.798574308Z",
-          "scope": "TestValidateCardRegistryIntegrity; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:06:55.235127619Z",
+          "scope": "TestValidateCardRegistryIntegrity in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12215,177 +13222,590 @@ window.APPEDIA_CONTENT = {
         "proves": "Checks the exact five blank rows of ten cells consumed by the renderer.",
         "limits": "ASCII constructor representation only.",
         "line": 10,
-        "endLine": 17,
+        "endLine": 16,
         "reviewedHash": "677d53291a799c08ed87d7b4b950f840f3254ccbbe4df7702c7f11587deb17f4",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.702230263Z",
-          "scope": "TestCanvasCreation; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:06:55.022245516Z",
+          "scope": "TestCanvasCreation in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
-        "id": "native-agent-terminal-journey",
-        "name": "TestNativeAgentJourney",
+        "id": "settings-view_-save-in-edit-mode",
+        "name": "TestSettingsView_SaveInEditMode",
         "method": "automated",
         "integration": "project",
-        "kind": "e2e",
-        "file": "tests/e2e/native_agent_test.go",
-        "proves": "Uses tui-test Go to launch real Kankuro/OpenCode, verify imported credentials, assign an isolated service port and select OpenRouter Free Models Router. Reached assertions: Dashboard Enter launched a persisted native-agent process and Enter attached to the native UI.",
-        "limits": "Explicit e2e tag required. Single OpenCode 2.2.6/OpenRouter router run; no screenshot baseline comparison. The full test file and configuration, capture and provenance helpers are retained in the inventory. The run failed at register; subsequent assertions were not reached. Historical native-agent result/captures were retained from 2026-11-09; this refresh did not execute that journey or rebind it to the current source fingerprint.",
-        "line": 29,
+        "file": "internal/ui/views/settings_test.go",
+        "reviewedHash": "a34f2ebbb13bcf7181347b7cf1d0e729344abf8911547b35ab6c847fefd687ad",
+        "proves": "Checks Enter calls OnSave with the edited IDE command and returns the view to display mode.",
+        "limits": "In-memory callback payload only; does not execute the asynchronous repository save.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:10.928570945Z",
+          "scope": "TestSettingsView_SaveInEditMode in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 57,
+        "endLine": 79
+      },
+      {
+        "id": "settings-view_-terminal-command-focus-save-and-cancel",
+        "name": "TestSettingsView_TerminalCommandFocusSaveAndCancel",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/views/settings_test.go",
+        "reviewedHash": "a34f2ebbb13bcf7181347b7cf1d0e729344abf8911547b35ab6c847fefd687ad",
+        "proves": "Checks Tab/Shift+Tab preserve separate command text, Enter trims/saves both fields, and Esc restores both saved inputs after further edits.",
+        "limits": "View model callback boundary only; no YAML write.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:10.929459195Z",
+          "scope": "TestSettingsView_TerminalCommandFocusSaveAndCancel in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 137,
+        "endLine": 164
+      },
+      {
+        "id": "settings-view_-toggle-rows",
+        "name": "TestSettingsView_ToggleRows",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/views/settings_test.go",
+        "reviewedHash": "a34f2ebbb13bcf7181347b7cf1d0e729344abf8911547b35ab6c847fefd687ad",
+        "proves": "Tab focuses the two visibility toggles, Space changes them, and settings values reflect the changes.",
+        "limits": "Does not execute coordinator persistence or check every focus wrap boundary.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:10.928615075Z",
+          "scope": "TestSettingsView_ToggleRows in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 81,
+        "endLine": 102
+      },
+      {
+        "id": "app-settings-persistence",
+        "name": "TestAppSettingsPersistence",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/config/app_settings_test.go",
+        "line": 13,
         "endLine": 48,
-        "reviewedHash": "41f3ea85716fea5e9811a386f25b55b6c75f2921f7352de6c63eef22f5e091df",
+        "reviewedHash": "c592744c5bf639742840eff42c89f67ca9d7280245e9bfdfa11301f3914c272d",
+        "proves": "Checks default command/visibility settings, saves independent IDE/terminal commands and visibility options, then reads back exact AppSettings equality.",
+        "limits": "Repository Save/Get against the same repository instance; no real app restart or coordinated navigation assertion.",
         "result": {
-          "status": "failed",
-          "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeAgentJourney$' -count=1 -timeout=10m -v",
-          "at": "2026-11-09T22:42:26.268507608Z",
-          "scope": "TestNativeAgentJourney; openrouter/openrouter/free; final stage register",
-          "revision": "WORKTREE",
-          "fingerprint": "22ce60949b80ba3d6d306b85a4c88683bf040372efe7dbbff5d879030f24365a"
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.064045382Z",
+          "scope": "TestAppSettingsPersistence in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
-        "id": "rename-draft",
-        "name": "TestDashboard_RenameSession",
+        "id": "terminal-launch-through-dashboard",
+        "name": "TestTerminalLaunchThroughDashboard",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/terminal_launch_test.go",
+        "proves": "Prior assessment: Drives Tab/t through coordinator and executes the command; child record must contain the actual temporary WorkingDir in cwd/args and differ from OriginalDir.",
+        "limits": "Real local helper process rather than a graphical terminal emulator; one configured launch shape. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:09.759954665Z",
+          "scope": "TestTerminalLaunchThroughDashboard in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 43,
+        "endLine": 128
+      },
+      {
+        "id": "settings-save-failure-visible",
+        "name": "TestSettingsSaveFailureRemainsVisible",
+        "method": "automated",
+        "integration": "project",
+        "kind": "integration",
+        "file": "internal/ui/settings_error_test.go",
+        "proves": "Edits settings through coordinator Update, executes the real save callback command, delivers SettingsSavedMsg, and checks the visible error, retained view/edit and unchanged persisted settings.",
+        "limits": "Repository wrapper injects save failure; successful save/editor-refresh composition remains separately partial.",
+        "line": 27,
+        "endLine": 73,
+        "reviewedHash": "81bb1da189891e07b7e291451c878bfd68d116805f8f04aa6691a88193a7586c",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:07.831886065Z",
+          "scope": "TestSettingsSaveFailureRemainsVisible in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "settings-view_-long-commands-stay-within-size",
+        "name": "TestSettingsView_LongCommandsStayWithinSize",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/views/settings_test.go",
+        "reviewedHash": "a34f2ebbb13bcf7181347b7cf1d0e729344abf8911547b35ab6c847fefd687ad",
+        "proves": "For display/edit mode at 80×20 and 120×36, checks rows/display widths, no injected ANSI/newline text, retained controls and edit cancel help.",
+        "limits": "String/cell assertions rather than terminal screenshots; helper assertSettingsFits is at settings_test.go:181.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:10.933549744Z",
+          "scope": "TestSettingsView_LongCommandsStayWithinSize in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 166,
+        "endLine": 176
+      },
+      {
+        "id": "m-c-p-form-round-trips-every-field",
+        "name": "TestMCPFormRoundTripsEveryField",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/views/mcp_form_test.go",
+        "proves": "Prior assessment: Presses Enter and asserts one save with exact ID/name/command/args/CWD/URL/env/headers, including an argument containing a comma.",
+        "limits": "Callback payload only; does not connect to that server or persist the configuration. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:09.643641114Z",
+          "scope": "TestMCPFormRoundTripsEveryField in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 148,
+        "endLine": 199
+      },
+      {
+        "id": "dashboard_-launch-terminal-routing",
+        "name": "TestDashboard_LaunchTerminalRouting",
         "method": "automated",
         "integration": "project",
         "file": "internal/ui/views/dashboard_test.go",
-        "line": 192,
-        "endLine": 240,
-        "proves": "Captured target, normalized Unicode input, draft survives refresh, duplicate suppression, retry after error.",
-        "limits": "View callback is a stub; no service write or cancellation assertion before submit.",
-        "reviewedHash": "c920b81707a08ff6e6af8c1a5cc5d4a9e5f7a702861887fe5797bfa1b68d4b48",
+        "proves": "Prior assessment: Checks the terminal callback receives the selected session for running/waiting/terminated states, ignores no-selection/search/nil callback cases, and checks o selects the expected IDE session.",
+        "limits": "View callback assertions only; no command execution or external UI. The current source differs from that assessment and needs a fresh assertion review.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.495640404Z",
-          "scope": "TestDashboard_RenameSession; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:09.629044715Z",
+          "scope": "TestDashboard_LaunchTerminalRouting in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 492,
+        "endLine": 540
       },
       {
-        "id": "rename-blank",
-        "name": "TestDashboard_RenameSessionEmptyUsesIDAndNoSelectionIsNoop",
+        "id": "launch-workspace-command-executes-in-workspace",
+        "name": "TestLaunchWorkspaceCommandExecutesInWorkspace",
         "method": "automated",
         "integration": "project",
-        "file": "internal/ui/views/dashboard_test.go",
-        "line": 241,
-        "endLine": 266,
-        "proves": "Blank input submits the session ID.",
-        "limits": "No-selection probe starts in the cards pane; it does not establish empty sessions-pane behavior.",
-        "reviewedHash": "c920b81707a08ff6e6af8c1a5cc5d4a9e5f7a702861887fe5797bfa1b68d4b48",
+        "file": "internal/session/ide_launcher_test.go",
+        "line": 69,
+        "endLine": 78,
+        "reviewedHash": "77686722e24693b846bff6f8047659d01ba9757df42d8e0fed047c940f32849f",
+        "proves": "The helper runWorkspaceLauncherCase starts a real child and asserts absolute cwd, exact placeholder multiplicity, quoted paths with spaces and preservation of ordinary arguments.",
+        "limits": "Assertions reside in runWorkspaceLauncherCase at internal/session/ide_launcher_test.go:80, called by this table-driven test. Uses the test executable, not an IDE GUI.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.498136103Z",
-          "scope": "TestDashboard_RenameSessionEmptyUsesIDAndNoSelectionIsNoop; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:07:05.450434799Z",
+          "scope": "TestLaunchWorkspaceCommandExecutesInWorkspace in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
-        "id": "rename-scoped",
-        "name": "TestCoordinator_DashboardRenameFailureStaysInDialogAndIgnoresStaleResult",
+        "id": "terminal-launch-reports-configuration-and-lookup-errors",
+        "name": "TestTerminalLaunchReportsConfigurationAndLookupErrors",
         "method": "automated",
         "integration": "project",
-        "file": "internal/app/coordinator_test.go",
-        "line": 58,
-        "endLine": 93,
-        "proves": "Real command error stays in dialog; stale generation leaves pending state intact.",
-        "limits": "Missing session fixture; does not establish successful persistence or stale dashboard identity separately.",
-        "reviewedHash": "96e217a0912e57be8507792ab1b6aea0fc02ec3b008cc54af0d9a6f50c01e51d",
+        "file": "internal/ui/terminal_launch_test.go",
+        "proves": "Prior assessment: Checks missing/foreign scope, missing IDE/terminal commands, failed executable and absent workspace; feeds spawn failure back and asserts the coordinator banner is set.",
+        "limits": "Most cases invoke callbacks directly. The banner assertion establishes error presence, not its full displayed text. The current source differs from that assessment and needs a fresh assertion review.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.776549585Z",
-          "scope": "TestCoordinator_DashboardRenameFailureStaysInDialogAndIgnoresStaleResult; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:09.777924174Z",
+          "scope": "TestTerminalLaunchReportsConfigurationAndLookupErrors in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 164,
+        "endLine": 258
       },
       {
-        "id": "rename-layout",
-        "name": "TestDashboardRenameLayoutAndScopedFooter",
+        "id": "launch-workspace-command-errors",
+        "name": "TestLaunchWorkspaceCommandErrors",
         "method": "automated",
         "integration": "project",
-        "file": "internal/ui/views/dashboard_layout_test.go",
-        "line": 143,
-        "endLine": 169,
-        "proves": "Long error bounds at 80×24 and 120×40, visible save/cancel controls and scoped rename footer.",
-        "limits": "String and cell bounds, not a native terminal screenshot or pixel comparison.",
-        "reviewedHash": "b41624ff511eda1e9749598a3ad94f2ac00fa6611bae993a2f416c85bbc83afe",
+        "file": "internal/session/ide_launcher_test.go",
+        "line": 155,
+        "endLine": 171,
+        "reviewedHash": "77686722e24693b846bff6f8047659d01ba9757df42d8e0fed047c940f32849f",
+        "proves": "Checks unconfigured/whitespace command, empty/missing workspace path and missing executable return the expected sentinels or an error.",
+        "limits": "Shared launcher API tests, not every caller-specific banner or concurrent filesystem change.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:58.68897797Z",
-          "scope": "TestDashboardRenameLayoutAndScopedFooter; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:07:05.453254779Z",
+          "scope": "TestLaunchWorkspaceCommandErrors in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
-        "id": "rename-search",
-        "name": "TestDashboard_Search",
+        "id": "conversation-choice-requires-explicit-compatible-choice",
+        "name": "TestConversationChoiceRequiresExplicitCompatibleChoice",
         "method": "automated",
         "integration": "project",
-        "file": "internal/ui/views/dashboard_test.go",
-        "line": 145,
-        "endLine": 178,
-        "proves": "Existing search consumes typed t/e/s/t and Esc exits search.",
-        "limits": "Cards-pane search; does not explicitly exercise session-pane e search.",
-        "reviewedHash": "c920b81707a08ff6e6af8c1a5cc5d4a9e5f7a702861887fe5797bfa1b68d4b48",
+        "file": "internal/ui/views/conversation_choice_test.go",
+        "proves": "Prior assessment: Checks a matching Claude binding is submitted and a selected Codex binding cannot be submitted to the Claude activation.",
+        "limits": "Picker callback boundary; native CLI resume is outside scope. The current source differs from that assessment and needs a fresh assertion review.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.493343354Z",
-          "scope": "TestDashboard_Search; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:06:58.338356869Z",
+          "scope": "TestConversationChoiceRequiresExplicitCompatibleChoice in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 16,
+        "endLine": 46
+      },
+      {
+        "id": "activation-published-before-startup-delay",
+        "name": "TestActivationPublishedBeforeStartupDelay",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/startup_integration_test.go",
+        "line": 56,
+        "endLine": 108,
+        "reviewedHash": "1847caf3b093d5208ab0c5fd95a41f44dededa6ffbab7daa7730fc1e37e35a25",
+        "proves": "Checks a published real cat activation reports starting/process-started and permits immediate attachment; controlled timer transitions to active without enabling MCP-disabled delivery.",
+        "limits": "Injected startup clock/driver preparation; does not assert native CLI task readiness.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:10.412072375Z",
+          "scope": "TestActivationPublishedBeforeStartupDelay in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
-        "id": "rename-persist",
+        "id": "startup-admission-and-registration-are-independent",
+        "name": "TestStartupAdmissionAndRegistrationAreIndependent",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/startup_boundary_test.go",
+        "line": 73,
+        "endLine": 113,
+        "reviewedHash": "d45a7c426f6cc5146d599ef0de532250f821904149f365d147b78f5dc2666c66",
+        "proves": "Registers a conversation during starting, checks early delivery rejection, then advances the controlled startup timer and verifies admission becomes available.",
+        "limits": "Controlled clock/manager fixture, not native CLI processing.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.213164295Z",
+          "scope": "TestStartupAdmissionAndRegistrationAreIndependent in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "inspection-conversion-preserves-activation-snapshot",
+        "name": "TestInspectionConversionPreservesActivationSnapshot",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/inspection_runtime_test.go",
+        "line": 11,
+        "endLine": 39,
+        "reviewedHash": "6df6907a9f82ded9c9630b78044cc58fe22938ac554baadb19ec322a3efaa60a",
+        "proves": "Checks inspection copies activation/startup/delivery fields, serialized historical effects stay unchanged after source snapshot mutation and old data does not fabricate runtime fields.",
+        "limits": "Pure conversion/serialization test, separate from transport.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.285852268Z",
+          "scope": "TestInspectionConversionPreservesActivationSnapshot in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "dashboard-launch-persisted",
+        "name": "TestFullSessionLaunchFlow",
+        "method": "automated",
+        "integration": "project",
+        "kind": "integration",
+        "file": "internal/ui/integration_test.go",
+        "proves": "Prior assessment: Drives dashboard Enter, executes launch commands, verifies a running process and reads the persisted session/card/dashboard/workspace identity.",
+        "limits": "Real local cat process; no native-agent task execution or raw-terminal attachment. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:07.184638744Z",
+          "scope": "TestFullSessionLaunchFlow in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 23,
+        "endLine": 138
+      },
+      {
+        "id": "activation-rejects-unavailable-saved-workspace",
+        "name": "TestActivationRejectsUnavailableSavedWorkspace",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/workspace_validation_test.go",
+        "line": 27,
+        "endLine": 116,
+        "proves": "For relaunch/switch and original/temporary paths, checks missing/file errors, no extra Spawn, preserved session identity/content, and successful single-spawn retry after restoring the directory.",
+        "limits": "Controlled driver counts and filesystem fixtures; no real Codex/Claude execution.",
+        "reviewedHash": "e484a44ee3d38d1551068285e2471f861dd497b11af4cc4503256e6e81574550",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:21.578513021Z",
+          "scope": "TestActivationRejectsUnavailableSavedWorkspace in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "read-sub-workspace-descriptors-does-not-prepare-workspace",
+        "name": "TestReadSubWorkspaceDescriptorsDoesNotPrepareWorkspace",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/sub_workspaces_inspection_test.go",
+        "line": 11,
+        "endLine": 40,
+        "proves": "Checks descriptor identity/path, absence of a newly created tmp directory and unavailable status for corrupt manifests.",
+        "limits": "Read-only helper only; copy collision and multi-selection journeys remain separate.",
+        "reviewedHash": "47b304b52e9a80c1587c84b7b469e5cab9c4696c3769199011887bbdeda0c3a7",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:10.437627163Z",
+          "scope": "TestReadSubWorkspaceDescriptorsDoesNotPrepareWorkspace in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "relaunch-refreshes-only-kankuro-m-c-p-after-restart",
+        "name": "TestRelaunchRefreshesOnlyKankuroMCPAfterRestart",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/relaunch_mcp_test.go",
+        "line": 16,
+        "endLine": 91,
+        "proves": "Checks invalid config blocks relaunch without rewriting, then preserves instructions/custom server/metadata, rotates token, revokes the old credential and uses the new endpoint.",
+        "limits": "Local files and cat process across in-process restart; no native CLI MCP handshake.",
+        "reviewedHash": "d6d0f89ec7ac16c4c2395b51aeae0d31ba9bcab099c7395fd6806a03cc127526",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:07.212621762Z",
+          "scope": "TestRelaunchRefreshesOnlyKankuroMCPAfterRestart in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "trust-invalid-configuration-preserved",
+        "name": "TestTrustInvalidConfigurationPreserved",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/driver/trust_test.go",
+        "line": 86,
+        "endLine": 113,
+        "proves": "Checks PrepareWorkspace errors and byte-identical original configuration for Codex TOML, Claude JSON and a wrong-typed projects field.",
+        "limits": "Isolated HOME; no installed native CLI trust acceptance.",
+        "reviewedHash": "c3c5f502e8c165b4b78aeea83d59d1301a13bd91b3dd1233565c1709f8f9c3f2",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.603428821Z",
+          "scope": "TestTrustInvalidConfigurationPreserved in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "resolve-capabilities-adds-m-c-p-access-skill-only-when-kankuro-m-c-p-selected",
+        "name": "TestResolveCapabilitiesAddsMCPAccessSkillOnlyWhenKankuroMCPSelected",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/service_test.go",
+        "line": 1200,
+        "endLine": 1229,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
+        "proves": "Checks mcp-cli is absent without Kankuro MCP, both protocol skills appear once with Kankuro selection and explicit mcp-cli selection does not duplicate either.",
+        "limits": "Tests capability selection, not instruction following by an AI agent.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:59.837046053Z",
+          "scope": "TestResolveCapabilitiesAddsMCPAccessSkillOnlyWhenKankuroMCPSelected in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "embedded-m-c-p-c-l-i-skill-deploys-through-config",
+        "name": "TestEmbeddedMCPCLISkillDeploysThroughConfig",
+        "method": "automated",
+        "integration": "project",
+        "file": "main_test.go",
+        "line": 13,
+        "endLine": 40,
+        "reviewedHash": "a7d91caf10f7521dc017c9a9317d878331cf2ebe5dfdc853fea56bbe5ec70b5a",
+        "proves": "Checks embedded mcp-cli bytes/metadata and exact deployed SKILL.md bytes through the real driver deployment.",
+        "limits": "Uses builtin lookup only as fixture setup for the live deployment path; does not establish any runtime need for that lookup helper. The recorded execution is historical.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.018148696Z",
+          "scope": "TestEmbeddedMCPCLISkillDeploysThroughConfig in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "embedded-kankuro-puppet-skill-deploys-through-config",
+        "name": "TestEmbeddedKankuroPuppetSkillDeploysThroughConfig",
+        "method": "automated",
+        "integration": "project",
+        "file": "main_test.go",
+        "line": 42,
+        "endLine": 60,
+        "reviewedHash": "a7d91caf10f7521dc017c9a9317d878331cf2ebe5dfdc853fea56bbe5ec70b5a",
+        "proves": "Checks canonical embedded puppet skill metadata and byte-identical driver deployment to the expected skill folder.",
+        "limits": "File deployment only; no evidence that an installed CLI reads or follows the skill. The recorded execution is historical.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.018649746Z",
+          "scope": "TestEmbeddedKankuroPuppetSkillDeploysThroughConfig in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "session-attach-replay",
+        "name": "TestSessionAttachReplay",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/attach_test.go",
+        "line": 11,
+        "endLine": 50,
+        "reviewedHash": "50a58baf339a4b8439246f3d2e98a6ec453af1063d2a190efd536e99adb6a4f4",
+        "proves": "Writes hello through a real cat attachment, closes it, reattaches and asserts exact replayed scrollback.",
+        "limits": "Manager handles only; does not run attachExec raw terminal mode, Ctrl+K or resize synchronization.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.473538515Z",
+          "scope": "TestSessionAttachReplay in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "service-remove-session-delegates-guards-cleanup-and-manager-errors",
+        "name": "TestServiceRemoveSessionDelegatesGuardsCleanupAndManagerErrors",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/service_test.go",
+        "line": 1682,
+        "endLine": 1742,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
+        "proves": "Rejects removal of a running session, removes a stopped temporary workspace, propagates session-record cleanup failure and closed-manager activation error.",
+        "limits": "Service/manager and real filesystem fixture; not the dashboard confirmation key sequence.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:00.045148737Z",
+          "scope": "TestServiceRemoveSessionDelegatesGuardsCleanupAndManagerErrors in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "session-launcher-waits-for-name-result-and-allows-retry",
+        "name": "TestSessionLauncherWaitsForNameResultAndAllowsRetry",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/views/session_launcher_test.go",
+        "proves": "Prior assessment: Checks name submission starts once, duplicate Enter is suppressed while pending, an error is shown and another Enter can retry.",
+        "limits": "In-memory naming callback/result boundary; not a persisted service rename. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:10.927870705Z",
+          "scope": "TestSessionLauncherWaitsForNameResultAndAllowsRetry in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 135,
+        "endLine": 160
+      },
+      {
+        "id": "set-name-propagates-persist-failure",
         "name": "TestSetNamePropagatesPersistFailure",
         "method": "automated",
         "integration": "project",
         "file": "internal/session/lifecycle_test.go",
         "line": 412,
-        "endLine": 456,
-        "proves": "Existing checked rename surfaces a record-write failure.",
-        "limits": "Manager boundary only; no complete dashboard rename/restart journey.",
+        "endLine": 450,
         "reviewedHash": "20a260206ef6895110aafb86e5bd2811799a452e27066a795d75135ee00cff4b",
+        "proves": "Makes the session-record directory unwritable and asserts the checked name operation propagates its persistence error.",
+        "limits": "Permission-based test skips as root; manager fixture is not the complete UI rename path.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.359369767Z",
-          "scope": "TestSetNamePropagatesPersistFailure; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:07:06.694291712Z",
+          "scope": "TestSetNamePropagatesPersistFailure in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
-        "id": "rename-launcher",
-        "name": "TestSessionLauncherWaitsForNameResultAndAllowsRetry",
+        "id": "rename-rename-restart",
+        "name": "TestCoordinator_DashboardRenameRefreshesWithoutAttachAndSurvivesRestart",
         "method": "automated",
         "integration": "project",
-        "file": "internal/ui/views/session_launcher_test.go",
-        "line": 121,
-        "endLine": 147,
-        "proves": "Existing launcher naming waits for result and permits retry.",
-        "limits": "Launch naming form, not dashboard completion routing.",
-        "reviewedHash": "b868fdd3452c53f4f8f4967f63bf6084d84bb354fa020067ec9d3446a866c4e4",
+        "file": "internal/ui/coordinator_test.go",
+        "proves": "Prior assessment: Real cat session renamed through coordinator input, service and disk; returned command only refreshes; selected dashboard name updates, view stays put, process PID/activation identity are retained; fresh repository/manager/coordinator reloads the saved name.",
+        "limits": "Ordinary Go integration test using a local cat PTY; does not drive a native AI CLI or real terminal renderer. The current source differs from that assessment and needs a fresh assertion review.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:07.248557364Z",
-          "scope": "TestSessionLauncherWaitsForNameResultAndAllowsRetry; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:06.826651502Z",
+          "scope": "TestCoordinator_DashboardRenameRefreshesWithoutAttachAndSurvivesRestart in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 127,
+        "endLine": 189
       },
       {
         "id": "rename-cancel-draft",
@@ -12395,309 +13815,750 @@ window.APPEDIA_CONTENT = {
         "file": "internal/ui/views/dashboard_test.go",
         "proves": "Esc, dashboard changes and generation changes close an edited draft without saving or changing the session name. Reopening starts from the original name and submits once.",
         "limits": "View-level callback spy; no native terminal key decoding or persistence is involved.",
-        "line": 267,
-        "endLine": 272,
-        "reviewedHash": "c920b81707a08ff6e6af8c1a5cc5d4a9e5f7a702861887fe5797bfa1b68d4b48",
+        "reviewedHash": "fe042e81c3207ef759933378eca1b1ec1ba5f30f1aa3a1079c017b33289025bd",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.502853093Z",
-          "scope": "TestDashboard_RenameSessionDiscardsDraftWithoutSaving; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:07:09.623982236Z",
+          "scope": "TestDashboard_RenameSessionDiscardsDraftWithoutSaving in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 437,
+        "endLine": 441
+      },
+      {
+        "id": "messaging-operations-pin-activations-and-persist-explicit-reports",
+        "name": "TestMessagingOperationsPinActivationsAndPersistExplicitReports",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/service_test.go",
+        "line": 1792,
+        "endLine": 1909,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
+        "proves": "Checks target activation inspection, submitted send result, stable replay identity, changed-text conflict, stored text, worker report permission and removal of history on recipient deletion.",
+        "limits": "Local service/PTY fixtures; submission is byte evidence, not an agent acknowledgment or processing proof.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:00.102323103Z",
+          "scope": "TestMessagingOperationsPinActivationsAndPersistExplicitReports in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
-        "id": "rename-rename-restart",
-        "name": "TestCoordinator_DashboardRenameRefreshesWithoutAttachAndSurvivesRestart",
+        "id": "final-journal-write-failure-returns-outcome-and-recovers-interrupted",
+        "name": "TestFinalJournalWriteFailureReturnsOutcomeAndRecoversInterrupted",
         "method": "automated",
         "integration": "project",
-        "file": "internal/app/coordinator_test.go",
-        "proves": "Real cat session renamed through coordinator input, service and disk; returned command only refreshes; selected dashboard name updates, view stays put, process PID/activation identity are retained; fresh repository/manager/coordinator reloads the saved name.",
-        "limits": "Ordinary Go integration test using a local cat PTY; does not drive a native AI CLI or real terminal renderer.",
-        "line": 121,
-        "endLine": 184,
-        "reviewedHash": "96e217a0912e57be8507792ab1b6aea0fc02ec3b008cc54af0d9a6f50c01e51d",
+        "file": "internal/api/service_test.go",
+        "line": 464,
+        "endLine": 541,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
+        "proves": "Injects failure after a successful creation effect, checks usable target/result with warning, in-memory replay without another session, and interrupted recovery without auto-execution.",
+        "limits": "Injected journal write seam and in-process runner restart, not OS crash/power-loss.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.795700044Z",
-          "scope": "TestCoordinator_DashboardRenameRefreshesWithoutAttachAndSurvivesRestart; ordinary suite excludes E2E-tagged tests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+          "at": "2026-11-20T00:06:59.512343908Z",
+          "scope": "TestFinalJournalWriteFailureReturnsOutcomeAndRecoversInterrupted in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
+      },
+      {
+        "id": "operation-queue-bound-and-disconnected-wait-return-promptly",
+        "name": "TestOperationQueueBoundAndDisconnectedWaitReturnPromptly",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/service_test.go",
+        "line": 959,
+        "endLine": 1127,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
+        "proves": "Fills worker/queue gates, checks prompt return on disconnected waits, capacity_exhausted, eventual completed effects and truthful success-with-warning when cancellation arrives after publication.",
+        "limits": "Finite controlled worker interleavings and deadlines; not a throughput or starvation proof.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:59.828345984Z",
+          "scope": "TestOperationQueueBoundAndDisconnectedWaitReturnPromptly in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "operation-journal-recovers-interrupted-and-fails-closed-on-corruption",
+        "name": "TestOperationJournalRecoversInterruptedAndFailsClosedOnCorruption",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/service_test.go",
+        "line": 1129,
+        "endLine": 1160,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
+        "proves": "Writes a running record, checks interrupted recovery with warning and verifies a corrupt journal sets loadErr to block mutation admission.",
+        "limits": "Constructed journal records and runner state; no actual process crash.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:59.828380334Z",
+          "scope": "TestOperationJournalRecoversInterruptedAndFailsClosedOnCorruption in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "shutdown-during-spawn-kills-the-new-process",
+        "name": "TestShutdownDuringSpawnKillsTheNewProcess",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/shutdown_test.go",
+        "line": 161,
+        "endLine": 192,
+        "proves": "Checks shutdown blocks for an in-flight relaunch, returns ErrManagerClosed after release, kills the spawned driver and leaves terminated status.",
+        "limits": "Gated test driver; does not simulate every OS process-group behavior.",
+        "reviewedHash": "c3feacc7073ff6582b64bf6830985cb9c7a26005624752028f9c7dd862320d42",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:09.876460846Z",
+          "scope": "TestShutdownDuringSpawnKillsTheNewProcess in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "shutdown-waits-for-temporary-workspace-preparation",
+        "name": "TestShutdownWaitsForTemporaryWorkspacePreparation",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/shutdown_test.go",
+        "line": 235,
+        "endLine": 275,
+        "proves": "Blocks the copier, asserts Shutdown waits, then checks closed-manager launch error and an empty temporary root.",
+        "limits": "Injected copier; does not prove native cp cancellation under every filesystem.",
+        "reviewedHash": "c3feacc7073ff6582b64bf6830985cb9c7a26005624752028f9c7dd862320d42",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:10.09260827Z",
+          "scope": "TestShutdownWaitsForTemporaryWorkspacePreparation in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "data-round-trip-copies-every-field",
+        "name": "TestDataRoundTripCopiesEveryField",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/mapping_internal_test.go",
+        "line": 12,
+        "endLine": 30,
+        "proves": "Fills fields with nonzero values and compares all persisted values through data/restore and snapshot, excluding intentional schema/status transformations.",
+        "limits": "Pure mapping; no disk durability assertion or complete clone-alias isolation claim.",
+        "reviewedHash": "7a24af59808ff28547db62ea979f2028b08a805bd1ae443bbd7bef97a9f77831",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.35291536Z",
+          "scope": "TestDataRoundTripCopiesEveryField in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "ordinary-message-journal-rejection-rolls-back-history-and-retries",
+        "name": "TestOrdinaryMessageJournalRejectionRollsBackHistoryAndRetries",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/messaging_shared_delivery_test.go",
+        "line": 78,
+        "endLine": 119,
+        "reviewedHash": "54f614934f1d4b4db1ce19564d7c19ffc9f3d917ada59b39e62db979117dad09",
+        "proves": "Injects journal admission failure, checks no intent/receipt survives, then retries and replays the same request with the original message identity.",
+        "limits": "Controlled write failure; no later partial PTY write claim.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:59.022584256Z",
+          "scope": "TestOrdinaryMessageJournalRejectionRollsBackHistoryAndRetries in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "ordinary-message-queue-rejection-releases-reservation-and-preserves-replay",
+        "name": "TestOrdinaryMessageQueueRejectionReleasesReservationAndPreservesReplay",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/messaging_shared_delivery_test.go",
+        "line": 34,
+        "endLine": 76,
+        "reviewedHash": "54f614934f1d4b4db1ce19564d7c19ffc9f3d917ada59b39e62db979117dad09",
+        "proves": "Fills operation queue, checks capacity rejection leaves no message, then retries/replays same message ID and stops recipient without a retained reservation.",
+        "limits": "Controlled queue/worker fixture rather than unbounded production load.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:58.97638779Z",
+          "scope": "TestOrdinaryMessageQueueRejectionReleasesReservationAndPreservesReplay in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "report-notification-initial-state-is-durable-and-idempotent",
+        "name": "TestReportNotificationInitialStateIsDurableAndIdempotent",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/messaging_test.go",
+        "line": 46,
+        "endLine": 90,
+        "proves": "Checks pending for completed/blocked/question and not_required for progress; reopen/retry returns the same report ID and one stored item with the expected state.",
+        "limits": "Message store on disk; no prompt delivery or agent processing.",
+        "reviewedHash": "e853b5124ff8cf803fb6075b18985c8739e9ef4a7d766771631879e2aaff8007",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:07.146605327Z",
+          "scope": "TestReportNotificationInitialStateIsDurableAndIdempotent in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "progress-replies-persist-before-completion",
+        "name": "TestProgressRepliesPersistBeforeCompletion",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/messaging_test.go",
+        "line": 218,
+        "endLine": 258,
+        "proves": "Checks progress deduplication, rejection of a changed kind under the same request ID, and ordered progress/completed reports after reopening.",
+        "limits": "Does not observe whether a live CLI continues working after progress.",
+        "reviewedHash": "e853b5124ff8cf803fb6075b18985c8739e9ef4a7d766771631879e2aaff8007",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:07.149028367Z",
+          "scope": "TestProgressRepliesPersistBeforeCompletion in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "restart-marks-admitted-notification-uncertain",
+        "name": "TestRestartMarksAdmittedNotificationUncertain",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/messaging_test.go",
+        "line": 260,
+        "endLine": 324,
+        "proves": "Checks recovery marks admitted delivery uncertain while preserving the accepted obligation and request identity.",
+        "limits": "Constructed durable records; no process crash at an actual PTY write.",
+        "reviewedHash": "e853b5124ff8cf803fb6075b18985c8739e9ef4a7d766771631879e2aaff8007",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:07.149838987Z",
+          "scope": "TestRestartMarksAdmittedNotificationUncertain in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "report-automatically-notifies-original-controller",
+        "name": "TestReportAutomaticallyNotifiesOriginalController",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/messaging_review_test.go",
+        "line": 481,
+        "endLine": 520,
+        "proves": "Denies the worker a general send, observes controller PTY output containing message/reply IDs and no-report-reply guidance, and checks sensitive report content is absent.",
+        "limits": "Real local PTY harness; receipt of bytes is not proof an AI agent processed or fetched the report.",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:57.328946127Z",
+          "scope": "TestReportAutomaticallyNotifiesOriginalController in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "saved-notification-survives-reporter-stopping",
+        "name": "TestSavedNotificationSurvivesReporterStopping",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/messaging_review_test.go",
+        "line": 656,
+        "endLine": 686,
+        "proves": "Stops dispatcher, saves report, kills reporter, restarts runner and waits for notification output.",
+        "limits": "Same application process and local harness; not an application-wide restart.",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:57.664044621Z",
+          "scope": "TestSavedNotificationSurvivesReporterStopping in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "stopped-original-activation-makes-notification-unavailable",
+        "name": "TestStoppedOriginalActivationMakesNotificationUnavailable",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/messaging_review_test.go",
+        "line": 688,
+        "endLine": 710,
+        "proves": "Stops/relaunches the original sender, attempts dispatch and checks unavailable notification state.",
+        "limits": "State assertion for one activation replacement; not arbitrary authorization races.",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:57.711248038Z",
+          "scope": "TestStoppedOriginalActivationMakesNotificationUnavailable in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "notification-retries-after-queue-capacity-returns",
+        "name": "TestNotificationRetriesAfterQueueCapacityReturns",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/messaging_review_test.go",
+        "line": 522,
+        "endLine": 577,
+        "proves": "Fills queue, checks pending obligation and request ID survive rejection, drains queue, starts workers and observes notification with the same request ID.",
+        "limits": "Controlled runner/queue; no native agent readiness proof.",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:57.388070533Z",
+          "scope": "TestNotificationRetriesAfterQueueCapacityReturns in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "notification-reconciliation-uses-delivery-evidence",
+        "name": "TestNotificationReconciliationUsesDeliveryEvidence",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/messaging_review_test.go",
+        "line": 580,
+        "endLine": 654,
+        "proves": "Checks state mapping, advances the attempt only for not-submitted delivery and verifies stale reconciliation does not downgrade or advance it again.",
+        "limits": "Constructed persisted delivery states; concrete driver byte-write boundaries need their own tests.",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:57.617779535Z",
+          "scope": "TestNotificationReconciliationUsesDeliveryEvidence in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "concurrent-notification-dispatch-admits-one-attempt",
+        "name": "TestConcurrentNotificationDispatchAdmitsOneAttempt",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/messaging_review_test.go",
+        "line": 832,
+        "endLine": 861,
+        "proves": "Runs twelve dispatchers against the same obligation and asserts one matching runner operation.",
+        "limits": "One controlled interleaving; this run did not use the race detector.",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:58.869197168Z",
+          "scope": "TestConcurrentNotificationDispatchAdmitsOneAttempt in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "notification-scheduling-preserves-recipient-order-and-fairness",
+        "name": "TestNotificationSchedulingPreservesRecipientOrderAndFairness",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/messaging_review_test.go",
+        "line": 929,
+        "endLine": 954,
+        "proves": "Checks one recipient backs off without suppressing another and keeps its accepted predecessor ahead of a later pending report.",
+        "limits": "Pure scheduling function with fixed time; no throughput benchmark.",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:58.927311823Z",
+          "scope": "TestNotificationSchedulingPreservesRecipientOrderAndFairness in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "queued-delivery-cancellation-releases-reservation-without-submitting",
+        "name": "TestQueuedDeliveryCancellationReleasesReservationWithoutSubmitting",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/messaging_shared_delivery_test.go",
+        "line": 122,
+        "endLine": 230,
+        "reviewedHash": "54f614934f1d4b4db1ce19564d7c19ffc9f3d917ada59b39e62db979117dad09",
+        "proves": "For ordinary and notification queues, cancels before execution, starts a worker, checks not-submitted delivery, successful target stop and absence of message markers in captured output.",
+        "limits": "Controlled runner/worker plus PTY bytes; ordinary uses public cancellation, notification cancels the captured task authority directly.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:59.10229428Z",
+          "scope": "TestQueuedDeliveryCancellationReleasesReservationWithoutSubmitting in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "deleting-report-history-cancels-admitted-notification",
+        "name": "TestDeletingReportHistoryCancelsAdmittedNotification",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/messaging_review_test.go",
+        "line": 755,
+        "endLine": 820,
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
+        "proves": "Publishes admitted notification intent, deletes dashboard history, then checks submission rejects and notifications stay absent rather than recreating deleted history.",
+        "limits": "Direct manager/store admission sequence; no raw agent prompt-processing claim.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:58.816056242Z",
+          "scope": "TestDeletingReportHistoryCancelsAdmittedNotification in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "queued-message-reservations-cannot-deadlock-stop-workers-or-shutdown",
+        "name": "TestQueuedMessageReservationsCannotDeadlockStopWorkersOrShutdown",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/api/messaging_review_test.go",
+        "line": 179,
+        "endLine": 288,
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
+        "proves": "Queues delivery reservations alongside stop operations, cancels sends, waits for stop and checks runner Shutdown returns before deadline with all targets terminated.",
+        "limits": "Finite controlled worker interleaving for ordinary sends; dispatcher shutdown during a real notification write is not directly asserted.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.813462167Z",
+          "scope": "TestQueuedMessageReservationsCannotDeadlockStopWorkersOrShutdown in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "native-agent-terminal-journey",
+        "name": "TestNativeAgentJourney",
+        "method": "automated",
+        "integration": "project",
+        "kind": "e2e",
+        "file": "appedia/historical-sources/native_agent_test.go",
+        "proves": "Uses tui-test Go to launch real Kankuro/OpenCode, verify imported credentials, assign an isolated service port and select OpenRouter Free Models Router. Reached assertions: Dashboard Enter launched a persisted native-agent process and Enter attached to the native UI.",
+        "limits": "Explicit e2e tag required. Single OpenCode 2.2.6/OpenRouter router run; no screenshot baseline comparison. The full test file and configuration, capture and provenance helpers are retained in the inventory. The run failed at register; subsequent assertions were not reached. Historical native-agent result/captures were retained from 2026-11-09; this refresh did not execute that journey or rebind it to the current source fingerprint. Historical observation retained in Appedia.",
+        "result": {
+          "status": "failed",
+          "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeAgentJourney$' -count=1 -timeout=10m -v",
+          "at": "2026-11-09T22:42:26.268507608Z",
+          "scope": "TestNativeAgentJourney; openrouter/openrouter/free; final stage register",
+          "revision": "WORKTREE",
+          "fingerprint": "22ce60949b80ba3d6d306b85a4c88683bf040372efe7dbbff5d879030f24365a"
+        },
+        "reviewedHash": "41f3ea85716fea5e9811a386f25b55b6c75f2921f7352de6c63eef22f5e091df"
+      },
+      {
+        "id": "m-c-p-c-l-i-registers-conversation-for-live-activation",
+        "name": "TestMCPCLIRegistersConversationForLiveActivation",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/conversation_test.go",
+        "line": 63,
+        "endLine": 333,
+        "reviewedHash": "67dbeb8f4c470db473e3a379e88aa76d2a2e187a372bea1e622d224a5a6ac758",
+        "proves": "Runs a shell child using the installed mcp-cli against the real MCP endpoint, checks reserved-env isolation, binding persistence/warnings/retry, stale credentials, explicit choice and card/session-local bindings across restart.",
+        "limits": "Interoperability test uses a shell/cat agent; it is not an installed Codex/Claude CLI accepting native resume. Skips when mcp-cli is absent; the recorded endpoint run passed.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:05.229418366Z",
+          "scope": "TestMCPCLIRegistersConversationForLiveActivation in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "claude-resume-lifecycle-uses-selected-native-i-d",
+        "name": "TestClaudeResumeLifecycleUsesSelectedNativeID",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/claude_resume_test.go",
+        "line": 70,
+        "endLine": 181,
+        "reviewedHash": "7f6768bfaccb7c57e03c66b33d35eb4165bbced868a119c602240ac4500aa144",
+        "proves": "Captures fresh/saved/new and A→B→A Claude arguments, checks original workspace marker survives and conversation IDs stay card-local.",
+        "limits": "Overrides Spawn and PrepareWorkspace with a capture driver; never starts the installed Claude CLI.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.519360721Z",
+          "scope": "TestClaudeResumeLifecycleUsesSelectedNativeID in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "rename-draft",
+        "name": "TestDashboard_RenameSession",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/views/dashboard_test.go",
+        "proves": "Prior assessment: Captured target, normalized Unicode input, draft survives refresh, duplicate suppression, retry after error.",
+        "limits": "View callback is a stub; no service write or cancellation assertion before submit. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:09.614062867Z",
+          "scope": "TestDashboard_RenameSession in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 362,
+        "endLine": 409
+      },
+      {
+        "id": "rename-blank",
+        "name": "TestDashboard_RenameSessionEmptyUsesIDAndNoSelectionIsNoop",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/views/dashboard_test.go",
+        "proves": "Prior assessment: Blank input submits the session ID.",
+        "limits": "No-selection probe starts in the cards pane; it does not establish empty sessions-pane behavior. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:09.615748347Z",
+          "scope": "TestDashboard_RenameSessionEmptyUsesIDAndNoSelectionIsNoop in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 411,
+        "endLine": 435
+      },
+      {
+        "id": "rename-scoped",
+        "name": "TestCoordinator_DashboardRenameFailureStaysInDialogAndIgnoresStaleResult",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/coordinator_test.go",
+        "proves": "Prior assessment: Real command error stays in dialog; stale generation leaves pending state intact.",
+        "limits": "Missing session fixture; does not establish successful persistence or stale dashboard identity separately. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:06.796265085Z",
+          "scope": "TestCoordinator_DashboardRenameFailureStaysInDialogAndIgnoresStaleResult in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 59,
+        "endLine": 98
+      },
+      {
+        "id": "rename-layout",
+        "name": "TestDashboardRenameLayoutAndScopedFooter",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/views/dashboard_layout_test.go",
+        "proves": "Long error bounds at 80×24 and 120×40, visible save/cancel controls and scoped rename footer.",
+        "limits": "String and cell bounds, not a native terminal screenshot or pixel comparison.",
+        "reviewedHash": "34242af9c0592577eeee58c84686ed8d3399ce6110722c11838c87111097c43d",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:58.373479516Z",
+          "scope": "TestDashboardRenameLayoutAndScopedFooter in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 149,
+        "endLine": 174
+      },
+      {
+        "id": "rename-search",
+        "name": "TestDashboard_Search",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/views/dashboard_test.go",
+        "proves": "Existing search consumes typed t/e/s/t and Esc exits search.",
+        "limits": "Cards-pane search; does not explicitly exercise session-pane e search.",
+        "reviewedHash": "fe042e81c3207ef759933378eca1b1ec1ba5f30f1aa3a1079c017b33289025bd",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:09.607776067Z",
+          "scope": "TestDashboard_Search in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 315,
+        "endLine": 347
+      },
+      {
+        "id": "rename-persist",
+        "name": "TestSetNamePropagatesPersistFailure",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/session/lifecycle_test.go",
+        "line": 412,
+        "endLine": 450,
+        "proves": "Existing checked rename surfaces a record-write failure.",
+        "limits": "Manager boundary only; no complete dashboard rename/restart journey.",
+        "reviewedHash": "20a260206ef6895110aafb86e5bd2811799a452e27066a795d75135ee00cff4b",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:06.694291712Z",
+          "scope": "TestSetNamePropagatesPersistFailure in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "rename-launcher",
+        "name": "TestSessionLauncherWaitsForNameResultAndAllowsRetry",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/views/session_launcher_test.go",
+        "proves": "Prior assessment: Existing launcher naming waits for result and permits retry.",
+        "limits": "Launch naming form, not dashboard completion routing. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:10.927870705Z",
+          "scope": "TestSessionLauncherWaitsForNameResultAndAllowsRetry in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 135,
+        "endLine": 160
       },
       {
         "id": "mcp-navigation",
         "name": "TestMCPManagerNestedNavigation",
-        "file": "internal/app/navigation_test.go",
-        "line": 115,
-        "endLine": 141,
+        "file": "internal/ui/navigation_test.go",
         "method": "automated",
         "integration": "project",
         "proves": "Repeated form cancel → manager → dashboard journeys preserve destinations.",
         "limits": "No real terminal or rendered key delivery.",
-        "reviewedHash": "5bd7b802a0fc7b6156a004e3e478dc6f00653207d4fdd8c3b909b6f02fbc4968",
+        "reviewedHash": "9fa0fed09a03953dbb6e6fefe0bea9efb4a9106d62f33f92cd956280309652c7",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.289821179Z",
-          "scope": "TestMCPManagerNestedNavigation",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:07.505161Z",
+          "scope": "TestMCPManagerNestedNavigation in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 112,
+        "endLine": 137
       },
       {
         "id": "mcp-metadata",
         "name": "TestMCPManagerEditPreservesMetadataAndNewIsBlank",
-        "file": "internal/app/mcp_manager_review_test.go",
-        "line": 73,
-        "endLine": 124,
+        "file": "internal/ui/mcp_manager_review_test.go",
         "method": "automated",
         "integration": "project",
-        "proves": "Existing ID/description survives edit; New clears fields and metadata.",
-        "limits": "In-process coordinator with isolated repository; no process restart.",
-        "reviewedHash": "3e229a9ac835d5a1fe54d866630ba78b245dde7df4dd03cc2a27fda3e3a39992",
+        "proves": "Prior assessment: Existing ID/description survives edit; New clears fields and metadata.",
+        "limits": "In-process coordinator with isolated repository; no process restart. The current source differs from that assessment and needs a fresh assertion review.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.273107329Z",
-          "scope": "TestMCPManagerEditPreservesMetadataAndNewIsBlank",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "mcp-stale-commands",
-        "name": "TestMCPManagerStaleRequests",
-        "file": "internal/app/mcp_manager_review_test.go",
-        "line": 13,
-        "endLine": 72,
-        "method": "automated",
-        "integration": "project",
-        "proves": "Old edit/delete requests rejected; new deletion succeeds and delayed result does not navigate.",
-        "limits": "Same-dashboard leave/reopen; no explicit cross-dashboard delayed-command assertion.",
-        "reviewedHash": "3e229a9ac835d5a1fe54d866630ba78b245dde7df4dd03cc2a27fda3e3a39992",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.26764511Z",
-          "scope": "TestMCPManagerStaleRequests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "mcp-referenced",
-        "name": "TestMCPManagerReferencedDeleteReportsError",
-        "file": "internal/app/mcp_manager_review_test.go",
-        "line": 125,
-        "endLine": 178,
-        "method": "automated",
-        "integration": "project",
-        "proves": "Saved card reference blocks deletion, retains server and displays an error.",
-        "limits": "Reference belongs to default dashboard; no injected disk-write failure.",
-        "reviewedHash": "3e229a9ac835d5a1fe54d866630ba78b245dde7df4dd03cc2a27fda3e3a39992",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.279805509Z",
-          "scope": "TestMCPManagerReferencedDeleteReportsError",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "mcp-modal-target",
-        "name": "TestMCPManagerConfirmationKeepsTargetAcrossRefresh",
-        "file": "internal/ui/views/mcp_manager_test.go",
-        "line": 15,
-        "endLine": 40,
-        "method": "automated",
-        "integration": "project",
-        "proves": "Modal captures ID across reorder, Escape cancels, nil data retains loaded rows.",
-        "limits": "View-level messages; repository result is covered separately.",
-        "reviewedHash": "193db5f05aee84e02967a53609e5cf7eef5760d029be9474a5b48e1d9fb297d6",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.970635879Z",
-          "scope": "TestMCPManagerConfirmationKeepsTargetAcrossRefresh",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "mcp-protected",
-        "name": "TestMCPManagerProtectedAndNew",
-        "file": "internal/ui/views/mcp_manager_test.go",
-        "line": 41,
-        "endLine": 66,
-        "method": "automated",
-        "integration": "project",
-        "proves": "Built-in Enter/Delete return errors; New opens blank and cannot be deleted.",
-        "limits": "No real CLI or remote MCP server.",
-        "reviewedHash": "193db5f05aee84e02967a53609e5cf7eef5760d029be9474a5b48e1d9fb297d6",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.970815169Z",
-          "scope": "TestMCPManagerProtectedAndNew",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "mcp-long-list",
-        "name": "TestMCPManagerLongListFits",
-        "file": "internal/ui/views/mcp_manager_test.go",
-        "line": 67,
-        "endLine": 86,
-        "method": "automated",
-        "integration": "project",
-        "proves": "Forty long Unicode/ANSI names fit 80×22; New reachable; confirmation fits.",
-        "limits": "Bounds assertions only, no screenshot baseline or stable row-position assertion.",
-        "reviewedHash": "193db5f05aee84e02967a53609e5cf7eef5760d029be9474a5b48e1d9fb297d6",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:57.001711328Z",
-          "scope": "TestMCPManagerLongListFits",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:07.473940762Z",
+          "scope": "TestMCPManagerEditPreservesMetadataAndNewIsBlank in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 74,
+        "endLine": 126
       },
       {
         "id": "mcp-parser-retained",
         "name": "TestMCPFormRoundTripsEveryField",
         "file": "internal/ui/views/mcp_form_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Prior assessment: Retained assertions round-trip visible fields including escaped args/env/headers.",
+        "limits": "Direct form callback; no application navigation. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:09.643641114Z",
+          "scope": "TestMCPFormRoundTripsEveryField in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
         "line": 148,
-        "endLine": 203,
-        "method": "automated",
-        "integration": "project",
-        "proves": "Retained assertions round-trip visible fields including escaped args/env/headers.",
-        "limits": "Direct form callback; no application navigation.",
-        "reviewedHash": "3e58b28d6fdcfbbc1c0f45984f19da8e223ef6c872f2212d1393492235248e6f",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.513482413Z",
-          "scope": "TestMCPFormRoundTripsEveryField",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "mcp-sources-retained",
-        "name": "TestSourceList_Navigation",
-        "file": "internal/ui/components/source_list_test.go",
-        "line": 106,
-        "endLine": 139,
-        "method": "automated",
-        "integration": "project",
-        "proves": "Retained source-list arrow navigation and New position.",
-        "limits": "Does not assert every source-manager CRUD path.",
-        "reviewedHash": "5a3a7e6203cc8b929a5aefff15098c9871e12b589602a6f1d8dcaf190487d212",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:01.844405616Z",
-          "scope": "TestSourceList_Navigation",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "mcp-repository-retained",
-        "name": "TestKankuroMCPIsOfferedOnceAndProtected",
-        "file": "internal/config/builtin_mcp_test.go",
-        "line": 11,
-        "endLine": 45,
-        "method": "automated",
-        "integration": "project",
-        "proves": "Exactly one built-in; repository blocks edits, deletion and name shadowing.",
-        "limits": "Isolated file repository; no UI.",
-        "reviewedHash": "b28e8471e9e7f5e3c6ef47d89afdbdee27458b6a74c3da4576c34a705ca1f7b6",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:56.722894302Z",
-          "scope": "TestKankuroMCPIsOfferedOnceAndProtected",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "mcp-cross-dashboard-requests",
-        "name": "TestMCPManagerCrossDashboardRequests",
-        "file": "internal/app/mcp_manager_gaps_test.go",
-        "method": "automated",
-        "integration": "project",
-        "proves": "Old edit/delete messages are rejected after dashboard switch without clearing the new visit's confirmation; fresh deletion succeeds.",
-        "limits": "Real coordinator and file repository; command delivery is held deterministically rather than scheduled by the terminal.",
-        "reviewedHash": "13720406996dc7dc1f91c9a07c7b23d46f05aba708710a59c135c7e0973567ae",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.191154644Z",
-          "scope": "TestMCPManagerCrossDashboardRequests",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+        "endLine": 199
       },
       {
         "id": "mcp-cross-dashboard-saves",
         "name": "TestMCPManagerCrossDashboardSaveResults",
-        "file": "internal/app/mcp_manager_gaps_test.go",
+        "file": "internal/ui/mcp_manager_gaps_test.go",
         "method": "automated",
         "integration": "project",
         "proves": "Delayed successful/failed saves preserve the other dashboard's form draft, navigation and current error; successful global mutation refreshes with current scope.",
         "limits": "ENOSPC is injected at the repository boundary; does not fill a disk or exercise physical-media failure.",
-        "reviewedHash": "13720406996dc7dc1f91c9a07c7b23d46f05aba708710a59c135c7e0973567ae",
+        "reviewedHash": "cd0f5c2a0cfded6055d3b2e8893ed28939d09bd36151e962666f312e21f0dc38",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.224576772Z",
-          "scope": "TestMCPManagerCrossDashboardSaveResults",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "mcp-cross-dashboard-deletes",
-        "name": "TestMCPManagerCrossDashboardDeleteResults",
-        "file": "internal/app/mcp_manager_gaps_test.go",
-        "method": "automated",
-        "integration": "project",
-        "proves": "Delayed success/failure cannot navigate or overwrite the new dashboard's error; success refreshes its global registry; failure releases pending state for retry.",
-        "limits": "Two actual persisted dashboards and an isolated file registry; injected repository failure, no real concurrent disk outage.",
-        "reviewedHash": "13720406996dc7dc1f91c9a07c7b23d46f05aba708710a59c135c7e0973567ae",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.245453271Z",
-          "scope": "TestMCPManagerCrossDashboardDeleteResults",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:07.394234128Z",
+          "scope": "TestMCPManagerCrossDashboardSaveResults in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 176,
+        "endLine": 182
       },
       {
         "id": "mcp-write-failure-retry",
         "name": "TestMCPManagerWriteFailuresRetainDataAndAllowRetry",
-        "file": "internal/app/mcp_manager_gaps_test.go",
+        "file": "internal/ui/mcp_manager_gaps_test.go",
         "method": "automated",
         "integration": "project",
         "proves": "Save/delete PathError(ENOSPC) remains visible, registry bytes stay identical, drafts/rows survive, and retry persists successfully.",
         "limits": "Injects errors at the repository mutation boundary to avoid chmod/root dependence; atomic filesystem fault internals are outside this test.",
-        "reviewedHash": "13720406996dc7dc1f91c9a07c7b23d46f05aba708710a59c135c7e0973567ae",
+        "reviewedHash": "cd0f5c2a0cfded6055d3b2e8893ed28939d09bd36151e962666f312e21f0dc38",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:04.2620067Z",
-          "scope": "TestMCPManagerWriteFailuresRetainDataAndAllowRetry",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:07.459333413Z",
+          "scope": "TestMCPManagerWriteFailuresRetainDataAndAllowRetry in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 268,
+        "endLine": 274
       },
       {
         "id": "mcp-mcp-terminal-journey",
@@ -12707,7 +14568,7 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "kind": "E2E",
         "proves": "Actual executable: dashboard list → New/create → populated edit → rename preserving ID/command → Delete/cancel → Delete/confirm → return/reopen; six screenshots and saved-file assertions.",
-        "limits": "No agents/model calls or screenshot baseline comparison. List/modal checked at 80×24; forms at 120×40.",
+        "limits": "No agents/model calls or screenshot baseline comparison. List/modal checked at 80×24; forms at 120×40. Historical observation retained in Appedia.",
         "reviewedHash": "0b63e84ab8c3c871017132e66b9a9c3866d6d83d517e59ca1d71a3710a4b92bf",
         "result": {
           "status": "passed",
@@ -12716,133 +14577,203 @@ window.APPEDIA_CONTENT = {
           "scope": "Real executable configuration journey, no agent/model calls",
           "revision": "WORKTREE",
           "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
+        },
+        "line": 27,
+        "endLine": 113
+      },
+      {
+        "id": "mcp-stale-commands",
+        "name": "TestMCPManagerStaleRequests",
+        "file": "internal/ui/mcp_manager_review_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Prior assessment: Old edit/delete requests rejected; new deletion succeeds and delayed result does not navigate.",
+        "limits": "Same-dashboard leave/reopen; no explicit cross-dashboard delayed-command assertion. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:07.466708603Z",
+          "scope": "TestMCPManagerStaleRequests in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 14,
+        "endLine": 72
+      },
+      {
+        "id": "mcp-modal-target",
+        "name": "TestMCPManagerConfirmationKeepsTargetAcrossRefresh",
+        "file": "internal/ui/views/mcp_manager_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Prior assessment: Modal captures ID across reorder, Escape cancels, nil data retains loaded rows.",
+        "limits": "View-level messages; repository result is covered separately. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.028448498Z",
+          "scope": "TestMCPManagerConfirmationKeepsTargetAcrossRefresh in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 15,
+        "endLine": 53
+      },
+      {
+        "id": "mcp-cross-dashboard-requests",
+        "name": "TestMCPManagerCrossDashboardRequests",
+        "file": "internal/ui/mcp_manager_gaps_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Old edit/delete messages are rejected after dashboard switch without clearing the new visit's confirmation; fresh deletion succeeds.",
+        "limits": "Real coordinator and file repository; command delivery is held deterministically rather than scheduled by the terminal.",
+        "reviewedHash": "cd0f5c2a0cfded6055d3b2e8893ed28939d09bd36151e962666f312e21f0dc38",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:07.360397551Z",
+          "scope": "TestMCPManagerCrossDashboardRequests in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 135,
+        "endLine": 141
+      },
+      {
+        "id": "mcp-cross-dashboard-deletes",
+        "name": "TestMCPManagerCrossDashboardDeleteResults",
+        "file": "internal/ui/mcp_manager_gaps_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Delayed success/failure cannot navigate or overwrite the new dashboard's error; success refreshes its global registry; failure releases pending state for retry.",
+        "limits": "Two actual persisted dashboards and an isolated file registry; injected repository failure, no real concurrent disk outage.",
+        "reviewedHash": "cd0f5c2a0cfded6055d3b2e8893ed28939d09bd36151e962666f312e21f0dc38",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:07.428606066Z",
+          "scope": "TestMCPManagerCrossDashboardDeleteResults in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 224,
+        "endLine": 230
+      },
+      {
+        "id": "mcp-referenced",
+        "name": "TestMCPManagerReferencedDeleteReportsError",
+        "file": "internal/ui/mcp_manager_review_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Prior assessment: Saved card reference blocks deletion, retains server and displays an error.",
+        "limits": "Reference belongs to default dashboard; no injected disk-write failure. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:07.480588502Z",
+          "scope": "TestMCPManagerReferencedDeleteReportsError in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 128,
+        "endLine": 180
+      },
+      {
+        "id": "mcp-protected",
+        "name": "TestMCPManagerProtectedAndNew",
+        "file": "internal/ui/views/mcp_manager_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Prior assessment: Built-in Enter/Delete return errors; New opens blank and cannot be deleted.",
+        "limits": "No real CLI or remote MCP server. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.028542928Z",
+          "scope": "TestMCPManagerProtectedAndNew in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 55,
+        "endLine": 91
+      },
+      {
+        "id": "mcp-repository-retained",
+        "name": "TestKankuroMCPIsOfferedOnceAndProtected",
+        "file": "internal/config/builtin_mcp_test.go",
+        "line": 11,
+        "endLine": 44,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Exactly one built-in; repository blocks edits, deletion and name shadowing.",
+        "limits": "Isolated file repository; no UI.",
+        "reviewedHash": "b28e8471e9e7f5e3c6ef47d89afdbdee27458b6a74c3da4576c34a705ca1f7b6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.070560682Z",
+          "scope": "TestKankuroMCPIsOfferedOnceAndProtected in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
+      },
+      {
+        "id": "mcp-long-list",
+        "name": "TestMCPManagerLongListFits",
+        "file": "internal/ui/views/mcp_manager_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Prior assessment: Forty long Unicode/ANSI names fit 80×22; New reachable; confirmation fits.",
+        "limits": "Bounds assertions only, no screenshot baseline or stable row-position assertion. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.075495084Z",
+          "scope": "TestMCPManagerLongListFits in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 93,
+        "endLine": 111
+      },
+      {
+        "id": "mcp-sources-retained",
+        "name": "TestSourceList_Navigation",
+        "file": "internal/ui/components/source_list_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Retained source-list arrow navigation and New position.",
+        "limits": "Does not assert every source-manager CRUD path.",
+        "reviewedHash": "9f7c6ae7caf62037b2131c47e7e669a9b1d520fe3f68193add2229f5bee5cf8f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:57.751196515Z",
+          "scope": "TestSourceList_Navigation in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 106,
+        "endLine": 138
       },
       {
         "id": "focus-completion",
         "name": "TestLaunchFocusSnapshotBeforeCompletion",
-        "file": "internal/app/launch_focus_internal_test.go",
+        "file": "internal/ui/launch_focus_internal_test.go",
         "method": "automated",
         "integration": "project",
-        "proves": "Launch completion selects the exact created ID, including a snapshot already loaded.",
-        "limits": "Coordinator events with controlled snapshots; native attachment is assessed separately.",
-        "reviewedHash": "aae09330a865a90c2d04b0eaba6f10cc57d93ea9bfd3822741aef414b8d36c25",
+        "proves": "Prior assessment: Launch completion selects the exact created ID, including a snapshot already loaded.",
+        "limits": "Coordinator events with controlled snapshots; native attachment is assessed separately. The current source differs from that assessment and needs a fresh assertion review.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.618484733Z",
-          "scope": "TestLaunchFocusSnapshotBeforeCompletion",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "focus-epochs",
-        "name": "TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName",
-        "file": "internal/app/launch_focus_internal_test.go",
-        "method": "automated",
-        "integration": "project",
-        "proves": "Old session epochs cannot displace the created or confirmed-name target.",
-        "limits": "Deterministic snapshot ordering, not real scheduler timing.",
-        "reviewedHash": "aae09330a865a90c2d04b0eaba6f10cc57d93ea9bfd3822741aef414b8d36c25",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.624696933Z",
-          "scope": "TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "rename-epochs",
-        "name": "TestInlineRenameRejectsOlderRefreshSnapshots",
-        "file": "internal/app/inline_rename_refresh_internal_test.go",
-        "method": "automated",
-        "integration": "project",
-        "proves": "Full, sessions and fingerprint snapshots started before inline rename do not restore the old name.",
-        "limits": "In-process command/result delivery.",
-        "reviewedHash": "746d0f43d4a7f49e31e8949800f1a5d6812a68c3845149af004a85220b4695fd",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.612712594Z",
-          "scope": "TestInlineRenameRejectsOlderRefreshSnapshots",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "focus-warning",
-        "name": "TestLaunchFocusPersistenceWarningStillSelectsSession",
-        "file": "internal/app/launch_focus_internal_test.go",
-        "method": "automated",
-        "integration": "project",
-        "proves": "Usable launch with metadata persistence warning keeps selected focus and exposes the warning.",
-        "limits": "Controlled ErrPersistFailed result, not a physical disk fault.",
-        "reviewedHash": "aae09330a865a90c2d04b0eaba6f10cc57d93ea9bfd3822741aef414b8d36c25",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.637971252Z",
-          "scope": "TestLaunchFocusPersistenceWarningStillSelectsSession",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "focus-stale",
-        "name": "TestLaunchFocusIgnoresStaleResults",
-        "file": "internal/app/launch_focus_internal_test.go",
-        "method": "automated",
-        "integration": "project",
-        "proves": "Stale dashboard/generation results cannot move session focus.",
-        "limits": "Does not launch a native agent.",
-        "reviewedHash": "aae09330a865a90c2d04b0eaba6f10cc57d93ea9bfd3822741aef414b8d36c25",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.648507662Z",
-          "scope": "TestLaunchFocusIgnoresStaleResults",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "focus-cancel",
-        "name": "TestLaunchFocusPendingRequestIsCancelledOnDashboardExit",
-        "file": "internal/app/launch_focus_internal_test.go",
-        "method": "automated",
-        "integration": "project",
-        "proves": "Leaving a dashboard clears pending focus; delayed launch cannot apply in a different context.",
-        "limits": "Controlled coordinator events.",
-        "reviewedHash": "aae09330a865a90c2d04b0eaba6f10cc57d93ea9bfd3822741aef414b8d36c25",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:03.653821262Z",
-          "scope": "TestLaunchFocusPendingRequestIsCancelledOnDashboardExit",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
-      },
-      {
-        "id": "focus-order",
-        "name": "TestSessionList_SetSessionsPreservesSelectionByID",
-        "file": "internal/ui/components/session_list_test.go",
-        "method": "automated",
-        "integration": "project",
-        "proves": "Newer session insertion preserves the selected ID rather than its row index.",
-        "limits": "Direct list component assertion.",
-        "reviewedHash": "115125cb966d130cfc83351a245e2760226e2b3f6bd726fc22e9ed1a62dde95c",
-        "result": {
-          "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:34:58.517980309Z",
-          "scope": "TestSessionList_SetSessionsPreservesSelectionByID",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:04.308444787Z",
+          "scope": "TestLaunchFocusSnapshotBeforeCompletion in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 95,
+        "endLine": 102
       },
       {
         "id": "focus-search",
@@ -12850,17 +14781,132 @@ window.APPEDIA_CONTENT = {
         "file": "internal/ui/views/dashboard_test.go",
         "method": "automated",
         "integration": "project",
-        "proves": "Focus waits for target data, clears hiding session search, selects sessions pane and aligns preview; later refreshes do not steal focus.",
-        "limits": "Direct view-level data refresh.",
-        "reviewedHash": "c920b81707a08ff6e6af8c1a5cc5d4a9e5f7a702861887fe5797bfa1b68d4b48",
+        "proves": "Prior assessment: Focus waits for target data, clears hiding session search, selects sessions pane and aligns preview; later refreshes do not steal focus.",
+        "limits": "Direct view-level data refresh. The current source differs from that assessment and needs a fresh assertion review.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-11T22:35:06.491274094Z",
-          "scope": "TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch",
-          "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "at": "2026-11-20T00:07:09.603456457Z",
+          "scope": "TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 232,
+        "endLine": 269
+      },
+      {
+        "id": "focus-epochs",
+        "name": "TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName",
+        "file": "internal/ui/launch_focus_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Prior assessment: Old session epochs cannot displace the created or confirmed-name target.",
+        "limits": "Deterministic snapshot ordering, not real scheduler timing. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.315959627Z",
+          "scope": "TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 104,
+        "endLine": 140
+      },
+      {
+        "id": "rename-epochs",
+        "name": "TestInlineRenameRejectsOlderRefreshSnapshots",
+        "file": "internal/ui/inline_rename_refresh_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Prior assessment: Full, sessions and fingerprint snapshots started before inline rename do not restore the old name.",
+        "limits": "In-process command/result delivery. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.265524491Z",
+          "scope": "TestInlineRenameRejectsOlderRefreshSnapshots in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 17,
+        "endLine": 76
+      },
+      {
+        "id": "focus-warning",
+        "name": "TestLaunchFocusPersistenceWarningStillSelectsSession",
+        "file": "internal/ui/launch_focus_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Prior assessment: Usable launch with metadata persistence warning keeps selected focus and exposes the warning.",
+        "limits": "Controlled ErrPersistFailed result, not a physical disk fault. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.338323465Z",
+          "scope": "TestLaunchFocusPersistenceWarningStillSelectsSession in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 162,
+        "endLine": 174
+      },
+      {
+        "id": "focus-stale",
+        "name": "TestLaunchFocusIgnoresStaleResults",
+        "file": "internal/ui/launch_focus_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Prior assessment: Stale dashboard/generation results cannot move session focus.",
+        "limits": "Does not launch a native agent. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.364842243Z",
+          "scope": "TestLaunchFocusIgnoresStaleResults in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 176,
+        "endLine": 202
+      },
+      {
+        "id": "focus-cancel",
+        "name": "TestLaunchFocusPendingRequestIsCancelledOnDashboardExit",
+        "file": "internal/ui/launch_focus_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Prior assessment: Leaving a dashboard clears pending focus; delayed launch cannot apply in a different context.",
+        "limits": "Controlled coordinator events. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.370359932Z",
+          "scope": "TestLaunchFocusPendingRequestIsCancelledOnDashboardExit in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 204,
+        "endLine": 223
+      },
+      {
+        "id": "focus-order",
+        "name": "TestSessionList_SetSessionsPreservesSelectionByID",
+        "file": "internal/ui/components/session_list_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Prior assessment: Newer session insertion preserves the selected ID rather than its row index.",
+        "limits": "Direct list component assertion. The current source differs from that assessment and needs a fresh assertion review.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:57.748437855Z",
+          "scope": "TestSessionList_SetSessionsPreservesSelectionByID in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        },
+        "line": 284,
+        "endLine": 304
       },
       {
         "id": "launch-focus-terminal",
@@ -12870,8 +14916,7 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "kind": "E2E",
         "proves": "Real Codex startup screen after launch/name; detach restores selected created session; Enter reattaches to same live process, preserving exactly one older terminated session.",
-        "limits": "Startup-only; no agent prompt/provider inference or pixel-baseline comparison. Requires Codex installed.",
-        "reviewedHash": "e060a644c780ae1bc26cc70174c10c78034d26265c2c4eff54d39e19eb746a4e",
+        "limits": "Startup-only; no agent prompt/provider inference or pixel-baseline comparison. Requires Codex installed. Historical observation retained in Appedia.",
         "result": {
           "status": "passed",
           "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeLaunchFocusReturn$' -count=1 -timeout=3m -v",
@@ -12880,16 +14925,1557 @@ window.APPEDIA_CONTENT = {
           "revision": "WORKTREE",
           "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
         }
+      },
+      {
+        "id": "center-author-order",
+        "name": "TestRecentAuthoredReports",
+        "file": "internal/session/authored_reports_test.go",
+        "method": "automated",
+        "integration": "project",
+        "line": 15,
+        "endLine": 60,
+        "proves": "Rejects received/foreign reports, checks timestamp/sequence/ID order, omission, detached results, invalid limit and cancellation.",
+        "limits": "In-memory store fixture; not a full agent journey.",
+        "reviewedHash": "6bf7c1ee54b32e350c9c409601cbe6659113b6ffb871592640520920cbd0e28d",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.34838219Z",
+          "scope": "TestRecentAuthoredReports in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-reload",
+        "name": "TestRecentAuthoredReportsBoundsAndReload",
+        "file": "internal/session/authored_reports_test.go",
+        "method": "automated",
+        "integration": "project",
+        "line": 62,
+        "endLine": 106,
+        "proves": "Reloads retained history, clamps to 256 reports, preserves activation attribution and creates no notifications.",
+        "limits": "Synthetic persisted history; does not execute a process relaunch.",
+        "reviewedHash": "6bf7c1ee54b32e350c9c409601cbe6659113b6ffb871592640520920cbd0e28d",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.34929185Z",
+          "scope": "TestRecentAuthoredReportsBoundsAndReload in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-takeover",
+        "name": "TestCenterReportTakesOverAndRejectsLateWorkspace",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "line": 59,
+        "endLine": 90,
+        "proves": "An event reads reports while retaining ongoing workspace work; successful report content cancels it, and late workspace data cannot overwrite reports.",
+        "limits": "Direct coordinator messages and fake port; no terminal I/O.",
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.768171718Z",
+          "scope": "TestCenterReportTakesOverAndRejectsLateWorkspace in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-coalesce",
+        "name": "TestCenterCoalescesAndReleasesStaleSetup",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "line": 91,
+        "endLine": 113,
+        "proves": "Multiple changes produce one follow-up and stale setup/current subscriptions are released after clear.",
+        "limits": "Deterministic state transitions; not an OS goroutine leak audit.",
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.770112628Z",
+          "scope": "TestCenterCoalescesAndReleasesStaleSetup in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-scope",
+        "name": "TestCenterScopeFailureClearsCachedReports",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "line": 114,
+        "endLine": 135,
+        "proves": "Scope rejection clears cached reports and blocks immediate retry for unchanged invalid selection.",
+        "limits": "Fake scope result; real membership separately tested.",
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.773279328Z",
+          "scope": "TestCenterScopeFailureClearsCachedReports in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-retry",
+        "name": "TestCenterRetryClockIsNonOverlappingAndCanceled",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "line": 151,
+        "endLine": 171,
+        "proves": "Fake clock observes 30 seconds, excludes overlapping timer/setup and triggers resubscription first.",
+        "limits": "No wall-clock or long-lived live-terminal observation.",
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.773312617Z",
+          "scope": "TestCenterRetryClockIsNonOverlappingAndCanceled in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-failures",
+        "name": "TestCenterFailurePolicyRetainsOnlySameSessionData",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "line": 173,
+        "endLine": 205,
+        "proves": "Read failure retains stale reports, confirmed empty clears them, workspace failure retains same-session data/warnings, clear drops content.",
+        "limits": "Selected state-machine paths; not exhaustive cross-product of failures.",
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.776354937Z",
+          "scope": "TestCenterFailurePolicyRetainsOnlySameSessionData in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-closed",
+        "name": "TestCenterClosedSubscriptionUsesRetry",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "line": 207,
+        "endLine": 217,
+        "proves": "Unexpected stream closure preserves cached reports and sets warning/retry state.",
+        "limits": "Tests scheduling, not a complete subsequent recovery journey.",
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.779775817Z",
+          "scope": "TestCenterClosedSubscriptionUsesRetry in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-fit",
+        "name": "TestSessionCenterReportsFitAndSanitize",
+        "file": "internal/ui/components/session_center_test.go",
+        "method": "automated",
+        "integration": "project",
+        "line": 14,
+        "endLine": 48,
+        "proves": "ANSI stripped; report text retained within 20×4; changing session clears it; zero size is safe.",
+        "limits": "One explicit size plus zero-size boundary; no pixel comparison or complete resize/refetch journey.",
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.77678563Z",
+          "scope": "TestSessionCenterReportsFitAndSanitize in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-service-scope",
+        "name": "TestCenterReportsSubscriptionAndScope",
+        "file": "internal/api/center_test.go",
+        "line": 18,
+        "endLine": 72,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Real service reads authored progress after subscription signal, rejects foreign dashboard and allows idempotent release.",
+        "limits": "Messaging harness injects records; no native model execution.",
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.315938123Z",
+          "scope": "TestCenterReportsSubscriptionAndScope in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-initial-read",
+        "name": "TestCenterReportsChangeBeforeInitialReadAndStop",
+        "file": "internal/api/center_test.go",
+        "line": 74,
+        "endLine": 129,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Report inserted after subscribe is read immediately and signals; stopping session keeps reports readable; cancellation closes changes.",
+        "limits": "No full relaunch journey or screenshot.",
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.348425441Z",
+          "scope": "TestCenterReportsChangeBeforeInitialReadAndStop in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-rearm",
+        "name": "TestCenterReportChangeDuringRearm",
+        "file": "internal/api/center_test.go",
+        "line": 144,
+        "endLine": 188,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Controlled channels close while watch rearming is paused; a notice is retained and cancellation ends stream.",
+        "limits": "Direct subscription helper fixture, not a stress/load measurement.",
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.389389327Z",
+          "scope": "TestCenterReportChangeDuringRearm in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-saved-path",
+        "name": "TestCenterWorkspaceUsesSavedSessionDirectory",
+        "file": "internal/api/center_test.go",
+        "line": 131,
+        "endLine": 142,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Uses the session saved directory and rejects foreign scope.",
+        "limits": "Harness has a normal workspace; temporary identity checked separately.",
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.389319507Z",
+          "scope": "TestCenterWorkspaceUsesSavedSessionDirectory in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-temporary-path",
+        "name": "TestCenterWorkspaceUsesTemporaryCopy",
+        "file": "internal/api/center_test.go",
+        "line": 190,
+        "endLine": 212,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Launches a cat session into a temporary copy and reads exactly its saved WorkingDir.",
+        "limits": "Does not invoke a model or assert recursive copy contents.",
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.407353816Z",
+          "scope": "TestCenterWorkspaceUsesTemporaryCopy in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-inventory-failure",
+        "name": "TestCenterReportsInventoryFailureIsNotEmptyHistory",
+        "file": "internal/api/center_test.go",
+        "line": 214,
+        "endLine": 225,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Corrupt card inventory makes the report read fail explicitly.",
+        "limits": "One corrupted registry boundary.",
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.439811993Z",
+          "scope": "TestCenterReportsInventoryFailureIsNotEmptyHistory in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-git-directory",
+        "name": "TestCenterWorkspaceGitAndDirectory",
+        "file": "internal/api/center_workspace_test.go",
+        "line": 32,
+        "endLine": 67,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Checks clean Git vs non-Git, staged rename plus unstaged modification and newline untracked path while reading from a subdirectory.",
+        "limits": "Temporary real Git fixture; conflict/submodule variants not asserted here.",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.540855456Z",
+          "scope": "TestCenterWorkspaceGitAndDirectory in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-bounded-directory",
+        "name": "TestCenterWorkspaceBoundedListingAndErrors",
+        "file": "internal/api/center_workspace_test.go",
+        "line": 68,
+        "endLine": 98,
+        "method": "automated",
+        "integration": "project",
+        "proves": "More than 1,000 entries truncates; missing path and canceled inspection error; malformed/partial Git records rejected.",
+        "limits": "Metadata access error combinations are not exhaustive.",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.581393123Z",
+          "scope": "TestCenterWorkspaceBoundedListingAndErrors in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-symlink-fallback",
+        "name": "TestCenterWorkspaceSymlinkAndMissingGit",
+        "file": "internal/api/center_workspace_test.go",
+        "line": 100,
+        "endLine": 126,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Immediate hidden/symlink rows retain link target; unavailable Git yields warned directory fallback.",
+        "limits": "Unix fixture, not cross-platform owner/group verification.",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.583544412Z",
+          "scope": "TestCenterWorkspaceSymlinkAndMissingGit in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-linked-worktree",
+        "name": "TestCenterWorkspaceLinkedWorktree",
+        "file": "internal/api/center_workspace_test.go",
+        "line": 128,
+        "endLine": 146,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Real linked worktree is classified as Git and reports its modified tracked file.",
+        "limits": "Single worktree and tracked-path example.",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.662919756Z",
+          "scope": "TestCenterWorkspaceLinkedWorktree in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-git-timeout",
+        "name": "TestCenterWorkspaceGitTimeoutAndTruncation",
+        "file": "internal/api/center_workspace_test.go",
+        "line": 148,
+        "endLine": 167,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Status entries cap at 1,000; a busy fake Git is canceled by an explicit short deadline.",
+        "limits": "Does not wait out the production ten-second timeout.",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.715558772Z",
+          "scope": "TestCenterWorkspaceGitTimeoutAndTruncation in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-git-output",
+        "name": "TestCenterWorkspaceKillsGitOnOutputLimit",
+        "file": "internal/api/center_workspace_test.go",
+        "line": 169,
+        "endLine": 182,
+        "method": "automated",
+        "integration": "project",
+        "proves": "Unbounded fake Git output fails on output budget before outer context expires.",
+        "limits": "Checks stdout budget, not every stderr variant.",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.763620438Z",
+          "scope": "TestCenterWorkspaceKillsGitOnOutputLimit in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-failed-read-clock",
+        "name": "TestCenterFailedReadCoalescesChangesUntilRetry",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Repeated store notices do not advance report requests while degraded; firing the fake clock allows exactly one retry and repeated failure reschedules recovery.",
+        "limits": "Coordinator/fake-clock boundary, no live terminal.",
+        "line": 233,
+        "endLine": 261,
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.783345877Z",
+          "scope": "TestCenterFailedReadCoalescesChangesUntilRetry in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-workspace-clock",
+        "name": "TestCenterChangesDoNotRestartWorkspace",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Empty event reads do not refresh cached workspace before timer; a due timer refreshes it, and notices do not cancel/restart slow workspace work.",
+        "limits": "Deterministic coordinator transitions, not real Git load timing.",
+        "line": 263,
+        "endLine": 304,
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.785393067Z",
+          "scope": "TestCenterChangesDoNotRestartWorkspace in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-failed-workspace-clock",
+        "name": "TestCenterFailedWorkspaceWithoutCacheWaitsForTimer",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Initial load occurs immediately; after failure without cache, repeated healthy empty report reads cannot retry workspace until fake clock fires.",
+        "limits": "Tests policy state with fake application capability.",
+        "line": 306,
+        "endLine": 341,
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.788011396Z",
+          "scope": "TestCenterFailedWorkspaceWithoutCacheWaitsForTimer in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-workspace-freshness",
+        "name": "TestCenterWorkspaceStaleUntilSuccessfulWorkspaceOrReport",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Failed cached workspace remains stale through successful-empty and failed history reads and retry; successful workspace replacement or report takeover clears it.",
+        "limits": "Coordinator state assertions; complete live journey remains unassessed.",
+        "line": 343,
+        "endLine": 394,
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.789513446Z",
+          "scope": "TestCenterWorkspaceStaleUntilSuccessfulWorkspaceOrReport in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-inherited-pipes",
+        "name": "TestCenterWorkspaceBoundsInheritedPipes",
+        "file": "internal/api/center_workspace_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Fake Git starts a pipe-holding descendant; both deadline and output-limit paths finish before the child normal exit, using bounded WaitDelay.",
+        "limits": "Unix shell/helper fixture with elapsed-time tolerance; not a process-tree termination guarantee.",
+        "line": 184,
+        "endLine": 216,
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.927339996Z",
+          "scope": "TestCenterWorkspaceBoundsInheritedPipes in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-path-rows",
+        "name": "TestSessionCenterWorkspaceNamesCannotForgeRows",
+        "file": "internal/ui/components/session_center_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Git current/original paths, directory names and symlink targets flatten control whitespace; assertions reject forged status/warning rows and check display width.",
+        "limits": "200-column renderer fixture; not pixel comparison.",
+        "line": 150,
+        "endLine": 203,
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.78001102Z",
+          "scope": "TestSessionCenterWorkspaceNamesCannotForgeRows in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-multiline",
+        "name": "TestSessionCenterPreservesMultilineReport",
+        "file": "internal/ui/components/session_center_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Report first/second lines retain their newline after introducing path-specific sanitization.",
+        "limits": "Component render at 80×8, no native terminal.",
+        "line": 205,
+        "endLine": 215,
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.78017745Z",
+          "scope": "TestSessionCenterPreservesMultilineReport in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-navigation-reports",
+        "name": "TestCenterNavigationRestoresSameSessionAndClearsOnEmpty",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Navigation detaches successful reports and cancels resources; return restores the same session, a failed reread renders cached reports stale, and confirmed empty remains cleared after another round trip.",
+        "limits": "Coordinator/navigation/component boundary with fake report reads; no native terminal journey.",
+        "line": 396,
+        "endLine": 440,
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.791010466Z",
+          "scope": "TestCenterNavigationRestoresSameSessionAndClearsOnEmpty in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-navigation-isolation",
+        "name": "TestCenterNavigationCacheNeverMovesToAnotherSelection",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Switching selected stable session while away restores no prior-session workspace or reports.",
+        "limits": "One dashboard/two-session fixture; not an exhaustive multi-dashboard journey.",
+        "line": 442,
+        "endLine": 464,
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.792232236Z",
+          "scope": "TestCenterNavigationCacheNeverMovesToAnotherSelection in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-navigation-workspace",
+        "name": "TestCenterNavigationRestoresWorkspaceAndClearsOnScopeLoss",
+        "file": "internal/ui/center_internal_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Same-session navigation restores workspace data through a report error; scope rejection clears live and saved content.",
+        "limits": "Fake report/scope results, with separate service membership tests.",
+        "line": 466,
+        "endLine": 496,
+        "reviewedHash": "6e2a95606fcf1ac1d054b976b2fdbdd78e831a3a6d3e45f8151f8c243c789cee",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.794419676Z",
+          "scope": "TestCenterNavigationRestoresWorkspaceAndClearsOnScopeLoss in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-helper-cancel",
+        "name": "TestCenterWorkspaceCancellationKillsGitHelpers",
+        "file": "internal/api/center_process_unix_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "A controlled Git fixture starts a child process. Cancellation returns promptly, the child exits, and an unrelated process survives.",
+        "limits": "Unix process-group fixture; no equivalent process-tree guarantee is established for non-Unix fallback or helpers that escape the group.",
+        "line": 21,
+        "endLine": 77,
+        "reviewedHash": "1c2284cc957f4bc6934a88255e19f0d179da9ad024804115d46152e912c2be04",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.154761785Z",
+          "scope": "TestCenterWorkspaceCancellationKillsGitHelpers in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-helper-output",
+        "name": "TestCenterWorkspaceOutputLimitKillsGitHelpers",
+        "file": "internal/api/center_process_unix_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Fake Git with a sleep child exceeds output budget; command errors and helper is no longer running.",
+        "limits": "Unix helper fixture; zombie state counts as terminated pending OS parent reaping.",
+        "line": 79,
+        "endLine": 109,
+        "reviewedHash": "1c2284cc957f4bc6934a88255e19f0d179da9ad024804115d46152e912c2be04",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.253318758Z",
+          "scope": "TestCenterWorkspaceOutputLimitKillsGitHelpers in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-header-kind",
+        "name": "TestSessionCenterReportHeaderKeepsKindWhenItFits",
+        "file": "internal/ui/components/session_center_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "80×2 keeps full date/time, blocked kind and body; 20×2 uses compact time while retaining kind and body.",
+        "limits": "Two explicit widths; does not assert every kind/width combination or screenshot comparison.",
+        "line": 217,
+        "endLine": 238,
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.78022512Z",
+          "scope": "TestSessionCenterReportHeaderKeepsKindWhenItFits in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-header-render",
+        "name": "TestSessionCenterKeepsSessionHeaderAboveBody",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/components/session_center_test.go",
+        "proves": "Verifies the legacy metadata order and artwork, live refresh of the same row, workspace-to-report takeover beneath the header, and rejection of old-session data.",
+        "limits": "Component output and selection assertions. No pixel baseline comparison.",
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
+        "line": 50,
+        "endLine": 111,
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.77776365Z",
+          "scope": "TestSessionCenterKeepsSessionHeaderAboveBody in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-header-size",
+        "name": "TestSessionCenterReservesSpaceForBody",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/components/session_center_test.go",
+        "proves": "Checks bounded rows and columns, workspace-tail truncation, optional art and the body-derived report limit across sizes.",
+        "limits": "Component dimensions. The separate E2E screenshot shows the 80×24 dashboard.",
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
+        "line": 113,
+        "endLine": 147,
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.7787781Z",
+          "scope": "TestSessionCenterReservesSpaceForBody in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "startup-puppet-ordered",
+        "name": "TestCoordinatorStartupReadsRegistriesWithoutResyncingPuppets",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/refresh_certification_internal_test.go",
+        "proves": "Executes the UI startup batch, confirms a valid initial registry baseline and checks that the UI never starts a puppet sync.",
+        "limits": "Coordinator commands and repository fixture. The separate terminal smoke drives the real executable.",
+        "reviewedHash": "ca5a5ef3c5ca93bc015991dc5147bba3254699f00e93d5de28c58f7debc7f46f",
+        "line": 26,
+        "endLine": 46,
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:06.495955848Z",
+          "scope": "TestCoordinatorStartupReadsRegistriesWithoutResyncingPuppets in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "refresh-token-retry",
+        "name": "TestRefreshTokenCertificationFailuresRetryAndKeepInventory",
+        "method": "automated",
+        "integration": "project",
+        "file": "internal/ui/refresh_certification_internal_test.go",
+        "proves": "For before/after token errors and mismatches, verifies usable inventory remains visible and a later refresh retries and establishes a stable token.",
+        "limits": "Controlled token sequence. Filesystem startup ordering is covered separately.",
+        "reviewedHash": "ca5a5ef3c5ca93bc015991dc5147bba3254699f00e93d5de28c58f7debc7f46f",
+        "line": 77,
+        "endLine": 112,
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:06.535172185Z",
+          "scope": "TestRefreshTokenCertificationFailuresRetryAndKeepInventory in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "startup-puppet-terminal",
+        "name": "TestPuppetStartupSmoke",
+        "kind": "E2E",
+        "method": "automated",
+        "integration": "fallback",
+        "fallbackReason": "A temporary Go test overlay reuses the existing tui-test harness so the Appedia refresh could verify the real binary without changing project test files.",
+        "file": "appedia/evidence/current/startup-smoke_test.go",
+        "reviewedHash": "205032814eca6e1c3b96e71cbff72264f1dddc938901bf61b9e24bd4ce3a264b",
+        "line": 278,
+        "endLine": 372,
+        "proves": "Starts a fresh real binary with a blank puppet registry, observes custom artwork on first dashboard open, verifies a missing source raises a nonfatal warning, and refreshes edited artwork through Source Manager.",
+        "limits": "Two isolated Linux startups. No model provider, boot timing measurements or pixel comparison.",
+        "result": {
+          "status": "passed",
+          "command": "go test -json -overlay <temporary fixture> -tags=e2e ./tests/e2e -run '^TestPuppetStartupSmoke$' -count=1",
+          "at": "2026-11-19T21:27:07.942396604Z",
+          "scope": "TestPuppetStartupSmoke",
+          "revision": "WORKTREE",
+          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+        }
+      },
+      {
+        "id": "center-split-index",
+        "name": "TestCenterWorkspaceSplitIndexStatus",
+        "file": "internal/api/center_workspace_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Both ordinary and linked worktrees using split indexes return the modified tracked file as Git status.",
+        "limits": "Real local Git on Linux.",
+        "line": 289,
+        "endLine": 314,
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.108573592Z",
+          "scope": "TestCenterWorkspaceSplitIndexStatus in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-helper-isolation",
+        "name": "TestCenterWorkspaceIgnoresConfiguredGitHelpers",
+        "file": "internal/api/center_workspace_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "A split-index repository reports clean status with fsmonitor disabled. Configured clean filters trigger the labelled fallback without executing the sentinel helper.",
+        "limits": "Covers fsmonitor and the configured clean-filter fallback.",
+        "line": 218,
+        "endLine": 250,
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.00230673Z",
+          "scope": "TestCenterWorkspaceIgnoresConfiguredGitHelpers in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-metadata-fallback",
+        "name": "TestCenterWorkspaceFallsBackAfterMetadataProbeFailure",
+        "file": "internal/api/center_workspace_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "A failing metadata probe yields a warning and preserves a readable file in the directory listing.",
+        "limits": "A symlink loop triggers the metadata error.",
+        "line": 252,
+        "endLine": 271,
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.00312919Z",
+          "scope": "TestCenterWorkspaceFallsBackAfterMetadataProbeFailure in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-report-signal-eviction",
+        "name": "TestReportSignalTracksDeliveryEvictionOfLegacyReplies",
+        "file": "internal/session/messaging_review_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "An ordinary delivery update wakes general waiters only. Evicting retained replies wakes report readers.",
+        "limits": "Uses a near-capacity message store with legacy replies.",
+        "line": 598,
+        "endLine": 628,
+        "reviewedHash": "db2f9231e1ba49bda149ca04d6fa940b16b9cb1ab02f671f7701fc476e62c8d8",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.201030896Z",
+          "scope": "TestReportSignalTracksDeliveryEvictionOfLegacyReplies in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-report-signal-commit",
+        "name": "TestReportSignalSkipsReplayAndFailedWrite",
+        "file": "internal/session/messaging_review_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "A persisted report wakes report readers. Replaying the report or failing a new write leaves the signal unchanged.",
+        "limits": "Message-store test with a forced persistence error.",
+        "line": 630,
+        "endLine": 664,
+        "reviewedHash": "db2f9231e1ba49bda149ca04d6fa940b16b9cb1ab02f671f7701fc476e62c8d8",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.202174476Z",
+          "scope": "TestReportSignalSkipsReplayAndFailedWrite in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-report-scope-signal",
+        "name": "TestCenterReportScopeLossWithoutReportChanges",
+        "file": "internal/api/center_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "The subscription closes on scope loss without requiring a report change.",
+        "limits": "Application service fixture.",
+        "line": 227,
+        "endLine": 249,
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.467178521Z",
+          "scope": "TestCenterReportScopeLossWithoutReportChanges in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-report-timestamp-fit",
+        "name": "TestSessionCenterOmitsUntimestampedReport",
+        "file": "internal/ui/components/session_center_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "When an older report cannot fit with its timestamp, omit it. A newest report can use a compact one-row timestamp.",
+        "limits": "Component assertions at bounded sizes.",
+        "line": 240,
+        "endLine": 269,
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.78134072Z",
+          "scope": "TestSessionCenterOmitsUntimestampedReport in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
       }
     ],
     "captures": [
       {
+        "id": "tui-mcp-list",
+        "title": "List",
+        "file": "appedia/evidence/current/mcp/list.png",
+        "state": "Only the protected built-in and New are initially available.",
+        "observation": "Only the protected built-in and New are initially available.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:17.210608058Z",
+        "evidence": [
+          "tui-mcp"
+        ],
+        "assertions": "Only the protected built-in and New are initially available."
+      },
+      {
+        "id": "tui-mcp-new",
+        "title": "New",
+        "file": "appedia/evidence/current/mcp/new.png",
+        "state": "New opens a blank MCP form with save/back instructions.",
+        "observation": "New opens a blank MCP form with save/back instructions.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:17.210608058Z",
+        "evidence": [
+          "tui-mcp"
+        ],
+        "assertions": "New opens a blank MCP form with save/back instructions."
+      },
+      {
+        "id": "tui-mcp-edit",
+        "title": "Edit",
+        "file": "appedia/evidence/current/mcp/edit.png",
+        "state": "Existing entry loads its name and command in the editor.",
+        "observation": "Existing entry loads its name and command in the editor.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:17.210608058Z",
+        "evidence": [
+          "tui-mcp"
+        ],
+        "assertions": "Existing entry loads its name and command in the editor."
+      },
+      {
+        "id": "tui-mcp-edited-list",
+        "title": "Edited list",
+        "file": "appedia/evidence/current/mcp/edited-list.png",
+        "state": "At 80×24 the renamed server, protected built-in, New and help are visible.",
+        "observation": "At 80×24 the renamed server, protected built-in, New and help are visible.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          80,
+          24
+        ],
+        "unit": "cells",
+        "environment": "Linux, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:17.210608058Z",
+        "evidence": [
+          "tui-mcp"
+        ],
+        "assertions": "At 80×24 the renamed server, protected built-in, New and help are visible."
+      },
+      {
+        "id": "tui-mcp-confirm",
+        "title": "Confirm",
+        "file": "appedia/evidence/current/mcp/confirm.png",
+        "state": "Delete opens a named confirmation with confirm/cancel instructions at 80×24.",
+        "observation": "Delete opens a named confirmation with confirm/cancel instructions at 80×24.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          80,
+          24
+        ],
+        "unit": "cells",
+        "environment": "Linux, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:17.210608058Z",
+        "evidence": [
+          "tui-mcp"
+        ],
+        "assertions": "Delete opens a named confirmation with confirm/cancel instructions at 80×24."
+      },
+      {
+        "id": "tui-mcp-deleted",
+        "title": "Deleted",
+        "file": "appedia/evidence/current/mcp/deleted.png",
+        "state": "Confirmed deletion removes the custom definition and retains built-in/New at 80×24.",
+        "observation": "Confirmed deletion removes the custom definition and retains built-in/New at 80×24.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          80,
+          24
+        ],
+        "unit": "cells",
+        "environment": "Linux, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestMCPManagerJourney$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:17.210608058Z",
+        "evidence": [
+          "tui-mcp"
+        ],
+        "assertions": "Confirmed deletion removes the custom definition and retains built-in/New at 80×24."
+      },
+      {
+        "id": "tui-codex-attached",
+        "title": "Attached",
+        "file": "appedia/evidence/current/codex/directory/attached.png",
+        "state": "The real Codex input screen is visible after card launch and name confirmation; no agent prompt was entered.",
+        "observation": "The real Codex input screen is visible after card launch and name confirmation; no agent prompt was entered.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/directory$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:26:35.969656818Z",
+        "evidence": [
+          "tui-codex"
+        ],
+        "assertions": "The real Codex input screen is visible after card launch and name confirmation; no agent prompt was entered."
+      },
+      {
+        "id": "tui-codex-dashboard",
+        "title": "Dashboard",
+        "file": "appedia/evidence/current/codex/directory/dashboard.png",
+        "state": "Ctrl+K restores the dashboard with both sessions, action hints and the selected session header.",
+        "observation": "Ctrl+K restores the dashboard with both sessions, action hints and the selected session header.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/directory$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:26:35.969656818Z",
+        "evidence": [
+          "tui-codex"
+        ],
+        "assertions": "Ctrl+K restores the dashboard with both sessions, action hints and the selected session header."
+      },
+      {
+        "id": "tui-codex-reattached",
+        "title": "Reattached",
+        "file": "appedia/evidence/current/codex/directory/reattached.png",
+        "state": "Enter without pane navigation reattaches to the same live process; exactly two persisted sessions remain and the older session stays terminated.",
+        "observation": "Enter without pane navigation reattaches to the same live process; exactly two persisted sessions remain and the older session stays terminated.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/directory$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:26:35.969656818Z",
+        "evidence": [
+          "tui-codex"
+        ],
+        "assertions": "Enter without pane navigation reattaches to the same live process; exactly two persisted sessions remain and the older session stays terminated."
+      },
+      {
+        "id": "tui-codex-workspace-initial",
+        "title": "Workspace initial",
+        "file": "appedia/evidence/current/codex/directory/workspace-initial.png",
+        "state": "The center displays Directory: for the selected idle Codex workspace.",
+        "observation": "The center displays Directory: for the selected idle Codex workspace.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/directory$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:26:35.969656818Z",
+        "evidence": [
+          "tui-codex"
+        ],
+        "assertions": "The center displays Directory: for the selected idle Codex workspace."
+      },
+      {
+        "id": "tui-codex-workspace-updated",
+        "title": "Workspace updated",
+        "file": "appedia/evidence/current/codex/directory/workspace-updated.png",
+        "state": "The live workspace refresh displays the new file.",
+        "observation": "The live workspace refresh displays the new file.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/directory$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:26:35.969656818Z",
+        "evidence": [
+          "tui-codex"
+        ],
+        "assertions": "The live workspace refresh displays the new file."
+      },
+      {
+        "id": "tui-codex-minimum-size",
+        "title": "Minimum size",
+        "file": "appedia/evidence/current/codex/directory/minimum-size.png",
+        "state": "At 60×20 cells the dashboard displays its minimum-size warning.",
+        "observation": "At 60×20 cells the dashboard displays its minimum-size warning.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          60,
+          20
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/directory$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:26:35.969656818Z",
+        "evidence": [
+          "tui-codex"
+        ],
+        "assertions": "At 60×20 cells the dashboard displays its minimum-size warning."
+      },
+      {
+        "id": "tui-codex-stopped",
+        "title": "Stopped",
+        "file": "appedia/evidence/current/codex/directory/stopped.png",
+        "state": "The selected session is stopped and its persisted workspace is unchanged.",
+        "observation": "The selected session is stopped and its persisted workspace is unchanged.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/directory$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:26:35.969656818Z",
+        "evidence": [
+          "tui-codex"
+        ],
+        "assertions": "The selected session is stopped and its persisted workspace is unchanged."
+      },
+      {
+        "id": "tui-codex-relaunched",
+        "title": "Relaunched",
+        "file": "appedia/evidence/current/codex/directory/relaunched.png",
+        "state": "The same session and workspace have a new Codex process.",
+        "observation": "The same session and workspace have a new Codex process.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/directory$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:26:35.969656818Z",
+        "evidence": [
+          "tui-codex"
+        ],
+        "assertions": "The same session and workspace have a new Codex process."
+      },
+      {
+        "id": "tui-codex-report-after-relaunch",
+        "title": "Report after relaunch",
+        "file": "appedia/evidence/current/codex/directory/report-after-relaunch.png",
+        "state": "The seeded report remains visible after the author session relaunches with Codex.",
+        "observation": "The seeded report remains visible after the author session relaunches with Codex.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/directory$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:26:35.969656818Z",
+        "evidence": [
+          "tui-codex"
+        ],
+        "assertions": "The seeded report remains visible after the author session relaunches with Codex."
+      },
+      {
+        "id": "tui-codex-restart-report",
+        "title": "Restart report",
+        "file": "appedia/evidence/current/codex/directory/restart-report.png",
+        "state": "Kankuro reconstructs the selected session’s persisted report after restart.",
+        "observation": "Kankuro reconstructs the selected session’s persisted report after restart.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/directory$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:26:35.969656818Z",
+        "evidence": [
+          "tui-codex"
+        ],
+        "assertions": "Kankuro reconstructs the selected session’s persisted report after restart."
+      },
+      {
+        "id": "tui-codex-git-attached",
+        "title": "Attached",
+        "file": "appedia/evidence/current/codex/git/attached.png",
+        "state": "The real Codex input screen is visible after card launch and name confirmation; no agent prompt was entered.",
+        "observation": "The real Codex input screen is visible after card launch and name confirmation; no agent prompt was entered.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/git$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:11.45966887Z",
+        "evidence": [
+          "tui-codex-git"
+        ],
+        "assertions": "The real Codex input screen is visible after card launch and name confirmation; no agent prompt was entered."
+      },
+      {
+        "id": "tui-codex-git-dashboard",
+        "title": "Dashboard",
+        "file": "appedia/evidence/current/codex/git/dashboard.png",
+        "state": "Ctrl+K restores the dashboard with both sessions, action hints and the selected session header.",
+        "observation": "Ctrl+K restores the dashboard with both sessions, action hints and the selected session header.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/git$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:11.45966887Z",
+        "evidence": [
+          "tui-codex-git"
+        ],
+        "assertions": "Ctrl+K restores the dashboard with both sessions, action hints and the selected session header."
+      },
+      {
+        "id": "tui-codex-git-reattached",
+        "title": "Reattached",
+        "file": "appedia/evidence/current/codex/git/reattached.png",
+        "state": "Enter without pane navigation reattaches to the same live process; exactly two persisted sessions remain and the older session stays terminated.",
+        "observation": "Enter without pane navigation reattaches to the same live process; exactly two persisted sessions remain and the older session stays terminated.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/git$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:11.45966887Z",
+        "evidence": [
+          "tui-codex-git"
+        ],
+        "assertions": "Enter without pane navigation reattaches to the same live process; exactly two persisted sessions remain and the older session stays terminated."
+      },
+      {
+        "id": "tui-codex-git-workspace-initial",
+        "title": "Workspace initial",
+        "file": "appedia/evidence/current/codex/git/workspace-initial.png",
+        "state": "The center displays Working tree clean for the selected idle Codex workspace.",
+        "observation": "The center displays Working tree clean for the selected idle Codex workspace.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/git$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:11.45966887Z",
+        "evidence": [
+          "tui-codex-git"
+        ],
+        "assertions": "The center displays Working tree clean for the selected idle Codex workspace."
+      },
+      {
+        "id": "tui-codex-git-workspace-updated",
+        "title": "Workspace updated",
+        "file": "appedia/evidence/current/codex/git/workspace-updated.png",
+        "state": "The live workspace refresh displays the new file.",
+        "observation": "The live workspace refresh displays the new file.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/git$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:11.45966887Z",
+        "evidence": [
+          "tui-codex-git"
+        ],
+        "assertions": "The live workspace refresh displays the new file."
+      },
+      {
+        "id": "tui-codex-git-minimum-size",
+        "title": "Minimum size",
+        "file": "appedia/evidence/current/codex/git/minimum-size.png",
+        "state": "At 60×20 cells the dashboard displays its minimum-size warning.",
+        "observation": "At 60×20 cells the dashboard displays its minimum-size warning.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          60,
+          20
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/git$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:11.45966887Z",
+        "evidence": [
+          "tui-codex-git"
+        ],
+        "assertions": "At 60×20 cells the dashboard displays its minimum-size warning."
+      },
+      {
+        "id": "tui-codex-git-stopped",
+        "title": "Stopped",
+        "file": "appedia/evidence/current/codex/git/stopped.png",
+        "state": "The selected session is stopped and its persisted workspace is unchanged.",
+        "observation": "The selected session is stopped and its persisted workspace is unchanged.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/git$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:11.45966887Z",
+        "evidence": [
+          "tui-codex-git"
+        ],
+        "assertions": "The selected session is stopped and its persisted workspace is unchanged."
+      },
+      {
+        "id": "tui-codex-git-relaunched",
+        "title": "Relaunched",
+        "file": "appedia/evidence/current/codex/git/relaunched.png",
+        "state": "The same session and workspace have a new Codex process.",
+        "observation": "The same session and workspace have a new Codex process.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/git$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:11.45966887Z",
+        "evidence": [
+          "tui-codex-git"
+        ],
+        "assertions": "The same session and workspace have a new Codex process."
+      },
+      {
+        "id": "tui-codex-git-report-after-relaunch",
+        "title": "Report after relaunch",
+        "file": "appedia/evidence/current/codex/git/report-after-relaunch.png",
+        "state": "The seeded report remains visible after the author session relaunches with Codex.",
+        "observation": "The seeded report remains visible after the author session relaunches with Codex.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/git$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:11.45966887Z",
+        "evidence": [
+          "tui-codex-git"
+        ],
+        "assertions": "The seeded report remains visible after the author session relaunches with Codex."
+      },
+      {
+        "id": "tui-codex-git-restart-report",
+        "title": "Restart report",
+        "file": "appedia/evidence/current/codex/git/restart-report.png",
+        "state": "Kankuro reconstructs the selected session’s persisted report after restart.",
+        "observation": "Kankuro reconstructs the selected session’s persisted report after restart.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/git$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:27:11.45966887Z",
+        "evidence": [
+          "tui-codex-git"
+        ],
+        "assertions": "Kankuro reconstructs the selected session’s persisted report after restart."
+      },
+      {
+        "id": "tui-luna-launched",
+        "title": "Launched",
+        "file": "tmp/appediff/tui-evidence/project-luna-60k/launched.png",
+        "state": "Dashboard Enter launched a persisted native-agent process and Enter attached to the native UI.",
+        "observation": "Dashboard Enter launched a persisted native-agent process and Enter attached to the native UI.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "./tests/e2e/run token-usage",
+        "at": "2026-11-18T21:47:36.773848345Z",
+        "evidence": [
+          "tui-luna"
+        ],
+        "assertions": "Dashboard Enter launched a persisted native-agent process and Enter attached to the native UI."
+      },
+      {
+        "id": "tui-luna-dashboard",
+        "title": "Dashboard",
+        "file": "tmp/appediff/tui-evidence/project-luna-60k/dashboard.png",
+        "state": "Ctrl+K restored the dashboard; c opened settings and Escape returned using ordinary keyboard input.",
+        "observation": "Ctrl+K restored the dashboard; c opened settings and Escape returned using ordinary keyboard input.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "./tests/e2e/run token-usage",
+        "at": "2026-11-18T21:47:36.773848345Z",
+        "evidence": [
+          "tui-luna"
+        ],
+        "assertions": "Ctrl+K restored the dashboard; c opened settings and Escape returned using ordinary keyboard input."
+      },
+      {
+        "id": "tui-luna-workspace-before-report",
+        "title": "Workspace before report",
+        "file": "tmp/appediff/tui-evidence/project-luna-60k/workspace-before-report.png",
+        "state": "The selected Codex session initially displays its saved workspace directory.",
+        "observation": "The selected Codex session initially displays its saved workspace directory.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "./tests/e2e/run token-usage",
+        "at": "2026-11-18T21:47:36.773848345Z",
+        "evidence": [
+          "tui-luna"
+        ],
+        "assertions": "The selected Codex session initially displays its saved workspace directory."
+      },
+      {
+        "id": "tui-luna-live-report",
+        "title": "Live report",
+        "file": "tmp/appediff/tui-evidence/project-luna-60k/live-report.png",
+        "state": "A live Codex progress report replaces the selected session’s workspace listing.",
+        "observation": "A live Codex progress report replaces the selected session’s workspace listing.",
+        "limits": "One tui-test screenshot at this checkpoint. No image baseline comparison was performed.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "./tests/e2e/run token-usage",
+        "at": "2026-11-18T21:47:36.773848345Z",
+        "evidence": [
+          "tui-luna"
+        ],
+        "assertions": "A live Codex progress report replaces the selected session’s workspace listing."
+      },
+      {
+        "id": "tui-luna-input-overage",
+        "title": "Dashboard checkpoint when the total input check failed",
+        "file": "tmp/appediff/tui-evidence/project-luna-60k/failure.png",
+        "state": "The dashboard still shows the authored progress report.",
+        "observation": "The first progress report remains visible when the test ends on the measured input overage.",
+        "limits": "The terminal capture shows the dashboard. The run record measures the overage and identifies where the test ended.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Linux, Codex CLI, tui-test Go binding",
+        "command": "./tests/e2e/run token-usage",
+        "at": "2026-11-18T21:47:36.773848345Z",
+        "evidence": [
+          "tui-luna"
+        ]
+      },
+      {
         "id": "native-launched",
-        "title": "OpenCode with OpenRouter Free Models Router",
+        "title": "OpenCode with OpenRouter Free Models Router (historical)",
         "file": "tests/e2e/artifacts/native-agent/launched.png",
         "state": "Native UI reached through Kankuro launch/attach",
         "observation": "The native model label shows Free Models Router OpenRouter.",
-        "limits": "Launch/model/attachment checkpoint only.",
+        "limits": "Launch/model/attachment checkpoint only. Retained from the project Appedia as historical evidence.",
         "size": [
           120,
           40
@@ -12907,11 +16493,11 @@ window.APPEDIA_CONTENT = {
       },
       {
         "id": "native-failure",
-        "title": "Native journey failure at register",
+        "title": "Native journey failure at register (historical)",
         "file": "tests/e2e/artifacts/native-agent/failure.png",
         "state": "Terminal at failed register checkpoint",
         "observation": "The inspected image shows the explicit registration task and Free Models Router after a completed response, with no registration result or executed shell command visible. No quota error is shown.",
-        "limits": "Failure evidence; subsequent checkpoints are not established.",
+        "limits": "Failure evidence; subsequent checkpoints are not established. Retained from the project Appedia as historical evidence.",
         "size": [
           120,
           40
@@ -12929,11 +16515,11 @@ window.APPEDIA_CONTENT = {
       },
       {
         "id": "mcp-list",
-        "title": "MCP configuration · list",
+        "title": "MCP configuration · list (historical)",
         "file": "tests/e2e/artifacts/mcp-manager/list.png",
         "state": "list",
         "observation": "Only the protected built-in and New are initially available.",
-        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes.",
+        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes. Retained from the project Appedia as historical evidence.",
         "size": [
           120,
           40
@@ -12951,11 +16537,11 @@ window.APPEDIA_CONTENT = {
       },
       {
         "id": "mcp-new",
-        "title": "MCP configuration · new",
+        "title": "MCP configuration · new (historical)",
         "file": "tests/e2e/artifacts/mcp-manager/new.png",
         "state": "new",
         "observation": "New opens a blank MCP form with save/back instructions.",
-        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes.",
+        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes. Retained from the project Appedia as historical evidence.",
         "size": [
           120,
           40
@@ -12973,11 +16559,11 @@ window.APPEDIA_CONTENT = {
       },
       {
         "id": "mcp-edit",
-        "title": "MCP configuration · edit",
+        "title": "MCP configuration · edit (historical)",
         "file": "tests/e2e/artifacts/mcp-manager/edit.png",
         "state": "edit",
         "observation": "Existing entry loads its name and command in the editor.",
-        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes.",
+        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes. Retained from the project Appedia as historical evidence.",
         "size": [
           120,
           40
@@ -12995,11 +16581,11 @@ window.APPEDIA_CONTENT = {
       },
       {
         "id": "mcp-edited-list",
-        "title": "MCP configuration · edited-list",
+        "title": "MCP configuration · edited-list (historical)",
         "file": "tests/e2e/artifacts/mcp-manager/edited-list.png",
         "state": "edited-list",
         "observation": "At 80×24 the renamed server, protected built-in, New and help are visible.",
-        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes.",
+        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes. Retained from the project Appedia as historical evidence.",
         "size": [
           80,
           24
@@ -13017,11 +16603,11 @@ window.APPEDIA_CONTENT = {
       },
       {
         "id": "mcp-confirm",
-        "title": "MCP configuration · confirm",
+        "title": "MCP configuration · confirm (historical)",
         "file": "tests/e2e/artifacts/mcp-manager/confirm.png",
         "state": "confirm",
         "observation": "Delete opens a named confirmation with confirm/cancel instructions at 80×24.",
-        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes.",
+        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes. Retained from the project Appedia as historical evidence.",
         "size": [
           80,
           24
@@ -13039,11 +16625,11 @@ window.APPEDIA_CONTENT = {
       },
       {
         "id": "mcp-deleted",
-        "title": "MCP configuration · deleted",
+        "title": "MCP configuration · deleted (historical)",
         "file": "tests/e2e/artifacts/mcp-manager/deleted.png",
         "state": "deleted",
         "observation": "Confirmed deletion removes the custom definition and retains built-in/New at 80×24.",
-        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes.",
+        "limits": "Project-owned asserted checkpoint; no pixel baseline comparison. Visual inspection documents the reached state, not all terminal sizes or themes. Retained from the project Appedia as historical evidence.",
         "size": [
           80,
           24
@@ -13061,11 +16647,11 @@ window.APPEDIA_CONTENT = {
       },
       {
         "id": "launch-focus-attached",
-        "title": "Launch focus · attached",
+        "title": "Launch focus · attached (historical)",
         "file": "tests/e2e/artifacts/launch-focus/attached.png",
         "state": "attached",
         "observation": "The isolated Codex startup input screen is visible.",
-        "limits": "Startup/attachment checkpoint only; no prompt or baseline-image comparison.",
+        "limits": "Startup/attachment checkpoint only; no prompt or baseline-image comparison. Retained from the project Appedia as historical evidence.",
         "size": [
           120,
           40
@@ -13083,10 +16669,10 @@ window.APPEDIA_CONTENT = {
       {
         "id": "launch-focus-dashboard",
         "title": "Launch focus · dashboard",
-        "file": "tests/e2e/artifacts/launch-focus/dashboard.png",
-        "state": "dashboard",
-        "observation": "The created session and older session are visible with session-pane actions after detach.",
-        "limits": "Startup/attachment checkpoint only; no prompt or baseline-image comparison.",
+        "file": "appedia/evidence/current/codex/dashboard.png",
+        "state": "Ctrl+K restores the dashboard with both sessions, action hints and the selected session header.",
+        "observation": "Ctrl+K restores the dashboard with both sessions, action hints and the selected session header.",
+        "limits": "Current Linux launch-focus checkpoint. No model prompt or pixel-baseline comparison.",
         "size": [
           120,
           40
@@ -13094,20 +16680,19 @@ window.APPEDIA_CONTENT = {
         "unit": "cells",
         "environment": "tui-test Go; isolated HOME/config/workspace; Codex startup only",
         "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeLaunchFocusReturn$' -count=1 -timeout=3m -v",
-        "assertions": [
-          "Ctrl+K restores the dashboard with both sessions visible and session-pane action hints, without pressing Tab."
-        ],
+        "assertions": "Ctrl+K restores the dashboard with both sessions, action hints and the selected session header.",
         "evidence": [
-          "launch-focus-terminal"
-        ]
+          "tui-launch-focus"
+        ],
+        "at": "2026-11-19T21:27:15.182353193Z"
       },
       {
         "id": "launch-focus-reattached",
-        "title": "Launch focus · reattached",
+        "title": "Launch focus · reattached (historical)",
         "file": "tests/e2e/artifacts/launch-focus/reattached.png",
         "state": "reattached",
         "observation": "The isolated Codex startup input screen is visible.",
-        "limits": "Startup/attachment checkpoint only; no prompt or baseline-image comparison.",
+        "limits": "Startup/attachment checkpoint only; no prompt or baseline-image comparison. Retained from the project Appedia as historical evidence.",
         "size": [
           120,
           40
@@ -13117,6 +16702,47 @@ window.APPEDIA_CONTENT = {
         "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeLaunchFocusReturn$' -count=1 -timeout=3m -v",
         "assertions": [
           "Enter without pane navigation reattaches to the same live process; exactly two persisted sessions remain and the older session stays terminated."
+        ],
+        "evidence": [
+          "launch-focus-terminal"
+        ]
+      },
+      {
+        "id": "tui-header-minimum",
+        "title": "Session header at 80×24",
+        "unit": "cells",
+        "environment": "Linux, Codex CLI and tui-test",
+        "limits": "Minimum supported terminal size. Artwork is omitted and metadata is clipped to the narrow center.",
+        "evidence": [
+          "tui-codex"
+        ],
+        "file": "appedia/evidence/current/codex/directory/supported-minimum.png",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/directory$' -count=1 -timeout=3m -v",
+        "at": "2026-11-19T21:26:35.969656818Z",
+        "size": [
+          80,
+          24
+        ],
+        "state": "At 80×24 the selected session header and directory body remain visible.",
+        "observation": "At 80×24 the selected session header and directory body remain visible.",
+        "assertions": "At 80×24 the selected session header and directory body remain visible."
+      },
+      {
+        "id": "launch-focus-dashboard-historical",
+        "title": "Launch focus · dashboard (historical terminal preview)",
+        "file": "tests/e2e/artifacts/launch-focus/dashboard.png",
+        "state": "dashboard",
+        "observation": "The created session and older session are visible with session-pane actions after detach.",
+        "limits": "Startup/attachment checkpoint only; no prompt or baseline-image comparison. Retained from the project Appedia as historical evidence.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "tui-test Go; isolated HOME/config/workspace; Codex startup only",
+        "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeLaunchFocusReturn$' -count=1 -timeout=3m -v",
+        "assertions": [
+          "Ctrl+K restores the dashboard with both sessions visible and session-pane action hints, without pressing Tab."
         ],
         "evidence": [
           "launch-focus-terminal"

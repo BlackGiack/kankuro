@@ -128,12 +128,14 @@ type messageStoreData struct {
 
 // MessageStore serializes messaging history independently from the manager lock.
 type MessageStore struct {
-	mu              sync.Mutex
-	path            string
-	data            messageStoreData
-	changed         chan struct{}
-	waiters         int
-	runtimeDelivery map[string]runtimeDeliveryOutcome
+	mu                 sync.Mutex
+	path               string
+	data               messageStoreData
+	changed            chan struct{}
+	reportsChanged     chan struct{}
+	reportScopeChanged chan struct{}
+	waiters            int
+	runtimeDelivery    map[string]runtimeDeliveryOutcome
 }
 
 type runtimeDeliveryOutcome struct {
@@ -196,10 +198,12 @@ func NewMessageStore(configDir string) (*MessageStore, error) {
 		return nil, fmt.Errorf("create messaging directory: %w", err)
 	}
 	store := &MessageStore{
-		path:            filepath.Join(dir, "history.json"),
-		changed:         make(chan struct{}),
-		data:            messageStoreData{DashboardGenerations: make(map[string]uint64)},
-		runtimeDelivery: make(map[string]runtimeDeliveryOutcome),
+		path:               filepath.Join(dir, "history.json"),
+		changed:            make(chan struct{}),
+		reportsChanged:     make(chan struct{}),
+		reportScopeChanged: make(chan struct{}),
+		data:               messageStoreData{DashboardGenerations: make(map[string]uint64)},
+		runtimeDelivery:    make(map[string]runtimeDeliveryOutcome),
 	}
 	bytes, err := os.ReadFile(store.path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -239,11 +243,9 @@ func (s *MessageStore) FindSend(senderID, requestID string) (sendReceipt, bool, 
 func (s *MessageStore) RollbackIntent(senderID, requestID, messageID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for i, message := range s.data.Messages {
-		if message.ID == messageID && message.SenderSessionID == senderID {
-			s.data.Messages = append(s.data.Messages[:i], s.data.Messages[i+1:]...)
-			break
-		}
+	prior, removedReports, removeErr := s.removeRolledBackMessageLocked(senderID, messageID)
+	if removeErr != nil {
+		return removeErr
 	}
 	for i, receipt := range s.data.Sends {
 		if receipt.SenderSessionID == senderID && receipt.RequestID == requestID {
@@ -252,13 +254,53 @@ func (s *MessageStore) RollbackIntent(senderID, requestID, messageID string) err
 		}
 	}
 	if err := s.saveLocked(); err != nil {
+		if removedReports {
+			s.data = prior
+			return err
+		}
 		// Admission never reached a worker, so forgetting it in memory is safe;
 		// startup recovery will mark a stale on-disk intent uncertain.
 		s.signalLocked()
 		return err
 	}
 	s.signalLocked()
+	if removedReports {
+		s.signalReportsLocked()
+	}
 	return nil
+}
+
+// Preserve a report-bearing message if the removal cannot be persisted.
+func (s *MessageStore) removeRolledBackMessageLocked(senderID, messageID string) (messageStoreData, bool, error) {
+	for i, message := range s.data.Messages {
+		if message.ID != messageID || message.SenderSessionID != senderID {
+			continue
+		}
+		var prior messageStoreData
+		removedReports := len(message.Replies) != 0
+		if removedReports {
+			old, err := cloneMessageData(s.data)
+			if err != nil {
+				return messageStoreData{}, false, err
+			}
+			prior = old
+			s.data.DashboardGenerations[message.DashboardID]++
+			s.removeReportReceiptsLocked(messageID)
+		}
+		s.data.Messages = append(s.data.Messages[:i], s.data.Messages[i+1:]...)
+		return prior, removedReports, nil
+	}
+	return messageStoreData{}, false, nil
+}
+
+func (s *MessageStore) removeReportReceiptsLocked(messageID string) {
+	kept := s.data.Reports[:0]
+	for _, receipt := range s.data.Reports {
+		if receipt.MessageID != messageID {
+			kept = append(kept, receipt)
+		}
+	}
+	s.data.Reports = kept
 }
 
 // WaitTurn keeps prompts for one activation in durable acceptance order.
@@ -391,7 +433,7 @@ func (s *MessageStore) createIntent(
 	record.Sequence = s.data.Sequence
 	s.data.Messages = append(s.data.Messages, record)
 	s.data.Sends = append(s.data.Sends, sendReceipt{record.SenderSessionID, requestID, fingerprint, record.ID})
-	s.evictLocked()
+	_, removedReports := s.evictLocked()
 	if err := s.saveLocked(); err != nil {
 		s.data = old
 		return MessageRecord{}, messagingError(
@@ -413,6 +455,9 @@ func (s *MessageStore) createIntent(
 	}
 	s.pruneRuntimeDeliveryLocked()
 	s.signalLocked()
+	if removedReports > 0 {
+		s.signalReportsLocked()
+	}
 	return record, nil
 }
 
@@ -430,7 +475,7 @@ func (s *MessageStore) UpdateDelivery(messageID string, state MessageDelivery, w
 		}
 		s.data.Messages[i].Delivery, s.data.Messages[i].Warning = state, warning
 		s.data.Messages[i].UpdatedAt = time.Now().UTC()
-		s.evictLocked()
+		_, removedReports := s.evictLocked()
 		if err := s.saveLocked(); err != nil {
 			s.data = old
 			s.rememberUnsavedDeliveryLocked(messageID, state, warning)
@@ -439,6 +484,9 @@ func (s *MessageStore) UpdateDelivery(messageID string, state MessageDelivery, w
 		s.pruneRuntimeDeliveryLocked()
 		delete(s.runtimeDelivery, messageID)
 		s.signalLocked()
+		if removedReports > 0 {
+			s.signalReportsLocked()
+		}
 		return nil
 	}
 	return messagingError("history_unavailable", "message history is unavailable", nil)
@@ -554,14 +602,23 @@ func (s *MessageStore) RecordReply(recipientID, activationID, requestID, message
 	message.Replies = append(message.Replies, reply)
 	s.data.Reports = append(s.data.Reports, reportReceipt{RecipientSessionID: recipientID, RecipientActivationID: activationID,
 		MessageID: messageID, RequestID: requestID, Fingerprint: fingerprint, ReplyID: reply.ID})
-	s.evictLocked()
+	evicted, removedReports := s.evictLocked()
 	if err = s.saveLocked(); err != nil {
 		s.data = old
 		return MessageReply{}, messagingError("storage_unavailable", "report could not be saved; retry with the same request_id", err)
 	}
 	s.pruneRuntimeDeliveryLocked()
 	s.signalLocked()
+	s.signalRecordedReportLocked(evicted, messageID, removedReports)
 	return cloneReply(reply), nil
+}
+
+func (s *MessageStore) signalRecordedReportLocked(evicted map[string]struct{}, messageID string, removedReports int) {
+	// An immediately evicted new report leaves no visible change unless
+	// eviction also removed a previously retained reply.
+	if _, newReportEvicted := evicted[messageID]; !newReportEvicted || removedReports > 1 {
+		s.signalReportsLocked()
+	}
 }
 
 func cloneReply(reply MessageReply) MessageReply {
@@ -711,7 +768,32 @@ func (s *MessageStore) GetReplies(dashboardID, messageID, cursor string, limit i
 func (s *MessageStore) Changed() <-chan struct{} { s.mu.Lock(); defer s.mu.Unlock(); return s.changed }
 
 // Wake interrupts bounded waiters when lifecycle or authorization state changes.
-func (s *MessageStore) Wake() { s.mu.Lock(); defer s.mu.Unlock(); s.signalLocked() }
+func (s *MessageStore) Wake() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.signalLocked()
+	close(s.reportScopeChanged)
+	s.reportScopeChanged = make(chan struct{})
+}
+
+// ReportsChanged returns the next notification for a retained report change.
+func (s *MessageStore) ReportsChanged() <-chan struct{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.reportsChanged
+}
+
+// ReportScopeChanged returns lifecycle wakeups for scope revalidation only.
+func (s *MessageStore) ReportScopeChanged() <-chan struct{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.reportScopeChanged
+}
+
+func (s *MessageStore) signalReportsLocked() {
+	close(s.reportsChanged)
+	s.reportsChanged = make(chan struct{})
+}
 
 // AcquireWait bounds report waiters across every frontend sharing this manager.
 func (s *MessageStore) AcquireWait() bool {
@@ -743,9 +825,11 @@ func (s *MessageStore) DeleteRecipient(sessionID string) error {
 	}
 	kept := s.data.Messages[:0]
 	removed := false
+	removedReports := 0
 	for _, message := range s.data.Messages {
 		if message.RecipientSessionID == sessionID {
 			removed = true
+			removedReports += len(message.Replies)
 			s.data.DashboardGenerations[message.DashboardID]++
 			continue
 		}
@@ -762,6 +846,9 @@ func (s *MessageStore) DeleteRecipient(sessionID string) error {
 	}
 	s.pruneRuntimeDeliveryLocked()
 	s.signalLocked()
+	if removedReports > 0 {
+		s.signalReportsLocked()
+	}
 	return nil
 }
 
@@ -776,9 +863,11 @@ func (s *MessageStore) DeleteDashboard(dashboardID string) error {
 	}
 	kept := s.data.Messages[:0]
 	removed := false
+	removedReports := 0
 	for _, message := range s.data.Messages {
 		if message.DashboardID == dashboardID {
 			removed = true
+			removedReports += len(message.Replies)
 			continue
 		}
 		kept = append(kept, message)
@@ -795,6 +884,9 @@ func (s *MessageStore) DeleteDashboard(dashboardID string) error {
 	}
 	s.pruneRuntimeDeliveryLocked()
 	s.signalLocked()
+	if removedReports > 0 {
+		s.signalReportsLocked()
+	}
 	return nil
 }
 
@@ -808,10 +900,12 @@ func (s *MessageStore) Recover(sessions map[string]*Session) error {
 	}
 	kept := s.data.Messages[:0]
 	changed := false
+	removedReports := 0
 	retained := make(map[string]struct{}, len(s.data.Messages))
 	for _, message := range s.data.Messages {
 		if sessions[message.RecipientSessionID] == nil {
 			changed = true
+			removedReports += len(message.Replies)
 			s.data.DashboardGenerations[message.DashboardID]++
 			continue
 		}
@@ -829,12 +923,16 @@ func (s *MessageStore) Recover(sessions map[string]*Session) error {
 		return nil
 	}
 	s.pruneReportsToMessagesLocked(retained)
-	s.evictLocked()
+	_, evictedReports := s.evictLocked()
+	removedReports += evictedReports
 	if err := s.saveLocked(); err != nil {
 		s.data = old
 		return err
 	}
 	s.signalLocked()
+	if removedReports > 0 {
+		s.signalReportsLocked()
+	}
 	return nil
 }
 
@@ -847,12 +945,16 @@ func cloneMessageData(data messageStoreData) (messageStoreData, error) {
 	if err = json.Unmarshal(encoded, &clone); err != nil {
 		return messageStoreData{}, err
 	}
+	if clone.DashboardGenerations == nil {
+		clone.DashboardGenerations = make(map[string]uint64)
+	}
 	return clone, nil
 }
 
 //nolint:gocognit // Retention limits, oldest-message selection, generations, and receipt pruning are one locked mutation.
-func (s *MessageStore) evictLocked() {
+func (s *MessageStore) evictLocked() (map[string]struct{}, int) {
 	removed := make(map[string]struct{})
+	removedReports := 0
 	for {
 		counts, sizes := make(map[string]int), make(map[string]int)
 		overLimit := ""
@@ -878,6 +980,7 @@ func (s *MessageStore) evictLocked() {
 		}
 		s.data.DashboardGenerations[overLimit]++
 		removed[s.data.Messages[oldest].ID] = struct{}{}
+		removedReports += len(s.data.Messages[oldest].Replies)
 		s.data.Messages = append(s.data.Messages[:oldest], s.data.Messages[oldest+1:]...)
 	}
 	if len(removed) > 0 {
@@ -889,6 +992,7 @@ func (s *MessageStore) evictLocked() {
 		}
 		s.data.Reports = kept
 	}
+	return removed, removedReports
 }
 
 func (s *MessageStore) pruneRuntimeDeliveryLocked() {

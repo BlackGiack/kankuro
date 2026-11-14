@@ -11,7 +11,6 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
-	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/uitest"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
@@ -52,7 +51,7 @@ func newLayoutEditor(personas, mcps bool, items int, long bool) *views.CardEdito
 	settings := config.DefaultAppSettings()
 	settings.ShowPersonasInCardEditor = personas
 	settings.ShowMCPsInCardEditor = mcps
-	e.SetSettings(settings)
+	setEditorSettings(e, settings)
 	e.SkillList().SetItems(layoutItems(items, sweepLabelWidth))
 	e.PersonaList().SetItems(layoutItems(items, sweepLabelWidth))
 	e.MCPList().SetItems(layoutItems(items, sweepLabelWidth))
@@ -69,7 +68,7 @@ func newLayoutEditor(personas, mcps bool, items int, long bool) *views.CardEdito
 			AgentsMDPath: "/a/very/long/path/to/an/AGENTS.md/file/that/does/not/fit/in/the/summary",
 		}
 	}
-	e.SetCard(card)
+	loadEditor(e, card)
 	return e
 }
 
@@ -128,7 +127,7 @@ func assertCardEditorShape(t *testing.T, e *views.CardEditor, personas, mcps boo
 	out := e.View()
 	uitest.AssertWithin(t, out, w, h, label)
 	lines := strings.Split(ansi.Strip(out), "\n")
-	if last := lines[len(lines)-1]; last != "Enter=save Tab=next Esc=cancel" {
+	if last := lines[len(lines)-1]; last != "Enter=save Tab=next Ctrl+R=reload Esc=cancel" {
 		t.Errorf("%s: last line is %q, want the help line:\n%s", label, last, ansi.Strip(out))
 	}
 	if strings.Contains(out, moreAbove) || strings.Contains(out, moreBelow) {
@@ -169,7 +168,7 @@ func TestCardEditorAgentsMDSummaryIsValidUTF8(t *testing.T) {
 		AgentsMD:     strings.Repeat("漢字のコンテンツ", 5),
 		AgentsMDPath: "/ホーム/ユーザー/プロジェクト/とても長い/パス/AGENTS.md",
 	}
-	e.SetCard(card)
+	loadEditor(e, card)
 	e.SetSize(100, 40)
 	if out := e.View(); !utf8.ValidString(out) {
 		t.Errorf("view is not valid UTF-8:\n%q", out)
@@ -184,7 +183,7 @@ func TestCardEditorLongLinesAreClipped(t *testing.T) {
 	e := newLayoutEditor(true, true, 0, false)
 	e.SkillList().SetItems(layoutItems(5, 500))
 	card := config.IDCard{ID: "c1", Name: "n", Puppet: strings.Repeat("p", 200), WorkspaceID: strings.Repeat("w", 200)}
-	e.SetCard(card)
+	loadEditor(e, card)
 	e.SetSize(80, 50)
 	uitest.AssertWithin(t, e.View(), 80, 50, "long lines")
 }
@@ -197,8 +196,8 @@ func TestFocusedSubWorkspaceClearHintFitsLongSummaries(t *testing.T) {
 			{ID: "sub-a", Name: strings.Repeat("Alpha Workspace ", 8)},
 			{ID: "sub-b", Name: strings.Repeat("Beta Workspace ", 8)},
 		}
-		e.SetData(messages.DataLoadedMsg{Workspaces: workspaces})
-		e.SetCard(config.IDCard{ID: "long-sub-workspaces", WorkspaceID: "main", SubWorkspaceIDs: []string{"sub-a", "sub-b"}})
+		setEditorData(e, editorTestData{Workspaces: workspaces})
+		loadEditor(e, config.IDCard{ID: "long-sub-workspaces", WorkspaceID: "main", SubWorkspaceIDs: []string{"sub-a", "sub-b"}})
 		e.CycleFocus(views.FocusSubWorkspaces)
 		height := views.MinTerminalHeight - views.CoordinatorRows
 		e.SetSize(width, height)

@@ -13,10 +13,10 @@ import (
 
 func TestCardList_New(t *testing.T) {
 	callbacks := components.CardListCallbacks{
-		OnSelect: func(config.IDCard) tea.Cmd {
+		OnSelect: func(string) tea.Cmd {
 			return nil
 		},
-		OnEdit: func(config.IDCard) tea.Cmd {
+		OnEdit: func(string) tea.Cmd {
 			return nil
 		},
 		OnDelete: func(string) {},
@@ -44,7 +44,7 @@ func TestCardList_SetCards(t *testing.T) {
 	skills := []config.Skill{}
 	personas := []config.Persona{}
 
-	c.SetCards(cards, skills, personas)
+	c.SetRows(cardRowsFromConfig(cards, skills, personas, nil))
 
 	// Verify internal state updated
 	if len(c.Cards()) != 2 {
@@ -62,7 +62,7 @@ func TestCardList_SetSearchQuery(t *testing.T) {
 		{ID: "3", Name: "Gamma"},
 	}
 
-	c.SetCards(cards, nil, nil)
+	c.SetRows(cardRowsFromConfig(cards, nil, nil, nil))
 
 	// No filter
 	filtered := c.FilteredCards()
@@ -95,7 +95,7 @@ func TestCardList_Selected(t *testing.T) {
 	cards := []config.IDCard{
 		{ID: "1", Name: "Test"},
 	}
-	c.SetCards(cards, nil, nil)
+	c.SetRows(cardRowsFromConfig(cards, nil, nil, nil))
 	c.Select(0)
 
 	card, ok := c.Selected()
@@ -124,13 +124,14 @@ func TestRenderCardItem(t *testing.T) {
 	}
 
 	// Render unselected
-	output := components.RenderCardItem(card, skills, personas, nil, false, 50)
+	row := cardRowsFromConfig([]config.IDCard{card}, skills, personas, nil)[0]
+	output := components.RenderCardItem(row, false, 50)
 	if output == "" {
 		t.Error("RenderCardItem returned empty string")
 	}
 
 	// Render selected
-	outputSel := components.RenderCardItem(card, skills, personas, nil, true, 50)
+	outputSel := components.RenderCardItem(row, true, 50)
 	if outputSel == "" {
 		t.Error("RenderCardItem (selected) returned empty string")
 	}
@@ -161,7 +162,7 @@ func TestRenderCardItemWithPills(t *testing.T) {
 		{ID: "p1", Name: "Persona1"},
 	}
 
-	output := components.RenderCardItem(card, skills, personas, nil, false, 50)
+	output := components.RenderCardItem(cardRowsFromConfig([]config.IDCard{card}, skills, personas, nil)[0], false, 50)
 
 	// Should contain skill and persona pills
 	if !strings.Contains(output, "Skill1") {
@@ -185,7 +186,7 @@ func TestRenderCardItemWithEmptyPuppet(t *testing.T) {
 		Puppet: "", // Empty puppet
 	}
 
-	output := components.RenderCardItem(card, nil, nil, nil, false, 50)
+	output := components.RenderCardItem(cardRowsFromConfig([]config.IDCard{card}, nil, nil, nil)[0], false, 50)
 
 	// Should not be empty - should render default puppet
 	if output == "" {
@@ -203,7 +204,7 @@ func TestRenderCardItemNoCapabilities(t *testing.T) {
 	}
 
 	// Empty skills and personas
-	output := components.RenderCardItem(card, nil, nil, nil, false, 50)
+	output := components.RenderCardItem(cardRowsFromConfig([]config.IDCard{card}, nil, nil, nil)[0], false, 50)
 
 	// Should show "no capabilities" message
 	if !strings.Contains(output, "no capabilities") {
@@ -220,7 +221,7 @@ func TestRenderCardItem_MultibyteName(t *testing.T) {
 		Puppet: "kankuro",
 	}
 
-	output := components.RenderCardItem(card, nil, nil, nil, false, 30)
+	output := components.RenderCardItem(cardRowsFromConfig([]config.IDCard{card}, nil, nil, nil)[0], false, 30)
 
 	if !utf8.ValidString(output) {
 		t.Fatalf("output is not valid UTF-8: %q", output)

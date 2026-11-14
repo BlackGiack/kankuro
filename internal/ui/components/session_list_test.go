@@ -8,21 +8,23 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 )
 
 func TestSessionList_New(t *testing.T) {
 	callbacks := components.SessionListCallbacks{
-		OnSelect: func(session.Snapshot) tea.Cmd {
+		OnSelect: func(models.SessionRow) tea.Cmd {
 			return nil
 		},
-		OnAttach:  func(string) {},
-		OnKill:    func(string) {},
-		OnDelete:  func(string) {},
-		OnSwitch:  func(string) {},
-		OnPreview: func(string) tea.Cmd { return nil },
+		OnAttach:    func(string) {},
+		OnKill:      func(string) {},
+		OnDelete:    func(string) {},
+		OnSwitch:    func(string) {},
+		OnSelection: func(string) tea.Cmd { return nil },
 	}
 
 	sl := components.NewSessionList(callbacks)
@@ -36,7 +38,8 @@ func TestSessionList_New(t *testing.T) {
 }
 
 func TestSessionListShowsDeletedCardLabel(t *testing.T) {
-	item := components.SessionListItem{Session: session.Snapshot{CardID: "old-card", CardDeleted: true}}
+	rows := sessionRowsFromSnapshots([]session.Snapshot{{CardID: "old-card", CardDeleted: true}}, nil)
+	item := components.SessionListItem{Session: rows[0]}
 	if !strings.Contains(item.Description(), "deleted card: old-card") {
 		t.Fatalf("description: %q", item.Description())
 	}
@@ -54,7 +57,7 @@ func TestSessionList_SetSessions(t *testing.T) {
 		{ID: "c1", Name: "Card 1"},
 	}
 
-	sl.SetSessions(sessions, cards)
+	sl.SetRows(sessionRowsFromSnapshots(sessions, cards))
 
 	// Verify internal state updated
 	if len(sl.Sessions()) != 2 {
@@ -79,17 +82,18 @@ func TestSessionList_SetSearchQuery(t *testing.T) {
 		{ID: "s3", Name: "Gamma Session"},
 	}
 
-	sl.SetSessions(sessions, nil)
+	rows := sessionRowsFromSnapshots(sessions, nil)
+	sl.SetRows(rows)
 
 	// No filter
-	filtered := sl.FilterSessions(sessions)
+	filtered := sl.FilterSessions(rows)
 	if len(filtered) != 3 {
 		t.Errorf("Expected 3 sessions without filter, got %d", len(filtered))
 	}
 
 	// With filter
 	sl.SetSearchQuery("beta")
-	filtered = sl.FilterSessions(sessions)
+	filtered = sl.FilterSessions(rows)
 	if len(filtered) != 1 {
 		t.Errorf("Expected 1 session matching 'beta', got %d", len(filtered))
 	}
@@ -112,9 +116,8 @@ func TestSessionList_Selected(t *testing.T) {
 	sessions := []session.Snapshot{
 		{ID: "s1", Name: "Test Session", StartedAt: time.Now()},
 	}
-	sl.SetSessions(sessions, nil)
-	l := sl.List()
-	l.Select(0)
+	sl.SetRows(sessionRowsFromSnapshots(sessions, nil))
+	sl.Select(0)
 
 	sess, ok := sl.Selected()
 	if !ok {
@@ -122,6 +125,37 @@ func TestSessionList_Selected(t *testing.T) {
 	}
 	if sess.ID != "s1" {
 		t.Errorf("Expected session ID 's1', got '%s'", sess.ID)
+	}
+}
+
+func TestSessionListOwnsMappedPuppetArtwork(t *testing.T) {
+	choices := contracts.DisplayChoices{
+		Puppets: []contracts.PuppetChoice{{ID: "custom", Name: "Custom", Lines: []string{"first", "second"}}},
+	}
+	rows := models.SessionRows(
+		[]contracts.SessionSummary{{ID: "s1", CardID: "card", Name: "Agent"}},
+		[]contracts.CardSummary{{ID: "card", Name: "Card", Puppet: "custom"}}, choices,
+	)
+	list := components.NewSessionList(components.SessionListCallbacks{})
+	list.SetRows(rows)
+	rows[0].PuppetLines[0] = "input changed"
+	if got := list.Sessions()[0].PuppetLines[0]; got != "first" {
+		t.Fatalf("SetRows retained caller artwork: %q", got)
+	}
+	list.Select(0)
+	selected, ok := list.Selected()
+	if !ok {
+		t.Fatal("expected selected session")
+	}
+	selected.PuppetLines[0] = "selected changed"
+	selectedAgain, _ := list.Selected()
+	if got := selectedAgain.PuppetLines[0]; got != "first" {
+		t.Fatalf("Selected exposed internal artwork: %q", got)
+	}
+	got := list.Sessions()
+	got[0].PuppetLines[1] = "getter changed"
+	if got := list.Sessions()[0].PuppetLines[1]; got != "second" {
+		t.Fatalf("Sessions exposed internal artwork: %q", got)
 	}
 }
 
@@ -148,7 +182,7 @@ func TestSessionListItem_Title(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			item := components.SessionListItem{Session: tt.session}
+			item := components.SessionListItem{Session: sessionRowsFromSnapshots([]session.Snapshot{tt.session}, nil)[0]}
 			title := item.Title()
 
 			if tt.session.Status != session.StatusWaiting {
@@ -166,7 +200,7 @@ func TestSessionListItem_Title(t *testing.T) {
 }
 
 func TestSessionListItem_Description(t *testing.T) {
-	session := session.Snapshot{
+	snapshot := session.Snapshot{
 		ID:              "s1",
 		Name:            "Test Session",
 		CardID:          "c1",
@@ -182,10 +216,7 @@ func TestSessionListItem_Description(t *testing.T) {
 		FaceStyle: "happy",
 	}
 
-	item := components.SessionListItem{
-		Session: session,
-		Card:    card,
-	}
+	item := components.SessionListItem{Session: sessionRowsFromSnapshots([]session.Snapshot{snapshot}, []config.IDCard{*card})[0]}
 
 	desc := item.Description()
 
@@ -195,7 +226,7 @@ func TestSessionListItem_Description(t *testing.T) {
 }
 
 func TestSessionListItemShowsConversationRegistrationStateAndIdentity(t *testing.T) {
-	item := components.SessionListItem{Session: session.Snapshot{
+	snapshot := session.Snapshot{
 		ID:                      "session",
 		CardID:                  "card",
 		Name:                    "Agent",
@@ -207,7 +238,8 @@ func TestSessionListItemShowsConversationRegistrationStateAndIdentity(t *testing
 		Conversations: map[string][]session.ConversationBinding{
 			"card": {{ID: "native-conversation-id", Name: "Feature work", Driver: "codex"}},
 		},
-	}}
+	}
+	item := components.SessionListItem{Session: sessionRowsFromSnapshots([]session.Snapshot{snapshot}, nil)[0]}
 	description := item.Description()
 	for _, want := range []string{"reg=registered/not-saved", "Feature work", "sation-id"} {
 		if !strings.Contains(description, want) {
@@ -226,7 +258,7 @@ func TestSessionList_SetSelectedByID(t *testing.T) {
 		{ID: "s3", Name: "Third", StartedAt: time.Now()},
 	}
 
-	sl.SetSessions(sessions, nil)
+	sl.SetRows(sessionRowsFromSnapshots(sessions, nil))
 
 	// Note: SetSessions sorts by StartedAt newest first: s3, s2, s1
 	// Select second session (s2)
@@ -251,20 +283,20 @@ func TestSessionList_SetSelectedByID(t *testing.T) {
 
 func TestSessionList_SetSessionsPreservesSelectionByID(t *testing.T) {
 	sl := components.NewSessionList(components.SessionListCallbacks{})
-	sl.SetSessions([]session.Snapshot{
+	sl.SetRows(sessionRowsFromSnapshots([]session.Snapshot{
 		{ID: "a", Name: "A", StartedAt: time.Unix(1, 0)},
 		{ID: "b", Name: "B", StartedAt: time.Unix(2, 0)},
-	}, nil)
+	}, nil))
 	sl.SetSelectedByID("a")
-	sl.SetSessions([]session.Snapshot{
+	sl.SetRows(sessionRowsFromSnapshots([]session.Snapshot{
 		{ID: "a", Name: "A", StartedAt: time.Unix(4, 0)},
 		{ID: "b", Name: "B", StartedAt: time.Unix(3, 0)},
-	}, nil)
+	}, nil))
 	selected, ok := sl.Selected()
 	if !ok || selected.ID != "a" {
 		t.Fatalf("selection changed after reorder: %+v, %v", selected, ok)
 	}
-	sl.SetSessions([]session.Snapshot{{ID: "b", Name: "B", StartedAt: time.Unix(4, 0)}}, nil)
+	sl.SetRows(sessionRowsFromSnapshots([]session.Snapshot{{ID: "b", Name: "B", StartedAt: time.Unix(4, 0)}}, nil))
 	selected, ok = sl.Selected()
 	if !ok || selected.ID != "b" {
 		t.Fatalf("removed selection did not fall back: %+v, %v", selected, ok)
@@ -279,8 +311,8 @@ func TestRenderAgentFace(t *testing.T) {
 	}
 }
 
-func TestRenderAgentPuppet(t *testing.T) {
-	puppet := components.RenderAgentPuppet("kankuro", nil)
+func TestRenderPuppetArtwork(t *testing.T) {
+	puppet := components.RenderPuppetArtwork("kankuro", true, nil)
 	if puppet == "" {
 		t.Error("RenderAgentPuppet should return non-empty string")
 	}

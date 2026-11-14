@@ -9,7 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -39,7 +39,9 @@ const (
 )
 
 type SettingsCallbacks struct {
-	OnSave              func(settings config.AppSettings) tea.Cmd
+	OnSave              func(settings contracts.Settings) tea.Cmd
+	SavePending         func() bool
+	ReadPending         func() bool
 	OnOpenPuppetSources func() tea.Cmd
 	OnBack              func() tea.Cmd
 }
@@ -47,12 +49,18 @@ type SettingsCallbacks struct {
 type SettingsView struct {
 	component.Base
 
-	mode          SettingsMode
-	focus         int
-	input         textinput.Model
-	terminalInput textinput.Model
-	settings      config.AppSettings
-	callbacks     SettingsCallbacks
+	mode                                                  SettingsMode
+	focus                                                 int
+	input                                                 textinput.Model
+	terminalInput                                         textinput.Model
+	settings                                              contracts.Settings
+	baseline                                              contracts.Settings
+	ideEdited, terminalEdited, personasEdited, mcpsEdited bool
+	callbacks                                             SettingsCallbacks
+	draftID                                               uint64
+	saving                                                bool
+	readBlocked                                           bool
+	saveBlocked                                           bool
 }
 
 func NewSettingsView(callbacks SettingsCallbacks) *SettingsView {
@@ -67,18 +75,40 @@ func NewSettingsView(callbacks SettingsCallbacks) *SettingsView {
 		mode:          SettingsModeDisplay,
 		input:         input,
 		terminalInput: terminalInput,
-		settings:      config.DefaultAppSettings(),
+		settings:      contracts.Settings{},
 		callbacks:     callbacks,
 	}
 }
 
-func (s *SettingsView) SetSettings(cfg config.AppSettings) {
+func (s *SettingsView) SetSettings(cfg contracts.Settings) {
 	s.settings = cfg
+	s.baseline = cfg
 	s.input.SetValue(cfg.IDECommand)
 	s.terminalInput.SetValue(cfg.TerminalCommand)
 }
 
-func (s *SettingsView) Settings() config.AppSettings {
+// ApplyLoadedSettings updates the baseline while preserving fields edited in the current draft.
+func (s *SettingsView) ApplyLoadedSettings(cfg contracts.Settings) {
+	if s.mode != SettingsModeEdit {
+		s.SetSettings(cfg)
+		return
+	}
+	if !s.ideEdited && s.input.Value() == s.baseline.IDECommand {
+		s.input.SetValue(cfg.IDECommand)
+	}
+	if !s.terminalEdited && s.terminalInput.Value() == s.baseline.TerminalCommand {
+		s.terminalInput.SetValue(cfg.TerminalCommand)
+	}
+	if !s.personasEdited {
+		s.settings.ShowPersonasInCardEditor = cfg.ShowPersonasInCardEditor
+	}
+	if !s.mcpsEdited {
+		s.settings.ShowMCPsInCardEditor = cfg.ShowMCPsInCardEditor
+	}
+	s.baseline = cfg
+}
+
+func (s *SettingsView) Settings() contracts.Settings {
 	return s.settings
 }
 
@@ -97,8 +127,19 @@ func (s *SettingsView) FocusIndex() int {
 }
 
 func (s *SettingsView) Init() tea.Cmd {
+	s.saving = false
+	s.saveBlocked = false
+	s.readBlocked = false
 	return nil
 }
+
+func (s *SettingsView) DraftID() uint64 { return s.draftID }
+func (s *SettingsView) SaveFinished() {
+	s.saving = false
+	s.saveBlocked = false
+}
+
+func (s *SettingsView) ReadFinished() { s.readBlocked = false }
 
 func (s *SettingsView) SetData(_ messages.DataLoadedMsg) {}
 
@@ -126,12 +167,18 @@ func (s *SettingsView) updateDisplay(msg tea.Msg) (component.Model, tea.Cmd) {
 		}
 		return s, nil
 	case tea.KeyEnter:
+		if s.saving {
+			return s, nil
+		}
 		s.startEdit()
 		return s, nil
 	default:
 		if len(keyMsg.Text) > 0 {
 			switch keyMsg.String() {
 			case "e":
+				if s.saving {
+					return s, nil
+				}
 				s.startEdit()
 				return s, nil
 			case "p":
@@ -147,6 +194,7 @@ func (s *SettingsView) updateDisplay(msg tea.Msg) (component.Model, tea.Cmd) {
 
 func (s *SettingsView) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 	var cmd tea.Cmd
+	oldIDE, oldTerminal := s.input.Value(), s.terminalInput.Value()
 	switch s.focus {
 	case settingsFocusIDECommand:
 		s.input, cmd = s.input.Update(msg)
@@ -154,6 +202,8 @@ func (s *SettingsView) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 		s.terminalInput, cmd = s.terminalInput.Update(msg)
 	}
 
+	s.ideEdited = s.ideEdited || s.input.Value() != oldIDE
+	s.terminalEdited = s.terminalEdited || s.terminalInput.Value() != oldTerminal
 	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return s, cmd
@@ -172,6 +222,8 @@ func (s *SettingsView) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 	switch keyMsg.Code {
 	case tea.KeyEsc:
 		s.mode = SettingsModeDisplay
+		s.readBlocked = false
+		s.settings = s.baseline
 		s.input.Blur()
 		s.terminalInput.Blur()
 		s.input.SetValue(s.settings.IDECommand)
@@ -197,9 +249,11 @@ func (s *SettingsView) updateEdit(msg tea.Msg) (component.Model, tea.Cmd) {
 func (s *SettingsView) handleEditSpace() (component.Model, tea.Cmd) {
 	switch s.focus {
 	case settingsFocusPersonas:
+		s.personasEdited = true
 		s.settings.ShowPersonasInCardEditor = !s.settings.ShowPersonasInCardEditor
 		return s, nil
 	case settingsFocusMCPs:
+		s.mcpsEdited = true
 		s.settings.ShowMCPsInCardEditor = !s.settings.ShowMCPsInCardEditor
 		return s, nil
 	case settingsFocusPuppetSources:
@@ -218,18 +272,37 @@ func (s *SettingsView) handleEditEnter() (component.Model, tea.Cmd) {
 		}
 		return s, nil
 	}
+	if s.callbacks.ReadPending != nil && s.callbacks.ReadPending() {
+		s.readBlocked = true
+		return s, nil
+	}
+	if s.callbacks.SavePending != nil && s.callbacks.SavePending() {
+		s.saveBlocked = true
+		return s, nil
+	}
+	s.saveBlocked = false
+	s.readBlocked = false
 	s.settings.IDECommand = strings.TrimSpace(s.input.Value())
 	s.settings.TerminalCommand = strings.TrimSpace(s.terminalInput.Value())
 	s.input.Blur()
 	s.terminalInput.Blur()
 	s.mode = SettingsModeDisplay
 	if s.callbacks.OnSave != nil {
-		return s, s.callbacks.OnSave(s.settings)
+		cmd := s.callbacks.OnSave(s.settings)
+		if cmd == nil {
+			s.baseline = s.settings
+		}
+		s.saving = cmd != nil
+		return s, cmd
 	}
 	return s, nil
 }
 
 func (s *SettingsView) startEdit() {
+	s.draftID++
+	s.readBlocked = false
+	s.ideEdited, s.terminalEdited, s.personasEdited, s.mcpsEdited = false, false, false, false
+	s.saveBlocked = false
 	s.mode = SettingsModeEdit
 	s.focus = settingsFocusIDECommand
 	s.input.SetValue(s.settings.IDECommand)
@@ -253,10 +326,22 @@ func (s *SettingsView) syncFocus() {
 }
 
 func (s *SettingsView) View() string {
+	var content string
 	if s.mode == SettingsModeEdit {
-		return s.renderEdit()
+		content = s.renderEdit()
+	} else {
+		content = s.renderDisplay()
 	}
-	return s.renderDisplay()
+	if s.saving {
+		return content + "\nSaving settings…"
+	}
+	if s.readBlocked {
+		return content + "\nLoading settings…"
+	}
+	if s.saveBlocked {
+		return content + "\nA settings save is still in progress"
+	}
+	return content
 }
 
 func (s *SettingsView) renderDisplay() string {

@@ -61,8 +61,11 @@ type Session struct {
 	ActiveConversationID    string
 	ActivationID            string
 	ActivationToken         string
-	ExpectedConversationID  string
-	Driver                  driver.AgentDriver
+	// ProcessActivationID identifies this process generation independently of
+	// the optional MCP authority. It is runtime-only and is not persisted.
+	ProcessActivationID    string
+	ExpectedConversationID string
+	Driver                 driver.AgentDriver
 	// PTY is the raw pseudo-terminal file, exposed for ioctl-based resize.
 	// Write input through Driver.SendInputBytes, which synchronizes with Kill.
 	PTY         *os.File
@@ -79,6 +82,8 @@ type Session struct {
 	// It lets goroutines started by a previous activation detect that they
 	// are stale and stop touching the session.
 	generation uint64
+	// outputComplete is guarded by m.mu and belongs to the current generation.
+	outputComplete bool
 	// activating is set, under m.mu, by Relaunch/SwitchAgent between passing
 	// the "must be terminated" guard and activateSessionLocked (or failure).
 	// It is what makes that guard exclusive: the unlocked middle of an
@@ -102,9 +107,11 @@ type AttachHandle struct {
 	// Header is a one-shot banner (e.g. a relaunch / agent-switch marker) to
 	// emit before the scrollback. It is consumed by the manager when the
 	// handle is created and will not appear on subsequent attaches.
-	Header []byte
-	Done   <-chan struct{}
-	Close  func()
+	Header        []byte
+	Done          <-chan struct{}
+	Close         func()
+	WriteChecked  func([]byte) (int, error)
+	ResizeChecked func(int, int) error
 }
 
 var (
@@ -171,6 +178,8 @@ type RegistrationPersistence string
 type ConversationChoice struct {
 	New bool
 	ID  string
+	// SelectionIdentity is a scoped opaque identity validated under admission.
+	SelectionIdentity string
 }
 
 const (
@@ -627,60 +636,50 @@ func updateInstructionOwnership(previous map[string]bool, filename string, manag
 
 // SetNameChecked validates scope under the manager lock before persisting.
 func (m *Manager) SetNameChecked(id, name string, check func([]Snapshot) error) error {
+	_, err := m.SetNameDetailedChecked(id, name, check)
+	return err
+}
+
+type RenameResult struct{ Applied, Persisted bool }
+
+// SetNameDetailedChecked retains the in-memory effect if persistence fails.
+func (m *Manager) SetNameDetailedChecked(id, name string, check func([]Snapshot) error) (RenameResult, error) {
+	return m.setNameDetailedChecked(id, name, "", check)
+}
+
+// SetNameExpectedProcessChecked prevents a delayed launch naming operation
+// from mutating the session after its process has been replaced.
+func (m *Manager) SetNameExpectedProcessChecked(id, name, processID string, check func([]Snapshot) error) (RenameResult, error) {
+	if processID == "" {
+		return RenameResult{}, errors.New("expected process identity is required")
+	}
+	return m.setNameDetailedChecked(id, name, processID, check)
+}
+
+func (m *Manager) setNameDetailedChecked(id, name, processID string, check func([]Snapshot) error) (RenameResult, error) {
 	if check == nil {
-		return errors.New("rename scope check is required")
+		return RenameResult{}, errors.New("rename scope check is required")
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.closed {
-		return ErrManagerClosed
+		return RenameResult{}, ErrManagerClosed
 	}
 	if err := check(m.listLocked()); err != nil {
-		return err
+		return RenameResult{}, err
 	}
 	s, ok := m.sessions[id]
 	if !ok {
-		return fmt.Errorf("session not found: %s", id)
+		return RenameResult{}, fmt.Errorf("session not found: %s", id)
+	}
+	if processID != "" && s.ProcessActivationID != processID {
+		return RenameResult{}, errors.New("session process changed before rename")
 	}
 	if s.deleting || s.stopping || s.activating {
-		return fmt.Errorf("%w: rename is not allowed during a lifecycle operation", ErrLifecycleConflict)
+		return RenameResult{}, fmt.Errorf("%w: rename is not allowed during a lifecycle operation", ErrLifecycleConflict)
 	}
 	s.Name = name
-	return m.persistSessionLockedErr(s)
-}
-
-// GetScrollback returns a copy of the cached scrollback for a session.
-func (m *Manager) GetScrollback(id string) []byte {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	s, ok := m.sessions[id]
-	if !ok {
-		return nil
-	}
-	out := make([]byte, len(s.Scrollback))
-	copy(out, s.Scrollback)
-	return out
-}
-
-// SubscribeOutput registers a channel to receive live output from a session.
-func (m *Manager) SubscribeOutput(id string) (chan []byte, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	s, ok := m.sessions[id]
-	if !ok {
-		return nil, fmt.Errorf("session not found: %s", id)
-	}
-	ch := make(chan []byte, outputChanSize)
-	s.Subscribers[ch] = struct{}{}
-	return ch, nil
-}
-
-// UnsubscribeOutput removes a subscriber channel from a session.
-func (m *Manager) UnsubscribeOutput(id string, ch chan []byte) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if s, ok := m.sessions[id]; ok {
-		delete(s.Subscribers, ch)
-	}
+	err := m.persistSessionLockedErr(s)
+	return RenameResult{Applied: true, Persisted: err == nil}, err
 }

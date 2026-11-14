@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BlackGiack/kankuro/internal/fsutil"
 	"github.com/google/uuid"
+	"gopkg.in/yaml.v3"
 )
 
 // CardSchemaVersion is the membership-bearing ID-card format version.
@@ -60,10 +62,16 @@ func (r *FileRepository) CreateIDCard(card IDCard) (IDCard, error) {
 		}
 	}
 	f.IDCards = append(f.IDCards, card)
-	if err = r.WriteIDCardsFile(f); err != nil {
+	persisted, err := r.writeIDCardsFile(f)
+	if err != nil {
 		return IDCard{}, err
 	}
-	return card, nil
+	for _, item := range persisted.IDCards {
+		if item.ID == card.ID {
+			return item, nil
+		}
+	}
+	return IDCard{}, errors.New("saved card absent from encoded inventory")
 }
 
 // UpdateIDCard validates and updates an existing ID card.
@@ -107,10 +115,16 @@ func (r *FileRepository) UpdateIDCard(card IDCard) (IDCard, error) {
 		func(c *IDCard, id string) { c.ID = id },
 	)
 
-	if err = r.WriteIDCardsFile(f); err != nil {
+	persisted, err := r.writeIDCardsFile(f)
+	if err != nil {
 		return IDCard{}, err
 	}
-	return card, nil
+	for _, item := range persisted.IDCards {
+		if item.ID == card.ID {
+			return item, nil
+		}
+	}
+	return IDCard{}, errors.New("saved card absent from encoded inventory")
 }
 
 // LoadIDCardsFile reads and validates the current ID-card YAML payload.
@@ -135,13 +149,35 @@ func (r *FileRepository) LoadIDCardsFile() (IDCardsFile, error) {
 
 // WriteIDCardsFile validates and writes the current card schema.
 func (r *FileRepository) WriteIDCardsFile(f IDCardsFile) error {
+	_, err := r.writeIDCardsFile(f)
+	return err
+}
+
+// writeIDCardsFile returns the representation decoded from the exact bytes
+// written. Encoding and decoding occur before the atomic write, so a returned
+// card never comes from a later writer and no post-write read can fail.
+func (r *FileRepository) writeIDCardsFile(f IDCardsFile) (IDCardsFile, error) {
 	if f.SchemaVersion != CardSchemaVersion {
-		return fmt.Errorf("unsupported card schema version: %d", f.SchemaVersion)
+		return IDCardsFile{}, fmt.Errorf("unsupported card schema version: %d", f.SchemaVersion)
 	}
 	if err := validateCardMembershipFormat(f); err != nil {
-		return err
+		return IDCardsFile{}, err
 	}
-	return r.WriteAtomic(filepath.Join(r.dir, IDCardsFilename), f)
+	raw, err := yaml.Marshal(f)
+	if err != nil {
+		return IDCardsFile{}, fmt.Errorf("marshal %s: %w", IDCardsFilename, err)
+	}
+	var persisted IDCardsFile
+	if err = yaml.Unmarshal(raw, &persisted); err != nil {
+		return IDCardsFile{}, fmt.Errorf("decode encoded cards: %w", err)
+	}
+	if err = validateCardMembershipFormat(persisted); err != nil {
+		return IDCardsFile{}, err
+	}
+	if err = fsutil.WriteFileAtomic(filepath.Join(r.dir, IDCardsFilename), raw, configFileMode); err != nil {
+		return IDCardsFile{}, err
+	}
+	return persisted, nil
 }
 
 func validateCardMembershipFormat(f IDCardsFile) error {

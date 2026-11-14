@@ -1,13 +1,15 @@
 package views_test
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
@@ -66,21 +68,20 @@ func TestSourceManager_New_Workspaces(t *testing.T) {
 
 func TestSourceManager_Reload(t *testing.T) {
 	loaded := false
-
-	callbacks := views.SourceManagerCallbacks{
-		LoadSources: func() []components.SourceItem {
+	sm := views.NewSourceManager(
+		views.SourceTypeSkills,
+		views.SourceManagerCallbacks{Load: func(contracts.SourceKind) ([]contracts.SourceRow, error) {
 			loaded = true
-			return []components.SourceItem{
-				components.SimpleSourceItem("/path/to/source"),
-			}
-		},
+			return []contracts.SourceRow{{Path: "/path/to/source", Identity: "id"}}, nil
+		}},
+	)
+	cmd := sm.Init()
+	if loaded || cmd == nil {
+		t.Fatal("load must run asynchronously")
 	}
-
-	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks)
-	sm.Reload()
-
-	if !loaded {
-		t.Error("LoadSources should have been called")
+	sm.Update(cmd())
+	if !loaded || len(sm.SourceList().Items) != 1 {
+		t.Fatal("load result not applied")
 	}
 }
 
@@ -101,133 +102,48 @@ func TestSourceManager_Escape_NavigatesBack(t *testing.T) {
 }
 
 func TestSourceManager_View(t *testing.T) {
-	callbacks := views.SourceManagerCallbacks{
-		LoadSources: func() []components.SourceItem {
-			return []components.SourceItem{
-				components.SimpleSourceItem("/path1"),
-				components.SimpleSourceItem("/path2"),
-			}
-		},
-	}
-
-	sm := views.NewSourceManager(views.SourceTypeSkills, callbacks)
-	sm.Init()
-
-	view := sm.View()
-
-	if view == "" {
-		t.Error("View should not be empty")
-	}
-
-	if !strings.Contains(view, "Manage Skill Sources") {
-		t.Error("View should contain title")
-	}
-
-	if !strings.Contains(view, "/path1") {
-		t.Error("View should contain sources")
-	}
-}
-
-func TestSourceManager_Save_Simple(t *testing.T) {
-	var savedPath string
-	var savedIndex int
-
-	callbacks := views.SourceManagerCallbacks{
-		SaveSimpleSource: func(path string, idx int) (tea.Cmd, error) {
-			savedPath = path
-			savedIndex = idx
-			return func() tea.Msg { return nil }, nil
-		},
-		Refresh: func() tea.Cmd { return nil },
-	}
-
-	item := components.SimpleSourceItem("/new/source")
-
-	_, err := views.HandleSave(views.SourceTypeSkills, callbacks, item, -1)
-
-	if err != nil {
-		t.Errorf("Save should not error: %v", err)
-	}
-
-	if savedPath != "/new/source" {
-		t.Errorf("Expected path '/new/source', got '%s'", savedPath)
-	}
-
-	if savedIndex != -1 {
-		t.Errorf("Expected index -1 for new item, got %d", savedIndex)
-	}
-}
-
-func TestSourceManager_Save_Workspace(t *testing.T) {
-	var savedSource config.WorkspaceSource
-
-	callbacks := views.SourceManagerCallbacks{
-		SaveWorkspaceSource: func(source config.WorkspaceSource, _ int) (tea.Cmd, error) {
-			savedSource = source
-			return func() tea.Msg { return nil }, nil
-		},
-		Refresh: func() tea.Cmd { return nil },
-	}
-
-	item := components.WorkspaceSourceItem{
-		Source: config.WorkspaceSource{
-			ID:     "test-id",
-			Path:   "/workspace/path",
-			IsRoot: true,
-		},
-	}
-
-	_, err := views.HandleSave(views.SourceTypeWorkspaces, callbacks, item, 0)
-
-	if err != nil {
-		t.Errorf("Save should not error: %v", err)
-	}
-
-	if savedSource.Path != "/workspace/path" {
-		t.Errorf("Expected path '/workspace/path', got '%s'", savedSource.Path)
-	}
-
-	if !savedSource.IsRoot {
-		t.Error("IsRoot should be true")
+	sm := views.NewSourceManager(
+		views.SourceTypeSkills,
+		views.SourceManagerCallbacks{Load: func(contracts.SourceKind) ([]contracts.SourceRow, error) {
+			return []contracts.SourceRow{{Path: "/path1", Identity: "first"}}, nil
+		}},
+	)
+	sm.Update(sm.Init()())
+	if !strings.Contains(sm.View(), "/path1") {
+		t.Fatal("missing source")
 	}
 }
 
 func TestSourceManager_Delete(t *testing.T) {
-	calls, loads, refreshes := 0, 0, 0
+	var got contracts.SourceMutation
 	sm := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{
-		LoadSources: func() []components.SourceItem {
-			loads++
-			return components.ToSimpleItems([]string{"/one", "/two"})
+		Load: func(contracts.SourceKind) ([]contracts.SourceRow, error) {
+			return []contracts.SourceRow{{Path: "/one", Identity: "first"}, {Path: "/two", Identity: "second"}}, nil
 		},
-		DeleteSource: func(index int) (tea.Cmd, error) {
-			calls++
-			if index != 1 {
-				t.Errorf("delete index = %d, want 1", index)
-			}
-			// The callback owns asynchronous errors; the list must return its command.
-			return func() tea.Msg { return messages.ErrorMsg{Err: errTest} }, nil
+		Mutate: func(_ context.Context, input contracts.SourceMutation) contracts.SourceMutationResult {
+			got = input
+			return contracts.SourceMutationResult{Err: errTest}
 		},
-		Refresh: func() tea.Cmd { refreshes++; return nil },
 	})
-	sm.Init()
+	sm.Update(sm.Init()())
 	sm.SourceList().Cursor = 1
-	model, cmd := sm.Update(tea.KeyPressMsg{Text: "d"})
-	if model != sm || cmd == nil || calls != 1 || loads != 2 || refreshes != 1 {
-		t.Fatalf("delete routing: same model=%v cmd=%v calls=%d loads=%d refreshes=%d", model == sm, cmd != nil, calls, loads, refreshes)
+	_, cmd := sm.Update(tea.KeyPressMsg{Text: "d"})
+	if cmd == nil {
+		t.Fatal("missing command")
 	}
-	msg := cmd()
-	if batch, ok := msg.(tea.BatchMsg); ok {
-		if len(batch) != 1 {
-			t.Fatalf("commands = %d, want 1", len(batch))
-		}
-		msg = batch[0]()
+	_, reply := sm.Update(cmd())
+	if !got.Delete || got.Identity != "second" {
+		t.Fatalf("mutation: %+v", got)
 	}
-	result, ok := msg.(messages.ErrorMsg)
+	if reply == nil {
+		t.Fatal("missing error")
+	}
+	result, ok := reply().(messages.ErrorMsg)
 	if !ok || !errors.Is(result.Err, errTest) {
-		t.Fatalf("delete error lost: %#v", msg)
+		t.Fatalf("error: %#v", result)
 	}
-	if len(sm.SourceList().Items) != 2 || sm.SourceList().Items[1].Display() != "/two" {
-		t.Fatal("failed asynchronous deletion lost items")
+	if len(sm.SourceList().Items) != 2 {
+		t.Fatal("failed deletion lost items")
 	}
 }
 
@@ -282,5 +198,58 @@ func TestGetSourceTypeConfig(t *testing.T) {
 				t.Errorf("Expected %d fields, got %d", tt.expectedFields, config.FormFields)
 			}
 		})
+	}
+}
+
+func TestSourceManagerRetainsDraftOnStaleEdit(t *testing.T) {
+	var got contracts.SourceMutation
+	manager := views.NewSourceManager(views.SourceTypeSkills, views.SourceManagerCallbacks{
+		Load: func(contracts.SourceKind) ([]contracts.SourceRow, error) {
+			return []contracts.SourceRow{{Path: "/one", Identity: "original"}}, nil
+		},
+		Mutate: func(_ context.Context, input contracts.SourceMutation) contracts.SourceMutationResult {
+			got = input
+			return contracts.SourceMutationResult{Err: errTest, Reload: true}
+		},
+	})
+	manager.Update(manager.Init()())
+	manager.SourceList().OpenForm(0)
+	manager.SourceList().Inputs[0].SetValue("/draft")
+	manager.SourceList().SetItems([]components.SourceItem{components.PathSourceItem{Path: "/replacement", Identity: "replacement"}})
+	_, command := manager.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if command == nil {
+		t.Fatal("missing save")
+	}
+	_, reply := manager.Update(command())
+	if got.Identity != "original" || got.Path != "/draft" {
+		t.Fatalf("mutation retargeted: %+v", got)
+	}
+	if manager.SourceList().Mode != components.SourceListModeForm || manager.SourceList().Inputs[0].Value() != "/draft" || reply == nil {
+		t.Fatal("conflict lost draft or feedback")
+	}
+}
+
+func TestSourceManagerIgnoresOlderLoadAndRetainsFailedData(t *testing.T) {
+	call := 0
+	manager := views.NewSourceManager(
+		views.SourceTypeSkills,
+		views.SourceManagerCallbacks{Load: func(contracts.SourceKind) ([]contracts.SourceRow, error) {
+			call++
+			if call == 3 {
+				return nil, errTest
+			}
+			return []contracts.SourceRow{{Path: fmt.Sprintf("/%d", call), Identity: "id"}}, nil
+		}},
+	)
+	first := manager.Init()
+	second := manager.Init()
+	manager.Update(second())
+	manager.Update(first())
+	if len(manager.SourceList().Items) != 1 || manager.SourceList().Items[0].Display() != "/1" {
+		t.Fatal("old visit replaced newer result")
+	}
+	_, feedback := manager.Update(manager.Reload()())
+	if feedback == nil || manager.SourceList().Items[0].Display() != "/1" {
+		t.Fatal("failed read lost data")
 	}
 }

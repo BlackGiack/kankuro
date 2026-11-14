@@ -7,17 +7,17 @@ import (
 	"github.com/BlackGiack/kankuro/internal/driver"
 )
 
-func (m *Manager) trackOutput(sessionID string, gen uint64, output <-chan []byte) {
+func (m *Manager) trackOutput(sessionID string, gen uint64, output <-chan []byte, subscribers map[chan []byte]struct{}) {
 	for chunk := range output {
 		m.mu.Lock()
 		s, ok := m.sessions[sessionID]
+		broadcast(chunk, subscribers)
 		if !ok || s.generation != gen {
 			m.mu.Unlock()
-			return
+			continue
 		}
 		now := time.Now().UTC()
 		s.Scrollback = appendScrollback(s.Scrollback, chunk)
-		broadcast(chunk, s.Subscribers)
 		updateSessionOutputState(s, chunk, now)
 		if s.Status != StatusTerminated {
 			if s.Pinged {
@@ -29,8 +29,12 @@ func (m *Manager) trackOutput(sessionID string, gen uint64, output <-chan []byte
 		m.mu.Unlock()
 	}
 	m.mu.Lock()
-	if s, ok := m.sessions[sessionID]; ok && s.generation == gen {
-		m.closeSubscribersLocked(sessionID)
+	if s, ok := m.sessions[sessionID]; ok && s.generation == gen && s.Output == output {
+		s.outputComplete = true
+	}
+	for ch := range subscribers {
+		close(ch)
+		delete(subscribers, ch)
 	}
 	m.mu.Unlock()
 }

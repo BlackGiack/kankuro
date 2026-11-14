@@ -99,12 +99,13 @@ func (s *Service) ConfirmCardDeletion(
 	foreignConfirmed bool,
 ) (CardDeletionResult, error) {
 	if err := ctx.Err(); err != nil {
-		return CardDeletionResult{}, err
+		return CardDeletionResult{State: deletionNoIntent}, err
 	}
 	writer, ok := s.repo.(tombstoneWriter)
 	if !ok {
-		return CardDeletionResult{}, errors.New("card deletion storage unavailable")
+		return CardDeletionResult{State: deletionNoIntent}, errors.New("card deletion storage unavailable")
 	}
+	intentAttempted := false
 	err := s.sessions.WithCardReferencesAndSnapshot(cardID, func(impact session.CardReferenceImpact, sessions []session.Snapshot) error {
 		card, err := s.cardOwnedBy(ownerID, cardID, impact, sessions)
 		if err != nil {
@@ -123,12 +124,21 @@ func (s *Service) ConfirmCardDeletion(
 		if err != nil {
 			return err
 		}
+		intentAttempted = true
 		return writer.BeginCardDeletionWithPending(card, pending)
 	})
 	if err != nil {
+		if !intentAttempted {
+			return CardDeletionResult{State: deletionNoIntent}, err
+		}
 		return CardDeletionResult{}, err
 	}
-	return s.RetryCardDeletion(ctx, ownerID, cardID)
+	result, err := s.RetryCardDeletion(ctx, ownerID, cardID)
+	if result.State == "" {
+		// Intent is already durable, even if admission for the cleanup failed.
+		result.State = config.CardDeleting
+	}
+	return result, err
 }
 
 // RetryCardDeletion resumes an existing durable intent; it never creates one.

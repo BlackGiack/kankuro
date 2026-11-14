@@ -3,7 +3,6 @@ package components
 import (
 	"github.com/BlackGiack/kankuro/internal/ascii"
 	"github.com/BlackGiack/kankuro/internal/ascii/characters"
-	"github.com/BlackGiack/kankuro/internal/config"
 )
 
 func RenderAgentFace(faceStyle string) string {
@@ -18,32 +17,22 @@ func RenderAgentFace(faceStyle string) string {
 	return canvas.String()
 }
 
-func RenderAgentPuppet(puppetName string, puppets []config.Puppet) string {
+// RenderPuppetArtwork renders focused artwork data without a registry type.
+func RenderPuppetArtwork(puppetName string, builtin bool, lines []string) string {
 	if puppetName == "" {
-		puppetName = "kankuro"
+		puppetName, builtin = "kankuro", true
 	}
-
-	for _, p := range puppets {
-		if p.Name == puppetName {
-			if p.Builtin {
-				puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", puppetName) })
-				w, h := puppet.Bounds()
-				canvas := ascii.NewCanvas(w, h)
-				puppet.Render(canvas, 0, 0)
-				return canvas.String()
-			}
-			canvas := ascii.NewCanvas(maxLineWidth(p.Lines), len(p.Lines))
-			for i, line := range p.Lines {
-				canvas.DrawText(0, i, line)
-			}
-			return canvas.String()
-		}
+	if builtin {
+		puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", puppetName) })
+		w, h := puppet.Bounds()
+		canvas := ascii.NewCanvas(w, h)
+		puppet.Render(canvas, 0, 0)
+		return canvas.String()
 	}
-
-	puppet := characters.NewPuppet(func(c *ascii.Config) { c.Set("style", "kankuro") })
-	w, h := puppet.Bounds()
-	canvas := ascii.NewCanvas(w, h)
-	puppet.Render(canvas, 0, 0)
+	canvas := ascii.NewCanvas(maxLineWidth(lines), len(lines))
+	for i, line := range lines {
+		canvas.DrawText(0, i, line)
+	}
 	return canvas.String()
 }
 

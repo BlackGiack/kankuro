@@ -1,6 +1,6 @@
 // Package testenv isolates a test binary from the developer's temp
 // directories and fails it if a test leaves anything behind. It is imported
-// only from _test files (the TestMain of internal/session and internal/app).
+// only from _test files (the TestMain of internal/session and internal/ui).
 package testenv
 
 import (

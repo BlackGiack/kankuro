@@ -88,7 +88,7 @@ func TestDashboardScopeOverHTTP(t *testing.T) {
 	ids := map[string][]string{}
 	for _, dashboard := range []string{"default", second.ID} {
 		for range 2 {
-			id, errAt92 := service.LaunchInDashboard(context.Background(), dashboard, card.ID)
+			id, errAt92 := launchSessionForTest(context.Background(), service, dashboard, card.ID)
 			if errAt92 != nil {
 				t.Fatal(errAt92)
 			}

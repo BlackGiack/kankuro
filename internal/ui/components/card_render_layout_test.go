@@ -96,7 +96,7 @@ func TestRenderCardItemStaysIntactAcrossWidths(t *testing.T) {
 		card, skills := cardWithSkills(names)
 		for _, selected := range []bool{false, true} {
 			for width := components.CardListMinWidth; width <= 160; width++ {
-				out := components.RenderCardItem(card, skills, nil, puppets, selected, width)
+				out := components.RenderCardItem(cardRowsFromConfig([]config.IDCard{card}, skills, nil, puppets)[0], selected, width)
 				label := fmt.Sprintf("skills=%v selected=%v width=%d", names, selected, width)
 				assertIntactCard(t, out, label)
 				assertSinglePillRow(t, out, label)
@@ -113,8 +113,9 @@ func TestRenderCardItemSummarisesPillsThatDoNotFit(t *testing.T) {
 	names := []string{"architecture", "clean-code", "golang", "plan-writing", "api-patterns", "rust-pro"}
 	card, skills := cardWithSkills(names)
 
-	narrow := ansi.Strip(components.RenderCardItem(card, skills, nil, puppets, false, components.CardListMinWidth))
-	wide := ansi.Strip(components.RenderCardItem(card, skills, nil, puppets, false, 160))
+	rows := cardRowsFromConfig([]config.IDCard{card}, skills, nil, puppets)
+	narrow := ansi.Strip(components.RenderCardItem(rows[0], false, components.CardListMinWidth))
+	wide := ansi.Strip(components.RenderCardItem(cardRowsFromConfig([]config.IDCard{card}, skills, nil, puppets)[0], false, 160))
 
 	for label, out := range map[string]string{"narrow": narrow, "wide": wide} {
 		shown := 0
@@ -150,7 +151,7 @@ func TestRenderCardItemClipsOversizedPuppet(t *testing.T) {
 	card, skills := cardWithSkills([]string{"golang"})
 	card.Puppet = "wide"
 	for width := components.CardListMinWidth; width <= 120; width++ {
-		out := components.RenderCardItem(card, skills, nil, []config.Puppet{wide}, false, width)
+		out := components.RenderCardItem(cardRowsFromConfig([]config.IDCard{card}, skills, nil, []config.Puppet{wide})[0], false, width)
 		assertIntactCard(t, out, fmt.Sprintf("oversized puppet width=%d", width))
 	}
 }
@@ -166,7 +167,7 @@ func TestRenderCardItemSanitisesUserText(t *testing.T) {
 	card, skills := cardWithSkills([]string{messy, "clean-code"})
 	card.Name, card.Driver, card.Model = messy, messy, messy
 	for width := components.CardListMinWidth; width <= 160; width++ {
-		out := components.RenderCardItem(card, skills, nil, puppets, false, width)
+		out := components.RenderCardItem(cardRowsFromConfig([]config.IDCard{card}, skills, nil, puppets)[0], false, width)
 		assertIntactCard(t, out, fmt.Sprintf("width=%d", width))
 		if strings.ContainsAny(ansi.Strip(out), "\t\r") {
 			t.Fatalf("width=%d: a control character reached the output: %q", width, ansi.Strip(out))
@@ -177,11 +178,11 @@ func TestRenderCardItemSanitisesUserText(t *testing.T) {
 func TestCardListUsesBalancedCellGuttersAcrossSelectionAndFiltering(t *testing.T) {
 	for _, width := range []int{44, 60, 100} {
 		list := components.NewCardList(components.CardListCallbacks{})
-		list.SetPuppets(builtinPuppets(t))
-		list.SetCards([]config.IDCard{
+		puppets := builtinPuppets(t)
+		list.SetRows(cardRowsFromConfig([]config.IDCard{
 			{ID: "one", Name: "First", Driver: "cat", Puppet: "kankuro"},
 			{ID: "two", Name: "Second", Driver: "cat", Puppet: "kankuro"},
-		}, nil, nil)
+		}, nil, nil, puppets))
 		list.SetSize(width, 30)
 		for _, state := range []struct {
 			name        string

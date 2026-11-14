@@ -9,7 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 )
 
@@ -65,8 +65,9 @@ type SourceList struct {
 	Items  []SourceItem
 	Cursor int
 
-	Inputs       []textinput.Model
-	EditingIndex int // -1 for new, >= 0 for edit
+	Inputs          []textinput.Model
+	EditingIndex    int // -1 for new, >= 0 for edit
+	EditingIdentity string
 
 	// Theme
 	PrimaryColor   color.Color
@@ -211,9 +212,6 @@ func (s *SourceList) updateForm(msg tea.Msg) (component.Model, tea.Cmd) {
 	switch keyMsg.Code {
 	case tea.KeyEnter:
 		saveCmd := s.HandleSave()
-		// Mode is usually switched by callback/parent or here if successful
-		// For simplicity in generic component, we return to list mode
-		s.Mode = SourceListModeList
 		return s, tea.Batch(cmd, saveCmd)
 	case tea.KeyTab:
 		s.cycleInputFocus()
@@ -228,6 +226,10 @@ func (s *SourceList) updateForm(msg tea.Msg) (component.Model, tea.Cmd) {
 // OpenForm opens the form for new or edit.
 func (s *SourceList) OpenForm(index int) {
 	s.EditingIndex = index
+	s.EditingIdentity = ""
+	if index >= 0 && index < len(s.Items) {
+		s.EditingIdentity = s.Items[index].ID()
+	}
 
 	if index == len(s.Items) || index < 0 {
 		s.initNewForm()
@@ -280,22 +282,10 @@ func (s *SourceList) HandleSave() tea.Cmd {
 		// Complex item (workspace)
 		isRoot := strings.ToLower(strings.TrimSpace(s.Inputs[1].Value())) == "y"
 
-		// Get existing ID if editing
-		existingID := ""
-		if s.EditingIndex >= 0 && s.EditingIndex < len(s.Items) {
-			existingID = s.Items[s.EditingIndex].ID()
-		}
-
-		item = WorkspaceSourceItem{
-			Source: config.WorkspaceSource{
-				ID:     existingID,
-				Path:   path,
-				IsRoot: isRoot,
-			},
-		}
+		item = WorkspaceSourceItem{Source: contracts.SourceRow{Identity: s.EditingIdentity, Path: path, IsRoot: isRoot}}
 	} else {
 		// Simple item (skill/persona)
-		item = SimpleSourceItem(path)
+		item = PathSourceItem{Path: path, Identity: s.EditingIdentity}
 	}
 
 	var cmd tea.Cmd
@@ -306,15 +296,6 @@ func (s *SourceList) HandleSave() tea.Cmd {
 			return nil
 		}
 		cmd = saveCmd
-	}
-
-	if s.Callbacks.OnRefresh != nil {
-		refreshCmd := s.Callbacks.OnRefresh()
-		cmd = tea.Batch(cmd, refreshCmd)
-	}
-
-	if s.Callbacks.OnReload != nil {
-		s.Callbacks.OnReload()
 	}
 
 	return cmd
@@ -333,20 +314,6 @@ func (s *SourceList) HandleDelete() tea.Cmd {
 			return nil
 		}
 		cmd = delCmd
-	}
-
-	// Adjust cursor
-	if s.Cursor >= len(s.Items)-1 && s.Cursor > 0 {
-		s.Cursor--
-	}
-
-	if s.Callbacks.OnRefresh != nil {
-		refreshCmd := s.Callbacks.OnRefresh()
-		cmd = tea.Batch(cmd, refreshCmd)
-	}
-
-	if s.Callbacks.OnReload != nil {
-		s.Callbacks.OnReload()
 	}
 
 	return cmd

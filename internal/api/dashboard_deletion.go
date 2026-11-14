@@ -36,13 +36,14 @@ func (s *Service) ConfirmDashboardDeletion(
 	foreignConfirmed bool,
 ) (DashboardDeletionResult, error) {
 	if err := ctx.Err(); err != nil {
-		return DashboardDeletionResult{}, err
+		return DashboardDeletionResult{State: deletionNoIntent}, err
 	}
 	writer, ok := s.repo.(dashboardDeletionWriter)
 	if !ok {
-		return DashboardDeletionResult{}, errors.New("dashboard deletion storage unavailable")
+		return DashboardDeletionResult{State: deletionNoIntent}, errors.New("dashboard deletion storage unavailable")
 	}
 	var manifest config.DashboardDeletion
+	intentAttempted := false
 	err := s.sessions.WithAdmissionSnapshot(func(snapshot session.AdmissionSnapshot) error {
 		current, foreign, errAt55 := s.prepareDashboardDeletion(dashboardID, snapshot)
 		if errAt55 != nil {
@@ -64,6 +65,7 @@ func (s *Service) ConfirmDashboardDeletion(
 		if errAt72 := ctx.Err(); errAt72 != nil {
 			return errAt72
 		}
+		intentAttempted = true
 		if errAt75 := writer.BeginDashboardDeletion(current); errAt75 != nil {
 			return errAt75
 		}
@@ -71,6 +73,9 @@ func (s *Service) ConfirmDashboardDeletion(
 		return nil
 	})
 	if err != nil {
+		if !intentAttempted {
+			return DashboardDeletionResult{State: deletionNoIntent}, err
+		}
 		return DashboardDeletionResult{}, err
 	}
 	result, err := s.RetryDashboardDeletion(ctx, dashboardID)

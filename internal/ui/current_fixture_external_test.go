@@ -1,0 +1,47 @@
+package ui_test
+
+import (
+	"context"
+
+	"github.com/BlackGiack/kankuro/internal/api"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
+	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/configstartup"
+	"github.com/BlackGiack/kankuro/internal/session"
+	app "github.com/BlackGiack/kankuro/internal/ui"
+	"github.com/BlackGiack/kankuro/internal/ui/messages"
+)
+
+func newCurrentRepository(dir string) (*config.FileRepository, error) {
+	if err := configstartup.PrepareStartup(dir); err != nil {
+		return nil, err
+	}
+	return config.NewFileRepository(dir)
+}
+
+func newScopedCoordinator(repo config.Repository, manager *session.Manager) *app.Coordinator {
+	return app.NewCoordinator(testCapabilities(api.New(repo, manager)), manager.LoadErrors())
+}
+
+func openDefaultDashboard(coordinator *app.Coordinator) {
+	coordinator.Update(
+		messages.DashboardOpenRequestedMsg{DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive},
+	)
+}
+
+func newOpenedCoordinator(repo config.Repository, manager *session.Manager) *app.Coordinator {
+	coordinator := newScopedCoordinator(repo, manager)
+	openDefaultDashboard(coordinator)
+	return coordinator
+}
+
+func createCurrentCard(repo config.Repository, card config.IDCard) (config.IDCard, error) {
+	if card.DashboardID == "" {
+		card.DashboardID = "default"
+	}
+	return repo.CreateIDCard(card)
+}
+
+func launchCurrentSession(repo config.Repository, manager *session.Manager, card config.IDCard) (string, error) {
+	return launchSessionForTest(context.Background(), api.New(repo, manager), card.DashboardID, card.ID)
+}

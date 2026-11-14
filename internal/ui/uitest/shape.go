@@ -8,36 +8,15 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
-
-	"github.com/BlackGiack/kankuro/internal/config"
 )
 
-const (
-	longNameLen = 200
-	borderCols  = 2 // the two border runes of UserPuppet's rows
-)
+const longNameLen = 200
 
 // AdversarialNames are display names chosen to break fixed-width layouts:
 // empty, tiny, huge, wide runes, emoji, control characters and raw escapes.
 var AdversarialNames = []string{ //nolint:gochecknoglobals // shared test fixtures
 	"", "a", strings.Repeat("x", longNameLen), "漢字のセッション名", "🚀 rocket 🚀",
 	"name\twith\ttabs", "trailing space   ", "\x1b[31mred\x1b[0m",
-}
-
-// UserPuppet builds a user puppet whose art is w columns wide and h lines
-// tall, for testing puppets larger than the box they are drawn into.
-func UserPuppet(w, h int) config.Puppet {
-	lines := make([]string, h)
-	for i := range lines {
-		switch {
-		case w <= 0:
-		case i == 0 || i == h-1:
-			lines[i] = "<" + strings.Repeat("=", max(0, w-borderCols)) + ">"
-		default:
-			lines[i] = "|" + strings.Repeat("#", max(0, w-borderCols)) + "|"
-		}
-	}
-	return config.Puppet{ID: "user-puppet", Name: "user-puppet", Lines: lines}
 }
 
 // AssertExactRect fails unless out is exactly h lines of exactly w display

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/uitest"
 )
@@ -15,12 +15,26 @@ import (
 func TestMCPManagerConfirmationKeepsTargetAcrossRefresh(t *testing.T) {
 	m := NewMCPManager()
 	m.SetSize(80, 22)
-	m.SetData(messages.DataLoadedMsg{MCPs: []config.MCPServer{{ID: "a", Name: "Alpha"}, {ID: "b", Name: "Beta"}}})
+	m.SetData(
+		messages.DataLoadedMsg{
+			MCPRows: []contracts.MCPRow{
+				{ID: "a", Name: "Alpha", Edit: contracts.Availability{Enabled: true}, Delete: contracts.Availability{Enabled: true}},
+				{ID: "b", Name: "Beta", Edit: contracts.Availability{Enabled: true}, Delete: contracts.Availability{Enabled: true}},
+			},
+		},
+	)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyDelete})
 	if cmd != nil || !m.modal.IsOpen() {
 		t.Fatal("delete must open confirmation without mutation")
 	}
-	m.SetData(messages.DataLoadedMsg{MCPs: []config.MCPServer{{ID: "b", Name: "Beta"}, {ID: "a", Name: "Alpha"}}})
+	m.SetData(
+		messages.DataLoadedMsg{
+			MCPRows: []contracts.MCPRow{
+				{ID: "b", Name: "Beta", Edit: contracts.Availability{Enabled: true}, Delete: contracts.Availability{Enabled: true}},
+				{ID: "a", Name: "Alpha", Edit: contracts.Availability{Enabled: true}, Delete: contracts.Availability{Enabled: true}},
+			},
+		},
+	)
 	_, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	got, ok := cmd().(messages.MCPManagerDeleteMsg)
 	if !ok || got.MCPID != "a" {
@@ -41,7 +55,19 @@ func TestMCPManagerConfirmationKeepsTargetAcrossRefresh(t *testing.T) {
 func TestMCPManagerProtectedAndNew(t *testing.T) {
 	m := NewMCPManager()
 	m.SetSize(80, 22)
-	m.SetData(messages.DataLoadedMsg{MCPs: []config.MCPServer{{ID: config.BuiltinMCPKankuro, Name: "Kankuro"}}})
+	m.SetData(
+		messages.DataLoadedMsg{
+			MCPRows: []contracts.MCPRow{
+				{
+					ID:      "kankuro",
+					Name:    "Kankuro",
+					Builtin: true,
+					Edit:    contracts.Availability{Reason: "read-only"},
+					Delete:  contracts.Availability{Reason: "cannot be deleted"},
+				},
+			},
+		},
+	)
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if _, ok := cmd().(messages.ErrorMsg); !ok {
 		t.Fatal("built-in must be read-only")
@@ -52,7 +78,7 @@ func TestMCPManagerProtectedAndNew(t *testing.T) {
 	}
 	m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	_, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	if msg, ok := cmd().(messages.MCPManagerEditMsg); !ok || msg.MCP.ID != "" {
+	if msg, ok := cmd().(messages.MCPManagerEditMsg); !ok || msg.MCPID != "" {
 		t.Fatal("new must open blank form")
 	}
 	_, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyDelete})
@@ -67,11 +93,11 @@ func TestMCPManagerProtectedAndNew(t *testing.T) {
 func TestMCPManagerLongListFits(t *testing.T) {
 	m := NewMCPManager()
 	m.SetSize(80, 22)
-	servers := make([]config.MCPServer, 40)
+	servers := make([]contracts.MCPRow, 40)
 	for i := range servers {
-		servers[i] = config.MCPServer{ID: strconv.Itoa(i), Name: strings.Repeat("漢", 100) + "\x1b[31m"}
+		servers[i] = contracts.MCPRow{ID: strconv.Itoa(i), Name: strings.Repeat("漢", 100) + "\x1b[31m"}
 	}
-	m.SetData(messages.DataLoadedMsg{MCPs: servers})
+	m.SetData(messages.DataLoadedMsg{MCPRows: servers})
 	for range servers {
 		uitest.AssertWithin(t, m.View(), 80, 22, "MCP list")
 		m.Update(tea.KeyPressMsg{Code: tea.KeyDown})

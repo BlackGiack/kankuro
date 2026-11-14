@@ -118,7 +118,7 @@ Keyboard exit behavior is defined in section 4.
 
 `running`, `waiting` and `terminated` describe process observations. Waiting is a
 heuristic that the live agent may be awaiting input; the UI highlights it and
-uses the neutral face. Waiting, terminal silence and preview text do not prove
+uses the neutral face. Waiting, terminal silence and report text do not prove
 that a task is complete.
 
 Task completion, questions and blockage are communicated through explicit reports.
@@ -268,8 +268,13 @@ copied into this product specification.
 
 ### 4.2 Open dashboard
 
-Show cards on the left, the selected session's preview in the center, and a
-scrollable session list on the right. Session status and puppet faces distinguish
+Show cards on the left, information for the selected session in the center, and a
+scrollable session list on the right. The center shows retained reports authored by
+the selected session, newest first, with kind and time. If there are no reports,
+it shows changed files from the saved workspace's Git repository or a detailed
+directory listing when the workspace is not a repository. Reports update on
+change; workspace information refreshes every 30 seconds. Failures and stale
+content remain visible, and selection changes never reuse another session's data. Session status and puppet faces distinguish
 running, waiting and terminated processes.
 
 | Key | Action |
