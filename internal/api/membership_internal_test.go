@@ -48,7 +48,7 @@ func TestCardDeletionFailureRemainsRetryable(t *testing.T) {
 	if err == nil || result.State != "deleting" {
 		t.Fatalf("failed deletion: %+v, %v", result, err)
 	}
-	if _, errAt51 := service.LaunchInDashboard(context.Background(), "a", card.ID); errAt51 == nil {
+	if _, errAt51 := launchSessionForTest(context.Background(), service, "a", card.ID); errAt51 == nil {
 		t.Fatal("deleting card could launch")
 	}
 	failing.fail = false
@@ -71,7 +71,7 @@ func TestPersistedScopeMCPCreateUsesCallerDashboard(t *testing.T) {
 		DashboardID: "a", Shared: true, UseTmpWorkspace: true, DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro}})
 	ids := make(map[string]string)
 	for _, dashboard := range []string{"a", "b"} {
-		id, err := service.LaunchInDashboard(context.Background(), dashboard, shared.ID)
+		id, err := launchSessionForTest(context.Background(), service, dashboard, shared.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -148,16 +148,16 @@ func TestReadDashboardDataScopesCardsAndSessions(t *testing.T) {
 		repo.FileRepository,
 		config.IDCard{Name: "shared", Driver: "cat", WorkspaceID: workspaceID, DashboardID: "a", Shared: true},
 	)
-	foreign, err := service.CreateCardInDashboard("b", config.IDCard{Name: "foreign", Driver: "cat", WorkspaceID: workspaceID})
+	foreign, err := createCardForTest(service, "b", config.IDCard{Name: "foreign", Driver: "cat", WorkspaceID: workspaceID})
 	if err != nil || foreign.Shared || foreign.DashboardID != "b" {
 		t.Fatalf("new exclusive card: %+v, %v", foreign, err)
 	}
 	for _, dashboard := range []string{"a", "b"} {
-		if _, err := service.LaunchInDashboard(context.Background(), dashboard, shared.ID); err != nil {
+		if _, err := launchSessionForTest(context.Background(), service, dashboard, shared.ID); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := service.LaunchInDashboard(context.Background(), "b", exclusive.ID); err == nil {
+	if _, err := launchSessionForTest(context.Background(), service, "b", exclusive.ID); err == nil {
 		t.Fatal("foreign exclusive card accepted")
 	}
 	cards, err := repo.ListIDCards()
@@ -171,15 +171,15 @@ func TestReadDashboardDataScopesCardsAndSessions(t *testing.T) {
 	}
 	updated := shared
 	updated.Shared = false
-	if _, err := service.UpdateCardInDashboard("a", shared, updated); err == nil {
+	if _, err := updateCardForTest(service, "a", shared, updated); err == nil {
 		t.Fatal("unshared a card referenced by another dashboard")
 	}
-	if _, err := service.UpdateCardInDashboard("b", shared, updated); err == nil {
+	if _, err := updateCardForTest(service, "b", shared, updated); err == nil {
 		t.Fatal("consumer edited foreign card")
 	}
 	updated = shared
 	updated.Name = "updated shared"
-	shared, err = service.UpdateCardInDashboard("a", shared, updated)
+	shared, err = updateCardForTest(service, "a", shared, updated)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,21 +243,21 @@ func TestReadDashboardDataScopesCardsAndSessions(t *testing.T) {
 	if err := verify(); err == nil {
 		t.Fatal("changed and restored impact accepted stale confirmation")
 	}
-	data, err := service.ReadDashboardData("b")
+	data, err := service.readDashboardData("b")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(data.Cards) != 2 || len(data.Sessions) != 1 || data.Sessions[0].DashboardID != "b" {
 		t.Fatalf("dashboard b data: %+v", data)
 	}
-	data, err = service.ReadDashboardData("a")
+	data, err = service.readDashboardData("a")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(data.Cards) != 2 || len(data.Sessions) != 1 || data.Sessions[0].DashboardID != "a" {
 		t.Fatalf("dashboard a data: %+v", data)
 	}
-	if _, err := service.ReadDashboardData("unknown"); err == nil {
+	if _, err := service.readDashboardData("unknown"); err == nil {
 		t.Fatal("unknown dashboard accepted")
 	}
 	if _, err := service.ConfirmCardDeletion(context.Background(), "a", shared.ID, preflight.Token, true); err == nil {
@@ -278,7 +278,7 @@ func TestReadDashboardDataScopesCardsAndSessions(t *testing.T) {
 	if err != nil || result.State != "deleted" {
 		t.Fatalf("repeat deletion: %+v, %v", result, err)
 	}
-	data, err = service.ReadDashboardData("b")
+	data, err = service.readDashboardData("b")
 	if err != nil || len(data.Cards) != 1 || data.Cards[0].ID != foreign.ID || len(data.Sessions) != 1 ||
 		data.Sessions[0].CardID != shared.ID ||
 		data.Sessions[0].Status == session.StatusTerminated {
@@ -388,10 +388,10 @@ func TestDashboardDeletionManifestClosesAdmissions(t *testing.T) {
 	if err := repo.BeginDashboardDeletion(manifest); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.LaunchInDashboard(context.Background(), "b", shared.ID); err == nil {
+	if _, err := launchSessionForTest(context.Background(), service, "b", shared.ID); err == nil {
 		t.Fatal("foreign use of deleting owner's card accepted")
 	}
-	if _, err := service.CreateCardInDashboard("a", config.IDCard{Name: "new", Driver: "cat", WorkspaceID: workspaceID}); err == nil {
+	if _, err := createCardForTest(service, "a", config.IDCard{Name: "new", Driver: "cat", WorkspaceID: workspaceID}); err == nil {
 		t.Fatal("card created in deleting dashboard")
 	}
 	if _, err := service.UpdateDashboardDetails("a", "changed", ""); err == nil {
@@ -425,7 +425,7 @@ func TestScopedLaunchRevalidatesChangedCardBeforePublication(t *testing.T) {
 	result := make(chan error, 1)
 	ctx := t.Context()
 	cardID := card.ID
-	go func() { _, err := service.LaunchInDashboard(ctx, "b", cardID); result <- err }()
+	go func() { _, err := launchSessionForTest(ctx, service, "b", cardID); result <- err }()
 	select {
 	case <-entered:
 	case <-time.After(5 * time.Second):
@@ -478,7 +478,7 @@ func TestConfirmedCardDeletionCancelsForeignPendingLaunch(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	launchResult := make(chan error, 1)
-	go func() { _, err := service.LaunchInDashboard(ctx, "b", card.ID); launchResult <- err }()
+	go func() { _, err := launchSessionForTest(ctx, service, "b", card.ID); launchResult <- err }()
 	select {
 	case <-entered:
 	case <-ctx.Done():
@@ -497,5 +497,118 @@ func TestConfirmedCardDeletionCancelsForeignPendingLaunch(t *testing.T) {
 	}
 	if len(manager.List()) != 0 {
 		t.Fatal("pending activation was published")
+	}
+}
+func TestReadDashboardOverviewReturnsFocusedOwnedRows(t *testing.T) {
+	service, repo, _, _, workspaceID := newServiceFixture(t)
+	if err := os.WriteFile(
+		filepath.Join(repo.Dir(), config.DashboardsFilename),
+		[]byte("schema_version: 1\ndashboards:\n  - {id: a, name: A, state: active}\n"),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	card := saveCard(t, repo.FileRepository, config.IDCard{
+		Name: "Card", Driver: "cat", Model: "m", WorkspaceID: workspaceID, DashboardID: "a",
+	})
+	data, err := service.ReadDashboardOverview("a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data.Dashboard.ID != "a" || len(data.Cards) != 1 || data.Cards[0].ID != card.ID || !data.Cards[0].Launch.Enabled {
+		t.Fatalf("unexpected inventory: %+v", data)
+	}
+}
+
+func TestReadDashboardInventoryExposesRecoveryActions(t *testing.T) {
+	service, repo, _, _, _ := newServiceFixture(t)
+	if err := os.WriteFile(
+		filepath.Join(repo.Dir(), config.DashboardsFilename),
+		[]byte("schema_version: 1\ndashboards:\n  - {id: a, name: A, state: active}\n"),
+		0o600,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.BeginDashboardDeletion(config.DashboardDeletion{
+		SchemaVersion: 1, DashboardID: "recover", Name: "Recover",
+		AdmissionsDrained: true, HistoryRemoved: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := service.ReadDashboardInventory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, row := range rows {
+		if row.ID == "recover" {
+			found = row.Recoverable && row.Retry.Enabled && !row.Open.Enabled
+		}
+	}
+	if !found {
+		t.Fatalf("recoverable dashboard row missing: %+v", rows)
+	}
+}
+
+func TestReadRegistryChangeTokenIsStableAndOpaque(t *testing.T) {
+	service, _, _, _, _ := newServiceFixture(t)
+	first, err := service.ReadRegistryChangeToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := service.ReadRegistryChangeToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == "" || first != second {
+		t.Fatalf("unstable token: %q != %q", first, second)
+	}
+}
+
+func TestReadDisplayChoicesCopiesArtwork(t *testing.T) {
+	service, repo, _, _, _ := newServiceFixture(t)
+	puppet := config.Puppet{ID: "custom", Name: "Custom", Lines: []string{"first"}}
+	if err := repo.WritePuppetsFile(config.PuppetsFile{Puppets: []config.Puppet{puppet}}); err != nil {
+		t.Fatal(err)
+	}
+	choices := service.ReadDisplayChoices()
+	if choices.Puppets.Err != nil {
+		t.Fatal(choices.Puppets.Err)
+	}
+	var customIndex = -1
+	for index, choice := range choices.Puppets.Value {
+		if choice.ID == "custom" {
+			customIndex = index
+		}
+	}
+	if customIndex < 0 || choices.Puppets.Value[customIndex].Lines[0] != "first" {
+		t.Fatalf("unexpected display choices: %+v", choices)
+	}
+	choices.Puppets.Value[customIndex].Lines[0] = "changed"
+	reloaded := service.ReadDisplayChoices()
+	for _, choice := range reloaded.Puppets.Value {
+		if choice.ID == "custom" && choice.Lines[0] == "first" {
+			return
+		}
+	}
+	t.Fatal("artwork aliases repository data")
+}
+
+func TestSummarizeSessionAvailabilityForUnavailableCurrentCard(t *testing.T) {
+	terminated := session.Snapshot{
+		ID: "stopped", CardID: "deleted", Status: session.StatusTerminated, CardDeleted: true,
+	}
+	row := summarizeSession(terminated, map[string]config.IDCard{})
+	if row.Relaunch.Enabled || row.Switch.Enabled == false {
+		t.Fatalf("deleted current card should block relaunch and allow destination switching: %+v", row)
+	}
+	if !row.Rename.Enabled || !row.OpenIDE.Enabled || !row.OpenTerminal.Enabled {
+		t.Fatalf("stopped-session rename and workspace actions should remain available: %+v", row)
+	}
+
+	unknown := summarizeSession(session.Snapshot{ID: "unknown", Status: session.Status("mystery")}, nil)
+	if unknown.Attach.Enabled || unknown.Relaunch.Enabled || unknown.Stop.Enabled || unknown.Remove.Enabled ||
+		unknown.Switch.Enabled || unknown.Rename.Enabled || unknown.OpenIDE.Enabled || unknown.OpenTerminal.Enabled {
+		t.Fatalf("unknown session state enabled an unspecified action: %+v", unknown)
 	}
 }

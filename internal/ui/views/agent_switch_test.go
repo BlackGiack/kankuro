@@ -6,8 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
@@ -28,11 +28,9 @@ func TestAgentSwitchView_Rendering(t *testing.T) {
 func TestAgentSwitchView_SearchAndFilter(t *testing.T) {
 	v := views.NewAgentSwitchView(views.AgentSwitchCallbacks{})
 	v.SetSize(100, 40)
-	v.SetData(messages.DataLoadedMsg{
-		Cards: []config.IDCard{
-			{ID: "c1", Name: "Alpha"},
-			{ID: "c2", Name: "Beta"},
-		},
+	v.SetRows([]models.CardRow{
+		{ID: "c1", Name: "Alpha", Launch: contracts.Availability{Enabled: true}},
+		{ID: "c2", Name: "Beta", Launch: contracts.Availability{Enabled: true}},
 	})
 
 	// Type 'a'
@@ -84,16 +82,14 @@ func TestAgentSwitchView_EscapeBehavior(t *testing.T) {
 func TestAgentSwitchView_Switch(t *testing.T) {
 	var switchedSessionID, switchedCardID string
 	v := views.NewAgentSwitchView(views.AgentSwitchCallbacks{
-		OnSwitch: func(sid, cid, _ string) tea.Cmd {
+		OnSwitch: func(sid, cid string) tea.Cmd {
 			switchedSessionID = sid
 			switchedCardID = cid
 			return nil
 		},
 	})
 	v.SetSession("s1", "Session 1")
-	v.SetData(messages.DataLoadedMsg{
-		Cards: []config.IDCard{{ID: "c1", Name: "Alpha"}},
-	})
+	v.SetRows([]models.CardRow{{ID: "c1", Name: "Alpha", Driver: "codex", Launch: contracts.Availability{Enabled: true}}})
 
 	// Press Enter
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})

@@ -3,7 +3,7 @@ package components
 import (
 	"fmt"
 
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 )
 
 // SourceItem defines the interface for items in a source list.
@@ -24,7 +24,7 @@ func (s SimpleSourceItem) ID() string      { return "" } // No separate ID
 
 // WorkspaceSourceItem wraps a workspace source configuration.
 type WorkspaceSourceItem struct {
-	Source config.WorkspaceSource
+	Source contracts.SourceRow
 }
 
 func (w WorkspaceSourceItem) Display() string {
@@ -36,7 +36,7 @@ func (w WorkspaceSourceItem) Display() string {
 }
 
 func (w WorkspaceSourceItem) ID() string {
-	return w.Source.ID
+	return w.Source.Identity
 }
 
 // ToSimpleItems converts string slice to SourceItem slice.
@@ -49,10 +49,16 @@ func ToSimpleItems(sources []string) []SourceItem {
 }
 
 // ToWorkspaceItems converts workspace sources to SourceItem slice.
-func ToWorkspaceItems(sources []config.WorkspaceSource) []SourceItem {
+func ToWorkspaceItems(sources []contracts.SourceRow) []SourceItem {
 	items := make([]SourceItem, len(sources))
 	for i, s := range sources {
 		items[i] = WorkspaceSourceItem{Source: s}
 	}
 	return items
 }
+
+// PathSourceItem carries the identity of a path-only source.
+type PathSourceItem struct{ Path, Identity string }
+
+func (p PathSourceItem) Display() string { return p.Path }
+func (p PathSourceItem) ID() string      { return p.Identity }

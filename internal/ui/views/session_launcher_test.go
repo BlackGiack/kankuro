@@ -2,19 +2,17 @@ package views_test
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 func TestSessionLauncher_LaunchFlow(t *testing.T) {
-	card := config.IDCard{ID: "c1", Name: "Test Card"}
+	card := contracts.CardSummary{ID: "c1", Name: "Test Card"}
 
 	l := views.NewSessionLauncher(views.SessionLauncherCallbacks{})
 	l.SetCard(card)
@@ -30,7 +28,7 @@ func TestSessionLauncher_LaunchFlow(t *testing.T) {
 	}
 
 	// Simulate launch success
-	l.SetLaunchResult("s1", nil)
+	l.SetLaunchResult(contracts.LifecycleResult{Effect: contracts.UsableActivation, SessionID: "s1", ProcessActivationID: "p"})
 	if l.LaunchDone() != true {
 		t.Error("Should be marked as launchDone")
 	}
@@ -39,7 +37,9 @@ func TestSessionLauncher_LaunchFlow(t *testing.T) {
 	}
 
 	// Simulate launch failure
-	l.SetLaunchResult("", errors.New("launch failed"))
+	l.SetLaunchResult(
+		contracts.LifecycleResult{Effect: contracts.NoEffect, Diagnostic: "launch failed", DiagnosticCode: contracts.DiagnosticFailure},
+	)
 	if l.LaunchErr() == nil || l.LaunchErr().Error() != "launch failed" {
 		t.Errorf("Expected launch error 'launch failed', got %v", l.LaunchErr())
 	}
@@ -50,18 +50,26 @@ func TestSessionLauncher_LaunchFlow(t *testing.T) {
 // hard "Launch failed" dead end (Esc-only), and Enter must still submit the
 // name and attach - unlike a genuine launch failure, which must not.
 func TestSessionLauncher_PersistFailureStillOffersAttach(t *testing.T) {
-	card := config.IDCard{ID: "c1", Name: "Test Card"}
-	persistErr := fmt.Errorf("%w: disk full", session.ErrPersistFailed)
+	card := contracts.CardSummary{ID: "c1", Name: "Test Card"}
+	persistErr := errors.New("session state could not be saved: disk full")
 
 	var setNameCalled bool
 	l := views.NewSessionLauncher(views.SessionLauncherCallbacks{
-		OnSetNameAsync: func(_, _ string) tea.Cmd {
+		OnSetNameAsync: func(_, _, _ string) tea.Cmd {
 			setNameCalled = true
 			return func() tea.Msg { return nil }
 		},
 	})
 	l.SetCard(card)
-	l.SetLaunchResult("s1", persistErr)
+	l.SetLaunchResult(
+		contracts.LifecycleResult{
+			Effect:              contracts.UsableActivation,
+			SessionID:           "s1",
+			ProcessActivationID: "p",
+			Diagnostic:          persistErr.Error(),
+			DiagnosticCode:      contracts.DiagnosticPersistence,
+		},
+	)
 
 	view := l.View()
 	if strings.Contains(view, "Launch failed") {
@@ -91,17 +99,23 @@ func TestSessionLauncher_PersistFailureStillOffersAttach(t *testing.T) {
 // process ever started, the view must show the hard failure and Enter must
 // not attempt to attach or submit a name.
 func TestSessionLauncher_FatalFailureBlocksAttach(t *testing.T) {
-	card := config.IDCard{ID: "c1", Name: "Test Card"}
+	card := contracts.CardSummary{ID: "c1", Name: "Test Card"}
 
 	var setNameCalled bool
 	l := views.NewSessionLauncher(views.SessionLauncherCallbacks{
-		OnSetNameAsync: func(_, _ string) tea.Cmd {
+		OnSetNameAsync: func(_, _, _ string) tea.Cmd {
 			setNameCalled = true
 			return func() tea.Msg { return nil }
 		},
 	})
 	l.SetCard(card)
-	l.SetLaunchResult("", errors.New("spawn failed: no such driver"))
+	l.SetLaunchResult(
+		contracts.LifecycleResult{
+			Effect:         contracts.NoEffect,
+			Diagnostic:     "spawn failed: no such driver",
+			DiagnosticCode: contracts.DiagnosticFailure,
+		},
+	)
 
 	view := l.View()
 	if !strings.Contains(view, "Launch failed") {
@@ -121,12 +135,12 @@ func TestSessionLauncher_FatalFailureBlocksAttach(t *testing.T) {
 func TestSessionLauncherWaitsForNameResultAndAllowsRetry(t *testing.T) {
 	calls := 0
 	launcher := views.NewSessionLauncher(views.SessionLauncherCallbacks{
-		OnSetNameAsync: func(_, _ string) tea.Cmd {
+		OnSetNameAsync: func(_, _, _ string) tea.Cmd {
 			calls++
 			return func() tea.Msg { return nil }
 		},
 	})
-	launcher.SetLaunchResult("session", nil)
+	launcher.SetLaunchResult(contracts.LifecycleResult{Effect: contracts.UsableActivation, SessionID: "session", ProcessActivationID: "p"})
 	launcher.SetName("name")
 	_, first := launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if first == nil || calls != 1 {
@@ -142,5 +156,23 @@ func TestSessionLauncherWaitsForNameResultAndAllowsRetry(t *testing.T) {
 	_, retry := launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if retry == nil || calls != 2 {
 		t.Fatal("rename could not be retried")
+	}
+}
+
+func TestSessionLauncherRejectsInvalidAndUncertainOutcomes(t *testing.T) {
+	for _, result := range []contracts.LifecycleResult{
+		{Effect: contracts.UsableActivation, SessionID: "s"},
+		{Effect: "unknown", Diagnostic: "unknown"},
+		{Effect: contracts.UncertainEffect, SessionID: "s", Diagnostic: "teardown uncertain", DiagnosticCode: contracts.DiagnosticUncertain},
+	} {
+		called := false
+		launcher := views.NewSessionLauncher(
+			views.SessionLauncherCallbacks{OnSetNameAsync: func(_, _, _ string) tea.Cmd { called = true; return nil }},
+		)
+		launcher.SetLaunchResult(result)
+		launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		if called || !strings.Contains(launcher.View(), "uncertain") {
+			t.Fatalf("unsafe result enabled naming: %+v", result)
+		}
 	}
 }

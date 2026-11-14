@@ -7,24 +7,36 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/uitest"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
+func dashboardSummaryFixture(id, name, description string, state contracts.DashboardState) contracts.DashboardSummary {
+	row := contracts.DashboardSummary{ID: id, Name: name, Description: description, State: state}
+	if state == contracts.DashboardActive {
+		available := contracts.Availability{Enabled: true}
+		row.Open, row.Edit, row.Delete = available, available, available
+	} else if state == contracts.DashboardDeleting {
+		available := contracts.Availability{Enabled: true}
+		row.Inspect, row.Retry = available, available
+	}
+	return row
+}
+
 func TestDashboardListShowsDeletionPreparationAndStatusErrors(t *testing.T) {
 	tests := []struct {
 		name    string
-		state   string
+		state   contracts.DashboardState
 		key     tea.KeyPressMsg
 		failure tea.Msg
 		success tea.Msg
 	}{
-		{"preflight", config.DashboardActive, tea.KeyPressMsg{Code: tea.KeyDelete},
+		{"preflight", contracts.DashboardActive, tea.KeyPressMsg{Code: tea.KeyDelete},
 			messages.DashboardDeletionPreparedMsg{DashboardID: "a", Err: errors.New("cannot prepare\nreason \x1b]0;unsafe\x07failed")},
 			messages.DashboardDeletionPreparedMsg{DashboardID: "a"}},
-		{"status", config.DashboardDeleting, tea.KeyPressMsg{Code: tea.KeyEnter},
+		{"status", contracts.DashboardDeleting, tea.KeyPressMsg{Code: tea.KeyEnter},
 			messages.DashboardDeletionStatusMsg{DashboardID: "a", Err: errors.New("cannot inspect\nreason \x1b]0;unsafe\x07failed")},
 			messages.DashboardDeletionStatusMsg{DashboardID: "a"}},
 	}
@@ -34,7 +46,7 @@ func TestDashboardListShowsDeletionPreparationAndStatusErrors(t *testing.T) {
 				PreflightDelete: func(string) tea.Cmd { return nil },
 				InspectDelete:   func(string) tea.Cmd { return nil },
 			})
-			v.SetDashboards([]config.Dashboard{{ID: "a", Name: "A", State: tc.state}})
+			v.SetDashboards([]contracts.DashboardSummary{dashboardSummaryFixture("a", "A", "", tc.state)})
 			for _, size := range []struct{ width, height int }{{80, 21}, {120, 37}, {160, 42}} {
 				v.SetSize(size.width, size.height)
 				v.Update(tc.key)
@@ -70,7 +82,7 @@ func assertDashboardDeletionErrorVisible(t *testing.T, view string, width, heigh
 func TestDashboardListBoundsLongDeletionErrorWhenListBecomesEmpty(t *testing.T) {
 	v := views.NewDashboardList(views.DashboardListCallbacks{PreflightDelete: func(string) tea.Cmd { return nil }})
 	v.SetSize(80, 21)
-	v.SetDashboards([]config.Dashboard{{ID: "a", Name: "A", State: config.DashboardActive}})
+	v.SetDashboards([]contracts.DashboardSummary{dashboardSummaryFixture("a", "A", "", contracts.DashboardActive)})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyDelete})
 	v.Update(messages.DashboardDeletionPreparedMsg{DashboardID: "a", Err: errors.New("cleanup: " + strings.Repeat("界", 200))})
 	v.SetDashboards(nil)
@@ -92,7 +104,7 @@ func TestDashboardListRequiresForeignDeletionConfirmation(t *testing.T) {
 		},
 	})
 	v.SetSize(80, 21)
-	v.SetDashboards([]config.Dashboard{{ID: "a", Name: "Factory A", State: config.DashboardActive}})
+	v.SetDashboards([]contracts.DashboardSummary{dashboardSummaryFixture("a", "Factory A", "", contracts.DashboardActive)})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyDelete})
 	if preflightID != "a" {
 		t.Fatalf("preflight ID = %q", preflightID)
@@ -125,16 +137,11 @@ func TestDashboardListFitsAndSanitizesLongContent(t *testing.T) {
 	v := views.NewDashboardList(views.DashboardListCallbacks{})
 	for _, size := range []struct{ width, height int }{{80, 21}, {120, 37}, {160, 42}} {
 		v.SetSize(size.width, size.height)
-		v.SetDashboards(
-			[]config.Dashboard{
-				{
-					ID:          strings.Repeat("id", 200),
-					Name:        strings.Repeat("界", 120) + "\x1b[31m",
-					Description: strings.Repeat("description ", 80),
-					State:       config.DashboardActive,
-				},
-			},
+		row := dashboardSummaryFixture(
+			strings.Repeat("id", 200), strings.Repeat("界", 120)+"\x1b[31m",
+			strings.Repeat("description ", 80), contracts.DashboardActive,
 		)
+		v.SetDashboards([]contracts.DashboardSummary{row})
 		uitest.AssertWithin(t, v.View(), size.width, size.height, "dashboard list")
 		if strings.Contains(v.View(), "\x1b[31m") {
 			t.Fatal("dashboard name retained unsafe escape")
@@ -144,10 +151,15 @@ func TestDashboardListFitsAndSanitizesLongContent(t *testing.T) {
 
 func TestDashboardListOpensSelectedDashboard(t *testing.T) {
 	var opened string
-	v := views.NewDashboardList(views.DashboardListCallbacks{Open: func(d config.Dashboard) tea.Cmd { opened = d.ID; return nil }})
+	v := views.NewDashboardList(views.DashboardListCallbacks{
+		Open: func(d contracts.DashboardSummary) tea.Cmd { opened = d.ID; return nil },
+	})
 	v.SetSize(80, 21)
 	v.SetDashboards(
-		[]config.Dashboard{{ID: "a", Name: "A", State: config.DashboardActive}, {ID: "b", Name: "B", State: config.DashboardActive}},
+		[]contracts.DashboardSummary{
+			dashboardSummaryFixture("a", "A", "", contracts.DashboardActive),
+			dashboardSummaryFixture("b", "B", "", contracts.DashboardActive),
+		},
 	)
 	v.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -185,7 +197,7 @@ func TestDashboardListShowsRetryableDeletionStatus(t *testing.T) {
 			RetryDelete:   func(id string) tea.Cmd { retried = id; return nil },
 		})
 		v.SetSize(80, 21)
-		v.SetDashboards([]config.Dashboard{{ID: "a", Name: "A", State: config.DashboardDeleting}})
+		v.SetDashboards([]contracts.DashboardSummary{dashboardSummaryFixture("a", "A", "", contracts.DashboardDeleting)})
 		v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		if inspected != "a" {
 			t.Fatalf("inspected %q", inspected)
@@ -222,7 +234,7 @@ func TestDashboardListRetriesDeletionWithTheDeleteKey(t *testing.T) {
 		}
 		v := views.NewDashboardList(callbacks)
 		v.SetSize(80, 24)
-		v.SetDashboards([]config.Dashboard{{ID: "a", Name: "A", State: config.DashboardActive}})
+		v.SetDashboards([]contracts.DashboardSummary{dashboardSummaryFixture("a", "A", "", contracts.DashboardActive)})
 		v.Update(tea.KeyPressMsg{Code: key})
 		v.Update(messages.DashboardDeletionPreparedMsg{DashboardID: "a", Err: errors.New("prepare failed")})
 		v.Update(tea.KeyPressMsg{Code: key})
@@ -230,7 +242,7 @@ func TestDashboardListRetriesDeletionWithTheDeleteKey(t *testing.T) {
 			t.Fatalf("delete did not retry failed preparation: %d calls", preflights)
 		}
 		v.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
-		v.SetDashboards([]config.Dashboard{{ID: "a", Name: "A", State: config.DashboardDeleting}})
+		v.SetDashboards([]contracts.DashboardSummary{dashboardSummaryFixture("a", "A", "", contracts.DashboardDeleting)})
 		v.Update(tea.KeyPressMsg{Text: "r", Code: 'r'})
 		if retries != 0 {
 			t.Fatal("obsolete retry binding remains active")
@@ -241,6 +253,33 @@ func TestDashboardListRetriesDeletionWithTheDeleteKey(t *testing.T) {
 		}
 		if !strings.Contains(v.View(), "Delete: retry") || strings.Contains(v.View(), "r: retry") {
 			t.Fatal("retry legend does not match the delete action")
+		}
+	}
+}
+
+func TestDashboardDeletionStatusFailureRetainsPreviousProgress(t *testing.T) {
+	v := views.NewDashboardList(views.DashboardListCallbacks{InspectDelete: func(string) tea.Cmd { return nil }})
+	v.SetSize(80, 21)
+	v.SetDashboards([]contracts.DashboardSummary{dashboardSummaryFixture("a", "A", "", contracts.DashboardDeleting)})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	v.Update(messages.DashboardDeletionStatusMsg{DashboardID: "a", Summary: []string{"retained checkpoint"}})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	v.Update(messages.DashboardDeletionStatusMsg{DashboardID: "a", Err: errors.New("read failed")})
+	if rendered := v.View(); !strings.Contains(rendered, "retained checkpoint") || !strings.Contains(rendered, "read failed") {
+		t.Fatalf("status lost: %s", rendered)
+	}
+}
+
+func TestDeletionResultRetryRequiresKnownPendingIntent(t *testing.T) {
+	for _, allow := range []bool{false, true} {
+		var retried bool
+		v := views.NewDashboardList(views.DashboardListCallbacks{RetryDelete: func(string) tea.Cmd { retried = true; return nil }})
+		v.SetSize(80, 21)
+		v.ShowDeletionResult("d", []string{"outcome"}, allow)
+		v.Update(tea.KeyPressMsg{Code: tea.KeyDelete})
+		if retried != allow {
+			t.Fatalf("allow=%t retried=%t", allow, retried)
 		}
 	}
 }

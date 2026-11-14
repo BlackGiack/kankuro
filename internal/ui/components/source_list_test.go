@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 )
 
@@ -25,17 +25,17 @@ func TestSimpleSourceItem(t *testing.T) {
 func TestWorkspaceSourceItem(t *testing.T) {
 	tests := []struct {
 		name     string
-		source   config.WorkspaceSource
+		source   contracts.SourceRow
 		expected string
 	}{
 		{
 			name:     "non-root",
-			source:   config.WorkspaceSource{Path: "/home/user/project"},
+			source:   contracts.SourceRow{Path: "/home/user/project"},
 			expected: "[ ] /home/user/project",
 		},
 		{
 			name:     "root",
-			source:   config.WorkspaceSource{Path: "/home/user/projects", IsRoot: true},
+			source:   contracts.SourceRow{Path: "/home/user/projects", IsRoot: true},
 			expected: "[R] /home/user/projects",
 		},
 	}

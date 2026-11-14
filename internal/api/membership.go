@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
-	"github.com/google/uuid"
 )
 
 type dashboardWriter interface {
@@ -128,57 +128,6 @@ func (s *Service) UpdateDashboardDetails(id, name, description string) (config.D
 	return updated, err
 }
 
-// CreateCardInDashboard creates a card in an active dashboard. Its zero-value
-// sharing setting is exclusive; the caller may explicitly select shared.
-func (s *Service) CreateCardInDashboard(dashboardID string, card config.IDCard) (config.IDCard, error) {
-	writer, ok := s.repo.(scopedCardWriter)
-	if !ok {
-		return config.IDCard{}, errors.New("card storage unavailable")
-	}
-	var created config.IDCard
-	err := s.sessions.WithCardReferencesAndSnapshot("", func(_ session.CardReferenceImpact, sessions []session.Snapshot) error {
-		inventory, err := s.loadMembershipInventory(sessions)
-		if err != nil {
-			return err
-		}
-		if !inventory.activeDashboard(dashboardID) {
-			return errors.New("dashboard unavailable")
-		}
-		card.ID, card.DashboardID = "", dashboardID
-		created, err = writer.CreateIDCard(card)
-		return err
-	})
-	return created, err
-}
-
-// UpdateCardInDashboard enforces owner-only editing and refuses unsharing while
-// foreign sessions, saved bindings or pending activations reference the card.
-func (s *Service) UpdateCardInDashboard(dashboardID string, expected, updated config.IDCard) (config.IDCard, error) {
-	writer, ok := s.repo.(scopedCardWriter)
-	if !ok {
-		return config.IDCard{}, errors.New("card storage unavailable")
-	}
-	var saved config.IDCard
-	err := s.sessions.WithCardReferencesAndSnapshot(
-		expected.ID,
-		func(impact session.CardReferenceImpact, sessions []session.Snapshot) error {
-			current, err := s.cardOwnedBy(dashboardID, expected.ID, impact, sessions)
-			if err != nil {
-				return err
-			}
-			if !reflect.DeepEqual(current, expected) || updated.ID != current.ID || updated.DashboardID != dashboardID {
-				return errors.New("card changed; reload before saving")
-			}
-			if current.Shared && !updated.Shared && hasForeignCardReferences(impact, dashboardID) {
-				return errors.New("cannot unshare a card referenced by another dashboard")
-			}
-			saved, err = writer.UpdateIDCard(updated)
-			return err
-		},
-	)
-	return saved, err
-}
-
 // CheckSessionInDashboard revalidates human access without using mutable UI state.
 func (s *Service) CheckSessionInDashboard(dashboardID, sessionID string) error {
 	return s.sessions.WithAdmissionSnapshot(func(snapshot session.AdmissionSnapshot) error {
@@ -187,15 +136,33 @@ func (s *Service) CheckSessionInDashboard(dashboardID, sessionID string) error {
 			return err
 		}
 		if !inventory.allowsSession(dashboardID, sessionID) {
-			return errors.New("session is outside dashboard scope")
+			return contracts.ErrSessionScope
 		}
 		return nil
 	})
 }
 
 // AttachInDashboard validates membership at the subscription boundary.
-func (s *Service) AttachInDashboard(dashboardID, sessionID string) (*session.AttachHandle, error) {
-	return s.sessions.AttachChecked(sessionID, func(sessions []session.Snapshot) error {
+func (s *Service) AttachInDashboard(ctx context.Context, dashboardID, sessionID string) (contracts.Attachment, error) {
+	return s.attachInDashboard(ctx, dashboardID, sessionID, "")
+}
+
+// AttachExpectedProcessInDashboard attaches only to the specified process generation.
+func (s *Service) AttachExpectedProcessInDashboard(
+	ctx context.Context,
+	dashboardID, sessionID, processID string,
+) (contracts.Attachment, error) {
+	if processID == "" {
+		return nil, errors.New("expected process identity is required")
+	}
+	return s.attachInDashboard(ctx, dashboardID, sessionID, processID)
+}
+
+func (s *Service) attachInDashboard(ctx context.Context, dashboardID, sessionID, processID string) (contracts.Attachment, error) {
+	check := func(sessions []session.Snapshot) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		inventory, err := s.loadMembershipInventory(sessions)
 		if err != nil {
 			return err
@@ -204,12 +171,30 @@ func (s *Service) AttachInDashboard(dashboardID, sessionID string) (*session.Att
 			return errors.New("session is outside dashboard scope")
 		}
 		return nil
-	})
+	}
+	var handle *session.AttachHandle
+	var err error
+	if processID != "" {
+		handle, err = s.sessions.AttachExpectedProcessChecked(sessionID, processID, check)
+	} else {
+		handle, err = s.sessions.AttachChecked(sessionID, check)
+	}
+	if err != nil {
+		return nil, err
+	}
+	resource := &attachment{handle: handle, closed: make(chan struct{})}
+	if contextErr := ctx.Err(); contextErr != nil {
+		_ = resource.Close()
+		return nil, contextErr
+	}
+	return resource, nil
 }
 
-// RenameInDashboard validates membership at the session mutation boundary.
-func (s *Service) RenameInDashboard(dashboardID, sessionID, name string) error {
-	return s.sessions.SetNameChecked(sessionID, name, func(sessions []session.Snapshot) error {
+func (s *Service) sessionScopeCheckContext(ctx context.Context, dashboardID, sessionID string) func([]session.Snapshot) error {
+	return func(sessions []session.Snapshot) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		inventory, err := s.loadMembershipInventory(sessions)
 		if err != nil {
 			return err
@@ -217,24 +202,8 @@ func (s *Service) RenameInDashboard(dashboardID, sessionID, name string) error {
 		if !inventory.allowsSession(dashboardID, sessionID) {
 			return errors.New("session is outside dashboard scope")
 		}
-		return nil
-	})
-}
-
-// StopInDashboard stops a session owned by the captured dashboard.
-func (s *Service) StopInDashboard(dashboardID, sessionID string) error {
-	if err := s.CheckSessionInDashboard(dashboardID, sessionID); err != nil {
-		return err
+		return ctx.Err()
 	}
-	return s.sessions.Kill(sessionID)
-}
-
-// RemoveInDashboard removes a terminated session owned by the captured dashboard.
-func (s *Service) RemoveInDashboard(dashboardID, sessionID string) error {
-	if err := s.CheckSessionInDashboard(dashboardID, sessionID); err != nil {
-		return err
-	}
-	return s.sessions.Remove(sessionID)
 }
 
 func hasForeignCardReferences(impact session.CardReferenceImpact, ownerID string) bool {
@@ -251,14 +220,16 @@ func hasForeignCardReferences(impact session.CardReferenceImpact, ownerID string
 	return false
 }
 
-// LaunchInDashboard reserves a card and revalidates its configuration before
-// publishing a new session. Dashboard and card mutations must use the same
-// manager-owned admission boundary for this check to provide isolation.
-func (s *Service) LaunchInDashboard(ctx context.Context, dashboardID, cardID string) (string, error) {
-	return s.launchDashboardWithID(ctx, dashboardID, cardID, uuid.NewString(), nil)
+func (s *Service) launchDashboardWithID(ctx context.Context, dashboardID, cardID, sessionID string, name *string) (string, error) {
+	return s.launchDashboardWithIDEvidence(ctx, dashboardID, cardID, sessionID, name, nil)
 }
 
-func (s *Service) launchDashboardWithID(ctx context.Context, dashboardID, cardID, sessionID string, name *string) (string, error) {
+func (s *Service) launchDashboardWithIDEvidence(
+	ctx context.Context,
+	dashboardID, cardID, sessionID string,
+	name *string,
+	evidence *session.ActivationResult,
+) (string, error) {
 	launchCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	release, err := s.sessions.ReserveCardReferenceForDashboardWithCancel(
@@ -289,13 +260,26 @@ func (s *Service) launchDashboardWithID(ctx context.Context, dashboardID, cardID
 		}
 		return nil
 	}
-	return s.sessions.LaunchInDashboardWithIDContext(launchCtx, sessionID, dashboardID, bundle.Card,
+	result := s.sessions.LaunchInDashboardWithIDResult(launchCtx, sessionID, dashboardID, bundle.Card,
 		bundle.Skills, bundle.Personas, bundle.MCPs, publicationCheck, name)
+	if evidence != nil {
+		*evidence = result
+	}
+	return sessionID, result.Err
 }
 
 // SwitchInDashboard retains session membership while revalidating the target
 // session and destination card before activation publication.
 func (s *Service) SwitchInDashboard(ctx context.Context, dashboardID, sessionID, cardID string, choice session.ConversationChoice) error {
+	return s.switchInDashboardEvidence(ctx, dashboardID, sessionID, cardID, choice, nil)
+}
+
+func (s *Service) switchInDashboardEvidence(
+	ctx context.Context,
+	dashboardID, sessionID, cardID string,
+	choice session.ConversationChoice,
+	evidence *session.ActivationResult,
+) error {
 	activationCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	release, err := s.sessions.ReserveCardReferenceForDashboardWithCancel(
@@ -332,8 +316,12 @@ func (s *Service) SwitchInDashboard(ctx context.Context, dashboardID, sessionID,
 		}
 		return nil
 	}
-	return s.sessions.SwitchAgentWithChoiceCheckedContext(activationCtx, sessionID, bundle.Card,
+	result := s.sessions.SwitchAgentWithChoiceCheckedResult(activationCtx, sessionID, bundle.Card,
 		bundle.Skills, bundle.Personas, bundle.MCPs, choice, publicationCheck)
+	if evidence != nil {
+		*evidence = result
+	}
+	return result.Err
 }
 
 func sessionInDashboard(sessions []session.Snapshot, dashboardID, sessionID string) bool {
@@ -348,11 +336,23 @@ func sessionInDashboard(sessions []session.Snapshot, dashboardID, sessionID stri
 // RelaunchInDashboard preserves saved workspace and deployment settings while
 // rejecting a deleted or no-longer-available current card.
 func (s *Service) RelaunchInDashboard(ctx context.Context, dashboardID, sessionID string, choice session.ConversationChoice) error {
+	return s.relaunchInDashboardEvidence(ctx, dashboardID, sessionID, "", choice, nil)
+}
+
+func (s *Service) relaunchInDashboardEvidence(
+	ctx context.Context,
+	dashboardID, sessionID, expectedCardID string,
+	choice session.ConversationChoice,
+	evidence *session.ActivationResult,
+) error {
 	snapshot, exists := s.sessions.GetSession(sessionID)
 	if !exists || snapshot.DashboardID != dashboardID {
 		return errors.New("session is outside dashboard scope")
 	}
 	cardID := snapshot.CardID
+	if expectedCardID != "" && expectedCardID != cardID {
+		return errors.New("session card changed before activation")
+	}
 	activationCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	release, err := s.sessions.ReserveCardReferenceForDashboardWithCancel(
@@ -383,7 +383,11 @@ func (s *Service) RelaunchInDashboard(ctx context.Context, dashboardID, sessionI
 		}
 		return nil
 	}
-	return s.sessions.RelaunchWithChoiceCheckedContext(activationCtx, sessionID, card, choice, publicationCheck)
+	result := s.sessions.RelaunchWithChoiceCheckedResult(activationCtx, sessionID, card, choice, publicationCheck)
+	if evidence != nil {
+		*evidence = result
+	}
+	return result.Err
 }
 
 func sessionUsesCard(sessions []session.Snapshot, dashboardID, sessionID, cardID string) bool {
@@ -406,25 +410,24 @@ func (s *Service) availableDashboardCard(dashboardID, cardID string, sessions []
 	return inventory.cards[cardID], true, nil
 }
 
-// DashboardData is a display snapshot for one explicitly selected dashboard.
-// It is not authorization for a subsequent mutation; admissions must revalidate.
-type DashboardData struct {
+// dashboardData is a backend snapshot used only while deriving focused results.
+type dashboardData struct {
 	Cards    []config.IDCard
 	Sessions []session.Snapshot
 }
 
-// ReadDashboardData returns cards available to and sessions owned by dashboardID.
+// readDashboardData returns cards available to and sessions owned by dashboardID.
 // It refuses an invalid inventory rather than broadening the requested scope.
-func (s *Service) ReadDashboardData(dashboardID string) (DashboardData, error) {
+func (s *Service) readDashboardData(dashboardID string) (dashboardData, error) {
 	sessions := s.sessions.List()
 	inventory, err := s.loadMembershipInventory(sessions)
 	if err != nil {
-		return DashboardData{}, err
+		return dashboardData{}, err
 	}
 	if !inventory.activeDashboard(dashboardID) {
-		return DashboardData{}, errors.New("dashboard unavailable")
+		return dashboardData{}, errors.New("dashboard unavailable")
 	}
-	data := DashboardData{Cards: []config.IDCard{}, Sessions: []session.Snapshot{}}
+	data := dashboardData{Cards: []config.IDCard{}, Sessions: []session.Snapshot{}}
 	for _, card := range inventory.cards {
 		if inventory.allowsCard(dashboardID, card.ID) {
 			data.Cards = append(data.Cards, card)

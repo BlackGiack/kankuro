@@ -132,11 +132,12 @@ func TestQueuedDeliveryCancellationReleasesReservationWithoutSubmitting(t *testi
 			if kind == "notification" {
 				targetID = h.callerID
 			}
-			output, err := h.manager.SubscribeOutput(targetID)
+			outputHandle, err := h.manager.AttachChecked(targetID, func([]session.Snapshot) error { return nil })
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer h.manager.UnsubscribeOutput(targetID, output)
+			defer outputHandle.Close()
+			output := outputHandle.Output
 			var operationID, messageID string
 			if kind == "ordinary" {
 				ctx, cancel := context.WithCancel(context.Background())
@@ -258,11 +259,12 @@ func TestNotificationJournalRejectionRollsBackAndReusesAttempt(t *testing.T) {
 	if _, found, err := h.manager.Messages().FindSend(h.recipientID, requestID); err != nil || found {
 		t.Fatalf("journal rejection retained send receipt: found=%v err=%v", found, err)
 	}
-	output, err := h.manager.SubscribeOutput(h.callerID)
+	outputHandle, err := h.manager.AttachChecked(h.callerID, func([]session.Snapshot) error { return nil })
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer h.manager.UnsubscribeOutput(h.callerID, output)
+	defer outputHandle.Close()
+	output := outputHandle.Output
 	startDeliveryWorker(runner)
 	runner.dispatchNotification(pending[0])
 	timer := time.NewTimer(5 * time.Second)

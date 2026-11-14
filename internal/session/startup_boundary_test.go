@@ -221,9 +221,10 @@ func TestStartupOutputUsesNormalBoundedStream(t *testing.T) {
 	defer m.UnsubscribeOutput(id, subscription)
 	m.mu.RLock()
 	generation := m.sessions[id].generation
+	subscribers := m.sessions[id].Subscribers
 	m.mu.RUnlock()
 	done := make(chan struct{})
-	go func() { defer close(done); m.trackOutput(id, generation, output) }()
+	go func() { defer close(done); m.trackOutput(id, generation, output, subscribers) }()
 	payload := []byte("startup-marker\n")
 	output <- payload
 	select {

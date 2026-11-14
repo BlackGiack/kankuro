@@ -11,377 +11,186 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
-// Card styling .
 const (
-	CardDelegateHeight = 8
-	CardListMinWidth   = 46
-	CardListMinHeight  = 10
-
-	InfoBoxHeight      = 4
-	FaceBoxWidth       = 11
-	FaceBoxHeight      = 5
-	cardListItemGutter = 2
-
-	MaxPillsShown = 4
-	PillTextLimit = 10
+	CardDelegateHeight        = 8
+	CardListMinWidth          = 46
+	CardListMinHeight         = 10
+	InfoBoxHeight             = 4
+	FaceBoxWidth              = 11
+	FaceBoxHeight             = 5
+	cardListItemGutter        = 2
+	MaxPillsShown             = 4
+	PillTextLimit             = 10
+	minimumCardItemWidth      = 36
+	minimumCardTextWidth      = 20
+	cardListHorizontalPadding = 2
 )
 
-// CardListItem wraps IDCard for display in the list.
-type CardListItem struct {
-	Card     config.IDCard
-	Skills   []config.Skill
-	Personas []config.Persona
-}
+type CardListItem struct{ Card models.CardRow }
 
-func (c CardListItem) FilterValue() string {
-	return c.Card.Name + " " + c.Card.Driver + " " + c.Card.Model
-}
+func (c CardListItem) FilterValue() string { return c.Card.FilterKey }
 
-// CardListCallbacks defines callbacks for card actions.
 type CardListCallbacks struct {
-	OnSelect func(config.IDCard) tea.Cmd
-	OnEdit   func(config.IDCard) tea.Cmd
+	OnSelect func(string) tea.Cmd
+	OnEdit   func(string) tea.Cmd
 	OnDelete func(string)
 }
 
-// CardList is a scrollable list of ID cards.
 type CardList struct {
 	component.Base
 
 	list        list.Model
-	cards       []config.IDCard
-	skills      []config.Skill
-	personas    []config.Persona
-	puppets     []config.Puppet
+	cards       []models.CardRow
 	searchQuery string
 	callbacks   CardListCallbacks
 	delegate    cardDelegate
 }
 
-// NewCardList creates a new card list component.
 func NewCardList(callbacks CardListCallbacks) *CardList {
-	delegate := newCardDelegate(nil, nil, nil)
-
+	delegate := newCardDelegate()
 	l := list.New([]list.Item{}, delegate, 0, 0)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
+	return &CardList{list: l, callbacks: callbacks, delegate: delegate}
+}
 
-	return &CardList{
-		list:      l,
-		callbacks: callbacks,
-		delegate:  delegate,
+// SetRows publishes complete display rows and preserves the selected identity.
+func (c *CardList) SetRows(cards []models.CardRow) {
+	selectedID := ""
+	if selected, ok := c.Selected(); ok {
+		selectedID = selected.ID
+	}
+	c.cards = models.CloneCardRows(cards)
+	c.delegate = newCardDelegate()
+	c.list.SetDelegate(c.delegate)
+	c.refreshItems()
+	if selectedID != "" {
+		for index, row := range c.list.Items() {
+			if item, ok := row.(CardListItem); ok && item.Card.ID == selectedID {
+				c.list.Select(index)
+				return
+			}
+		}
 	}
 }
 
-// SetPuppets updates the puppet catalog.
-func (c *CardList) SetPuppets(puppets []config.Puppet) {
-	c.puppets = puppets
-	c.delegate = newCardDelegate(c.skills, c.personas, c.puppets)
-	c.list.SetDelegate(c.delegate)
-}
-
-// SetCards updates the card list data.
-func (c *CardList) SetCards(cards []config.IDCard, skills []config.Skill, personas []config.Persona) {
-	c.cards = cards
-	c.skills = skills
-	c.personas = personas
-	c.delegate = newCardDelegate(skills, personas, c.puppets)
-	c.list.SetDelegate(c.delegate)
-	c.refreshItems()
-}
-
-// SetSearchQuery filters the displayed cards.
-func (c *CardList) SetSearchQuery(query string) {
-	c.searchQuery = query
-	c.refreshItems()
-}
-
-// Selected returns the currently selected card.
-func (c *CardList) Selected() (config.IDCard, bool) {
+func (c *CardList) SetSearchQuery(query string) { c.searchQuery = query; c.refreshItems() }
+func (c *CardList) Selected() (models.CardRow, bool) {
 	item := c.list.SelectedItem()
 	if item == nil {
-		return config.IDCard{}, false
+		return models.CardRow{}, false
 	}
-
-	cardItem, ok := item.(CardListItem)
+	row, ok := item.(CardListItem)
 	if !ok {
-		return config.IDCard{}, false
+		return models.CardRow{}, false
 	}
-	return cardItem.Card, true
+	return models.CloneCardRow(row.Card), true
 }
-
-// Init initializes the component.
-func (c *CardList) Init() tea.Cmd {
-	return nil
-}
-
-// Update handles messages.
+func (c *CardList) Init() tea.Cmd { return nil }
 func (c *CardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	c.list, cmd = c.list.Update(msg)
-
-	// Handle selection events
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		keyCmd := c.handleKey(keyMsg)
-		return c, tea.Batch(cmd, keyCmd)
+		return c, tea.Batch(cmd, c.handleKey(keyMsg))
 	}
-
 	return c, cmd
 }
-
 func (c *CardList) handleKey(keyMsg tea.KeyPressMsg) tea.Cmd {
+	card, ok := c.Selected()
+	if !ok {
+		return nil
+	}
 	switch keyMsg.Code {
 	case tea.KeyEnter:
-		if card, ok := c.Selected(); ok {
-			if c.callbacks.OnSelect != nil {
-				return c.callbacks.OnSelect(card)
-			}
+		if c.callbacks.OnSelect != nil {
+			return c.callbacks.OnSelect(card.ID)
 		}
 	case tea.KeyDelete, tea.KeyBackspace:
-		if card, ok := c.Selected(); ok {
-			if c.callbacks.OnDelete != nil {
-				c.callbacks.OnDelete(card.ID)
-			}
+		if c.callbacks.OnDelete != nil {
+			c.callbacks.OnDelete(card.ID)
 		}
 	default:
-		if keyMsg.Text == "e" {
-			if card, ok := c.Selected(); ok {
-				if c.callbacks.OnEdit != nil {
-					return c.callbacks.OnEdit(card)
-				}
-			}
+		if keyMsg.Text == "e" && c.callbacks.OnEdit != nil {
+			return c.callbacks.OnEdit(card.ID)
 		}
 	}
 	return nil
 }
-
-// View renders the card list.
-func (c *CardList) View() string {
-	return c.list.View()
-}
-
-// SetSize implements component.Model.
+func (c *CardList) View() string { return c.list.View() }
 func (c *CardList) SetSize(width, height int) {
 	c.Base.SetSize(width, height)
 	c.list.SetSize(width, height)
 }
-
-// Cards returns the underlying cards.
-func (c *CardList) Cards() []config.IDCard {
-	return c.cards
-}
-
-// FilteredCards returns the currently filtered cards.
-func (c *CardList) FilteredCards() []config.IDCard {
-	return c.filterCards()
-}
-
-// Select selects the item at the given index.
-func (c *CardList) Select(index int) {
-	c.list.Select(index)
-}
-
-// refreshItems rebuilds the list items from filtered cards.
+func (c *CardList) Cards() []models.CardRow         { return models.CloneCardRows(c.cards) }
+func (c *CardList) FilteredCards() []models.CardRow { return models.CloneCardRows(c.filterCards()) }
+func (c *CardList) Select(index int)                { c.list.Select(index) }
 func (c *CardList) refreshItems() {
 	filtered := c.filterCards()
 	items := make([]list.Item, 0, len(filtered))
-
 	for _, card := range filtered {
-		skillList := getSkillsForCard(card, c.skills)
-		personaList := getPersonasForCard(card, c.personas)
-
-		items = append(items, CardListItem{
-			Card:     card,
-			Skills:   skillList,
-			Personas: personaList,
-		})
+		items = append(items, CardListItem{Card: card})
 	}
-
 	c.list.SetItems(items)
 }
-
-// filterCards applies the search query filter.
-func (c *CardList) filterCards() []config.IDCard {
-	return Filter(c.cards, c.searchQuery, func(card config.IDCard) string {
-		return card.Name + " " + card.Driver + " " + card.Model
-	})
+func (c *CardList) filterCards() []models.CardRow {
+	return Filter(c.cards, c.searchQuery, func(card models.CardRow) string { return card.FilterKey })
 }
 
-// cardDelegate handles rendering custom card items.
-type cardDelegate struct {
-	height   int
-	skills   []config.Skill
-	personas []config.Persona
-	puppets  []config.Puppet
-}
+type cardDelegate struct{ height int }
 
-func newCardDelegate(skills []config.Skill, personas []config.Persona, puppets []config.Puppet) cardDelegate {
-	return cardDelegate{
-		height:   CardDelegateHeight,
-		skills:   skills,
-		personas: personas,
-		puppets:  puppets,
-	}
-}
-
+func newCardDelegate() cardDelegate                            { return cardDelegate{height: CardDelegateHeight} }
 func (d cardDelegate) Height() int                             { return d.height }
 func (d cardDelegate) Spacing() int                            { return 0 }
 func (d cardDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
-
 func (d cardDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	cardItem, ok := item.(CardListItem)
 	if !ok {
 		return
 	}
-	selected := index == m.Index()
-	content := RenderCardItem(cardItem.Card, d.skills, d.personas, d.puppets, selected, m.Width())
+	content := RenderCardItem(cardItem.Card, index == m.Index(), m.Width())
 	fmt.Fprint(w, lipgloss.NewStyle().PaddingLeft(cardListItemGutter).Render(content))
 }
 
-// RenderCardItem renders a single card's display.
-func RenderCardItem(card config.IDCard, skills []config.Skill, personas []config.Persona,
-	puppets []config.Puppet, selected bool, listWidth int) string {
+func RenderCardItem(card models.CardRow, selected bool, listWidth int) string {
 	const bordersPadding = 2
-	cardItemWidth := max(36, listWidth-bordersPadding-2) //nolint:mnd // to not stick to borders
+	cardItemWidth := max(minimumCardItemWidth, listWidth-bordersPadding-cardListHorizontalPadding)
 	infoBoxWidth := cardItemWidth - FaceBoxWidth - bordersPadding
-	truncateLen := max(20, cardItemWidth-FaceBoxWidth-bordersPadding-1) //nolint:mnd // puppet separator
-
-	skillNames := getSelectedNames(card.SkillIDs, func(id string) (string, bool) {
-		for _, s := range skills {
-			if s.ID == id {
-				return s.Name, true
-			}
-		}
-		return "", false
-	})
-
-	personaNames := getSelectedNames(card.PersonaIDs, func(id string) (string, bool) {
-		for _, p := range personas {
-			if p.ID == id {
-				return p.Name, true
-			}
-		}
-		return "", false
-	})
-
-	pills := renderPills(skillNames, personaNames, infoBoxWidth)
+	truncateLen := max(minimumCardTextWidth, cardItemWidth-FaceBoxWidth-bordersPadding-1)
+	pills := renderPills(card.SkillNames, card.PersonaNames, infoBoxWidth)
 	skillsLine := lipgloss.JoinHorizontal(lipgloss.Top, pills...)
-
-	// Clip, never wrap: a word-wrapped art line becomes two lines and grows the
-	// face box, which shatters the card. The built-in puppets all fit; this
-	// only affects user puppets drawn larger than the box. The face box's left
-	// border takes one of its FaceBoxWidth columns.
-	puppetStr := ClipBlock(RenderAgentPuppet(card.Puppet, puppets), FaceBoxWidth-1, FaceBoxHeight)
-
+	puppetStr := ClipBlock(RenderPuppetArtwork(card.PuppetName, card.PuppetBuiltin, card.PuppetLines), FaceBoxWidth-1, FaceBoxHeight)
 	driverLine := fmt.Sprintf("%s | %s", card.Driver, card.Model)
-
 	titleStyle := lipgloss.NewStyle().Bold(true)
 	descStyle := lipgloss.NewStyle().Foreground(styles.Gray)
-
 	if selected {
 		titleStyle = titleStyle.Foreground(styles.HighlightColor)
 	}
-
 	infoLines := []string{
 		titleStyle.Render(truncate(DisplayText(card.Name), truncateLen)),
 		descStyle.Render(truncate(DisplayText(driverLine), truncateLen)),
 		"",
 		skillsLine,
 	}
-
-	// MaxWidth is a backstop, not the primary fit: if any line ever comes out
-	// wider than the slot, it is truncated here rather than widening the row -
-	// a too-wide row makes the outer card border wrap it, which pushes the
-	// face box onto new lines at the left edge and shatters the card.
-	infoBox := lipgloss.NewStyle().
-		Width(infoBoxWidth).
-		MaxWidth(infoBoxWidth).
-		Height(InfoBoxHeight).
-		Render(strings.Join(infoLines, "\n"))
-
+	infoBox := lipgloss.NewStyle().Width(infoBoxWidth).MaxWidth(infoBoxWidth).Height(InfoBoxHeight).Render(strings.Join(infoLines, "\n"))
 	faceBg := styles.DeepCharcoal
 	if selected {
 		faceBg = styles.PrimaryColor
 	}
-
-	faceBoxStyle := lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder(), false, false, false, true).
-		BorderForeground(styles.PrimaryColor).
-		Background(styles.DeepCharcoal).
-		Align(lipgloss.Center, lipgloss.Center)
-
-	faceBox := faceBoxStyle.
-		Width(FaceBoxWidth).
-		MaxWidth(FaceBoxWidth).
-		Height(FaceBoxHeight).
-		Background(faceBg).
-		Foreground(styles.White).
-		Render(puppetStr)
-
+	faceBox := lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, false, false, true).BorderForeground(styles.PrimaryColor).
+		Background(styles.DeepCharcoal).Align(lipgloss.Center, lipgloss.Center).Width(FaceBoxWidth).MaxWidth(FaceBoxWidth).
+		Height(FaceBoxHeight).Background(faceBg).Foreground(styles.White).Render(puppetStr)
 	content := lipgloss.JoinHorizontal(lipgloss.Top, infoBox, faceBox)
-
 	borderColor := styles.Gray
 	if selected {
 		borderColor = styles.PrimaryColor
 	}
-
-	return lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(borderColor).
-		Width(cardItemWidth).
-		Render(content)
-}
-
-// Helper functions
-
-func getSkillsForCard(card config.IDCard, allSkills []config.Skill) []config.Skill {
-	if len(card.SkillIDs) == 0 {
-		return nil
-	}
-	selected := make(map[string]struct{}, len(card.SkillIDs))
-	for _, id := range card.SkillIDs {
-		selected[id] = struct{}{}
-	}
-	var result []config.Skill
-	for _, s := range allSkills {
-		if _, ok := selected[s.ID]; ok {
-			result = append(result, s)
-		}
-	}
-	return result
-}
-
-func getPersonasForCard(card config.IDCard, allPersonas []config.Persona) []config.Persona {
-	if len(card.PersonaIDs) == 0 {
-		return nil
-	}
-	selected := make(map[string]struct{}, len(card.PersonaIDs))
-	for _, id := range card.PersonaIDs {
-		selected[id] = struct{}{}
-	}
-	var result []config.Persona
-	for _, p := range allPersonas {
-		if _, ok := selected[p.ID]; ok {
-			result = append(result, p)
-		}
-	}
-	return result
-}
-
-func getSelectedNames(ids []string, resolver func(string) (string, bool)) []string {
-	var names []string
-	for _, id := range ids {
-		if name, ok := resolver(id); ok {
-			names = append(names, name)
-		}
-	}
-	return names
+	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(borderColor).Width(cardItemWidth).Render(content)
 }
 
 // renderPills renders the capability pills for one card row, fitted to

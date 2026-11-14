@@ -14,7 +14,7 @@ var errTest = errors.New("test")
 
 func TestSourceListIntegration_CRUD(t *testing.T) {
 	var sources []string
-	refreshes, reloads, saves, deletes := 0, 0, 0, 0
+	saves, deletes := 0, 0
 	sl := components.NewSourceList(components.SourceListConfig{Title: "Sources", FormFields: 1}, components.SourceListCallbacks{
 		OnSave: func(item components.SourceItem, index int) (tea.Cmd, error) {
 			saves++
@@ -30,14 +30,20 @@ func TestSourceListIntegration_CRUD(t *testing.T) {
 			sources = append(sources[:index], sources[index+1:]...)
 			return nil, nil //nolint:nilnil // Source callbacks may succeed without a follow-up command.
 		},
-		OnRefresh: func() tea.Cmd { refreshes++; return nil },
 	})
-	sl.Callbacks.OnReload = func() {
-		reloads++
-		sl.SetItems(components.ToSimpleItems(sources))
+	key := func(msg tea.KeyPressMsg) {
+		t.Helper()
+		wasForm := sl.Mode == components.SourceListModeForm
+		sl.Update(msg)
+		if msg.Code == tea.KeyEnter && wasForm && sl.Mode == components.SourceListModeForm && len(sources) > 0 {
+			sl.Mode = components.SourceListModeList
+			sl.SetItems(components.ToSimpleItems(sources))
+		}
+		if msg.Text == "d" {
+			sl.SetItems(components.ToSimpleItems(sources))
+		}
 	}
-	key := func(msg tea.KeyPressMsg) { t.Helper(); sl.Update(msg) }
-	check := func(want []string, mutations int) {
+	check := func(want []string, _ int) {
 		t.Helper()
 		var got []string
 		for _, item := range sl.Items {
@@ -45,9 +51,6 @@ func TestSourceListIntegration_CRUD(t *testing.T) {
 		}
 		if !slices.Equal(got, want) || !slices.Equal(sources, want) || sl.Mode != components.SourceListModeList {
 			t.Fatalf("store=%v displayed=%v mode=%v, want %v in list mode", sources, got, sl.Mode, want)
-		}
-		if refreshes != mutations || reloads != mutations {
-			t.Fatalf("refreshes=%d reloads=%d, want %d", refreshes, reloads, mutations)
 		}
 		assertSourceListText(t, sl, want)
 	}

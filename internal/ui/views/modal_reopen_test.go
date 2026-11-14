@@ -26,7 +26,7 @@ type reopenModal interface {
 func TestModalsForgetConfirmationOnReopen(t *testing.T) {
 	workspacePicker := func() reopenModal {
 		m := views.NewWorkspacePickerModal()
-		m.SetWorkspaces([]config.Workspace{{ID: "w1", Name: "one", Path: "/one"}})
+		m.SetWorkspaces(workspaceOptions([]config.Workspace{{ID: "w1", Name: "one", Path: "/one"}}))
 		return m
 	}
 

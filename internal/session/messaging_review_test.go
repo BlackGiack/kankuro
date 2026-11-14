@@ -594,3 +594,111 @@ func historyBytes(t *testing.T, data messageStoreData) int {
 }
 
 func slicesClone[T any](items []T) []T { return append([]T(nil), items...) }
+
+func TestReportSignalTracksDeliveryEvictionOfLegacyReplies(t *testing.T) {
+	store, targetID := seedMessageHistoryNearCapacity(t)
+	// This fixture has retained replies but no request receipts.
+	general := store.Changed()
+	reports := store.ReportsChanged()
+	if err := store.UpdateDelivery(targetID, MessageSubmitted, "small warning"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-general:
+	default:
+		t.Fatal("delivery update did not notify general waiters")
+	}
+	select {
+	case <-reports:
+		t.Fatal("delivery update changed no retained reports")
+	default:
+	}
+
+	if err := store.UpdateDelivery(targetID, MessageSubmitted, strings.Repeat("w", messageReportLimitBytes)); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-reports:
+	default:
+		t.Fatal("delivery eviction of legacy replies did not notify report readers")
+	}
+	if _, err := store.GetMessage("m-000"); err == nil {
+		t.Fatal("expected eviction of the oldest message with reports")
+	}
+}
+
+func TestReportSignalSkipsReplayAndFailedWrite(t *testing.T) {
+	store, err := NewMessageStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	message := MessageRecord{
+		ID: "message", DashboardID: "dash", SenderSessionID: "sender",
+		RecipientSessionID: "recipient", RecipientActivationID: "activation", Text: "task",
+	}
+	if _, err = store.CreateIntent(message, "send", SendFingerprint("recipient", "activation", "task")); err != nil {
+		t.Fatal(err)
+	}
+	first := store.ReportsChanged()
+	if _, err = store.RecordReply("recipient", "activation", "report", message.ID, "progress", "done"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-first:
+	default:
+		t.Fatal("persisted report did not notify readers")
+	}
+	next := store.ReportsChanged()
+	if _, err = store.RecordReply("recipient", "activation", "report", message.ID, "progress", "done"); err != nil {
+		t.Fatal(err)
+	}
+	store.path = filepath.Dir(store.path)
+	if _, err = store.RecordReply("recipient", "activation", "new-report", message.ID, "progress", "new"); err == nil {
+		t.Fatal("expected the report write to fail")
+	}
+	select {
+	case <-next:
+		t.Fatal("a replay or failed write notified report readers")
+	default:
+	}
+}
+
+func TestReportSignalTracksSuccessfulRollback(t *testing.T) {
+	store, err := NewMessageStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	message := MessageRecord{
+		ID: "message", DashboardID: "dash", SenderSessionID: "sender",
+		RecipientSessionID: "recipient", RecipientActivationID: "activation", Text: "task",
+	}
+	if _, err = store.CreateIntent(message, "send", SendFingerprint("recipient", "activation", "task")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = store.RecordReply("recipient", "activation", "report", message.ID, "progress", "done"); err != nil {
+		t.Fatal(err)
+	}
+	signal := store.ReportsChanged()
+	path := store.path
+	store.path = filepath.Dir(path)
+	if err = store.RollbackIntent("sender", "send", message.ID); err == nil {
+		t.Fatal("expected rollback persistence failure")
+	}
+	if retained, getErr := store.GetMessage(message.ID); getErr != nil || len(retained.Replies) != 1 {
+		t.Fatalf("failed rollback changed retained reports: %+v, %v", retained, getErr)
+	}
+	select {
+	case <-signal:
+		t.Fatal("failed rollback woke report readers")
+	default:
+	}
+	store.path = path
+	if err = store.RollbackIntent("sender", "send", message.ID); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-signal:
+	default:
+		t.Fatal("successful rollback did not notify readers")
+	}
+}

@@ -7,7 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
@@ -24,7 +24,7 @@ func TestSettingsView_New(t *testing.T) {
 
 func TestSettingsView_SetSettings(t *testing.T) {
 	v := views.NewSettingsView(views.SettingsCallbacks{})
-	cfg := config.AppSettings{
+	cfg := contracts.Settings{
 		IDECommand:               "code $PATH",
 		ShowPersonasInCardEditor: false,
 		ShowMCPsInCardEditor:     true,
@@ -41,7 +41,7 @@ func TestSettingsView_SetSettings(t *testing.T) {
 
 func TestSettingsView_SwitchToEditMode(t *testing.T) {
 	v := views.NewSettingsView(views.SettingsCallbacks{})
-	v.SetSettings(config.AppSettings{IDECommand: "existing"})
+	v.SetSettings(contracts.Settings{IDECommand: "existing"})
 
 	model, _ := v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v = model.(*views.SettingsView)
@@ -55,10 +55,10 @@ func TestSettingsView_SwitchToEditMode(t *testing.T) {
 }
 
 func TestSettingsView_SaveInEditMode(t *testing.T) {
-	var saved config.AppSettings
+	var saved contracts.Settings
 
 	v := views.NewSettingsView(views.SettingsCallbacks{
-		OnSave: func(settings config.AppSettings) tea.Cmd {
+		OnSave: func(settings contracts.Settings) tea.Cmd {
 			saved = settings
 			return func() tea.Msg { return nil }
 		},
@@ -80,6 +80,7 @@ func TestSettingsView_SaveInEditMode(t *testing.T) {
 
 func TestSettingsView_ToggleRows(t *testing.T) {
 	v := views.NewSettingsView(views.SettingsCallbacks{})
+	v.SetSettings(contracts.Settings{ShowPersonasInCardEditor: true, ShowMCPsInCardEditor: true})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
@@ -101,15 +102,15 @@ func TestSettingsView_ToggleRows(t *testing.T) {
 }
 
 func TestSettingsView_EnterSavesFromToggleRow(t *testing.T) {
-	var saved config.AppSettings
+	var saved contracts.Settings
 
 	v := views.NewSettingsView(views.SettingsCallbacks{
-		OnSave: func(settings config.AppSettings) tea.Cmd {
+		OnSave: func(settings contracts.Settings) tea.Cmd {
 			saved = settings
 			return func() tea.Msg { return messages.ClearErrorMsg{} }
 		},
 	})
-	v.SetSettings(config.AppSettings{
+	v.SetSettings(contracts.Settings{
 		IDECommand:               "code $PATH",
 		ShowPersonasInCardEditor: true,
 		ShowMCPsInCardEditor:     false,
@@ -134,12 +135,12 @@ func TestSettingsView_EnterSavesFromToggleRow(t *testing.T) {
 }
 
 func TestSettingsView_TerminalCommandFocusSaveAndCancel(t *testing.T) {
-	var saved config.AppSettings
-	v := views.NewSettingsView(views.SettingsCallbacks{OnSave: func(value config.AppSettings) tea.Cmd {
+	var saved contracts.Settings
+	v := views.NewSettingsView(views.SettingsCallbacks{OnSave: func(value contracts.Settings) tea.Cmd {
 		saved = value
 		return nil
 	}})
-	v.SetSettings(config.AppSettings{IDECommand: "ide", TerminalCommand: "terminal"})
+	v.SetSettings(contracts.Settings{IDECommand: "ide", TerminalCommand: "terminal"})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	v.TerminalInput().SetValue(" xterm \"$PATH\" ")
@@ -166,7 +167,7 @@ func TestSettingsView_LongCommandsStayWithinSize(t *testing.T) {
 	command := strings.Repeat("é界\tline\n\x1b[31m", 50)
 	for _, size := range []struct{ width, height int }{{80, 20}, {120, 36}} {
 		v := views.NewSettingsView(views.SettingsCallbacks{})
-		v.SetSettings(config.AppSettings{IDECommand: command, TerminalCommand: command})
+		v.SetSettings(contracts.Settings{IDECommand: command, TerminalCommand: command})
 		v.SetSize(size.width, size.height)
 		assertSettingsFits(t, v, size.width, size.height, false)
 		v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -196,7 +197,7 @@ func assertSettingsFits(t *testing.T, v *views.SettingsView, width, height int, 
 
 func TestSettingsView_CancelEdit(t *testing.T) {
 	v := views.NewSettingsView(views.SettingsCallbacks{})
-	v.SetSettings(config.AppSettings{IDECommand: "original"})
+	v.SetSettings(contracts.Settings{IDECommand: "original"})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	v.Input().SetValue("changed")
 
@@ -234,7 +235,7 @@ func TestSettingsView_NavigateDashboard(t *testing.T) {
 
 func TestSettingsView_View_DisplayMode(t *testing.T) {
 	v := views.NewSettingsView(views.SettingsCallbacks{})
-	v.SetSettings(config.AppSettings{
+	v.SetSettings(contracts.Settings{
 		IDECommand:               "code $PATH",
 		ShowPersonasInCardEditor: true,
 		ShowMCPsInCardEditor:     false,

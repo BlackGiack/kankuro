@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 )
@@ -41,14 +42,14 @@ func TestCardDeletionRetriesPendingWorkspaceCleanupAfterRestart(t *testing.T) {
 		config.IDCard{Name: "shared", Driver: "cat", WorkspaceID: workspaceID, DashboardID: "a", Shared: true, UseTmpWorkspace: true},
 	)
 	foreign := saveCard(t, repo.FileRepository, config.IDCard{Name: "foreign", Driver: "cat", WorkspaceID: workspaceID, DashboardID: "b"})
-	survivingID, err := service.LaunchInDashboard(context.Background(), "b", foreign.ID)
+	survivingID, err := launchSessionForTest(context.Background(), service, "b", foreign.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	launch := make(chan error, 1)
-	go func() { _, launchErr := service.LaunchInDashboard(ctx, "b", shared.ID); launch <- launchErr }()
+	go func() { _, launchErr := launchSessionForTest(ctx, service, "b", shared.ID); launch <- launchErr }()
 	var destination string
 	select {
 	case destination = <-entered:
@@ -94,8 +95,23 @@ func TestCardDeletionRetriesPendingWorkspaceCleanupAfterRestart(t *testing.T) {
 	if updated.WorkspaceID == shared.WorkspaceID {
 		t.Fatal("new workspace was not discovered")
 	}
-	if _, errAt97 := service.UpdateCardInDashboard("a", shared, updated); errAt97 != nil {
-		t.Fatal(errAt97)
+	editor, err := service.LoadCardEditor("a", shared.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = service.UpdateEditorCard(contracts.UpdateCardInput{
+		DashboardID: "a", CardID: shared.ID, ExpectedRevision: editor.Revision,
+		Changes: contracts.CardChanges{WorkspaceID: contracts.Change[string]{Present: true, Value: updated.WorkspaceID}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, err := service.loadCard(shared.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.WorkspaceID != updated.WorkspaceID {
+		t.Fatalf("saved workspace = %q, want %q", saved.WorkspaceID, updated.WorkspaceID)
 	}
 	preflight, err := service.PreflightCardDeletion("a", shared.ID)
 	if err != nil || !preflight.RequiresForeignConfirmation {

@@ -406,7 +406,7 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	if createSecondCardErr != nil {
 		t.Fatal(createSecondCardErr)
 	}
-	callerID, launchErr := service.LaunchInDashboard(context.Background(), "default", callerCard.ID)
+	callerID, launchErr := launchSessionForTest(context.Background(), service, "default", callerCard.ID)
 	if launchErr != nil {
 		t.Fatalf("launch controller: %v", launchErr)
 	}
@@ -414,11 +414,12 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	if !found {
 		t.Fatal("controller disappeared")
 	}
-	controllerOutput, subscribeErr := manager.SubscribeOutput(callerID)
+	controllerOutputHandle, subscribeErr := manager.AttachChecked(callerID, func([]session.Snapshot) error { return nil })
 	if subscribeErr != nil {
 		t.Fatal(subscribeErr)
 	}
-	defer manager.UnsubscribeOutput(callerID, controllerOutput)
+	defer controllerOutputHandle.Close()
+	controllerOutput := controllerOutputHandle.Output
 	mcpConfig, readMCPConfigErr := os.ReadFile(filepath.Join(callerWorkspace, ".kankuro", "mcp-servers.json"))
 	if readMCPConfigErr != nil {
 		t.Fatal(readMCPConfigErr)

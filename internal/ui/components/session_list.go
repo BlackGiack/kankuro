@@ -10,62 +10,49 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 )
 
-// Session styling .
 const (
 	SessionDelegateHeight  = 4
 	registrationErrorWidth = 18
 	conversationLabelWidth = 12
 	conversationIDWidth    = 12
+	waitingStatus          = "waiting"
 )
 
-// SessionListItem wraps session.Snapshot for list display.
 type SessionListItem struct {
-	Session session.Snapshot
-	Card    *config.IDCard // Reference to card for face style
+	Session models.SessionRow
 	Width   int
 }
 
-// SessionListCallbacks defines callbacks for session actions.
 type SessionListCallbacks struct {
-	OnSelect  func(session.Snapshot) tea.Cmd
-	OnAttach  func(sessionID string)
-	OnKill    func(sessionID string)
-	OnDelete  func(sessionID string)
-	OnSwitch  func(sessionID string)
-	OnPreview func(sessionID string) tea.Cmd // Called when selection changes
+	OnSelect    func(models.SessionRow) tea.Cmd
+	OnAttach    func(sessionID string)
+	OnKill      func(sessionID string)
+	OnDelete    func(sessionID string)
+	OnSwitch    func(sessionID string)
+	OnSelection func(sessionID string) tea.Cmd
 }
 
-// SessionList is a scrollable list of active sessions.
 type SessionList struct {
 	component.Base
 
-	list        list.Model
-	sessions    []session.Snapshot
-	cards       []config.IDCard
-	searchQuery string
-	callbacks   SessionListCallbacks
-
-	// Theme colors (should come from shared styles)
+	list           list.Model
+	sessions       []models.SessionRow
+	searchQuery    string
+	callbacks      SessionListCallbacks
 	primaryColor   color.Color
 	highlightColor color.Color
 	gray           color.Color
 }
 
-// NewSessionList creates a new session list component.
 func NewSessionList(callbacks SessionListCallbacks) *SessionList {
-	// Create default delegate with custom styling
 	delegate := list.NewDefaultDelegate()
 	delegate.SetHeight(SessionDelegateHeight)
-
-	// Apply custom styles
 	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.Foreground(lipgloss.Color("#8E44AD"))
 	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.Foreground(lipgloss.Color("240"))
-
 	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
 		Foreground(lipgloss.Color("#16A085")).
 		BorderForeground(lipgloss.Color("#8E44AD")).
@@ -74,117 +61,88 @@ func NewSessionList(callbacks SessionListCallbacks) *SessionList {
 		Foreground(lipgloss.Color("#16A085")).
 		BorderForeground(lipgloss.Color("#8E44AD")).
 		UnsetBackground()
-
 	delegate.Styles.DimmedTitle = delegate.Styles.DimmedTitle.Foreground(lipgloss.Color("240"))
 	delegate.Styles.DimmedDesc = delegate.Styles.DimmedDesc.Foreground(lipgloss.Color("240"))
-
 	l := list.New([]list.Item{}, delegate, 0, 0)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
-	// The bubbles help line ("↑/k up • … • q quit") is wider than a narrow
-	// sessions pane at several widths (it is padded by 2 columns that
-	// Help.Width ignores), which made the pane wrap it and grow two rows. The
-	// dashboard footer already lists the keys, and "q quit" is the dashboard's.
 	l.SetShowHelp(false)
-
 	return &SessionList{
-		list:           l,
-		callbacks:      callbacks,
-		primaryColor:   lipgloss.Color("#8E44AD"),
-		highlightColor: lipgloss.Color("#16A085"),
-		gray:           lipgloss.Color("240"),
+		list: l, callbacks: callbacks, primaryColor: lipgloss.Color("#8E44AD"),
+		highlightColor: lipgloss.Color("#16A085"), gray: lipgloss.Color("240"),
 	}
 }
 
-func (s *SessionList) List() *list.Model { return &s.list }
-
-func (s *SessionList) Sessions() []session.Snapshot { return s.sessions }
-
-// SetSessions updates the session list data.
-func (s *SessionList) SetSessions(sessions []session.Snapshot, cards []config.IDCard) {
-	s.sessions = sessions
-	s.cards = cards
-	s.refreshItems()
+func (s *SessionList) Sessions() []models.SessionRow { return models.CloneSessionRows(s.sessions) }
+func (s *SessionList) Select(index int)              { s.list.Select(index) }
+func (s *SessionList) ItemCount() int                { return len(s.list.Items()) }
+func (s *SessionList) ItemsOnPage() int {
+	return s.list.Paginator.ItemsOnPage(len(s.list.Items()))
 }
 
-// SetSearchQuery filters the displayed sessions.
-func (s *SessionList) SetSearchQuery(query string) {
-	s.searchQuery = query
+// SetRows replaces the visible session inventory and preserves selection by ID.
+func (s *SessionList) SetRows(rows []models.SessionRow) {
+	selectedID := ""
+	if selected, ok := s.Selected(); ok {
+		selectedID = selected.ID
+	}
+	s.sessions = models.CloneSessionRows(rows)
 	s.refreshItems()
+	if selectedID != "" {
+		s.SetSelectedByID(selectedID)
+	}
 }
 
-// Selected returns the currently selected session.
-func (s *SessionList) Selected() (session.Snapshot, bool) {
+func (s *SessionList) SetSearchQuery(query string) { s.searchQuery = query; s.refreshItems() }
+func (s *SessionList) Selected() (models.SessionRow, bool) {
 	item := s.list.SelectedItem()
 	if item == nil {
-		return session.Snapshot{}, false
+		return models.SessionRow{}, false
 	}
-
-	sessionItem, ok := item.(SessionListItem)
+	session, ok := item.(SessionListItem)
 	if !ok {
-		return session.Snapshot{}, false
+		return models.SessionRow{}, false
 	}
-	return sessionItem.Session, true
+	return models.CloneSessionRow(session.Session), true
 }
-
-// SetSelectedByID selects a session by ID.
 func (s *SessionList) SetSelectedByID(sessionID string) {
 	for i, item := range s.list.Items() {
-		if si, ok := item.(SessionListItem); ok {
-			if si.Session.ID == sessionID {
-				s.list.Select(i)
-				return
-			}
+		if row, ok := item.(SessionListItem); ok && row.Session.ID == sessionID {
+			s.list.Select(i)
+			return
 		}
 	}
 }
-
-// Init initializes the component.
-func (s *SessionList) Init() tea.Cmd {
-	return nil
-}
-
-// Update handles messages.
+func (s *SessionList) Init() tea.Cmd { return nil }
 func (s *SessionList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
-	var cmd tea.Cmd
-
-	// Track previous selection for preview sync
 	prevIndex := s.list.Index()
-
+	var cmd tea.Cmd
 	s.list, cmd = s.list.Update(msg)
-
-	// Handle selection change
 	if s.list.Index() != prevIndex {
-		pCmd := s.handleSelectionChange()
-		cmd = tea.Batch(cmd, pCmd)
+		if selectionCmd := s.handleSelectionChange(); selectionCmd != nil {
+			cmd = tea.Batch(cmd, selectionCmd)
+		}
 	}
-
-	// Handle key events
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		s.handleKey(keyMsg)
 	}
-
 	return s, cmd
 }
-
 func (s *SessionList) handleSelectionChange() tea.Cmd {
-	if sel, ok := s.Selected(); ok {
-		if s.callbacks.OnPreview != nil {
-			return s.callbacks.OnPreview(sel.ID)
-		}
+	if selected, ok := s.Selected(); ok && s.callbacks.OnSelection != nil {
+		return s.callbacks.OnSelection(selected.ID)
 	}
 	return nil
 }
-
-func (s *SessionList) handleKey(keyMsg tea.KeyPressMsg) {
-	switch keyMsg.Code {
+func (s *SessionList) handleKey(key tea.KeyPressMsg) {
+	switch key.Code {
 	case tea.KeyEnter:
 		s.handleEnter()
 	case tea.KeyDelete, tea.KeyBackspace:
 		s.handleDelete()
 	default:
-		switch keyMsg.Text {
+		switch key.Text {
 		case "x":
 			s.handleKill()
 		case "s":
@@ -192,197 +150,107 @@ func (s *SessionList) handleKey(keyMsg tea.KeyPressMsg) {
 		}
 	}
 }
-
 func (s *SessionList) handleEnter() {
-	if session, ok := s.Selected(); ok {
-		if s.callbacks.OnAttach != nil {
-			s.callbacks.OnAttach(session.ID)
-		}
+	if row, ok := s.Selected(); ok && s.callbacks.OnAttach != nil {
+		s.callbacks.OnAttach(row.ID)
 	}
 }
-
 func (s *SessionList) handleKill() {
-	if session, ok := s.Selected(); ok {
-		if s.callbacks.OnKill != nil {
-			s.callbacks.OnKill(session.ID)
-		}
+	if row, ok := s.Selected(); ok && s.callbacks.OnKill != nil {
+		s.callbacks.OnKill(row.ID)
 	}
 }
-
 func (s *SessionList) handleDelete() {
-	if session, ok := s.Selected(); ok {
-		if s.callbacks.OnDelete != nil {
-			s.callbacks.OnDelete(session.ID)
-		}
+	if row, ok := s.Selected(); ok && s.callbacks.OnDelete != nil {
+		s.callbacks.OnDelete(row.ID)
 	}
 }
-
 func (s *SessionList) handleSwitch() {
-	if session, ok := s.Selected(); ok {
-		if s.callbacks.OnSwitch != nil {
-			s.callbacks.OnSwitch(session.ID)
-		}
+	if row, ok := s.Selected(); ok && s.callbacks.OnSwitch != nil {
+		s.callbacks.OnSwitch(row.ID)
 	}
 }
-
-// View renders the session list.
-func (s *SessionList) View() string {
-	return s.list.View()
-}
-
-// SetSize implements component.Model.
+func (s *SessionList) View() string { return s.list.View() }
 func (s *SessionList) SetSize(width, height int) {
 	s.Base.SetSize(width, height)
 	s.list.SetSize(width, height)
 }
 
-// refreshItems rebuilds the list items from sessions.
 func (s *SessionList) refreshItems() {
 	previousID := ""
 	if selected, ok := s.Selected(); ok {
 		previousID = selected.ID
 	}
-	// Sort sessions by StartedAt (newest first)
-	sorted := make([]session.Snapshot, len(s.sessions))
-	copy(sorted, s.sessions)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].StartedAt.After(sorted[j].StartedAt)
-	})
-
-	// Apply search filter
+	sorted := append([]models.SessionRow(nil), s.sessions...)
+	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].StartedAt.After(sorted[j].StartedAt) })
 	filtered := s.filterSessions(sorted)
-
-	// Convert to list items
 	items := make([]list.Item, 0, len(filtered))
-	for _, sess := range filtered {
-		// Find card for face style
-		var card *config.IDCard
-		for i := range s.cards {
-			if s.cards[i].ID == sess.CardID {
-				card = &s.cards[i]
-				break
-			}
-		}
-
-		items = append(items, SessionListItem{
-			Session: sess,
-			Card:    card,
-			Width:   s.Width,
-		})
+	for _, row := range filtered {
+		items = append(items, SessionListItem{Session: models.CloneSessionRow(row), Width: s.Width})
 	}
-
 	s.list.SetItems(items)
 	if previousID != "" {
 		s.SetSelectedByID(previousID)
 	}
 }
-
-// filterSessions applies the search query filter.
-func (s *SessionList) filterSessions(sessions []session.Snapshot) []session.Snapshot {
+func (s *SessionList) filterSessions(rows []models.SessionRow) []models.SessionRow {
 	if s.searchQuery == "" {
-		return sessions
+		return rows
 	}
-
 	q := strings.ToLower(s.searchQuery)
-	var filtered []session.Snapshot
-	for _, sess := range sessions {
-		if strings.Contains(strings.ToLower(sess.Name), q) ||
-			strings.Contains(strings.ToLower(sess.CardID), q) {
-			filtered = append(filtered, sess)
+	filtered := make([]models.SessionRow, 0, len(rows))
+	for _, row := range rows {
+		if strings.Contains(strings.ToLower(row.Name), q) || strings.Contains(strings.ToLower(row.CardID), q) {
+			filtered = append(filtered, row)
 		}
 	}
 	return filtered
 }
-
-// FilterSessions exposes the filter logic for testing.
-func (s *SessionList) FilterSessions(sessions []session.Snapshot) []session.Snapshot {
-	return s.filterSessions(sessions)
+func (s *SessionList) FilterSessions(rows []models.SessionRow) []models.SessionRow {
+	return s.filterSessions(rows)
 }
 
-// ===== SessionListItem implements list.Item =====
-
 func (i SessionListItem) Title() string {
-	if i.Session.Status == session.StatusWaiting {
-		return lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF69B4")).
-			Bold(true).
-			Render(DisplayText(i.Session.Name))
+	if i.Session.Status == waitingStatus {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("#FF69B4")).Bold(true).Render(DisplayText(i.Session.Name))
 	}
 	return DisplayText(i.Session.Name)
 }
-
 func (i SessionListItem) Description() string {
-	// Find card name for display
-	cardName := i.Session.CardID
-	if i.Session.CardDeleted {
-		cardName = "deleted card: " + i.Session.CardID
-	} else if i.Card != nil {
-		cardName = i.Card.Name
+	cardName := DisplayText(i.Session.CardName)
+	faceStyle := i.Session.FaceStyle
+	if i.Session.Status == waitingStatus || faceStyle == "" {
+		faceStyle = "neutral"
 	}
-	cardName = DisplayText(cardName)
-
-	// Render face
-	faceStyle := "neutral"
-	if i.Session.Status != session.StatusWaiting && i.Card != nil && i.Card.FaceStyle != "" {
-		faceStyle = i.Card.FaceStyle
-	}
-	face := RenderAgentFace(faceStyle)
-
-	cardLine := cardName + " " + face
+	cardLine := cardName + " " + RenderAgentFace(faceStyle)
 	descLine := fmt.Sprintf("%s pid=%d", i.Session.Status, i.Session.PID)
-	if i.Session.Registration != "" && i.Session.Registration != session.RegistrationUnavailable {
-		descLine += " reg=" + string(i.Session.Registration)
-		if i.Session.RegistrationPersistence == session.RegistrationUnsaved {
+	if i.Session.Registration != "" && i.Session.Registration != "unavailable" {
+		descLine += " reg=" + i.Session.Registration
+		if i.Session.RegistrationPersistence == "unsaved" {
 			descLine += "/not-saved"
 		}
-		if i.Session.RegistrationErr != "" {
-			descLine += " !" + TruncateTail(DisplayText(i.Session.RegistrationErr), registrationErrorWidth)
+		if i.Session.RegistrationError != "" {
+			descLine += " !" + TruncateTail(DisplayText(i.Session.RegistrationError), registrationErrorWidth)
 		}
 	}
-	conversationIdentity := ""
-	for _, binding := range i.Session.Conversations[i.Session.CardID] {
-		if binding.ID == i.Session.ActiveConversationID {
-			conversationIdentity = TruncateTail(
-				DisplayText(binding.Name),
-				conversationLabelWidth,
-			) + ":" + TruncateTail(
-				DisplayText(binding.ID),
-				conversationIDWidth,
-			)
-			break
-		}
-	}
-	if conversationIdentity != "" {
-		descLine += " " + conversationIdentity
+	if i.Session.ActiveConversationID != "" {
+		name := TruncateTail(DisplayText(i.Session.ActiveConversationName), conversationLabelWidth)
+		id := TruncateTail(DisplayText(i.Session.ActiveConversationID), conversationIDWidth)
+		identity := name + ":" + id
+		descLine += " " + identity
 	}
 	if i.Width > 0 {
 		descLine = TruncateHead(DisplayText(descLine), i.Width)
 	}
-
 	const maxWorkspaceLen = 25
-
-	// Session detail (ID or working dir)
-	var detailLine string
-	if i.Session.UseTmpWorkspace {
+	detailLine := "WS: " + TruncateTail(DisplayText(i.Session.WorkingDir), maxWorkspaceLen)
+	if i.Session.TemporaryWorkspace {
 		detailLine = "ID: " + i.Session.ID
-	} else {
-		detailLine = "WS: " + TruncateTail(DisplayText(i.Session.WorkingDir), maxWorkspaceLen)
 	}
-
-	// Apply waiting status styling
-	if i.Session.Status == session.StatusWaiting {
-		cardLine = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF69B4")).
-			Bold(true).
-			Render(cardLine)
-		descLine = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#16A085")).
-			Render(descLine)
+	if i.Session.Status == waitingStatus {
+		cardLine = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF69B4")).Bold(true).Render(cardLine)
+		descLine = lipgloss.NewStyle().Foreground(lipgloss.Color("#16A085")).Render(descLine)
 	}
-
 	return cardLine + "\n" + descLine + "\n" + detailLine
 }
-
-func (i SessionListItem) FilterValue() string {
-	return i.Session.Name
-}
+func (i SessionListItem) FilterValue() string { return i.Session.FilterKey }

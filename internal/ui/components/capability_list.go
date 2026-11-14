@@ -46,12 +46,13 @@ type CapabilityList struct {
 	sourceHint string
 	maxVisible int
 
-	items        []CapabilityItem
-	cursor       int
-	selected     map[string]bool
-	SearchQuery  string
-	focused      bool
-	selectedOnly bool
+	items         []CapabilityItem
+	cursor        int
+	selected      map[string]bool
+	selectedOrder []string
+	SearchQuery   string
+	focused       bool
+	selectedOnly  bool
 }
 
 // NewCapabilityList creates a new capability list.
@@ -79,31 +80,43 @@ func (c *CapabilityList) IsSelected(id string) bool {
 
 // Select marks id as selected.
 func (c *CapabilityList) Select(id string) {
-	c.selected[id] = true
+	if !c.selected[id] {
+		c.selected[id] = true
+		c.selectedOrder = append(c.selectedOrder, id)
+	}
 	c.normalizeCursor()
 }
 
 // Deselect clears id's selection.
 func (c *CapabilityList) Deselect(id string) {
 	delete(c.selected, id)
+	for i, selected := range c.selectedOrder {
+		if selected == id {
+			c.selectedOrder = append(c.selectedOrder[:i], c.selectedOrder[i+1:]...)
+			break
+		}
+	}
 	c.normalizeCursor()
 }
 
 // Toggle flips id's selection state.
 func (c *CapabilityList) Toggle(id string) {
 	if c.selected[id] {
-		delete(c.selected, id)
+		c.Deselect(id)
 	} else {
-		c.selected[id] = true
+		c.Select(id)
 	}
-	c.normalizeCursor()
 }
 
 // SetSelected sets the selected IDs.
 func (c *CapabilityList) SetSelected(ids []string) {
 	c.selected = make(map[string]bool)
+	c.selectedOrder = nil
 	for _, id := range ids {
-		c.selected[id] = true
+		if !c.selected[id] {
+			c.selected[id] = true
+			c.selectedOrder = append(c.selectedOrder, id)
+		}
 	}
 	c.normalizeCursor()
 }
@@ -117,6 +130,11 @@ func (c *CapabilityList) SelectedIDs() []string {
 		}
 	}
 	return ids
+}
+
+// AllSelectedIDs includes selections whose options are temporarily unavailable.
+func (c *CapabilityList) AllSelectedIDs() []string {
+	return append([]string(nil), c.selectedOrder...)
 }
 
 // SetFocused controls focus state.

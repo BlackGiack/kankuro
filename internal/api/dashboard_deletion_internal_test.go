@@ -38,8 +38,8 @@ func TestDashboardCascadeCancelsOwnedAndForeignPendingActivations(t *testing.T) 
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	results := make(chan error, 2)
-	go func() { _, err := service.LaunchInDashboard(ctx, "a", foreign.ID); results <- err }()
-	go func() { _, err := service.LaunchInDashboard(ctx, "b", owned.ID); results <- err }()
+	go func() { _, err := launchSessionForTest(ctx, service, "a", foreign.ID); results <- err }()
+	go func() { _, err := launchSessionForTest(ctx, service, "b", owned.ID); results <- err }()
 	for range 2 {
 		select {
 		case <-entered:
@@ -102,7 +102,7 @@ func TestDashboardCascadeRetriesAfterSessionRowWasRemoved(t *testing.T) {
 	)
 	failing := &failingDashboardSaveRepository{testRepository: repo, failRemoved: true}
 	service := New(failing, manager)
-	id, err := service.LaunchInDashboard(context.Background(), "a", card.ID)
+	id, err := launchSessionForTest(context.Background(), service, "a", card.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,11 +140,11 @@ func TestDashboardCascadeResumesAfterRestart(t *testing.T) {
 		repo.FileRepository,
 		config.IDCard{Name: "shared", Driver: "cat", WorkspaceID: workspaceID, DashboardID: "a", Shared: true, UseTmpWorkspace: true},
 	)
-	idA, err := service.LaunchInDashboard(context.Background(), "a", card.ID)
+	idA, err := launchSessionForTest(context.Background(), service, "a", card.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	idB, err := service.LaunchInDashboard(context.Background(), "b", card.ID)
+	idB, err := launchSessionForTest(context.Background(), service, "b", card.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestDashboardCascadeResumesAfterRestart(t *testing.T) {
 	if err == nil || result.State != "deleting" {
 		t.Fatalf("intent boundary: %+v, %v", result, err)
 	}
-	if _, err := service.LaunchInDashboard(context.Background(), "b", card.ID); err == nil {
+	if _, err := launchSessionForTest(context.Background(), service, "b", card.ID); err == nil {
 		t.Fatal("deleting owner's card remained launchable")
 	}
 	manager.Shutdown()
@@ -197,11 +197,11 @@ func TestDashboardCascadeDeletesOwnedSharedCardsAndPreservesForeignSession(t *te
 	)
 	owned := saveCard(t, repo.FileRepository, config.IDCard{Name: "owned", Driver: "cat", WorkspaceID: workspaceID, DashboardID: "a"})
 	foreign := saveCard(t, repo.FileRepository, config.IDCard{Name: "foreign", Driver: "cat", WorkspaceID: workspaceID, DashboardID: "b"})
-	idA, err := service.LaunchInDashboard(context.Background(), "a", shared.ID)
+	idA, err := launchSessionForTest(context.Background(), service, "a", shared.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	idB, err := service.LaunchInDashboard(context.Background(), "b", shared.ID)
+	idB, err := launchSessionForTest(context.Background(), service, "b", shared.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

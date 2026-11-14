@@ -8,7 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
@@ -25,7 +25,7 @@ func TestMCPForm_New(t *testing.T) {
 
 func TestMCPForm_SetMCP(t *testing.T) {
 	f := views.NewMCPForm(views.MCPFormCallbacks{})
-	mcp := config.MCPServer{
+	mcp := contracts.MCPEditor{
 		Name:    "Test MCP",
 		Command: "node",
 		Args:    []string{"index.js"},
@@ -46,9 +46,9 @@ func TestMCPForm_SetMCP(t *testing.T) {
 }
 
 func TestMCPForm_Submit(t *testing.T) {
-	var savedMCP config.MCPServer
+	var savedMCP contracts.MCPEditor
 	callbacks := views.MCPFormCallbacks{
-		OnSave: func(mcp config.MCPServer) tea.Cmd {
+		OnSave: func(mcp contracts.MCPEditor) tea.Cmd {
 			savedMCP = mcp
 			return nil
 		},
@@ -78,7 +78,7 @@ func TestMCPForm_Submit(t *testing.T) {
 
 func TestMCPForm_EnvRoundTrip_CommasAndOrder(t *testing.T) {
 	f := views.NewMCPForm(views.MCPFormCallbacks{})
-	mcp := config.MCPServer{
+	mcp := contracts.MCPEditor{
 		Name:    "Test MCP",
 		Command: "node",
 		Env: map[string]string{
@@ -103,9 +103,9 @@ func TestMCPForm_EnvRoundTrip_CommasAndOrder(t *testing.T) {
 		t.Fatalf("rendering is not stable: %q vs %q", rendered, again)
 	}
 
-	var saved config.MCPServer
+	var saved contracts.MCPEditor
 	f2 := views.NewMCPForm(views.MCPFormCallbacks{
-		OnSave: func(mcp config.MCPServer) tea.Cmd {
+		OnSave: func(mcp contracts.MCPEditor) tea.Cmd {
 			saved = mcp
 			return nil
 		},
@@ -146,17 +146,17 @@ func TestMCPForm_MalformedEnvPair_ProducesError(t *testing.T) {
 // back. A swapped input index in SetMCP or handleSubmit moves a value into
 // the wrong field and fails here; the drift test cannot see that.
 func TestMCPFormRoundTripsEveryField(t *testing.T) {
-	var saved config.MCPServer
+	var saved contracts.MCPEditor
 	saveCalls := 0
 	f := views.NewMCPForm(views.MCPFormCallbacks{
-		OnSave: func(mcp config.MCPServer) tea.Cmd {
+		OnSave: func(mcp contracts.MCPEditor) tea.Cmd {
 			saved = mcp
 			saveCalls++
 			return nil
 		},
 	})
 
-	want := config.MCPServer{
+	want := contracts.MCPEditor{
 		ID:      "id-1",
 		Name:    "n",
 		Command: "cmd",

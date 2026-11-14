@@ -11,11 +11,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
@@ -51,10 +51,10 @@ type PendingAction struct {
 // DashboardCallbacks defines callbacks for dashboard actions.
 type DashboardCallbacks struct {
 	OnBack          func() tea.Cmd
-	OnEditCard      func(card config.IDCard) tea.Cmd
+	OnEditCard      func(cardID string) tea.Cmd
 	OnRenameSession func(sessionID, name string) tea.Cmd
 
-	OnLaunchCard func(card config.IDCard) tea.Cmd
+	OnLaunchCard func(cardID string) tea.Cmd
 
 	OnAttach   func(sessionID string) tea.Cmd
 	OnRelaunch func(sessionID string) tea.Cmd
@@ -72,7 +72,7 @@ type DashboardCallbacks struct {
 	OnLaunchTerminal      func(sessionID string) tea.Cmd
 }
 
-// Dashboard is the main composite view showing cards, preview, and sessions.
+// Dashboard is the main composite view showing cards, center, and sessions.
 const (
 	cardImpactMargin    = 8
 	cardImpactMaxWidth  = 72
@@ -84,7 +84,7 @@ type Dashboard struct {
 
 	cardList    *components.CardList
 	sessionList *components.SessionList
-	preview     *components.SessionPreview
+	center      *components.SessionCenter
 
 	deleteModal     *components.Modal
 	renameModal     *components.Modal
@@ -105,28 +105,27 @@ type Dashboard struct {
 	pendingFocusName      string
 	pendingFocusWaitName  bool
 	cardImpactOpen        bool
+	cardResultOpen        bool
 	cardImpactID          string
 	cardImpactToken       string
 	cardImpactViewport    viewport.Model
 
-	// Data (passed from App)
-	cards    []config.IDCard
-	sessions []session.Snapshot
-	skills   []config.Skill
-	personas []config.Persona
-	mcps     []config.MCPServer
-	puppets  []config.Puppet
+	cardRows        []models.CardRow
+	sessionRows     []models.SessionRow
+	inventory       contracts.DashboardInventory
+	inventoryLoaded bool
+	displayChoices  contracts.DisplayChoices
 
 	// Layout (computed from size)
 	cardsWidth    int
 	sessionsWidth int
-	previewWidth  int
+	centerWidth   int
 	contentHeight int
 }
 
 // NewDashboard creates a new dashboard view.
 func NewDashboard(callbacks DashboardCallbacks) *Dashboard {
-	preview := components.NewSessionPreview()
+	center := components.NewSessionCenter()
 
 	deleteModal := components.NewModal("Confirm Delete")
 	renameModal := components.NewModal("Rename Session")
@@ -137,7 +136,7 @@ func NewDashboard(callbacks DashboardCallbacks) *Dashboard {
 	d := &Dashboard{
 		cardList:    nil,
 		sessionList: nil,
-		preview:     preview,
+		center:      center,
 		deleteModal: deleteModal,
 		renameModal: renameModal,
 		renameInput: renameInput,
@@ -145,17 +144,10 @@ func NewDashboard(callbacks DashboardCallbacks) *Dashboard {
 		callbacks:   callbacks,
 	}
 
-	d.puppets = []config.Puppet{}
-	d.cardList = components.NewCardList(components.CardListCallbacks{
-		OnSelect: d.callbacks.OnLaunchCard,
-		OnEdit:   d.callbacks.OnEditCard,
-		OnDelete: func(_ string) {
-			// Parent handles via message
-		},
-	})
+	d.cardList = components.NewCardList(components.CardListCallbacks{})
 
 	d.sessionList = components.NewSessionList(components.SessionListCallbacks{
-		OnSelect: func(_ session.Snapshot) tea.Cmd {
+		OnSelect: func(_ models.SessionRow) tea.Cmd {
 			return nil
 		},
 		OnAttach: func(_ string) {
@@ -164,9 +156,9 @@ func NewDashboard(callbacks DashboardCallbacks) *Dashboard {
 		OnKill:   func(_ string) {},
 		OnDelete: func(_ string) {},
 		OnSwitch: func(_ string) {},
-		OnPreview: func(sessionID string) tea.Cmd {
+		OnSelection: func(sessionID string) tea.Cmd {
 			return func() tea.Msg {
-				return messages.SessionPreviewRequestedMsg{SessionID: sessionID}
+				return messages.SessionSelectedMsg{SessionID: sessionID}
 			}
 		},
 	})
@@ -236,7 +228,7 @@ func (d *Dashboard) applyPendingSessionFocus() {
 	if d.pendingFocusSessionID == "" {
 		return
 	}
-	for _, sess := range d.sessions {
+	for _, sess := range d.sessionRows {
 		if sess.ID != d.pendingFocusSessionID {
 			continue
 		}
@@ -256,12 +248,12 @@ func (d *Dashboard) applyPendingSessionFocus() {
 		d.pendingFocusSessionID = ""
 		d.pendingFocusName = ""
 		d.pendingFocusWaitName = false
-		d.syncPreviewSelection()
+		d.syncCenterSelection()
 		return
 	}
 }
 
-func matchesSessionQuery(sess session.Snapshot, query string) bool {
+func matchesSessionQuery(sess models.SessionRow, query string) bool {
 	query = strings.ToLower(query)
 	return query == "" || strings.Contains(strings.ToLower(sess.Name), query) ||
 		strings.Contains(strings.ToLower(sess.CardID), query)
@@ -278,6 +270,28 @@ func (d *Dashboard) ShowCardDeletionImpact(cardID, token string, summary []strin
 		lines = append(lines, components.DisplayText(line))
 	}
 	d.cardImpactViewport.SetContent(strings.Join(lines, "\n"))
+}
+
+// ShowCardDeletionResult displays an execution result without offering confirmation.
+func (d *Dashboard) ShowCardDeletionResult(lines []string) {
+	d.cardImpactOpen = false
+	d.cardResultOpen = true
+	d.cardImpactViewport = viewport.New()
+	d.cardImpactViewport.SetWidth(max(1, min(d.Width-cardImpactMargin, cardImpactMaxWidth)))
+	d.cardImpactViewport.SetHeight(max(1, min(d.Height-cardImpactMargin, cardImpactMaxHeight)))
+	safe := make([]string, 0, len(lines))
+	for _, line := range lines {
+		safe = append(safe, components.DisplayText(line))
+	}
+	d.cardImpactViewport.SetContent(strings.Join(safe, "\n"))
+}
+
+// CancelCardDeletionImpact discards a confirmation belonging to a past visit.
+func (d *Dashboard) CancelCardDeletionImpact() {
+	d.cardImpactOpen = false
+	d.cardResultOpen = false
+	d.cardImpactID = ""
+	d.cardImpactToken = ""
 }
 
 func (d *Dashboard) updateCardImpact(msg tea.Msg) (component.Model, tea.Cmd) {
@@ -300,117 +314,106 @@ func (d *Dashboard) updateCardImpact(msg tea.Msg) (component.Model, tea.Cmd) {
 	return d, cmd
 }
 
-// SetData updates all child components with fresh data.
-func (d *Dashboard) SetData(msg messages.DataLoadedMsg) {
-	if msg.Cards != nil {
-		d.cards = msg.Cards
-		d.cardList.SetCards(d.cards, d.skills, d.personas)
-	}
-	if msg.Sessions != nil {
-		d.sessions = msg.Sessions
-		d.sessionList.SetSessions(d.sessions, d.cards)
-		d.applyPendingSessionFocus()
-	}
-	if msg.Skills != nil {
-		d.skills = msg.Skills
-		if msg.Cards != nil {
-			d.cardList.SetCards(d.cards, d.skills, d.personas)
+// SetInventory applies whichever focused reads succeeded. A failed read leaves
+// its previous cache intact; a non-nil empty result clears that cache.
+func (d *Dashboard) SetInventory(
+	inventory contracts.ReadResult[contracts.DashboardInventory],
+	choices contracts.DisplayChoicesResult,
+) {
+	changed := false
+	if inventory.Attempted && inventory.Err == nil {
+		owned := inventory.Value
+		owned.Cards = append([]contracts.CardSummary(nil), inventory.Value.Cards...)
+		owned.Sessions = append([]contracts.SessionSummary(nil), inventory.Value.Sessions...)
+		for i := range owned.Cards {
+			owned.Cards[i].SkillIDs = append([]string(nil), inventory.Value.Cards[i].SkillIDs...)
+			owned.Cards[i].PersonaIDs = append([]string(nil), inventory.Value.Cards[i].PersonaIDs...)
 		}
+		d.inventory = owned
+		d.inventoryLoaded = true
+		changed = true
 	}
-	if msg.Personas != nil {
-		d.personas = msg.Personas
-		if msg.Cards != nil {
-			d.cardList.SetCards(d.cards, d.skills, d.personas)
+	if choices.Skills.Attempted && choices.Skills.Err == nil {
+		d.displayChoices.Skills = append([]contracts.NamedChoice(nil), choices.Skills.Value...)
+		changed = true
+	}
+	if choices.Personas.Attempted && choices.Personas.Err == nil {
+		d.displayChoices.Personas = append([]contracts.NamedChoice(nil), choices.Personas.Value...)
+		changed = true
+	}
+	if choices.Puppets.Attempted && choices.Puppets.Err == nil {
+		d.displayChoices.Puppets = append([]contracts.PuppetChoice(nil), choices.Puppets.Value...)
+		for i := range d.displayChoices.Puppets {
+			d.displayChoices.Puppets[i].Lines = append([]string(nil), choices.Puppets.Value[i].Lines...)
 		}
+		changed = true
 	}
-	if msg.MCPs != nil {
-		d.mcps = msg.MCPs
-	}
-	if msg.Puppets != nil {
-		d.puppets = msg.Puppets
-		d.cardList.SetPuppets(d.puppets)
-		d.preview.SetPuppets(d.puppets)
-	}
-
-	d.syncPreviewSelection()
-
-	// Update scrollback if it matches current preview. This full-snapshot
-	// path and SetPreviewData (below) both write to d.preview, but never
-	// concurrently: both run on the main Bubble Tea goroutine.
-	if msg.PreviewSessionID != "" && msg.PreviewSessionID == d.preview.SessionID() {
-		d.preview.SetScrollback(msg.PreviewScrollback)
-	}
-}
-
-// SetSessions replaces the session list and synchronizes the preview selection.
-// A nil slice preserves the previous data.
-func (d *Dashboard) SetSessions(sessions []session.Snapshot) {
-	if sessions == nil {
+	if !changed || !d.inventoryLoaded {
 		return
 	}
-	d.sessions = sessions
-	d.sessionList.SetSessions(d.sessions, d.cards)
+	d.cardRows = models.CardRows(d.inventory.Cards, d.displayChoices)
+	d.sessionRows = models.SessionRows(d.inventory.Sessions, d.inventory.Cards, d.displayChoices)
+	d.cardList.SetRows(d.cardRows)
+	d.sessionList.SetRows(d.sessionRows)
 	d.applyPendingSessionFocus()
-	d.syncPreviewSelection()
+	d.syncCenterSelection()
 }
 
-// SetPreviewData implements messages.PreviewReceiver, handling partial,
-// preview-only updates that must never be confused with a full SetData
-// snapshot (see messages.PreviewDataMsg).
-func (d *Dashboard) SetPreviewData(msg messages.PreviewDataMsg) {
-	if msg.SessionID == "" || msg.SessionID != d.preview.SessionID() {
-		return
-	}
-	if msg.IsIncremental {
-		d.preview.AppendScrollback(msg.Scrollback)
-	} else {
-		d.preview.SetScrollback(msg.Scrollback)
-	}
+// SetCenterData applies a detached snapshot for the selected session.
+func (d *Dashboard) SetCenterData(data models.SessionCenterData) { d.center.SetData(data) }
+func (d *Dashboard) CenterReportLimit() int                      { return d.center.ReportLimit() }
+
+func (d *Dashboard) CenterSessionID() string {
+	return d.center.SessionID()
 }
 
-func (d *Dashboard) PreviewSessionID() string {
-	return d.preview.SessionID()
-}
-
-func (d *Dashboard) syncPreviewSelection() {
-	// If there are no sessions at all, clear preview.
-	if len(d.sessions) == 0 {
-		d.preview.Clear()
+func (d *Dashboard) syncCenterSelection() {
+	// If there are no sessions at all, clear center.
+	if len(d.sessionRows) == 0 {
+		d.center.Clear()
 		return
 	}
 
-	// Check if current preview session still exists
+	// Check if current center session still exists
 	currentStillExists := false
-	var currentSess *session.Snapshot
-	if d.preview.SessionID() != "" {
-		for i := range d.sessions {
-			if d.sessions[i].ID == d.preview.SessionID() {
+	var currentSession *models.SessionRow
+	if d.center.SessionID() != "" {
+		for i := range d.sessionRows {
+			if d.sessionRows[i].ID == d.center.SessionID() {
 				currentStillExists = true
-				currentSess = &d.sessions[i]
+				currentSession = &d.sessionRows[i]
 				break
 			}
 		}
 	}
 
-	// If we are NOT in sessions pane AND current preview still exists, just refresh it.
+	// If we are NOT in sessions pane AND current center still exists, just refresh it.
 	if d.focusedPane != PaneSessions && currentStillExists {
-		d.preview.SetSession(currentSess, findCardByID(d.cards, currentSess.CardID))
+		d.center.SetSession(currentSession)
 		return
 	}
 
 	// Otherwise, try to follow selection.
 	selected, ok := d.sessionList.Selected()
 	if !ok {
-		// If nothing selected but we have sessions, pick first
-		if len(d.sessions) > 0 {
-			selected = d.sessions[0]
-		} else {
-			d.preview.Clear()
+		if len(d.sessionRows) == 0 {
+			d.center.Clear()
 			return
 		}
+		currentSession = &d.sessionRows[0]
+	} else {
+		for index := range d.sessionRows {
+			if d.sessionRows[index].ID == selected.ID {
+				currentSession = &d.sessionRows[index]
+				break
+			}
+		}
 	}
-
-	d.preview.SetSession(&selected, findCardByID(d.cards, selected.CardID))
+	if currentSession == nil {
+		d.center.Clear()
+		return
+	}
+	d.center.SetSession(currentSession)
 }
 
 // FocusedPane returns the currently focused pane.
@@ -419,13 +422,13 @@ func (d *Dashboard) FocusedPane() Pane {
 }
 
 // Cards returns the underlying cards.
-func (d *Dashboard) Cards() []config.IDCard {
-	return d.cards
+func (d *Dashboard) Cards() []models.CardRow {
+	return d.cardList.Cards()
 }
 
 // Sessions returns the underlying sessions.
-func (d *Dashboard) Sessions() []session.Snapshot {
-	return d.sessions
+func (d *Dashboard) Sessions() []models.SessionRow {
+	return d.sessionList.Sessions()
 }
 
 // TogglePane switches between cards and sessions.
@@ -448,14 +451,14 @@ func (d *Dashboard) SessionList() *components.SessionList {
 	return d.sessionList
 }
 
-// Preview returns the session preview component.
-func (d *Dashboard) Preview() *components.SessionPreview {
-	return d.preview
+// Center returns the session center component.
+func (d *Dashboard) Center() *components.SessionCenter {
+	return d.center
 }
 
-// SyncPreviewSelection synchronizes preview with selection.
-func (d *Dashboard) SyncPreviewSelection() {
-	d.syncPreviewSelection()
+// SyncCenterSelection synchronizes center with selection.
+func (d *Dashboard) SyncCenterSelection() {
+	d.syncCenterSelection()
 }
 
 // CardsWidth returns the width of the cards pane.
@@ -463,9 +466,9 @@ func (d *Dashboard) CardsWidth() int {
 	return d.cardsWidth
 }
 
-// PreviewWidth returns the width of the preview pane.
-func (d *Dashboard) PreviewWidth() int {
-	return d.previewWidth
+// CenterWidth returns the width of the center pane.
+func (d *Dashboard) CenterWidth() int {
+	return d.centerWidth
 }
 
 // Init initializes the dashboard.
@@ -474,7 +477,7 @@ func (d *Dashboard) Init() tea.Cmd {
 		disableKittyProtocolCmd,
 		d.cardList.Init(),
 		d.sessionList.Init(),
-		d.preview.Init(),
+		d.center.Init(),
 	)
 }
 
@@ -493,6 +496,15 @@ func disableKittyProtocolCmd() tea.Msg {
 
 // Update handles messages.
 func (d *Dashboard) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+	if d.cardResultOpen {
+		if key, ok := msg.(tea.KeyPressMsg); ok && (key.Code == tea.KeyEsc || key.Code == tea.KeyEnter) {
+			d.cardResultOpen = false
+			return d, nil
+		}
+		var cmd tea.Cmd
+		d.cardImpactViewport, cmd = d.cardImpactViewport.Update(msg)
+		return d, cmd
+	}
 	if d.cardImpactOpen {
 		return d.updateCardImpact(msg)
 	}
@@ -561,9 +573,9 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case "c":
 			return d.handleOpenSettings()
 		case "o":
-			return d.handleLaunchSession(d.callbacks.OnLaunchIDE)
+			return d.handleLaunchSession(d.callbacks.OnLaunchIDE, sessionIDEAvailability)
 		case "t":
-			return d.handleLaunchSession(d.callbacks.OnLaunchTerminal)
+			return d.handleLaunchSession(d.callbacks.OnLaunchTerminal, sessionTerminalAvailability)
 		case "a":
 			return d.handleAttach()
 		case "x":
@@ -571,7 +583,7 @@ func (d *Dashboard) handleKey(keyMsg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case "s":
 			return d.handleSwitch()
 		case "r":
-			if card, ok := d.cardList.Selected(); d.focusedPane == PaneCards && ok && card.DeletionState == config.CardDeleting &&
+			if card, ok := d.cardList.Selected(); d.focusedPane == PaneCards && ok && card.Retry.Enabled &&
 				d.callbacks.OnRetryCardDeletion != nil {
 				return d.callbacks.OnRetryCardDeletion(card.ID), true
 			}
@@ -592,16 +604,16 @@ func (d *Dashboard) handleEdit() (tea.Cmd, bool) {
 	//nolint:nestif // Card deletion has separate ownership and confirmation paths.
 	if d.focusedPane == PaneCards {
 		if card, ok := d.cardList.Selected(); ok {
-			if card.DeletionState != "" {
+			if !card.Edit.Enabled && !card.Inspect.Enabled {
 				return nil, true
 			}
 			if d.callbacks.OnEditCard != nil {
-				return d.callbacks.OnEditCard(card), true
+				return d.callbacks.OnEditCard(card.ID), true
 			}
 		}
 	}
 	if d.focusedPane == PaneSessions {
-		if sess, ok := d.sessionList.Selected(); ok {
+		if sess, ok := d.sessionList.Selected(); ok && sess.Rename.Enabled {
 			d.renameSessionID = sess.ID
 			d.renameInput.SetValue(sess.Name)
 			d.renameInput.Focus()
@@ -663,7 +675,16 @@ func (d *Dashboard) handleOpenSettings() (tea.Cmd, bool) {
 	}
 	return nil, true
 }
-func (d *Dashboard) handleLaunchSession(launch func(sessionID string) tea.Cmd) (tea.Cmd, bool) {
+func sessionIDEAvailability(row models.SessionRow) contracts.Availability { return row.OpenIDE }
+
+func sessionTerminalAvailability(row models.SessionRow) contracts.Availability {
+	return row.OpenTerminal
+}
+
+func (d *Dashboard) handleLaunchSession(
+	launch func(sessionID string) tea.Cmd,
+	availability func(models.SessionRow) contracts.Availability,
+) (tea.Cmd, bool) {
 	if d.focusedPane != PaneSessions {
 		return nil, true
 	}
@@ -671,6 +692,9 @@ func (d *Dashboard) handleLaunchSession(launch func(sessionID string) tea.Cmd) (
 	sess, ok := d.sessionList.Selected()
 	if !ok {
 		return nil, true
+	}
+	if available := availability(sess); !available.Enabled {
+		return availabilityFeedback(available), true
 	}
 
 	if launch == nil {
@@ -697,7 +721,7 @@ func (d *Dashboard) handleSearch(keyMsg tea.KeyPressMsg) bool {
 		return true
 	case tea.KeyEnter:
 		d.search.IsActive = false
-		d.syncPreviewSelection()
+		d.syncCenterSelection()
 		return true
 	case tea.KeyBackspace:
 		d.handleSearchBackspace()
@@ -720,7 +744,7 @@ func (d *Dashboard) cancelSearch() {
 	d.search.IsActive = false
 	d.cardList.SetSearchQuery("")
 	d.sessionList.SetSearchQuery("")
-	d.syncPreviewSelection()
+	d.syncCenterSelection()
 }
 
 func (d *Dashboard) handleSearchBackspace() {
@@ -730,7 +754,7 @@ func (d *Dashboard) handleSearchBackspace() {
 	} else if d.focusedPane == PaneSessions && len(d.search.SessionsQuery) > 0 {
 		d.search.SessionsQuery = d.search.SessionsQuery[:len(d.search.SessionsQuery)-1]
 		d.sessionList.SetSearchQuery(d.search.SessionsQuery)
-		d.syncPreviewSelection()
+		d.syncCenterSelection()
 	}
 }
 
@@ -742,7 +766,7 @@ func (d *Dashboard) handleSearchRune(ch rune) {
 		} else {
 			d.search.SessionsQuery += string(ch)
 			d.sessionList.SetSearchQuery(d.search.SessionsQuery)
-			d.syncPreviewSelection()
+			d.syncCenterSelection()
 		}
 	}
 }
@@ -754,13 +778,11 @@ func (d *Dashboard) handleEnter() (tea.Cmd, bool) {
 	}
 
 	if card, ok := d.cardList.Selected(); ok {
-		if card.DeletionState == config.CardDeleting {
-			return func() tea.Msg {
-				return messages.ErrorMsg{Err: errors.New("card deletion in progress; press r to retry")}
-			}, true
+		if !card.Launch.Enabled {
+			return availabilityFeedback(card.Launch), true
 		}
 		if d.callbacks.OnLaunchCard != nil {
-			return d.callbacks.OnLaunchCard(card), true
+			return d.callbacks.OnLaunchCard(card.ID), true
 		}
 	}
 	return nil, true
@@ -772,18 +794,15 @@ func (d *Dashboard) handleSessionEnter() (tea.Cmd, bool) {
 		return nil, true
 	}
 
-	if sess.Status == session.StatusTerminated {
-		if sess.CardDeleted {
-			return func() tea.Msg {
-				return messages.ErrorMsg{Err: errors.New("card deleted: choose another available card")}
-			}, true
-		}
+	if sess.Relaunch.Enabled {
 		if d.callbacks.OnRelaunch != nil {
 			return d.callbacks.OnRelaunch(sess.ID), true
 		}
 		return nil, true
 	}
-
+	if !sess.Attach.Enabled {
+		return availabilityFeedback(firstUnavailable(sess.Relaunch, sess.Attach)), true
+	}
 	if d.callbacks.OnAttach != nil {
 		return d.callbacks.OnAttach(sess.ID), true
 	}
@@ -798,8 +817,11 @@ func (d *Dashboard) handleAttach() (tea.Cmd, bool) {
 	}
 
 	sess, ok := d.sessionList.Selected()
-	if !ok || sess.Status == session.StatusTerminated {
+	if !ok {
 		return nil, true
+	}
+	if !sess.Attach.Enabled {
+		return availabilityFeedback(sess.Attach), true
 	}
 
 	if d.callbacks.OnAttach != nil {
@@ -820,8 +842,8 @@ func (d *Dashboard) handleKill() (tea.Cmd, bool) {
 		return nil, true
 	}
 
-	if sess.Status != session.StatusRunning && sess.Status != session.StatusWaiting {
-		return nil, true
+	if !sess.Stop.Enabled {
+		return availabilityFeedback(sess.Stop), true
 	}
 
 	if d.callbacks.OnKill == nil {
@@ -856,13 +878,11 @@ func (d *Dashboard) handleDeleteSession() (tea.Cmd, bool) {
 		return nil, false
 	}
 
-	if sess.Status != session.StatusTerminated {
-		return func() tea.Msg {
-			return messages.ErrorMsg{Err: errors.New("only terminated sessions can be removed")}
-		}, true
+	if !sess.Remove.Enabled {
+		return availabilityFeedback(sess.Remove), true
 	}
 
-	if sess.UseTmpWorkspace {
+	if sess.TemporaryWorkspace {
 		d.pending = PendingAction{
 			Code:      "delete-session",
 			SessionID: sess.ID,
@@ -886,16 +906,25 @@ func (d *Dashboard) handleDeleteSession() (tea.Cmd, bool) {
 	return cmd, true
 }
 
+func firstUnavailable(values ...contracts.Availability) contracts.Availability {
+	for _, value := range values {
+		if !value.Enabled {
+			return value
+		}
+	}
+	return contracts.Availability{}
+}
+
 func (d *Dashboard) handleDeleteCard() (tea.Cmd, bool) {
 	card, ok := d.cardList.Selected()
 	if !ok {
 		return nil, false
 	}
-	if card.DeletionState == config.CardDeleting {
-		if d.callbacks.OnRetryCardDeletion != nil {
+	if !card.Delete.Enabled {
+		if card.Retry.Enabled && d.callbacks.OnRetryCardDeletion != nil {
 			return d.callbacks.OnRetryCardDeletion(card.ID), true
 		}
-		return nil, true
+		return availabilityFeedback(card.Delete), true
 	}
 
 	d.pending = PendingAction{
@@ -919,7 +948,7 @@ func (d *Dashboard) handleSwitch() (tea.Cmd, bool) {
 	}
 
 	if sess, ok := d.sessionList.Selected(); ok {
-		if sess.Status == session.StatusTerminated {
+		if sess.Switch.Enabled {
 			dashboardID, generation := d.dashboardID, d.dashboardGeneration
 			return func() tea.Msg {
 				return messages.AgentSwitchRequestedMsg{
@@ -930,9 +959,17 @@ func (d *Dashboard) handleSwitch() (tea.Cmd, bool) {
 				}
 			}, true
 		}
+		return availabilityFeedback(sess.Switch), true
 	}
 
 	return nil, false
+}
+
+func availabilityFeedback(value contracts.Availability) tea.Cmd {
+	if value.Enabled || value.Reason == "" {
+		return nil
+	}
+	return func() tea.Msg { return messages.ErrorMsg{Err: errors.New(value.Reason)} }
 }
 
 // updateDeleteModal handles delete confirmation modal.
@@ -977,7 +1014,7 @@ func (d *Dashboard) confirmDelete() (component.Model, tea.Cmd) {
 			if err != nil {
 				return d, func() tea.Msg { return messages.ErrorMsg{Err: err} }
 			}
-			d.syncPreviewSelection()
+			d.syncCenterSelection()
 			return d, cmd
 		}
 	case "delete-card":
@@ -1001,7 +1038,7 @@ func (d *Dashboard) updateFocusedPane(msg tea.Msg) (component.Model, tea.Cmd) {
 		d.sessionList, _ = model.(*components.SessionList)
 		cmd = c
 
-		d.syncPreviewSelection()
+		d.syncCenterSelection()
 	} else {
 		model, c := d.cardList.Update(msg)
 		d.cardList, _ = model.(*components.CardList)
@@ -1013,18 +1050,18 @@ func (d *Dashboard) updateFocusedPane(msg tea.Msg) (component.Model, tea.Cmd) {
 
 // togglePane switches between cards and sessions.
 func (d *Dashboard) togglePane() {
-	if d.focusedPane == PaneCards && len(d.sessions) > 0 {
+	if d.focusedPane == PaneCards && len(d.sessionRows) > 0 {
 		d.focusedPane = PaneSessions
 	} else {
 		d.focusedPane = PaneCards
 	}
-	d.syncPreviewSelection()
+	d.syncCenterSelection()
 }
 
 // SetSize implements component.Model.
 func (d *Dashboard) SetSize(width, height int) {
 	d.Base.SetSize(width, height)
-	if d.cardImpactOpen {
+	if d.cardImpactOpen || d.cardResultOpen {
 		d.cardImpactViewport.SetWidth(max(1, min(width-cardImpactMargin, cardImpactMaxWidth)))
 		d.cardImpactViewport.SetHeight(max(1, min(height-cardImpactMargin, cardImpactMaxHeight)))
 	}
@@ -1032,17 +1069,17 @@ func (d *Dashboard) SetSize(width, height int) {
 	const cardListMinWidth = 46
 
 	d.sessionsWidth = width / dashboardSessionsWidthRatio
-	d.previewWidth = (width / dashboardSessionsWidthRatio) * dashboardPreviewWidthRatio
-	d.cardsWidth = width - d.sessionsWidth - d.previewWidth
+	d.centerWidth = (width / dashboardSessionsWidthRatio) * dashboardCenterWidthRatio
+	d.cardsWidth = width - d.sessionsWidth - d.centerWidth
 
 	if d.cardsWidth < cardListMinWidth {
 		diff := cardListMinWidth - d.cardsWidth
 		d.cardsWidth += diff
-		d.previewWidth -= diff
+		d.centerWidth -= diff
 	}
 	// Below the minimum terminal size the coordinator shows a "too small"
 	// screen instead of this view, but it is still sized; never go negative.
-	d.previewWidth = max(0, d.previewWidth)
+	d.centerWidth = max(0, d.centerWidth)
 
 	// The coordinator sizes the dashboard to (terminal rows - CoordinatorRows).
 	// For the whole render (header + body + footer) to fill the terminal with no
@@ -1052,11 +1089,11 @@ func (d *Dashboard) SetSize(width, height int) {
 	d.contentHeight = paneHeight
 
 	// In border-box, lists must fit inside outer Height - borders (2) - title block (2) = paneHeight - 4.
-	// Preview pane has no title block, so its component fits in outer Height - borders (2) = paneHeight - 2.
-	d.cardList.SetSize(d.cardsWidth-paneBorderRing, paneHeight-paneBorderRing-previewTitleBlock)
-	d.sessionList.SetSize(d.sessionsWidth-paneBorderRing, paneHeight-paneBorderRing-previewTitleBlock)
-	d.preview.SetSize(
-		d.previewWidth-paneBorderRing-2*paneContentGutter,
+	// Center pane has no title block, so its component fits in outer Height - borders (2) = paneHeight - 2.
+	d.cardList.SetSize(d.cardsWidth-paneBorderRing, paneHeight-paneBorderRing-centerTitleBlock)
+	d.sessionList.SetSize(d.sessionsWidth-paneBorderRing, paneHeight-paneBorderRing-centerTitleBlock)
+	d.center.SetSize(
+		d.centerWidth-paneBorderRing-2*paneContentGutter,
 		paneHeight-paneBorderRing,
 	)
 	d.deleteModal.SetSize(width, height)
@@ -1066,6 +1103,11 @@ func (d *Dashboard) SetSize(width, height int) {
 
 // View renders the dashboard.
 func (d *Dashboard) View() string {
+	if d.cardResultOpen {
+		content := "Deletion result\n" + d.cardImpactViewport.View() + "\nEsc: close  ↑/↓: scroll"
+		modal := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).Render(content)
+		return lipgloss.Place(d.Width, d.Height, lipgloss.Center, lipgloss.Center, modal)
+	}
 	if d.cardImpactOpen {
 		content := "Delete this card globally?\n" + d.cardImpactViewport.View() + "\nEnter: confirm  Esc: cancel  ↑/↓: scroll"
 		modal := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).Render(content)
@@ -1099,7 +1141,7 @@ func (d *Dashboard) View() string {
 func (d *Dashboard) renderBase() string {
 	// Build panes
 	leftPane := d.renderCardsPane()
-	centerPane := d.renderPreviewPane()
+	centerPane := d.renderCenterPane()
 	rightPane := d.renderSessionsPane()
 
 	// Join horizontally
@@ -1154,45 +1196,45 @@ func (d *Dashboard) renderCardsPane() string {
 	return style.Render(content)
 }
 
-// renderPreviewPane renders the center pane.
-func (d *Dashboard) renderPreviewPane() string {
+// renderCenterPane renders the center pane.
+func (d *Dashboard) renderCenterPane() string {
 	// Note: MaxWidth/MaxHeight here would clip the right/bottom borders because
 	// they cap the total rendered size *including* the border ring. The inner
-	// SessionPreview already hard-clamps its own output to previewWidth ×
+	// SessionCenter already hard-clamps its own output to centerWidth ×
 	// contentHeight via clampToSize, so the bordered pane below is guaranteed
-	// to be exactly previewWidth+2 × contentHeight+2.
+	// to be exactly centerWidth+2 × contentHeight+2.
 	style := lipgloss.NewStyle().
-		Width(d.previewWidth).
+		Width(d.centerWidth).
 		Height(d.contentHeight).
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(normalBorderColor)
 
-	// Final defensive clamp: even though SessionPreview clamps its own View()
+	// Final defensive clamp: even though SessionCenter clamps its own View()
 	// and the bordered style above adds exactly 2 cells in each dimension,
 	// hard-truncate the rendered pane to the expected outer size as a last
 	// safety net. This is what prevents punctual overflow from a single
 	// unforeseen content shape (malformed escapes, exotic graphemes, etc.)
 	// from breaking the whole dashboard layout.
-	// The preview was sized to (previewWidth, contentHeight + previewTitleBlock)
-	// in SetSize, so its body is up to contentHeight + previewTitleBlock rows.
+	// The center was sized to (centerWidth, contentHeight + centerTitleBlock)
+	// in SetSize, so its body is up to contentHeight + centerTitleBlock rows.
 	// Adding the 2-cell border ring gives the expected bordered pane height.
 	// Cutting this short would shave the bottom border off.
-	content := lipgloss.NewStyle().Padding(0, paneContentGutter).Render(d.preview.View())
+	content := lipgloss.NewStyle().Padding(0, paneContentGutter).Render(d.center.View())
 	rendered := style.Render(content)
-	maxW := d.previewWidth
+	maxW := d.centerWidth
 	maxH := d.contentHeight
 	return components.ClampToSize(rendered, maxW, maxH)
 }
 
 // paneBorderRing is the number of rows/columns added by a 4-side lipgloss
 // border around a pane (1 top + 1 bottom, 1 left + 1 right).
-// previewTitleBlock is the number of rows the cards/sessions panes spend on
-// their internal title + filter/spacer line before the list. The preview pane
+// centerTitleBlock is the number of rows the cards/sessions panes spend on
+// their internal title + filter/spacer line before the list. The center pane
 // has no such title block, so we extend its inner height by the same amount
 // to keep the three panes' bottom borders aligned.
 const (
 	paneBorderRing    = 2
-	previewTitleBlock = 2
+	centerTitleBlock  = 2
 	paneContentGutter = 2
 
 	// paneTitlePadding is the columns the title block's horizontal padding takes
@@ -1251,7 +1293,7 @@ func (d *Dashboard) renderSessionsPane() string {
 		d.search.IsActive && d.focusedPane == PaneSessions, d.sessionsWidth)
 
 	var content string
-	if len(d.sessions) == 0 && !d.search.IsActive && d.search.SessionsQuery == "" {
+	if len(d.sessionRows) == 0 && !d.search.IsActive && d.search.SessionsQuery == "" {
 		// Empty state
 		content = renderEmptySessionsState(d.sessionsWidth, d.sessionList.Height)
 	} else {
@@ -1292,7 +1334,7 @@ func (d *Dashboard) footerText(width int) string {
 	if d.dashboardID != "" {
 		navigation = "[Nav] Tab Esc=Dashboards"
 	}
-	if card, ok := d.cardList.Selected(); d.focusedPane == PaneCards && ok && card.DeletionState == config.CardDeleting {
+	if card, ok := d.cardList.Selected(); d.focusedPane == PaneCards && ok && card.Retry.Enabled {
 		pane = "[Card] r=Retry deletion"
 	}
 	if d.focusedPane == PaneSessions {
@@ -1364,17 +1406,6 @@ func renderEmptySessionsState(width, height int) string {
 		Align(lipgloss.Center, lipgloss.Center).
 		Foreground(styles.Gray).
 		Render(crowASCII)
-}
-
-// Helper functions
-
-func findCardByID(cards []config.IDCard, id string) *config.IDCard {
-	for i := range cards {
-		if cards[i].ID == id {
-			return &cards[i]
-		}
-	}
-	return nil
 }
 
 // Dashboard-specific theme colors.

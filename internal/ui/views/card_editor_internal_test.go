@@ -3,7 +3,7 @@ package views
 import (
 	"testing"
 
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 )
 
 // TestFocusCountMatchesTargets guards against the FocusCount/focusTargets
@@ -44,13 +44,13 @@ func TestVisibleFocusOrder(t *testing.T) {
 	e := NewCardEditor(CardEditorCallbacks{})
 	e.SetDashboardContext("dashboard", false)
 
-	e.settings = config.AppSettings{ShowPersonasInCardEditor: true, ShowMCPsInCardEditor: true}
+	e.settings = models.EditorSettings{ShowPersonas: true, ShowMCPs: true}
 	full := e.visibleFocusOrder()
 	if len(full) != len(focusTargetTable()) {
 		t.Fatalf("with both sections enabled expected all %d targets visible, got %d", len(focusTargetTable()), len(full))
 	}
 
-	e.settings = config.AppSettings{ShowPersonasInCardEditor: false, ShowMCPsInCardEditor: false}
+	e.settings = models.EditorSettings{ShowPersonas: false, ShowMCPs: false}
 	reduced := e.visibleFocusOrder()
 	for _, f := range reduced {
 		if f == FocusPersonas || f == FocusMCPs {
@@ -68,7 +68,7 @@ func TestVisibleFocusOrder(t *testing.T) {
 // hidden.
 func TestCycleFocusWrapsWithBothSectionsHidden(t *testing.T) {
 	e := NewCardEditor(CardEditorCallbacks{})
-	e.SetSettings(config.AppSettings{ShowPersonasInCardEditor: false, ShowMCPsInCardEditor: false})
+	e.SetSettings(models.EditorSettings{ShowPersonas: false, ShowMCPs: false})
 
 	order := e.visibleFocusOrder()
 	e.setFocus(order[len(order)-1])
