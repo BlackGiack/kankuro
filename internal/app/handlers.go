@@ -151,8 +151,9 @@ func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
 	if switchView, ok := c.views[ViewAgentSwitch].(*views.AgentSwitchView); ok && m.Inventory.Attempted && m.Inventory.Err == nil {
 		switchView.SetRows(models.CardRows(m.Inventory.Value.Cards, c.displayChoices))
 	}
+	var conversationRefresh tea.Cmd
 	if c.currentView == ViewConversationChoice {
-		c.refreshConversationChoiceContext()
+		conversationRefresh = c.refreshConversationChoiceContext()
 	}
 	if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok && m.PreviewSessionID != "" &&
 		dashboard.PreviewSessionID() == m.PreviewSessionID {
@@ -161,7 +162,7 @@ func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
 			Scrollback: m.PreviewScrollback,
 		})
 	}
-	return c.maybeSubscribeAutoSelectedPreview()
+	return tea.Batch(conversationRefresh, c.maybeSubscribeAutoSelectedPreview())
 }
 
 // handleSessionsRefreshed applies scoped cards, sessions and preview data to their
@@ -190,8 +191,9 @@ func (c *Coordinator) handleSessionsRefreshed(m messages.SessionsRefreshedMsg) t
 		switchView.SetRows(models.CardRows(m.Inventory.Value.Cards, c.displayChoices))
 	}
 
+	var conversationRefresh tea.Cmd
 	if c.currentView == ViewConversationChoice {
-		c.refreshConversationChoiceContext()
+		conversationRefresh = c.refreshConversationChoiceContext()
 	}
 	if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok && m.PreviewSessionID != "" &&
 		dashboard.PreviewSessionID() == m.PreviewSessionID {
@@ -200,7 +202,7 @@ func (c *Coordinator) handleSessionsRefreshed(m messages.SessionsRefreshedMsg) t
 			Scrollback: m.PreviewScrollback,
 		})
 	}
-	return c.maybeSubscribeAutoSelectedPreview()
+	return tea.Batch(conversationRefresh, c.maybeSubscribeAutoSelectedPreview())
 }
 
 func (c *Coordinator) applyDisplayChoices(results contracts.DisplayChoicesResult) {

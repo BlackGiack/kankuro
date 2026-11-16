@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
@@ -72,13 +73,11 @@ func TestRelaunchLoadsCardWithoutCapabilityRegistries(t *testing.T) {
 
 	failingRepo := &capabilityFailingRepository{Repository: repo}
 	coord := newOpenedCoordinator(failingRepo, sm)
-	var result tea.Msg
-	for _, msg := range collectMsgs(t, coord.DashboardCallbacks().OnRelaunch(sid)) {
-		result = msg
+	result := executePreparedActivation(t, coord, coord.DashboardCallbacks().OnRelaunch(sid))
+	if activation, ok := result.(messages.SessionActivationCompletedMsg); !ok || activation.Result.Effect != contracts.UsableActivation {
+		t.Fatalf("relaunch result = %T (%+v)", result, result)
 	}
-	if _, ok := result.(messages.SessionAttachRequestedMsg); !ok {
-		t.Fatalf("relaunch result = %T (%+v), want SessionAttachRequestedMsg", result, result)
-	}
+
 	if failingRepo.cardsRead == 0 || failingRepo.capabilityReads != 0 {
 		t.Fatalf(
 			"relaunch reads: cards=%d capabilities=%d, want at least one card read and no capability reads",
@@ -124,15 +123,15 @@ func TestCardAndCapabilityLookupFailuresRemainVisible(t *testing.T) {
 	if len(msg) != 1 {
 		t.Fatalf("card read failure messages = %v", msg)
 	}
-	errMsg, ok := msg[0].(messages.ScopedActionFinishedMsg)
-	if !ok || !strings.Contains(errMsg.Err.Error(), "cards unavailable") {
+	errMsg, ok := msg[0].(messages.ConversationPreparedMsg)
+	if !ok || errMsg.Preparation.Diagnostic == "" || !strings.Contains(errMsg.Preparation.Diagnostic, "cards unavailable") {
 		t.Fatalf("card read failure = %T (%+v)", msg[0], msg[0])
 	}
 	failingRepo.cardErr = nil
 	failingRepo.Repository = repositoryWithoutCard{Repository: repo, excludedID: card.ID}
 	msg = collectMsgs(t, coord.DashboardCallbacks().OnRelaunch(sid))
-	errMsg, ok = msg[0].(messages.ScopedActionFinishedMsg)
-	if !ok || errMsg.Err == nil {
+	errMsg, ok = msg[0].(messages.ConversationPreparedMsg)
+	if !ok || (errMsg.Preparation.Diagnostic == "" && errMsg.Preparation.Availability.Enabled) {
 		t.Fatalf("missing card result = %T (%+v)", msg[0], msg[0])
 	}
 
@@ -147,7 +146,8 @@ func TestCardAndCapabilityLookupFailuresRemainVisible(t *testing.T) {
 	if !containsCapabilityError(launchMsgs) || failingRepo.capabilityReads == 0 {
 		t.Fatalf("launch did not propagate capability failure: %v", launchMsgs)
 	}
-	switchMsgs := collectMsgs(t, coord.AgentSwitchCallbacks().OnSwitch(sid, card.ID, ""))
+	coord.Update(messages.AgentSwitchRequestedMsg{SessionID: sid, DashboardID: "default", Generation: 1})
+	switchMsgs := []tea.Msg{executePreparedActivation(t, coord, coord.AgentSwitchCallbacks().OnSwitch(sid, card.ID))}
 	if !containsSwitchCapabilityError(switchMsgs) || failingRepo.capabilityReads == 0 {
 		t.Fatalf("switch did not propagate capability failure: %v", switchMsgs)
 	}
@@ -179,7 +179,7 @@ func (r repositoryWithoutCard) ListIDCards() ([]config.IDCard, error) {
 func containsCapabilityError(msgs []tea.Msg) bool {
 	for _, msg := range msgs {
 		if launch, ok := msg.(messages.SessionLaunchCompletedMsg); ok &&
-			launch.Err != nil && strings.Contains(launch.Err.Error(), "list skills: capability registry unavailable") {
+			launch.Result.Diagnostic != "" && strings.Contains(launch.Result.Diagnostic, "list skills: capability registry unavailable") {
 			return true
 		}
 	}
@@ -188,8 +188,8 @@ func containsCapabilityError(msgs []tea.Msg) bool {
 
 func containsSwitchCapabilityError(msgs []tea.Msg) bool {
 	for _, msg := range msgs {
-		if switched, ok := msg.(messages.AgentSwitchedMsg); ok && switched.Err != nil &&
-			strings.Contains(switched.Err.Error(), "list skills: capability registry unavailable") {
+		if switched, ok := msg.(messages.SessionActivationCompletedMsg); ok && switched.Result.Diagnostic != "" &&
+			strings.Contains(switched.Result.Diagnostic, "list skills: capability registry unavailable") {
 			return true
 		}
 	}

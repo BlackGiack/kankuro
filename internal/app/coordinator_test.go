@@ -150,7 +150,7 @@ func TestCoordinator_DashboardRenameRefreshesWithoutAttachAndSurvivesRestart(t *
 		t.Fatal("rename did not return a save command")
 	}
 	result, ok := submit().(messages.DashboardSessionRenamedMsg)
-	if !ok || result.Err != nil || result.SessionID != sessionID {
+	if !ok || result.Result.Diagnostic != "" || !result.Result.Applied || result.SessionID != sessionID {
 		t.Fatalf("rename result: %+v", result)
 	}
 	_, refresh := coord.Update(result)

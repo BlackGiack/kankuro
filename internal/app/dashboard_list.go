@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 const dashboardDeletionTimeout = 5 * time.Minute
 
 func (c *Coordinator) dashboardListCallbacks() views.DashboardListCallbacks {
-	service := c.actions.service
+	service := c.legacy.service
 	return views.DashboardListCallbacks{
 		Open: func(dashboard contracts.DashboardSummary) tea.Cmd {
 			generation := c.viewGeneration
@@ -135,20 +136,42 @@ func dashboardListCommand(service dashboardInventoryReader, requestID uint64) te
 }
 
 func dashboardCardCommand(
-	service *api.Service,
+	service dashboardInventoryReader,
 	dashboardID, cardID string,
-	generation uint64,
+	generation, request uint64,
 	action messages.DashboardCardAction,
 ) tea.Cmd {
 	return func() tea.Msg {
-		card, err := service.ReadDashboardCardDetail(dashboardID, cardID)
+		inventory, err := service.ReadDashboardOverview(dashboardID)
 		if err != nil {
 			return messages.DashboardCardLoadedMsg{
-				DashboardID: dashboardID, Generation: generation, CardID: cardID, Action: action, Err: err,
+				Request:     request,
+				DashboardID: dashboardID,
+				Generation:  generation,
+				CardID:      cardID,
+				Action:      action,
+				Err:         err,
+			}
+		}
+		for _, card := range inventory.Cards {
+			if card.ID == cardID {
+				return messages.DashboardCardLoadedMsg{
+					Request:     request,
+					DashboardID: dashboardID,
+					Generation:  generation,
+					CardID:      cardID,
+					Action:      action,
+					Card:        card,
+				}
 			}
 		}
 		return messages.DashboardCardLoadedMsg{
-			DashboardID: dashboardID, Generation: generation, CardID: cardID, Action: action, Card: card,
+			Request:     request,
+			DashboardID: dashboardID,
+			Generation:  generation,
+			CardID:      cardID,
+			Action:      action,
+			Err:         errors.New("card unavailable"),
 		}
 	}
 }

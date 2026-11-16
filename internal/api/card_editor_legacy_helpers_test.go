@@ -11,7 +11,7 @@ func createCardForTest(s *Service, dashboard string, c config.IDCard) (config.ID
 	if err != nil {
 		return config.IDCard{}, err
 	}
-	return s.ReadDashboardCardDetail(dashboard, result.CardID)
+	return s.loadCard(result.CardID)
 }
 func updateCardForTest(s *Service, dashboard string, expected, updated config.IDCard) (config.IDCard, error) {
 	revision, err := cardRevision(expected)
@@ -28,5 +28,5 @@ func updateCardForTest(s *Service, dashboard string, expected, updated config.ID
 	if err != nil {
 		return config.IDCard{}, err
 	}
-	return s.ReadDashboardCardDetail(dashboard, result.CardID)
+	return s.loadCard(result.CardID)
 }

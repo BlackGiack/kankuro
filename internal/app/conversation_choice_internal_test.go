@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -102,6 +101,23 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	preparation, err := service.ReadConversationPreparation(
+		context.Background(),
+		contracts.ConversationPreparationRequest{DashboardID: "default", SessionID: sessionID},
+	)
+	if err != nil || len(preparation.Options) != 2 {
+		t.Fatalf("preparation: %+v %v", preparation, err)
+	}
+	originalName := preparation.Options[0].Name
+	preparation.Options[0].Name = "caller mutation"
+	again, err := service.ReadConversationPreparation(
+		context.Background(),
+		contracts.ConversationPreparationRequest{DashboardID: "default", SessionID: sessionID},
+	)
+	if err != nil || again.Options[0].Name != originalName {
+		t.Fatalf("options not detached: %+v %v", again, err)
+	}
+
 	coord := NewCoordinator(repo, manager, service)
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coord.Update(
@@ -115,7 +131,7 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 	coord.Update(request())
 	choiceView := coord.Views()[ViewConversationChoice].(*views.ConversationChoiceView)
 	choiceView.SetSize(80, 20)
-	if selected, ok := choiceView.SelectedBinding(); !ok || selected.ID != "codex-native-id" {
+	if selected, ok := choiceView.SelectedOption(); !ok || selected.NativeID != "codex-native-id" {
 		t.Fatalf("initial compatible selection = %#v, found=%v", selected, ok)
 	}
 
@@ -125,38 +141,34 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 	if _, err := repo.UpdateIDCard(card); err != nil {
 		t.Fatal(err)
 	}
-	_, relaunchRefresh := coord.Update(messages.ErrorMsg{Err: errors.New("stale relaunch choice")})
+	relaunchRefresh := coord.refreshConversationChoiceContext()
 	if relaunchRefresh == nil {
-		t.Fatal("relaunch failure did not request refreshed context")
+		t.Fatal("missing conversation refresh")
 	}
 	coord.Update(relaunchRefresh())
-	selected, ok := choiceView.SelectedBinding()
-	if !ok || selected.ID != "cat-native-id" || selected.Driver != "cat" {
-		t.Fatalf("relaunch refresh selection = %#v, found=%v", selected, ok)
+	if !strings.Contains(choiceView.View(), "no longer available or compatible") {
+		t.Fatal("changed driver did not invalidate selected conversation")
 	}
-	if !strings.Contains(choiceView.View(), "incompatible driver") {
-		t.Fatal("picker did not mark the other driver's saved binding incompatible")
+	if _, cmd := choiceView.Update(tea.KeyPressMsg{Code: tea.KeyEnter}); cmd != nil {
+		t.Fatal("stale choice submitted")
+	}
+	selected, ok := choiceView.SelectedOption()
+	if !ok || selected.NativeID != "cat-native-id" {
+		t.Fatalf("compatible option: %+v", selected)
 	}
 
 	card.Driver = "codex"
 	if _, err := repo.UpdateIDCard(card); err != nil {
 		t.Fatal(err)
 	}
-	_, switchRefresh := coord.Update(
-		messages.AgentSwitchedMsg{
-			DashboardID: "default",
-			Generation:  coord.viewGeneration,
-			SessionID:   sessionID,
-			Err:         errors.New("stale switch choice"),
-		},
-	)
+	switchRefresh := coord.refreshConversationChoiceContext()
 	if switchRefresh == nil {
-		t.Fatal("switch failure did not request refreshed context")
+		t.Fatal("missing second refresh")
 	}
 	coord.Update(switchRefresh())
-	selected, ok = choiceView.SelectedBinding()
-	if !ok || selected.ID != "codex-native-id" || selected.Driver != "codex" {
-		t.Fatalf("switch refresh selection = %#v, found=%v", selected, ok)
+	selected, ok = choiceView.SelectedOption()
+	if !ok || selected.NativeID != "codex-native-id" {
+		t.Fatalf("refreshed compatible option: %+v", selected)
 	}
 
 	preflight, err := service.PreflightCardDeletion("default", card.ID)
@@ -172,8 +184,8 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(coord.refreshData()())
-	if !strings.Contains(choiceView.View(), "destination card was removed") {
+	coord.Update(coord.refreshConversationChoiceContext()())
+	if !strings.Contains(choiceView.View(), "card or dashboard is unavailable") {
 		t.Fatalf("removed destination did not leave an actionable picker error: %s", choiceView.View())
 	}
 	if _, cmd := choiceView.Update(tea.KeyPressMsg{Code: tea.KeyEnter}); cmd != nil {
@@ -182,8 +194,8 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 	if err := manager.Remove(sessionID); err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(coord.refreshSessions()())
-	if !strings.Contains(choiceView.View(), "selected session was removed") {
+	coord.Update(coord.refreshConversationChoiceContext()())
+	if !strings.Contains(choiceView.View(), "session is outside dashboard scope") {
 		t.Fatalf("removed session did not leave an actionable picker error: %s", choiceView.View())
 	}
 }

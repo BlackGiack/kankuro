@@ -106,7 +106,7 @@ func TestCardDeletionRetriesPendingWorkspaceCleanupAfterRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	saved, err := service.ReadDashboardCardDetail("a", shared.ID)
+	saved, err := service.loadCard(shared.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

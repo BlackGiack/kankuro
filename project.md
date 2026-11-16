@@ -47,7 +47,7 @@ the local MCP endpoint for authorized session control and communication.
 | `main.go` | Composition root: embedded skills, config-root lock, repository, drivers, manager, shared service, operation runner, MCP and TUI lifetime. |
 | `internal/configstartup/` | Exclusive root lock, direct initialization of an empty root and strict current-format validation. No configuration conversion. |
 | `internal/config/` | Configuration repository and registries; `dashboards.go`, `card_tombstones.go`, `dashboard_tombstones.go` and `dashboard_deletions.go` persist membership and deletion state. |
-| `internal/api/` | Shared application policy for UI and MCP. `membership.go` contains dashboard-aware human operations; `persisted_scope.go` derives MCP scope; confirmation/deletion files coordinate destructive operations. |
+| `internal/api/` | Shared application policy for UI and MCP. `session_actions.go` and `conversation_actions.go` provide focused session contracts; `membership.go` owns shared dashboard admission and `persisted_scope.go` derives MCP scope; confirmation/deletion files coordinate destructive operations. |
 | `internal/api/messaging.go` | Send/report APIs and `preparedDelivery`, shared intent-publication, submission and cleanup hooks. |
 | `internal/api/operations.go`, `notifications.go` | Durable bounded operation runner, task authorities and report-notification dispatcher. |
 | `internal/mcp/server.go` | Transport/tool adapter over the shared service, with host/origin/auth checks; owns no sessions. |
@@ -76,16 +76,17 @@ messages to the current view. Views return commands and messages; they do not
 navigate directly. Commands execute asynchronously, so capture their inputs on
 the coordinator goroutine before constructing them.
 
-UI commands use `api.Service` for dashboard-aware operations such as
-`LaunchInDashboard`, `RelaunchInDashboard`, `SwitchInDashboard` and
-`AttachInDashboard`. The manager executes the checked process operations. Keep
+UI session commands use the consumer-owned `sessionActionPort` and independent
+contracts for lifecycle, conversation selection and configured workspace commands.
+The service and manager execute checked operations; attachment still uses a
+scoped service adapter. Keep
 business and membership rules in the shared service/manager boundary so UI and
 MCP cannot disagree.
 
 Config refresh uses repository fingerprints; session snapshots refresh on the
 periodic tick. Explicit mutations request a refresh immediately. Preview output
 uses a subscription. Async results carry dashboard identity and view generation
-so obsolete results cannot update the newly selected dashboard.
+and request identities so obsolete results cannot update the newly selected dashboard or operation.
 
 ### Session lifecycle and workspace ownership
 
@@ -104,7 +105,9 @@ Relaunch reuses saved workspace identity and deployed configuration; switching
 cards reapplies the destination card configuration while preserving the session's
 workspace identity. Missing saved directories cause an error rather than being
 recreated. Conversation selection is explicit when bindings exist and is checked
-again under activation admission. Generic, Codex and Claude drivers construct
+again under activation admission. Published outcomes carry a runtime-only process
+identity; automatic naming and attachment check it against the current process.
+Generic, Codex and Claude drivers construct
 their respective resume arguments without shell interpolation.
 
 Termination revokes the activation credential. Workspace MCP cleanup removes the
@@ -358,7 +361,7 @@ workspace MCP file is the source of endpoint/authentication configuration.
 |---|---|
 | Add an agent CLI or change resume arguments | `internal/driver/driver.go`, `registry.go`, `factory.go`; specialize the generic driver only where needed. |
 | Change workspace deployment or trust | `internal/driver/`, `internal/session/lifecycle.go`, `workspace.go`; preserve relaunch versus switch behavior. |
-| Change lifecycle or conversation selection | `internal/api/membership.go`, `internal/session/lifecycle.go`, `conversation.go`; the picker is `internal/ui/views/conversation_choice.go`. |
+| Change lifecycle or conversation selection | `internal/api/session_actions.go`, `conversation_actions.go`, `membership.go`, `internal/session/lifecycle.go` and `conversation.go`; the picker is `internal/ui/views/conversation_choice.go`. |
 | Change dashboard ownership or deletion | `internal/api/membership.go`, confirmation/deletion files, `internal/session/dashboard_admission.go`, `internal/config/dashboard_deletions.go`. |
 | Change configuration startup | `internal/configstartup/`; initialization and validation run before the repository and runtime. |
 | Add a card field or registry | `internal/config/types.go`, validation and repository files; `internal/ui/views/card_editor.go` for editable card fields. |
@@ -366,11 +369,11 @@ workspace MCP file is the source of endpoint/authentication configuration.
 | Change dashboard keys or layout | `internal/ui/views/dashboard_list.go`, `dashboard.go`, `internal/app/size_guard.go`; keep product key documentation current. |
 | Change text, lists or puppet rendering | `internal/ui/components/text.go`, list/rendering components, `internal/ui/styles/`, `internal/ascii/`; preserve layout contracts. |
 | Change refresh or preview | `internal/app/refresh.go`, `handlers.go`, `preview.go`; capture scope/generation and keep commands independent of coordinator state. |
-| Add a session-level UI action | `internal/app/session_actions.go` and `callbacks.go`; delegate policy to `api.Service` and return messages. |
+| Add a session-level UI action | `internal/app/session_ports.go`, `session_actions.go` and `callbacks.go`; delegate policy to the application and return scoped results. |
 | Change MCP tools or security | `internal/mcp/server.go`, shared API methods and activation authorization; `main.go` owns endpoint lifetime. |
 | Change message admission or report kinds | `internal/api/messaging.go`, `internal/session/messaging.go`, `internal/driver/driver.go`, deployed puppet skill. |
 | Change notification retries or authorization | `internal/api/notifications.go`, `operations.go`, `internal/session/message_notifications.go`; reuse `preparedDelivery`. |
-| Change attachment or workspace commands | `internal/app/attach.go`, `internal/session/attach.go`, `ide_launcher.go`. |
+| Change attachment or workspace commands | `internal/app/attach.go`, `internal/session/attach.go`, `internal/api/session_actions.go` and `internal/session/workspace_launcher.go`. |
 
 ## 11. Known quirks / pitfalls
 

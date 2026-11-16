@@ -2,6 +2,8 @@ package session
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,4 +40,36 @@ func LaunchWorkspaceCommand(command, workspacePath string) error {
 	}
 	go func() { _ = child.Wait() }()
 	return nil
+}
+
+// OpenWorkspaceChecked protects session identity and workspace cleanup until
+// the configured child has started. The child outlives the manager lock and
+// request. Cancellation is checked before start; it does not stop a started child.
+// check runs under the manager lock and must not call the manager.
+func (m *Manager) OpenWorkspaceChecked(ctx context.Context, id, command string, check func([]Snapshot) error) error {
+	if check == nil {
+		return errors.New("workspace scope check is required")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed {
+		return ErrManagerClosed
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := check(m.listLocked()); err != nil {
+		return err
+	}
+	s, ok := m.sessions[id]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrSessionNotFound, id)
+	}
+	if s.deleting {
+		return fmt.Errorf("%w: session is being removed", ErrLifecycleConflict)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return LaunchWorkspaceCommand(command, s.WorkingDir)
 }

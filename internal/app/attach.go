@@ -44,8 +44,28 @@ var (
 	errDetach = errors.New("detach")
 )
 
+func (c *Coordinator) requestAttachExpected(id, processID, kind string) tea.Cmd {
+	request := c.lifecycleRequest
+	if kind == messages.AttachRequestLaunch {
+		request = c.launchRequest
+	}
+	dashboardID, generation, service := c.activeDashboard, c.viewGeneration, c.legacy.service
+	return func() tea.Msg {
+		handle, err := service.AttachExpectedProcessInDashboard(dashboardID, id, processID)
+		return messages.ScopedAttachReadyMsg{
+			DashboardID: dashboardID,
+			Generation:  generation,
+			SessionID:   id,
+			Request:     request,
+			RequestKind: kind,
+			Handle:      handle,
+			Err:         err,
+		}
+	}
+}
+
 func (c *Coordinator) requestAttach(id string) tea.Cmd {
-	dashboardID, generation, service := c.activeDashboard, c.viewGeneration, c.actions.service
+	dashboardID, generation, service := c.activeDashboard, c.viewGeneration, c.legacy.service
 	return func() tea.Msg {
 		handle, err := service.AttachInDashboard(dashboardID, id)
 		return messages.ScopedAttachReadyMsg{DashboardID: dashboardID, Generation: generation, SessionID: id, Handle: handle, Err: err}

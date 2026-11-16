@@ -144,7 +144,19 @@ func (s *Service) CheckSessionInDashboard(dashboardID, sessionID string) error {
 
 // AttachInDashboard validates membership at the subscription boundary.
 func (s *Service) AttachInDashboard(dashboardID, sessionID string) (*session.AttachHandle, error) {
-	return s.sessions.AttachChecked(sessionID, func(sessions []session.Snapshot) error {
+	return s.attachInDashboard(dashboardID, sessionID, "")
+}
+
+// AttachExpectedProcessInDashboard attaches only to the specified process generation.
+func (s *Service) AttachExpectedProcessInDashboard(dashboardID, sessionID, processID string) (*session.AttachHandle, error) {
+	if processID == "" {
+		return nil, errors.New("expected process identity is required")
+	}
+	return s.attachInDashboard(dashboardID, sessionID, processID)
+}
+
+func (s *Service) attachInDashboard(dashboardID, sessionID, processID string) (*session.AttachHandle, error) {
+	check := func(sessions []session.Snapshot) error {
 		inventory, err := s.loadMembershipInventory(sessions)
 		if err != nil {
 			return err
@@ -153,37 +165,50 @@ func (s *Service) AttachInDashboard(dashboardID, sessionID string) (*session.Att
 			return errors.New("session is outside dashboard scope")
 		}
 		return nil
-	})
+	}
+	if processID != "" {
+		return s.sessions.AttachExpectedProcessChecked(sessionID, processID, check)
+	}
+	return s.sessions.AttachChecked(sessionID, check)
 }
 
-// RenameInDashboard validates membership at the session mutation boundary.
+// sessionScopeCheck executes while manager admission is held.
+func (s *Service) sessionScopeCheck(dashboardID, sessionID string) func([]session.Snapshot) error {
+	return s.sessionScopeCheckContext(context.Background(), dashboardID, sessionID)
+}
+
+func (s *Service) sessionScopeCheckContext(ctx context.Context, dashboardID, sessionID string) func([]session.Snapshot) error {
+	return func(sessions []session.Snapshot) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		inventory, err := s.loadMembershipInventory(sessions)
+		if err != nil {
+			return err
+		}
+		if !inventory.allowsSession(dashboardID, sessionID) {
+			return errors.New("session is outside dashboard scope")
+		}
+		return ctx.Err()
+	}
+}
+
+// RenameInDashboard validates membership at the mutation boundary.
 func (s *Service) RenameInDashboard(dashboardID, sessionID, name string) error {
-	return s.sessions.SetNameChecked(sessionID, name, func(sessions []session.Snapshot) error {
-		inventory, err := s.loadMembershipInventory(sessions)
-		if err != nil {
-			return err
-		}
-		if !inventory.allowsSession(dashboardID, sessionID) {
-			return errors.New("session is outside dashboard scope")
-		}
-		return nil
-	})
+	_, err := s.sessions.SetNameDetailedChecked(sessionID, name, s.sessionScopeCheck(dashboardID, sessionID))
+	return err
 }
 
-// StopInDashboard stops a session owned by the captured dashboard.
+// StopInDashboard validates membership at the stop reservation boundary.
 func (s *Service) StopInDashboard(dashboardID, sessionID string) error {
-	if err := s.CheckSessionInDashboard(dashboardID, sessionID); err != nil {
-		return err
-	}
-	return s.sessions.Kill(sessionID)
+	_, err := s.sessions.KillDetailedChecked(sessionID, s.sessionScopeCheck(dashboardID, sessionID))
+	return err
 }
 
-// RemoveInDashboard removes a terminated session owned by the captured dashboard.
+// RemoveInDashboard validates membership at the deletion reservation boundary.
 func (s *Service) RemoveInDashboard(dashboardID, sessionID string) error {
-	if err := s.CheckSessionInDashboard(dashboardID, sessionID); err != nil {
-		return err
-	}
-	return s.sessions.Remove(sessionID)
+	_, err := s.sessions.RemoveDetailedChecked(sessionID, s.sessionScopeCheck(dashboardID, sessionID))
+	return err
 }
 
 func hasForeignCardReferences(impact session.CardReferenceImpact, ownerID string) bool {
@@ -208,6 +233,15 @@ func (s *Service) LaunchInDashboard(ctx context.Context, dashboardID, cardID str
 }
 
 func (s *Service) launchDashboardWithID(ctx context.Context, dashboardID, cardID, sessionID string, name *string) (string, error) {
+	return s.launchDashboardWithIDEvidence(ctx, dashboardID, cardID, sessionID, name, nil)
+}
+
+func (s *Service) launchDashboardWithIDEvidence(
+	ctx context.Context,
+	dashboardID, cardID, sessionID string,
+	name *string,
+	evidence *session.ActivationResult,
+) (string, error) {
 	launchCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	release, err := s.sessions.ReserveCardReferenceForDashboardWithCancel(
@@ -238,13 +272,26 @@ func (s *Service) launchDashboardWithID(ctx context.Context, dashboardID, cardID
 		}
 		return nil
 	}
-	return s.sessions.LaunchInDashboardWithIDContext(launchCtx, sessionID, dashboardID, bundle.Card,
+	result := s.sessions.LaunchInDashboardWithIDResult(launchCtx, sessionID, dashboardID, bundle.Card,
 		bundle.Skills, bundle.Personas, bundle.MCPs, publicationCheck, name)
+	if evidence != nil {
+		*evidence = result
+	}
+	return sessionID, result.Err
 }
 
 // SwitchInDashboard retains session membership while revalidating the target
 // session and destination card before activation publication.
 func (s *Service) SwitchInDashboard(ctx context.Context, dashboardID, sessionID, cardID string, choice session.ConversationChoice) error {
+	return s.switchInDashboardEvidence(ctx, dashboardID, sessionID, cardID, choice, nil)
+}
+
+func (s *Service) switchInDashboardEvidence(
+	ctx context.Context,
+	dashboardID, sessionID, cardID string,
+	choice session.ConversationChoice,
+	evidence *session.ActivationResult,
+) error {
 	activationCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	release, err := s.sessions.ReserveCardReferenceForDashboardWithCancel(
@@ -281,8 +328,12 @@ func (s *Service) SwitchInDashboard(ctx context.Context, dashboardID, sessionID,
 		}
 		return nil
 	}
-	return s.sessions.SwitchAgentWithChoiceCheckedContext(activationCtx, sessionID, bundle.Card,
+	result := s.sessions.SwitchAgentWithChoiceCheckedResult(activationCtx, sessionID, bundle.Card,
 		bundle.Skills, bundle.Personas, bundle.MCPs, choice, publicationCheck)
+	if evidence != nil {
+		*evidence = result
+	}
+	return result.Err
 }
 
 func sessionInDashboard(sessions []session.Snapshot, dashboardID, sessionID string) bool {
@@ -297,11 +348,23 @@ func sessionInDashboard(sessions []session.Snapshot, dashboardID, sessionID stri
 // RelaunchInDashboard preserves saved workspace and deployment settings while
 // rejecting a deleted or no-longer-available current card.
 func (s *Service) RelaunchInDashboard(ctx context.Context, dashboardID, sessionID string, choice session.ConversationChoice) error {
+	return s.relaunchInDashboardEvidence(ctx, dashboardID, sessionID, "", choice, nil)
+}
+
+func (s *Service) relaunchInDashboardEvidence(
+	ctx context.Context,
+	dashboardID, sessionID, expectedCardID string,
+	choice session.ConversationChoice,
+	evidence *session.ActivationResult,
+) error {
 	snapshot, exists := s.sessions.GetSession(sessionID)
 	if !exists || snapshot.DashboardID != dashboardID {
 		return errors.New("session is outside dashboard scope")
 	}
 	cardID := snapshot.CardID
+	if expectedCardID != "" && expectedCardID != cardID {
+		return errors.New("session card changed before activation")
+	}
 	activationCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	release, err := s.sessions.ReserveCardReferenceForDashboardWithCancel(
@@ -332,7 +395,11 @@ func (s *Service) RelaunchInDashboard(ctx context.Context, dashboardID, sessionI
 		}
 		return nil
 	}
-	return s.sessions.RelaunchWithChoiceCheckedContext(activationCtx, sessionID, card, choice, publicationCheck)
+	result := s.sessions.RelaunchWithChoiceCheckedResult(activationCtx, sessionID, card, choice, publicationCheck)
+	if evidence != nil {
+		*evidence = result
+	}
+	return result.Err
 }
 
 func sessionUsesCard(sessions []session.Snapshot, dashboardID, sessionID, cardID string) bool {
@@ -404,21 +471,6 @@ func (s *Service) readDashboardData(dashboardID string) (dashboardData, error) {
 		}
 	}
 	return data, nil
-}
-
-// ReadDashboardCardDetail loads one selected card for the legacy launch adapter.
-// It preserves stored fields; mutation handlers still revalidate ownership and availability.
-func (s *Service) ReadDashboardCardDetail(dashboardID, cardID string) (config.IDCard, error) {
-	data, err := s.readDashboardData(dashboardID)
-	if err != nil {
-		return config.IDCard{}, err
-	}
-	for _, card := range data.Cards {
-		if card.ID == cardID {
-			return card, nil
-		}
-	}
-	return config.IDCard{}, fmt.Errorf("card %q is unavailable", cardID)
 }
 
 // membershipInventory is a validated snapshot, not an admission reservation.

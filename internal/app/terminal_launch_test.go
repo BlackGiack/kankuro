@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
@@ -40,6 +38,7 @@ func mustTerminalHelperWorkingDir() string {
 	return workingDir
 }
 
+//nolint:govet // Independent fixture assertions use scoped error variables.
 func TestTerminalLaunchThroughDashboard(t *testing.T) {
 	repo, err := newCurrentRepository(t.TempDir())
 	if err != nil {
@@ -87,6 +86,9 @@ func TestTerminalLaunchThroughDashboard(t *testing.T) {
 	}
 	settings := config.DefaultAppSettings()
 	settings.TerminalCommand = fmt.Sprintf("\"%s\" -test.run=TestTerminalCommandHelperProcess -- \"$PATH\"", binary)
+	if err := repo.SaveAppSettings(settings); err != nil {
+		t.Fatal(err)
+	}
 	coord.Update(messages.SettingsSavedMsg{Settings: settings, DashboardID: "default", Generation: 1})
 	coord.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	_, command := coord.Update(tea.KeyPressMsg{Code: 0, Text: "t"})
@@ -94,7 +96,7 @@ func TestTerminalLaunchThroughDashboard(t *testing.T) {
 		t.Fatal("terminal key did not return a command")
 	}
 	msg := command()
-	if result, isTerminalResult := msg.(messages.ScopedActionFinishedMsg); !isTerminalResult || result.Err != nil {
+	if result, isTerminalResult := msg.(messages.WorkspaceOpenedMsg); !isTerminalResult || !result.Result.Started {
 		t.Fatalf("terminal launch result %#v", msg)
 	}
 	coord.Update(msg)
@@ -146,6 +148,7 @@ func containsExact(values []string, want string) bool {
 	return slices.Contains(values, want)
 }
 
+//nolint:govet // Independent fixture assertions use scoped error variables.
 func TestTerminalLaunchReportsConfigurationAndLookupErrors(t *testing.T) {
 	repo, err := newCurrentRepository(t.TempDir())
 	if err != nil {
@@ -155,8 +158,8 @@ func TestTerminalLaunchReportsConfigurationAndLookupErrors(t *testing.T) {
 	coord := newOpenedCoordinator(repo, sm)
 	callbacks := coord.DashboardCallbacks()
 	missing := callbacks.OnLaunchTerminal("missing")()
-	if result := missing.(messages.ScopedActionFinishedMsg); result.Err == nil ||
-		result.Err.Error() != "session is outside dashboard scope" {
+	if result := missing.(messages.WorkspaceOpenedMsg); result.Result.Diagnostic == "" ||
+		result.Result.Diagnostic != "session is outside dashboard scope" {
 		t.Fatalf("missing session result: %+v", result)
 	}
 	saveErr := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: t.TempDir()}})
@@ -175,20 +178,26 @@ func TestTerminalLaunchReportsConfigurationAndLookupErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(messages.SettingsSavedMsg{Settings: config.AppSettings{}, DashboardID: "default", Generation: 1})
-	ide := callbacks.OnLaunchIDE(sessionID)().(messages.ScopedActionFinishedMsg)
-	if !errors.Is(ide.Err, session.ErrIDENotConfigured) {
-		t.Fatalf("unconfigured IDE: %v", ide.Err)
+	if err := repo.SaveAppSettings(config.AppSettings{}); err != nil {
+		t.Fatal(err)
 	}
-	result := callbacks.OnLaunchTerminal(sessionID)().(messages.ScopedActionFinishedMsg)
-	if result.Err == nil || result.Err.Error() != "Terminal command not configured" {
+	coord.Update(messages.SettingsSavedMsg{Settings: config.AppSettings{}, DashboardID: "default", Generation: 1})
+	ide := callbacks.OnLaunchIDE(sessionID)().(messages.WorkspaceOpenedMsg)
+	if ide.Result.Diagnostic == "" || ide.Result.Diagnostic != "IDE command not configured" {
+		t.Fatalf("unconfigured IDE: %s", ide.Result.Diagnostic)
+	}
+	result := callbacks.OnLaunchTerminal(sessionID)().(messages.WorkspaceOpenedMsg)
+	if result.Result.Diagnostic == "" || result.Result.Diagnostic != "Terminal command not configured" {
 		t.Fatalf("unconfigured terminal result: %+v", result)
 	}
 	settings := config.DefaultAppSettings()
 	settings.TerminalCommand = "kankuro-terminal-executable-missing"
+	if err := repo.SaveAppSettings(settings); err != nil {
+		t.Fatal(err)
+	}
 	coord.Update(messages.SettingsSavedMsg{Settings: settings, DashboardID: "default", Generation: 1})
-	result = coord.DashboardCallbacks().OnLaunchTerminal(sessionID)().(messages.ScopedActionFinishedMsg)
-	if result.Err == nil {
+	result = coord.DashboardCallbacks().OnLaunchTerminal(sessionID)().(messages.WorkspaceOpenedMsg)
+	if result.Result.Diagnostic == "" {
 		t.Fatal("expected command spawn failure")
 	}
 	coord.Update(result)
@@ -196,6 +205,9 @@ func TestTerminalLaunchReportsConfigurationAndLookupErrors(t *testing.T) {
 		t.Fatal("spawn failure was not shown in the coordinator error banner")
 	}
 	settings.TerminalCommand = "/bin/true"
+	if err := repo.SaveAppSettings(settings); err != nil {
+		t.Fatal(err)
+	}
 	coord.Update(messages.SettingsSavedMsg{Settings: settings, DashboardID: "default", Generation: 1})
 	snapshot, ok := sm.GetSession(sessionID)
 	if !ok {
@@ -205,8 +217,8 @@ func TestTerminalLaunchReportsConfigurationAndLookupErrors(t *testing.T) {
 	if removeErr != nil {
 		t.Fatal(removeErr)
 	}
-	result = coord.DashboardCallbacks().OnLaunchTerminal(sessionID)().(messages.ScopedActionFinishedMsg)
-	if result.Err == nil {
+	result = coord.DashboardCallbacks().OnLaunchTerminal(sessionID)().(messages.WorkspaceOpenedMsg)
+	if result.Result.Diagnostic == "" {
 		t.Fatal("expected missing workspace error")
 	}
 }

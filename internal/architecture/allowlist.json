@@ -38,121 +38,22 @@
     "owner": "5"
   },
   {
-    "path": "internal/ui/views/session_launcher.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "IDCard"
-    ],
-    "edges": [
-      "func receiver *SessionLauncher Card result <unnamed> config.IDCard uses config.IDCard",
-      "func receiver *SessionLauncher Reset body uses config.IDCard",
-      "func receiver *SessionLauncher SetCard parameter card config.IDCard uses config.IDCard",
-      "type SessionLauncher field card config.IDCard uses config.IDCard"
-    ],
-    "edge_owners": {
-      "func receiver *SessionLauncher Card result <unnamed> config.IDCard uses config.IDCard": "4",
-      "func receiver *SessionLauncher Reset body uses config.IDCard": "4",
-      "func receiver *SessionLauncher SetCard parameter card config.IDCard uses config.IDCard": "4",
-      "type SessionLauncher field card config.IDCard uses config.IDCard": "4"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "4"
-  },
-  {
-    "path": "internal/ui/views/conversation_choice.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/session",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "ConversationBinding",
-      "ConversationChoice"
-    ],
-    "edges": [
-      "func receiver *ConversationChoiceView RefreshContext body uses session.ConversationBinding",
-      "func receiver *ConversationChoiceView RefreshContext parameter bindings []session.ConversationBinding uses session.ConversationBinding",
-      "func receiver *ConversationChoiceView SelectedBinding body uses session.ConversationBinding",
-      "func receiver *ConversationChoiceView SelectedBinding result <unnamed> session.ConversationBinding uses session.ConversationBinding",
-      "func receiver *ConversationChoiceView SetContext body uses session.ConversationBinding",
-      "func receiver *ConversationChoiceView SetContext parameter bindings []session.ConversationBinding uses session.ConversationBinding",
-      "func receiver *ConversationChoiceView handleEnter body uses session.ConversationChoice",
-      "type ConversationChoiceCallbacks method OnSelect signature field choice session.ConversationChoice uses session.ConversationChoice",
-      "type ConversationChoiceView field bindings []session.ConversationBinding uses session.ConversationBinding",
-      "type conversationChoiceItem field binding *session.ConversationBinding uses session.ConversationBinding"
-    ],
-    "edge_owners": {
-      "func receiver *ConversationChoiceView RefreshContext body uses session.ConversationBinding": "4",
-      "func receiver *ConversationChoiceView RefreshContext parameter bindings []session.ConversationBinding uses session.ConversationBinding": "4",
-      "func receiver *ConversationChoiceView SelectedBinding body uses session.ConversationBinding": "4",
-      "func receiver *ConversationChoiceView SelectedBinding result <unnamed> session.ConversationBinding uses session.ConversationBinding": "4",
-      "func receiver *ConversationChoiceView SetContext body uses session.ConversationBinding": "4",
-      "func receiver *ConversationChoiceView SetContext parameter bindings []session.ConversationBinding uses session.ConversationBinding": "4",
-      "func receiver *ConversationChoiceView handleEnter body uses session.ConversationChoice": "4",
-      "type ConversationChoiceCallbacks method OnSelect signature field choice session.ConversationChoice uses session.ConversationChoice": "4",
-      "type ConversationChoiceView field bindings []session.ConversationBinding uses session.ConversationBinding": "4",
-      "type conversationChoiceItem field binding *session.ConversationBinding uses session.ConversationBinding": "4"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "4"
-  },
-  {
     "path": "internal/app/coordinator.go",
     "dependency": "github.com/BlackGiack/kankuro/internal/session",
     "rule": "frontend imports backend implementation",
     "symbols": [
-      "ErrPersistFailed",
-      "Manager",
-      "StatusTerminated"
+      "Manager"
     ],
     "edges": [
       "func NewCoordinator parameter sm *session.Manager uses session.Manager",
-      "func receiver *Coordinator handleAgentSwitched body uses session.ErrPersistFailed",
-      "func receiver *Coordinator handleConversationChoiceRequested body uses session.StatusTerminated",
-      "func receiver *Coordinator handleSessionMessages body uses session.ErrPersistFailed",
-      "func receiver *Coordinator refreshConversationChoiceContext body uses session.StatusTerminated",
       "type Coordinator field session *session.Manager uses session.Manager"
     ],
     "edge_owners": {
       "func NewCoordinator parameter sm *session.Manager uses session.Manager": "7",
-      "func receiver *Coordinator handleAgentSwitched body uses session.ErrPersistFailed": "4",
-      "func receiver *Coordinator handleConversationChoiceRequested body uses session.StatusTerminated": "4",
-      "func receiver *Coordinator handleSessionMessages body uses session.ErrPersistFailed": "4",
-      "func receiver *Coordinator refreshConversationChoiceContext body uses session.StatusTerminated": "4",
       "type Coordinator field session *session.Manager uses session.Manager": "7"
     },
     "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
-    "owner": "4/6/7"
-  },
-  {
-    "path": "internal/app/session_actions.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/session",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "ConversationChoice",
-      "ErrIDENotConfigured",
-      "ErrPersistFailed",
-      "LaunchWorkspaceCommand",
-      "Manager"
-    ],
-    "edges": [
-      "func receiver sessionActions launchIDE body uses session.ErrIDENotConfigured",
-      "func receiver sessionActions launchWorkspaceCommand body uses session.ErrIDENotConfigured",
-      "func receiver sessionActions launchWorkspaceCommand body uses session.LaunchWorkspaceCommand",
-      "func receiver sessionActions relaunch body uses session.ErrPersistFailed",
-      "func receiver sessionActions relaunch parameter choice session.ConversationChoice uses session.ConversationChoice",
-      "func receiver sessionActions switchAgent parameter choice session.ConversationChoice uses session.ConversationChoice",
-      "type sessionActions field sessions *session.Manager uses session.Manager"
-    ],
-    "edge_owners": {
-      "func receiver sessionActions launchIDE body uses session.ErrIDENotConfigured": "4",
-      "func receiver sessionActions launchWorkspaceCommand body uses session.ErrIDENotConfigured": "4",
-      "func receiver sessionActions launchWorkspaceCommand body uses session.LaunchWorkspaceCommand": "4",
-      "func receiver sessionActions relaunch body uses session.ErrPersistFailed": "4",
-      "func receiver sessionActions relaunch parameter choice session.ConversationChoice uses session.ConversationChoice": "4",
-      "func receiver sessionActions switchAgent parameter choice session.ConversationChoice uses session.ConversationChoice": "4",
-      "type sessionActions field sessions *session.Manager uses session.Manager": "4"
-    },
-    "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
-    "owner": "4"
+    "owner": "7"
   },
   {
     "path": "internal/ui/components/source_item.go",
@@ -173,28 +74,11 @@
     "owner": "5"
   },
   {
-    "path": "internal/ui/views/session_launcher.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/session",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "ErrPersistFailed"
-    ],
-    "edges": [
-      "func receiver *SessionLauncher launchFatal body uses session.ErrPersistFailed"
-    ],
-    "edge_owners": {
-      "func receiver *SessionLauncher launchFatal body uses session.ErrPersistFailed": "4"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "4"
-  },
-  {
     "path": "internal/app/callbacks.go",
     "dependency": "github.com/BlackGiack/kankuro/internal/config",
     "rule": "frontend imports backend implementation",
     "symbols": [
       "AppSettings",
-      "IDCard",
       "MCPServer",
       "SyncFailedError",
       "WorkspaceSource"
@@ -202,7 +86,6 @@
     "edges": [
       "func receiver *Coordinator deleteSource parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource",
       "func receiver *Coordinator deleteSource parameter sources []config.WorkspaceSource uses config.WorkspaceSource",
-      "func receiver *Coordinator launchCard parameter card config.IDCard uses config.IDCard",
       "func receiver *Coordinator mcpCallbacks parameter mcp config.MCPServer uses config.MCPServer",
       "func receiver *Coordinator settingsCallbacks parameter settings config.AppSettings uses config.AppSettings",
       "func receiver *Coordinator sourceManagerCallbacks parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource",
@@ -213,7 +96,6 @@
     "edge_owners": {
       "func receiver *Coordinator deleteSource parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource": "5",
       "func receiver *Coordinator deleteSource parameter sources []config.WorkspaceSource uses config.WorkspaceSource": "5",
-      "func receiver *Coordinator launchCard parameter card config.IDCard uses config.IDCard": "4",
       "func receiver *Coordinator mcpCallbacks parameter mcp config.MCPServer uses config.MCPServer": "5",
       "func receiver *Coordinator settingsCallbacks parameter settings config.AppSettings uses config.AppSettings": "5",
       "func receiver *Coordinator sourceManagerCallbacks parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource": "5",
@@ -283,14 +165,12 @@
     "edges": [
       "func cardDeletionPreflightCommand parameter service *api.Service uses api.Service",
       "func confirmCardDeletionCommand parameter service *api.Service uses api.Service",
-      "func dashboardCardCommand parameter service *api.Service uses api.Service",
       "func dashboardDeletionSummary parameter preflight api.DashboardDeletionPreflight uses api.DashboardDeletionPreflight",
       "func retryCardDeletionCommand parameter service *api.Service uses api.Service"
     ],
     "edge_owners": {
       "func cardDeletionPreflightCommand parameter service *api.Service uses api.Service": "7",
       "func confirmCardDeletionCommand parameter service *api.Service uses api.Service": "7",
-      "func dashboardCardCommand parameter service *api.Service uses api.Service": "4",
       "func dashboardDeletionSummary parameter preflight api.DashboardDeletionPreflight uses api.DashboardDeletionPreflight": "7",
       "func retryCardDeletionCommand parameter service *api.Service uses api.Service": "7"
     },
@@ -386,7 +266,6 @@
     "rule": "frontend imports backend implementation",
     "symbols": [
       "AppSettings",
-      "IDCard",
       "MCPServer",
       "Persona",
       "Puppet",
@@ -394,7 +273,6 @@
       "Workspace"
     ],
     "edges": [
-      "type DashboardCardLoadedMsg field Card config.IDCard uses config.IDCard",
       "type DataLoadedMsg field MCPs []config.MCPServer uses config.MCPServer",
       "type DataLoadedMsg field Personas []config.Persona uses config.Persona",
       "type DataLoadedMsg field Puppets []config.Puppet uses config.Puppet",
@@ -405,7 +283,6 @@
       "type SettingsSavedMsg field Settings config.AppSettings uses config.AppSettings"
     ],
     "edge_owners": {
-      "type DashboardCardLoadedMsg field Card config.IDCard uses config.IDCard": "4",
       "type DataLoadedMsg field MCPs []config.MCPServer uses config.MCPServer": "5",
       "type DataLoadedMsg field Personas []config.Persona uses config.Persona": "5",
       "type DataLoadedMsg field Puppets []config.Puppet uses config.Puppet": "5",
@@ -423,19 +300,16 @@
     "dependency": "github.com/BlackGiack/kankuro/internal/session",
     "rule": "frontend imports backend implementation",
     "symbols": [
-      "AttachHandle",
-      "ConversationChoice"
+      "AttachHandle"
     ],
     "edges": [
-      "type ConversationChoiceSelectedMsg field Choice session.ConversationChoice uses session.ConversationChoice",
       "type ScopedAttachReadyMsg field Handle *session.AttachHandle uses session.AttachHandle"
     ],
     "edge_owners": {
-      "type ConversationChoiceSelectedMsg field Choice session.ConversationChoice uses session.ConversationChoice": "4",
       "type ScopedAttachReadyMsg field Handle *session.AttachHandle uses session.AttachHandle": "7"
     },
     "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "2/4/5/6/7"
+    "owner": "7"
   },
   {
     "path": "internal/ui/views/settings.go",
@@ -511,20 +385,20 @@
     "owner": "5"
   },
   {
-    "path": "internal/app/session_actions.go",
+    "path": "internal/app/legacy_actions.go",
     "dependency": "github.com/BlackGiack/kankuro/internal/api",
     "rule": "frontend imports backend implementation",
     "symbols": [
       "Service"
     ],
     "edges": [
-      "type sessionActions field service *api.Service uses api.Service"
+      "type legacyActions field service *api.Service uses api.Service"
     ],
     "edge_owners": {
-      "type sessionActions field service *api.Service uses api.Service": "4"
+      "type legacyActions field service *api.Service uses api.Service": "7"
     },
     "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
-    "owner": "4"
+    "owner": "5/7"
   },
   {
     "path": "internal/ui/views/mcp_manager.go",
@@ -548,40 +422,20 @@
     "owner": "5"
   },
   {
-    "path": "internal/app/callbacks.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/session",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "ConversationChoice"
-    ],
-    "edges": [
-      "func receiver *Coordinator conversationChoiceCallbacks parameter choice session.ConversationChoice uses session.ConversationChoice",
-      "func receiver *Coordinator requestRelaunch body uses session.ConversationChoice",
-      "func receiver *Coordinator requestSwitch body uses session.ConversationChoice"
-    ],
-    "edge_owners": {
-      "func receiver *Coordinator conversationChoiceCallbacks parameter choice session.ConversationChoice uses session.ConversationChoice": "4",
-      "func receiver *Coordinator requestRelaunch body uses session.ConversationChoice": "4",
-      "func receiver *Coordinator requestSwitch body uses session.ConversationChoice": "4"
-    },
-    "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
-    "owner": "4/7"
-  },
-  {
-    "path": "internal/app/session_actions.go",
+    "path": "internal/app/legacy_actions.go",
     "dependency": "github.com/BlackGiack/kankuro/internal/config",
     "rule": "frontend imports backend implementation",
     "symbols": [
       "Repository"
     ],
     "edges": [
-      "type sessionActions field repo config.Repository uses config.Repository"
+      "type legacyActions field repo config.Repository uses config.Repository"
     ],
     "edge_owners": {
-      "type sessionActions field repo config.Repository uses config.Repository": "5"
+      "type legacyActions field repo config.Repository uses config.Repository": "5"
     },
     "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
-    "owner": "4/5"
+    "owner": "5"
   },
   {
     "path": "internal/app/coordinator.go",

@@ -10,7 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -29,29 +29,29 @@ const (
 )
 
 type ConversationChoiceCallbacks struct {
-	OnSelect func(sessionID, cardID string, choice session.ConversationChoice) tea.Cmd
+	OnSelect func(sessionID, cardID string, relaunch bool, choice contracts.ConversationChoice) tea.Cmd
 	OnCancel func(returnView messages.ViewType) tea.Cmd
 }
 
 type ConversationChoiceView struct {
 	component.Base
 
-	list         list.Model
-	sessionID    string
-	cardID       string
-	returnView   messages.ViewType
-	driver       string
-	bindings     []session.ConversationBinding
-	query        string
-	contextErr   string
-	detailOffset int
-	detailRows   int
-	detailKey    string
-	callbacks    ConversationChoiceCallbacks
+	list               list.Model
+	sessionID          string
+	cardID             string
+	returnView         messages.ViewType
+	options            []contracts.ConversationOption
+	query              string
+	contextErr         string
+	invalidSelectionID string
+	detailOffset       int
+	detailRows         int
+	detailKey          string
+	callbacks          ConversationChoiceCallbacks
 }
 
 type conversationChoiceItem struct {
-	binding    *session.ConversationBinding
+	option     *contracts.ConversationOption
 	new        bool
 	compatible bool
 }
@@ -60,7 +60,7 @@ func (i conversationChoiceItem) Title() string {
 	if i.new {
 		return "New conversation"
 	}
-	return components.DisplayText(i.binding.Name)
+	return components.DisplayText(i.option.Name)
 }
 
 func (i conversationChoiceItem) Description() string {
@@ -68,9 +68,14 @@ func (i conversationChoiceItem) Description() string {
 		return "Start fresh; saved conversations remain available"
 	}
 	if !i.compatible {
-		return fmt.Sprintf("%s | %s | incompatible driver", components.DisplayText(i.binding.ID), components.DisplayText(i.binding.Driver))
+		return fmt.Sprintf(
+			"%s | %s | %s",
+			components.DisplayText(i.option.NativeID),
+			components.DisplayText(i.option.Driver),
+			components.DisplayText(i.option.Reason),
+		)
 	}
-	return fmt.Sprintf("%s | %s", components.DisplayText(i.binding.ID), components.DisplayText(i.binding.Driver))
+	return fmt.Sprintf("%s | %s", components.DisplayText(i.option.NativeID), components.DisplayText(i.option.Driver))
 }
 
 func (i conversationChoiceItem) FilterValue() string {
@@ -78,11 +83,11 @@ func (i conversationChoiceItem) FilterValue() string {
 		return "new conversation"
 	}
 	return components.DisplayText(
-		i.binding.Name,
+		i.option.Name,
 	) + " " + components.DisplayText(
-		i.binding.ID,
+		i.option.NativeID,
 	) + " " + components.DisplayText(
-		i.binding.Driver,
+		i.option.Driver,
 	)
 }
 
@@ -98,31 +103,49 @@ func NewConversationChoiceView(callbacks ConversationChoiceCallbacks) *Conversat
 }
 
 func (v *ConversationChoiceView) SetContext(
-	sessionID, cardID, driver string,
+	sessionID, cardID string,
 	returnView messages.ViewType,
-	bindings []session.ConversationBinding,
+	options []contracts.ConversationOption,
 ) {
 	v.sessionID, v.cardID, v.returnView = sessionID, cardID, returnView
-	v.driver = driver
 	v.query = ""
-	v.bindings = append([]session.ConversationBinding(nil), bindings...)
-	v.sortBindings()
+	v.options = append([]contracts.ConversationOption(nil), options...)
+	v.sortOptions()
 	v.contextErr = ""
+	v.invalidSelectionID = ""
 	v.refreshItems()
 }
 
 // RefreshContext updates live card/session state while preserving the selected
 // saved identity when it remains present and compatible.
 func (v *ConversationChoiceView) RefreshContext(
-	sessionID, cardID, driver string,
-	bindings []session.ConversationBinding,
+	sessionID, cardID string,
+	options []contracts.ConversationOption,
 ) {
 	previous := v.selectedChoice()
+	invalidID := v.invalidSelectionID
+	if invalidID == "" && previous != nil && !previous.new {
+		invalidID = previous.option.SelectionID
+	}
 	v.sessionID, v.cardID = sessionID, cardID
-	v.driver = driver
-	v.bindings = append([]session.ConversationBinding(nil), bindings...)
-	v.sortBindings()
+	v.options = append([]contracts.ConversationOption(nil), options...)
+	v.sortOptions()
 	v.contextErr = ""
+	if invalidID != "" {
+		// Keep the original intent even if the list highlights a fallback.
+		// A later refresh may restore that exact compatible option.
+		previous = &conversationChoiceItem{option: &contracts.ConversationOption{SelectionID: invalidID}}
+		v.invalidSelectionID = invalidID
+		items := v.filteredItems()
+		v.list.SetItems(items)
+		if v.selectPreferred(items, previous) {
+			v.invalidSelectionID = ""
+		} else {
+			v.selectFirstCompatible(items)
+		}
+		v.resizeList()
+		return
+	}
 	v.refreshItemsPreserving(previous)
 }
 
@@ -130,27 +153,27 @@ func (v *ConversationChoiceView) Target() (string, string, messages.ViewType) {
 	return v.sessionID, v.cardID, v.returnView
 }
 
-func (v *ConversationChoiceView) SelectedBinding() (session.ConversationBinding, bool) {
+func (v *ConversationChoiceView) SelectedOption() (contracts.ConversationOption, bool) {
 	item, ok := v.list.SelectedItem().(conversationChoiceItem)
-	if !ok || item.binding == nil {
-		return session.ConversationBinding{}, false
+	if !ok || item.option == nil {
+		return contracts.ConversationOption{}, false
 	}
-	return *item.binding, true
+	return *item.option, true
 }
 
 func (v *ConversationChoiceView) SetContextError(message string) {
 	v.contextErr = message
 }
 
-func (v *ConversationChoiceView) sortBindings() {
-	sort.Slice(v.bindings, func(i, j int) bool {
-		if v.bindings[i].Name != v.bindings[j].Name {
-			return v.bindings[i].Name < v.bindings[j].Name
+func (v *ConversationChoiceView) sortOptions() {
+	sort.Slice(v.options, func(i, j int) bool {
+		if v.options[i].Name != v.options[j].Name {
+			return v.options[i].Name < v.options[j].Name
 		}
-		if v.bindings[i].ID != v.bindings[j].ID {
-			return v.bindings[i].ID < v.bindings[j].ID
+		if v.options[i].NativeID != v.options[j].NativeID {
+			return v.options[i].NativeID < v.options[j].NativeID
 		}
-		return v.bindings[i].Driver < v.bindings[j].Driver
+		return v.options[i].Driver < v.options[j].Driver
 	})
 }
 
@@ -173,6 +196,11 @@ func (v *ConversationChoiceView) Update(msg tea.Msg) (component.Model, tea.Cmd) 
 	}
 	var cmd tea.Cmd
 	v.list, cmd = v.list.Update(msg)
+	if key, ok := msg.(tea.KeyPressMsg); ok && v.invalidSelectionID != "" && (key.Code == tea.KeyUp || key.Code == tea.KeyDown) {
+		if item, found := v.list.SelectedItem().(conversationChoiceItem); found && (item.new || item.compatible) {
+			v.invalidSelectionID = ""
+		}
+	}
 	v.resizeList()
 	return v, cmd
 }
@@ -214,22 +242,18 @@ func (v *ConversationChoiceView) handleKey(key tea.KeyPressMsg) (tea.Cmd, bool) 
 }
 
 func (v *ConversationChoiceView) handleEnter() tea.Cmd {
-	if v.contextErr != "" {
+	if v.contextErr != "" || v.invalidSelectionID != "" {
 		return nil
 	}
 	item, ok := v.list.SelectedItem().(conversationChoiceItem)
 	if !ok || v.callbacks.OnSelect == nil || (!item.new && !item.compatible) {
 		return nil
 	}
-	choice := session.ConversationChoice{New: item.new}
-	if item.binding != nil {
-		choice.ID = item.binding.ID
+	choice := contracts.ConversationChoice{Kind: contracts.ConversationNew}
+	if item.option != nil {
+		choice = contracts.ConversationChoice{Kind: contracts.ConversationResume, SelectionID: item.option.SelectionID}
 	}
-	cardID := v.cardID
-	if v.returnView == messages.ViewDashboard {
-		cardID = ""
-	}
-	return v.callbacks.OnSelect(v.sessionID, cardID, choice)
+	return v.callbacks.OnSelect(v.sessionID, v.cardID, v.returnView == messages.ViewDashboard, choice)
 }
 
 func (v *ConversationChoiceView) refreshItems() {
@@ -246,9 +270,9 @@ func (v *ConversationChoiceView) refreshItemsPreserving(preferred *conversationC
 }
 
 func (v *ConversationChoiceView) filteredItems() []list.Item {
-	items := make([]list.Item, 0, len(v.bindings)+1)
-	for i := range v.bindings {
-		item := conversationChoiceItem{binding: &v.bindings[i], compatible: v.bindings[i].Driver == v.driver}
+	items := make([]list.Item, 0, len(v.options)+1)
+	for i := range v.options {
+		item := conversationChoiceItem{option: &v.options[i], compatible: v.options[i].Compatible}
 		if v.query == "" || strings.Contains(strings.ToLower(item.FilterValue()), strings.ToLower(v.query)) {
 			items = append(items, item)
 		}
@@ -265,7 +289,7 @@ func (v *ConversationChoiceView) selectPreferred(items []list.Item, preferred *c
 		if !ok || (!item.new && !item.compatible) || item.new != preferred.new {
 			continue
 		}
-		if item.new || (item.binding.ID == preferred.binding.ID && item.binding.Driver == preferred.binding.Driver) {
+		if item.new || item.option.SelectionID == preferred.option.SelectionID {
 			v.list.Select(i)
 			return true
 		}
@@ -298,6 +322,8 @@ func (v *ConversationChoiceView) View() string {
 			components.DisplayText(v.contextErr),
 			max(1, v.Width-widthPadding*4),
 		)
+	} else if v.invalidSelectionID != "" {
+		helpText = components.TruncateTail("Selected conversation is no longer available or compatible", max(1, v.Width-widthPadding*4))
 	}
 	help := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(helpText)
 	selected := ""
@@ -320,10 +346,10 @@ func (v *ConversationChoiceView) View() string {
 
 func (v *ConversationChoiceView) selectedDetailLines() []string {
 	item, ok := v.list.SelectedItem().(conversationChoiceItem)
-	if !ok || item.binding == nil {
+	if !ok || item.option == nil {
 		return nil
 	}
-	details := "Selected ID: " + components.DisplayText(item.binding.ID) + " (" + components.DisplayText(item.binding.Driver) + ")"
+	details := "Selected ID: " + components.DisplayText(item.option.NativeID) + " (" + components.DisplayText(item.option.Driver) + ")"
 	wrapped := ansi.Wrap(details, max(conversationChoiceMinDetailWidth, v.Width-widthPadding*4), "")
 	return strings.Split(wrapped, "\n")
 }
@@ -352,8 +378,8 @@ func (v *ConversationChoiceView) SetSize(width, height int) {
 
 func (v *ConversationChoiceView) resizeList() {
 	selectionKey := "new"
-	if item, ok := v.list.SelectedItem().(conversationChoiceItem); ok && item.binding != nil {
-		selectionKey = item.binding.Driver + "\x00" + item.binding.ID
+	if item, ok := v.list.SelectedItem().(conversationChoiceItem); ok && item.option != nil {
+		selectionKey = item.option.SelectionID
 	}
 	if v.detailKey != selectionKey {
 		v.detailKey = selectionKey

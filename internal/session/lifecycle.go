@@ -115,9 +115,14 @@ func (m *Manager) LaunchInDashboardWithIDContext(
 	if publicationCheck == nil {
 		return "", errors.New("dashboard publication check is required")
 	}
-	return m.launchWithIDContext(ctx, sid, dashboardID, card, skills, personas, mcps, publicationCheck, name...)
+	if _, err := uuid.Parse(sid); err != nil {
+		return "", fmt.Errorf("invalid preallocated session ID: %w", err)
+	}
+	result := m.LaunchInDashboardWithIDResult(ctx, sid, dashboardID, card, skills, personas, mcps, publicationCheck, name...)
+	return sid, result.Err
 }
 
+//nolint:nonamedreturns // The named result retains publication evidence alongside deferred cleanup errors.
 func (m *Manager) launchWithIDContext(
 	ctx context.Context,
 	sid, dashboardID string,
@@ -127,9 +132,11 @@ func (m *Manager) launchWithIDContext(
 	mcps []config.MCPServer,
 	publicationCheck func([]Snapshot) error,
 	name ...*string,
-) (string, error) {
+) (result ActivationResult) {
+	result.SessionID = sid
 	if _, err := uuid.Parse(sid); err != nil {
-		return "", fmt.Errorf("invalid preallocated session ID: %w", err)
+		result.Err = fmt.Errorf("invalid preallocated session ID: %w", err)
+		return result
 	}
 	// The closed check and the Add share one critical section, the same
 	// ordering argument as startWatchLocked: Shutdown sets closed under m.mu
@@ -137,15 +144,18 @@ func (m *Manager) launchWithIDContext(
 	m.mu.Lock()
 	if m.closed {
 		m.mu.Unlock()
-		return sid, ErrManagerClosed
+		result.Err = ErrManagerClosed
+		return result
 	}
 	if _, exists := m.sessions[sid]; exists {
 		m.mu.Unlock()
-		return sid, fmt.Errorf("session already exists: %s", sid)
+		result.Err = fmt.Errorf("session already exists: %s", sid)
+		return result
 	}
 	if _, exists := m.launching[sid]; exists {
 		m.mu.Unlock()
-		return sid, fmt.Errorf("session launch already reserved: %s", sid)
+		result.Err = fmt.Errorf("session launch already reserved: %s", sid)
+		return result
 	}
 	m.launching[sid] = struct{}{}
 	m.activations.Add(1)
@@ -156,7 +166,7 @@ func (m *Manager) launchWithIDContext(
 		m.mu.Unlock()
 		m.activations.Done()
 	}()
-	return sid, m.startSession(ctx, sid, dashboardID, card, skills, personas, mcps, true, "", "", nil, "", publicationCheck, name)
+	return m.startSession(ctx, sid, dashboardID, card, skills, personas, mcps, true, "", "", nil, "", publicationCheck, name)
 }
 
 // activationSnapshot holds the session fields Relaunch/SwitchAgent need while
@@ -172,6 +182,9 @@ type activationSnapshot struct {
 
 func validateConversationChoice(s *Session, cardID, driverName string, choice ConversationChoice) (string, error) {
 	bindings := s.Conversations[cardID]
+	if choice.SelectionIdentity != "" {
+		return validateSelectedConversation(s.ID, cardID, driverName, choice, bindings)
+	}
 	if choice.New && choice.ID != "" {
 		return "", fmt.Errorf("%w: choose either new or one saved conversation", ErrConversationChoiceInvalid)
 	}
@@ -200,6 +213,26 @@ func validateConversationChoice(s *Session, cardID, driverName string, choice Co
 		return "", fmt.Errorf("%w: conversation belongs to a different driver", ErrConversationChoiceInvalid)
 	}
 	return "", fmt.Errorf("%w: conversation is not saved for this card", ErrConversationChoiceInvalid)
+}
+
+func validateSelectedConversation(
+	sessionID, cardID, driverName string,
+	choice ConversationChoice,
+	bindings []ConversationBinding,
+) (string, error) {
+	if choice.New || choice.ID != "" {
+		return "", fmt.Errorf("%w: mixed selection", ErrConversationChoiceInvalid)
+	}
+	for _, binding := range bindings {
+		if ConversationOptionIdentity(sessionID, cardID, binding) != choice.SelectionIdentity {
+			continue
+		}
+		if binding.Driver != driverName {
+			return "", fmt.Errorf("%w: conversation belongs to a different driver", ErrConversationChoiceInvalid)
+		}
+		return binding.ID, nil
+	}
+	return "", fmt.Errorf("%w: conversation is no longer saved for this card", ErrConversationChoiceInvalid)
 }
 
 // reserveForActivation checks, under m.mu, that the session can be
@@ -308,15 +341,22 @@ func (m *Manager) RelaunchWithChoiceCheckedContext(
 	if publicationCheck == nil {
 		return errors.New("dashboard publication check is required")
 	}
-	return m.relaunchWithChoiceContext(ctx, id, card, choice, publicationCheck)
+	return m.RelaunchWithChoiceCheckedResult(ctx, id, card, choice, publicationCheck).Err
 }
 
+//nolint:nonamedreturns // The named result retains publication evidence alongside deferred cleanup errors.
 func (m *Manager) relaunchWithChoiceContext(
-	ctx context.Context, id string, card config.IDCard, choice ConversationChoice, publicationCheck func([]Snapshot) error,
-) error {
+	ctx context.Context,
+	id string,
+	card config.IDCard,
+	choice ConversationChoice,
+	publicationCheck func([]Snapshot) error,
+) (result ActivationResult) {
+	result.SessionID = id
 	snap, conversationID, err := m.reserveForActivation(id, card.ID, card.Driver, "session is already running", choice)
 	if err != nil {
-		return err
+		result.Err = err
+		return result
 	}
 	defer m.activations.Done()
 	card.UseTmpWorkspace = snap.UseTmpWorkspace
@@ -325,7 +365,7 @@ func (m *Manager) relaunchWithChoiceContext(
 	if snap.KankuroMCPEnabled {
 		mcps = config.BuiltinMCPs()
 	}
-	err = m.startSession(
+	result = m.startSession(
 		ctx,
 		id,
 		"",
@@ -341,12 +381,11 @@ func (m *Manager) relaunchWithChoiceContext(
 		publicationCheck,
 		nil,
 	)
-	// ErrPersistFailed means the activation did happen (and already cleared
-	// the reservation); any other error means it did not.
-	if err != nil && !errors.Is(err, ErrPersistFailed) {
+	// Release every unpublished reservation, including uncertain teardown.
+	if result.Effect != ActivationPublished {
 		m.releaseActivation(id)
 	}
-	return err
+	return result
 }
 
 // SwitchAgentWithChoiceCheckedContext revalidates membership under the manager
@@ -364,10 +403,10 @@ func (m *Manager) SwitchAgentWithChoiceCheckedContext(
 	if publicationCheck == nil {
 		return errors.New("dashboard publication check is required")
 	}
-	return m.switchAgentWithChoiceContext(ctx, id, card, skills, personas, mcps, choice, publicationCheck)
+	return m.SwitchAgentWithChoiceCheckedResult(ctx, id, card, skills, personas, mcps, choice, publicationCheck).Err
 }
 
-//nolint:gocognit,funlen // Reservation, rollback, spawn publication, and persistence form one activation transaction.
+//nolint:nonamedreturns // The named result retains publication evidence alongside deferred cleanup errors.
 func (m *Manager) switchAgentWithChoiceContext(
 	ctx context.Context,
 	id string,
@@ -377,7 +416,28 @@ func (m *Manager) switchAgentWithChoiceContext(
 	mcps []config.MCPServer,
 	choice ConversationChoice,
 	publicationCheck func([]Snapshot) error,
+) (result ActivationResult) {
+	result.SessionID = id
+	result.Err = m.switchAgentWithChoiceCore(ctx, id, card, skills, personas, mcps, choice, publicationCheck, &result)
+	return result
+}
+
+//nolint:gocognit,funlen,gocyclo,cyclop // Reservation, rollback, spawn publication, and persistence form one activation transaction.
+//nolint:gocognit,funlen,gocyclo,cyclop // Reservation, rollback, spawn publication, and persistence form one activation transaction.
+func (m *Manager) switchAgentWithChoiceCore(
+	ctx context.Context,
+	id string,
+	card config.IDCard,
+	skills []config.Skill,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+	choice ConversationChoice,
+	publicationCheck func([]Snapshot) error,
+	evidence *ActivationResult,
 ) (returnErr error) {
+	if evidence == nil {
+		evidence = &ActivationResult{}
+	}
 	snap, conversationID, err := m.reserveForActivation(
 		id,
 		card.ID,
@@ -420,7 +480,7 @@ func (m *Manager) switchAgentWithChoiceContext(
 		return previousFileErr
 	}
 	defer func() {
-		if !activated {
+		if !activated && evidence.Effect != ActivationUncertain {
 			returnErr = errors.Join(returnErr, previousFile.restore(filepath.Join(finalWD, instructionFile)))
 		}
 	}()
@@ -464,6 +524,9 @@ func (m *Manager) switchAgentWithChoiceContext(
 		Env:               activationEnv(card.Env),
 	})
 	if errSpawn != nil {
+		if h != nil {
+			return teardownActivation(d, h, evidence, id, finalWD, errSpawn)
+		}
 		return errSpawn
 	}
 
@@ -478,7 +541,7 @@ func (m *Manager) switchAgentWithChoiceContext(
 	m.mu.Lock()
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		m.mu.Unlock()
-		return errors.Join(ctxErr, teardownUnpublished(d, h.Output))
+		return teardownActivation(d, h, evidence, id, finalWD, ctxErr)
 	}
 	if m.closed {
 		// Shutdown started during the unlocked spawn. The process is already
@@ -486,25 +549,25 @@ func (m *Manager) switchAgentWithChoiceContext(
 		// lock (Kill can block on teardown). The deferred releaseActivation
 		// runs after this return.
 		m.mu.Unlock()
-		return errors.Join(ErrManagerClosed, teardownUnpublished(d, h.Output))
+		return teardownActivation(d, h, evidence, id, finalWD, ErrManagerClosed)
 	}
 	s, ok := m.sessions[id]
 	if !ok {
 		m.mu.Unlock()
-		return errors.Join(fmt.Errorf("%w: %s", ErrSessionNotFound, id), teardownUnpublished(d, h.Output))
+		return teardownActivation(d, h, evidence, id, finalWD, fmt.Errorf("%w: %s", ErrSessionNotFound, id))
 	}
 	if checkErr := publicationCheck(m.listLocked()); checkErr != nil {
 		m.mu.Unlock()
-		return errors.Join(checkErr, teardownUnpublished(d, h.Output))
+		return teardownActivation(d, h, evidence, id, finalWD, checkErr)
 	}
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		m.mu.Unlock()
-		return errors.Join(ctxErr, teardownUnpublished(d, h.Output))
+		return teardownActivation(d, h, evidence, id, finalWD, ctxErr)
 	}
 	select {
 	case <-h.Done:
 		m.mu.Unlock()
-		return errors.Join(errors.New("agent process exited during startup"), teardownUnpublished(d, h.Output))
+		return teardownActivation(d, h, evidence, id, finalWD, errors.New("agent process exited during startup"))
 	default:
 	}
 	defer m.mu.Unlock()
@@ -529,6 +592,14 @@ func (m *Manager) switchAgentWithChoiceContext(
 
 	go m.trackOutput(id, gen, h.Output)
 	m.startWatchLocked(id, gen, d)
+	*evidence = ActivationResult{
+		Effect:              ActivationPublished,
+		SessionID:           id,
+		ProcessActivationID: s.ProcessActivationID,
+		PID:                 pid,
+		WorkingDir:          finalWD,
+		Spawned:             true,
+	}
 
 	// A persist failure here must not unwind the spawn: the agent process is
 	// already running. Surface the error so the caller can report it, but
@@ -581,7 +652,7 @@ func validateSessionWorkspace(path string) error {
 // registration (Launch, or reserveForActivation for Relaunch), which is also
 // what guarantees Shutdown had not started when they began.
 //
-//nolint:funlen,gocognit,gocyclo,cyclop // Workspace preparation, sync, spawn, publication, and persistence form one owned activation path.
+//nolint:nonamedreturns // The named result retains publication evidence alongside deferred cleanup errors.
 func (m *Manager) startSession(
 	ctx context.Context,
 	sid string,
@@ -597,7 +668,50 @@ func (m *Manager) startSession(
 	conversationID string,
 	publicationCheck func([]Snapshot) error,
 	name []*string,
+) (result ActivationResult) {
+	result.SessionID = sid
+	result.Err = m.startSessionCore(
+		ctx,
+		sid,
+		dashboardID,
+		card,
+		skills,
+		personas,
+		mcps,
+		isNew,
+		workspaceOverride,
+		originalOverride,
+		previousInstructionOwnership,
+		conversationID,
+		publicationCheck,
+		name,
+		&result,
+	)
+	return result
+}
+
+//nolint:funlen,gocognit,gocyclo,cyclop // Workspace preparation, sync, spawn, publication, and persistence form one owned activation path.
+//nolint:funlen,gocognit,gocyclo,cyclop // Workspace preparation, sync, spawn, publication, and persistence form one owned activation path.
+func (m *Manager) startSessionCore(
+	ctx context.Context,
+	sid string,
+	dashboardID string,
+	card config.IDCard,
+	skills []config.Skill,
+	personas []config.Persona,
+	mcps []config.MCPServer,
+	isNew bool,
+	workspaceOverride string,
+	originalOverride string,
+	previousInstructionOwnership map[string]bool,
+	conversationID string,
+	publicationCheck func([]Snapshot) error,
+	name []*string,
+	evidence *ActivationResult,
 ) (returnErr error) {
+	if evidence == nil {
+		evidence = &ActivationResult{}
+	}
 	var wd, finalWD string
 	//nolint:nestif // Resolve and reserve the workspace before any launch effects.
 	if isNew {
@@ -635,7 +749,7 @@ func (m *Manager) startSession(
 		}
 		deployedSubWorkspaces, subWorkspaceMetadataAvailable = preparedSubWorkspaceDescriptors(finalWD)
 		defer func() {
-			if !committedInstructions {
+			if !committedInstructions && evidence.Effect != ActivationUncertain {
 				returnErr = errors.Join(returnErr, rollback())
 			}
 		}()
@@ -662,7 +776,7 @@ func (m *Manager) startSession(
 	}
 	if isNew && card.UseTmpWorkspace {
 		defer func() {
-			if !committedInstructions {
+			if !committedInstructions && evidence.Effect != ActivationUncertain {
 				if trustErr := driver.RemoveWorkspaceTrust(context.Background(), finalWD); trustErr != nil {
 					returnErr = errors.Join(returnErr, &TemporaryTrustCleanupError{WorkingDir: finalWD, Err: trustErr})
 				}
@@ -682,7 +796,21 @@ func (m *Manager) startSession(
 		Env:               activationEnv(card.Env),
 	})
 	if errSpawn != nil {
+		if h != nil {
+			cause := teardownActivation(d, h, evidence, sid, finalWD, errSpawn)
+			if evidence.Effect == ActivationUncertain {
+				return cause
+			}
+			return m.cleanupNewTemporaryWorkspace(sid, card, isNew, cause)
+		}
 		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errSpawn)
+	}
+	cleanupSpawn := func(cause error) error {
+		cause = teardownActivation(d, h, evidence, sid, finalWD, cause)
+		if evidence.Effect == ActivationUncertain {
+			return cause
+		}
+		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, cause)
 	}
 
 	deadline := m.startupClock.Now().Add(m.startupDelay)
@@ -696,31 +824,26 @@ func (m *Manager) startSession(
 	m.mu.Lock()
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		m.mu.Unlock()
-		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ctxErr, teardownUnpublished(d, h.Output)))
+		return cleanupSpawn(ctxErr)
 	}
 	if m.closed {
 		// Shutdown started during the unlocked spawn; see SwitchAgent. A new
 		// session has no record, so nothing would ever point at its tmp copy.
 		m.mu.Unlock()
-		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ErrManagerClosed, teardownUnpublished(d, h.Output)))
+		return cleanupSpawn(ErrManagerClosed)
 	}
 	if checkErr := publicationCheck(m.listLocked()); checkErr != nil {
 		m.mu.Unlock()
-		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(checkErr, teardownUnpublished(d, h.Output)))
+		return cleanupSpawn(checkErr)
 	}
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		m.mu.Unlock()
-		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, errors.Join(ctxErr, teardownUnpublished(d, h.Output)))
+		return cleanupSpawn(ctxErr)
 	}
 	select {
 	case <-h.Done:
 		m.mu.Unlock()
-		return m.cleanupNewTemporaryWorkspace(
-			sid,
-			card,
-			isNew,
-			errors.Join(errors.New("agent process exited during startup"), teardownUnpublished(d, h.Output)),
-		)
+		return cleanupSpawn(errors.New("agent process exited during startup"))
 	default:
 	}
 	defer m.mu.Unlock()
@@ -774,6 +897,14 @@ func (m *Manager) startSession(
 
 	go m.trackOutput(sid, gen, h.Output)
 	m.startWatchLocked(sid, gen, d)
+	*evidence = ActivationResult{
+		Effect:              ActivationPublished,
+		SessionID:           sid,
+		ProcessActivationID: s.ProcessActivationID,
+		PID:                 pid,
+		WorkingDir:          finalWD,
+		Spawned:             true,
+	}
 
 	// A persist failure here must not unwind the spawn: the agent process is
 	// already running. Surface the error so the caller can report it, but
@@ -842,6 +973,7 @@ func (m *Manager) activateSessionLocked(
 	now time.Time,
 ) {
 	s.generation++
+	s.ProcessActivationID = uuid.NewString()
 	m.cardReferenceRevision++
 	s.activating = false
 	s.CardID = card.ID
@@ -893,15 +1025,29 @@ type StopResult struct {
 
 // KillDetailed separates process teardown from session-record durability.
 func (m *Manager) KillDetailed(id string) (StopResult, error) {
-	return m.killDetailed(id, false)
+	return m.killDetailed(id, false, nil)
+}
+
+// KillDetailedChecked validates scope at the stop reservation boundary.
+func (m *Manager) KillDetailedChecked(id string, check func([]Snapshot) error) (StopResult, error) {
+	if check == nil {
+		return StopResult{}, errors.New("stop scope check is required")
+	}
+	return m.killDetailed(id, false, check)
 }
 
 //nolint:gocognit,nestif,funlen // Stop serialization, prompt drain, and durable teardown are one lifecycle transition.
-func (m *Manager) killDetailed(id string, duringShutdown bool) (StopResult, error) {
+func (m *Manager) killDetailed(id string, duringShutdown bool, check func([]Snapshot) error) (StopResult, error) {
 	m.mu.Lock()
 	if m.closed && !duringShutdown {
 		m.mu.Unlock()
 		return StopResult{}, ErrManagerClosed
+	}
+	if check != nil {
+		if err := check(m.listLocked()); err != nil {
+			m.mu.Unlock()
+			return StopResult{}, err
+		}
 	}
 	s, ok := m.sessions[id]
 	var d driver.AgentDriver
@@ -919,7 +1065,7 @@ func (m *Manager) killDetailed(id string, duringShutdown bool) (StopResult, erro
 				done := s.submissionsDone
 				m.mu.Unlock()
 				<-done
-				return m.killDetailed(id, duringShutdown)
+				return m.killDetailed(id, duringShutdown, check)
 			}
 			persistErr := m.persistSessionLockedErr(s)
 			m.mu.Unlock()
@@ -994,10 +1140,31 @@ type RemovalResult struct {
 }
 
 // RemoveDetailed reports each deletion effect independently.
-//
-//nolint:funlen,gocognit // Reservation, retryable cleanup, and deletion form one transaction.
 func (m *Manager) RemoveDetailed(id string) (RemovalResult, error) {
+	return m.removeDetailedChecked(id, nil)
+}
+
+// RemoveDetailedChecked validates scope at the deletion reservation boundary.
+func (m *Manager) RemoveDetailedChecked(id string, check func([]Snapshot) error) (RemovalResult, error) {
+	if check == nil {
+		return RemovalResult{}, errors.New("remove scope check is required")
+	}
+	return m.removeDetailedChecked(id, check)
+}
+
+//nolint:funlen,gocognit // Reservation, retryable cleanup, and deletion form one transaction.
+func (m *Manager) removeDetailedChecked(id string, check func([]Snapshot) error) (RemovalResult, error) {
 	m.mu.Lock()
+	if check != nil {
+		if m.closed {
+			m.mu.Unlock()
+			return RemovalResult{}, ErrManagerClosed
+		}
+		if err := check(m.listLocked()); err != nil {
+			m.mu.Unlock()
+			return RemovalResult{}, err
+		}
+	}
 	s, ok := m.sessions[id]
 	if !ok {
 		m.mu.Unlock()
@@ -1187,7 +1354,7 @@ func (m *Manager) Shutdown() int {
 	var wg sync.WaitGroup
 	for _, id := range live {
 		wg.Go(func() {
-			if _, err := m.killDetailed(id, true); err != nil && !errors.Is(err, ErrLifecycleConflict) {
+			if _, err := m.killDetailed(id, true, nil); err != nil && !errors.Is(err, ErrLifecycleConflict) {
 				m.logger.Warn("session shutdown stop failed", "session_id", id, "error", err)
 			}
 		})

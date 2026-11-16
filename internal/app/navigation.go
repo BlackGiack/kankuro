@@ -42,6 +42,40 @@ func (c *Coordinator) initViews() {
 	c.views[ViewConversationChoice] = views.NewConversationChoiceView(c.conversationChoiceCallbacks())
 }
 
+func (c *Coordinator) cancelConversationRead() {
+	c.conversationEpoch++
+	c.lifecycleRequest++
+	c.conversationReading = false
+	c.lifecycleExecuting = false
+	if c.conversationCancel != nil {
+		c.conversationCancel()
+		c.conversationCancel = nil
+	}
+}
+
+func (c *Coordinator) invalidateSessionRequestsOnNavigation(vt ViewType) {
+	if c.currentView == ViewDashboard && vt != ViewDashboard {
+		c.renameRequest++
+		c.workspaceRequest++
+		c.mutationRequest++
+		if vt != ViewSessionLauncher {
+			c.launchRequest++
+		}
+	}
+	switch {
+	case c.currentView == ViewConversationChoice && vt != ViewConversationChoice:
+		c.cancelConversationRead()
+	case c.currentView == ViewDashboard && vt != ViewDashboard && vt != ViewConversationChoice:
+		c.cancelConversationRead()
+	case c.currentView == ViewAgentSwitch && vt != ViewAgentSwitch && vt != ViewConversationChoice:
+		c.cancelConversationRead()
+	}
+	if c.currentView == ViewSessionLauncher && vt != ViewSessionLauncher {
+		c.renameRequest++
+		c.launchRequest++
+	}
+}
+
 // navigateTo switches the current view and returns the new view's Init command.
 //
 // Never call it (directly or through a callback) from inside a view's
@@ -57,6 +91,8 @@ func (c *Coordinator) initViews() {
 // not touch the error banner: that is cleared by the next keypress (see
 // Update), so an ErrorMsg batched beside a NavigateMsg survives either order.
 func (c *Coordinator) navigateTo(vt ViewType) tea.Cmd {
+	c.invalidateSessionRequestsOnNavigation(vt)
+
 	if c.currentView == ViewMCPManager && vt != ViewMCPManager {
 		if manager, ok := c.views[ViewMCPManager].(*views.MCPManager); ok {
 			manager.Leave()

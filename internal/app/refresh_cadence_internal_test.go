@@ -344,11 +344,11 @@ func TestLaunchCardAbortsOnRegistryReadError(t *testing.T) {
 	if launchMsg == nil {
 		t.Fatal("expected a SessionLaunchCompletedMsg")
 	}
-	if launchMsg.Err == nil {
+	if launchMsg.Result.Diagnostic == "" {
 		t.Fatal("expected launchCard to surface the corrupt skills.yaml read error")
 	}
-	if launchMsg.SessionID != "" {
-		t.Fatalf("expected no session ID on an aborted launch, got %q", launchMsg.SessionID)
+	if launchMsg.Result.SessionID != "" {
+		t.Fatalf("expected no session ID on an aborted launch, got %q", launchMsg.Result.SessionID)
 	}
 	if got := sm.List(); len(got) != 0 {
 		t.Fatalf("expected no session to have been created, got %d", len(got))

@@ -61,8 +61,11 @@ type Session struct {
 	ActiveConversationID    string
 	ActivationID            string
 	ActivationToken         string
-	ExpectedConversationID  string
-	Driver                  driver.AgentDriver
+	// ProcessActivationID identifies this process generation independently of
+	// the optional MCP authority. It is runtime-only and is not persisted.
+	ProcessActivationID    string
+	ExpectedConversationID string
+	Driver                 driver.AgentDriver
 	// PTY is the raw pseudo-terminal file, exposed for ioctl-based resize.
 	// Write input through Driver.SendInputBytes, which synchronizes with Kill.
 	PTY         *os.File
@@ -171,6 +174,8 @@ type RegistrationPersistence string
 type ConversationChoice struct {
 	New bool
 	ID  string
+	// SelectionIdentity is a scoped opaque identity validated under admission.
+	SelectionIdentity string
 }
 
 const (
@@ -627,27 +632,52 @@ func updateInstructionOwnership(previous map[string]bool, filename string, manag
 
 // SetNameChecked validates scope under the manager lock before persisting.
 func (m *Manager) SetNameChecked(id, name string, check func([]Snapshot) error) error {
+	_, err := m.SetNameDetailedChecked(id, name, check)
+	return err
+}
+
+type RenameResult struct{ Applied, Persisted bool }
+
+// SetNameDetailedChecked retains the in-memory effect if persistence fails.
+func (m *Manager) SetNameDetailedChecked(id, name string, check func([]Snapshot) error) (RenameResult, error) {
+	return m.setNameDetailedChecked(id, name, "", check)
+}
+
+// SetNameExpectedProcessChecked prevents a delayed launch naming operation
+// from mutating the session after its process has been replaced.
+func (m *Manager) SetNameExpectedProcessChecked(id, name, processID string, check func([]Snapshot) error) (RenameResult, error) {
+	if processID == "" {
+		return RenameResult{}, errors.New("expected process identity is required")
+	}
+	return m.setNameDetailedChecked(id, name, processID, check)
+}
+
+func (m *Manager) setNameDetailedChecked(id, name, processID string, check func([]Snapshot) error) (RenameResult, error) {
 	if check == nil {
-		return errors.New("rename scope check is required")
+		return RenameResult{}, errors.New("rename scope check is required")
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.closed {
-		return ErrManagerClosed
+		return RenameResult{}, ErrManagerClosed
 	}
 	if err := check(m.listLocked()); err != nil {
-		return err
+		return RenameResult{}, err
 	}
 	s, ok := m.sessions[id]
 	if !ok {
-		return fmt.Errorf("session not found: %s", id)
+		return RenameResult{}, fmt.Errorf("session not found: %s", id)
+	}
+	if processID != "" && s.ProcessActivationID != processID {
+		return RenameResult{}, errors.New("session process changed before rename")
 	}
 	if s.deleting || s.stopping || s.activating {
-		return fmt.Errorf("%w: rename is not allowed during a lifecycle operation", ErrLifecycleConflict)
+		return RenameResult{}, fmt.Errorf("%w: rename is not allowed during a lifecycle operation", ErrLifecycleConflict)
 	}
 	s.Name = name
-	return m.persistSessionLockedErr(s)
+	err := m.persistSessionLockedErr(s)
+	return RenameResult{Applied: true, Persisted: err == nil}, err
 }
 
 // GetScrollback returns a copy of the cached scrollback for a session.

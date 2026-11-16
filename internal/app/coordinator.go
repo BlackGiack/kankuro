@@ -1,8 +1,8 @@
 package app
 
 import (
+	"context"
 	"errors"
-	"fmt"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -36,29 +36,37 @@ const (
 
 type Coordinator struct {
 	// --- coordinator-goroutine state: never read or written from a tea.Cmd closure ---
-	currentView          ViewType
-	prevView             ViewType
-	views                map[ViewType]component.Model
-	width                int
-	height               int
-	err                  error
-	settings             config.AppSettings
-	preview              previewSub
-	activeDashboard      string
-	viewGeneration       uint64
-	sessionEpoch         uint64
-	dashboardListRequest uint64
-	dashboardViews       map[string]*views.Dashboard
-	editorEpoch          uint64
-	editorRequest        uint64
-	editorCardID         string
-	editorRevision       string
-	editorSaving         bool
-	editorCompleted      bool
-	mcpReturn            ViewType
-	mcpRequest           uint64
-	mcpManagerVisit      uint64
-	mcpDeleteRequest     uint64
+	currentView                                                  ViewType
+	prevView                                                     ViewType
+	views                                                        map[ViewType]component.Model
+	width                                                        int
+	height                                                       int
+	err                                                          error
+	settings                                                     config.AppSettings
+	preview                                                      previewSub
+	activeDashboard                                              string
+	viewGeneration                                               uint64
+	sessionEpoch                                                 uint64
+	launchRequest                                                uint64
+	launchCardID                                                 string
+	mutationRequest                                              uint64
+	renameRequest, workspaceRequest                              uint64
+	conversationEpoch, conversationReadRequest, lifecycleRequest uint64
+	conversationReading                                          bool
+	lifecycleExecuting                                           bool
+	conversationCancel                                           context.CancelFunc
+	dashboardListRequest                                         uint64
+	dashboardViews                                               map[string]*views.Dashboard
+	editorEpoch                                                  uint64
+	editorRequest                                                uint64
+	editorCardID                                                 string
+	editorRevision                                               string
+	editorSaving                                                 bool
+	editorCompleted                                              bool
+	mcpReturn                                                    ViewType
+	mcpRequest                                                   uint64
+	mcpManagerVisit                                              uint64
+	mcpDeleteRequest                                             uint64
 
 	configFingerprint           contracts.RegistryChangeToken
 	displayChoices              contracts.DisplayChoices
@@ -75,6 +83,7 @@ type Coordinator struct {
 	reads   dashboardInventoryReader
 	editor  cardEditorPort
 	actions sessionActions
+	legacy  legacyActions
 }
 
 func NewCoordinator(repo config.Repository, sm *session.Manager, service *api.Service) *Coordinator {
@@ -85,7 +94,8 @@ func NewCoordinator(repo config.Repository, sm *session.Manager, service *api.Se
 		refresh:        refresher{repo: repo, sessions: sm, editor: service},
 		reads:          service,
 		editor:         service,
-		actions:        sessionActions{repo: repo, sessions: sm, service: service},
+		actions:        sessionActions{port: service},
+		legacy:         legacyActions{repo: repo, service: service},
 		views:          make(map[ViewType]component.Model),
 		currentView:    ViewDashboardList,
 		dashboardViews: make(map[string]*views.Dashboard),
@@ -234,7 +244,7 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 			}
 			return true, nil
 		}
-		return true, confirmCardDeletionCommand(c.actions.service, m.DashboardID, m.CardID, m.Token, m.Generation, false)
+		return true, confirmCardDeletionCommand(c.legacy.service, m.DashboardID, m.CardID, m.Token, m.Generation, false)
 
 	case messages.DashboardOpenRequestedMsg:
 		if c.currentView != ViewDashboardList || m.Generation != c.viewGeneration || m.DashboardID == "" ||
@@ -255,16 +265,21 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, tea.Batch(c.navigateTo(ViewDashboard), c.refreshDataSeeded())
 
 	case messages.DashboardCardLoadedMsg:
-		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || c.currentView != ViewDashboard {
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || m.Request != c.launchRequest ||
+			c.currentView != ViewDashboard {
 			return true, nil
 		}
 		if m.Err != nil {
 			c.err = m.Err
 			return true, nil
 		}
+		if m.Card.ID != m.CardID {
+			c.err = errors.New("card read target mismatch")
+			return true, nil
+		}
 		switch m.Action {
 		case messages.DashboardCardLaunch:
-			return true, c.launchCard(m.Card)
+			return true, c.launchCard(m.Card, m.Request)
 		default:
 			return true, nil
 		}
@@ -351,7 +366,7 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 			return true, nil
 		}
 		c.mcpDeleteRequest++
-		return true, c.actions.deleteMCPFromManager(m.MCPID, c.activeDashboard, c.viewGeneration, c.mcpDeleteRequest)
+		return true, c.legacy.deleteMCPFromManager(m.MCPID, c.activeDashboard, c.viewGeneration, c.mcpDeleteRequest)
 
 	case messages.MCPManagerDeletedMsg:
 		if m.Request == c.mcpDeleteRequest {
@@ -480,7 +495,7 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 	case messages.MCPDeleteRequestedMsg:
 		// Disk I/O deferred to a tea.Cmd, consistent with every other
 		// mutation - this used to run synchronously inside Update.
-		return true, c.actions.deleteMCP(m)
+		return true, c.legacy.deleteMCP(m)
 
 	case messages.ClearErrorMsg:
 		c.err = nil
@@ -509,14 +524,26 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
 			return true, nil
 		}
+		if m.Request != c.launchRequest || m.CardID == "" || m.CardID != c.launchCardID {
+			if m.Result.Validate() != nil || m.Result.Effect != contracts.NoEffect {
+				c.sessionEpoch++
+			}
+			return true, c.refreshDataSeeded()
+		}
 		launcher, ok := c.views[ViewSessionLauncher].(*views.SessionLauncher)
 		if ok {
-			launcher.SetLaunchResult(m.SessionID, m.Err)
+			if launcher.Card().ID != m.CardID {
+				return true, c.refreshDataSeeded()
+			}
+			launcher.SetLaunchResult(m.Result)
 		}
-		if m.SessionID != "" && (m.Err == nil || errors.Is(m.Err, session.ErrPersistFailed)) {
+		validationErr := m.Result.Validate()
+		if validationErr != nil || m.Result.Effect != contracts.NoEffect {
 			c.sessionEpoch++
+		}
+		if validationErr == nil && m.Result.Effect == contracts.UsableActivation {
 			if dashboard, found := c.views[ViewDashboard].(*views.Dashboard); found {
-				dashboard.FocusSession(m.SessionID)
+				dashboard.FocusSession(m.Result.SessionID)
 			}
 		}
 		return true, c.refreshDataSeeded()
@@ -531,17 +558,46 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		}
 		return true, c.navigateTo(ViewAgentSwitch)
 
-	case messages.ConversationChoiceRequestedMsg:
+	case messages.ConversationPreparedMsg:
+		return true, c.handleConversationPrepared(m)
+	case messages.SessionActivationCompletedMsg:
 		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
 			return true, nil
 		}
-		return true, c.handleConversationChoiceRequested(m)
-
-	case messages.AgentSwitchedMsg:
-		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
-			return true, nil
+		if m.Request != c.lifecycleRequest {
+			if m.Result.Validate() != nil || m.Result.Effect != contracts.NoEffect {
+				c.sessionEpoch++
+			}
+			return true, c.refreshDataSeeded()
 		}
-		return true, c.handleAgentSwitched(m)
+		c.lifecycleExecuting = false
+		result := m.Result
+		if err := result.Validate(); err != nil {
+			c.sessionEpoch++
+			c.err = err
+			return true, c.refreshDataSeeded()
+		}
+		if result.Effect != contracts.UsableActivation || result.SessionID != m.SessionID {
+			if result.Effect != contracts.NoEffect {
+				c.sessionEpoch++
+			}
+			if result.Diagnostic != "" {
+				c.err = errors.New(result.Diagnostic)
+			} else {
+				c.err = errors.New("activation outcome is invalid")
+			}
+			return true, c.refreshDataSeeded()
+		}
+		if result.Diagnostic != "" {
+			c.err = errors.New(result.Diagnostic)
+		}
+		c.sessionEpoch++
+		init := c.navigateTo(ViewDashboard)
+		return true, tea.Batch(
+			init,
+			c.refreshDataSeeded(),
+			c.requestAttachExpected(result.SessionID, result.ProcessActivationID, messages.AttachRequestLifecycle),
+		)
 
 	case messages.SessionAttachRequestedMsg:
 		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
@@ -559,7 +615,10 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, tea.Batch(initCmd, c.requestAttach(m.SessionID))
 
 	case messages.ScopedAttachReadyMsg:
-		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+		staleRequest := (m.RequestKind == messages.AttachRequestLaunch && m.Request != c.launchRequest) ||
+			(m.RequestKind == messages.AttachRequestLifecycle && m.Request != c.lifecycleRequest) ||
+			(m.RequestKind != "" && m.RequestKind != messages.AttachRequestLaunch && m.RequestKind != messages.AttachRequestLifecycle)
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || staleRequest {
 			if m.Handle != nil {
 				m.Handle.Close()
 			}
@@ -576,31 +635,122 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, scopedAttachCommand(m)
 
 	case messages.ScopedSessionNamedMsg:
-		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration ||
-			c.currentView != ViewSessionLauncher {
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
 			return true, nil
 		}
-		if launcher, ok := c.views[ViewSessionLauncher].(*views.SessionLauncher); ok {
-			launcher.SetNameResult(m.Err)
+		if m.Request != c.renameRequest || c.currentView != ViewSessionLauncher {
+			if m.Result.Applied {
+				c.sessionEpoch++
+			}
+			return true, c.refreshDataSeeded()
 		}
-		if m.Err != nil {
+		launcher, ok := c.views[ViewSessionLauncher].(*views.SessionLauncher)
+		if !ok || launcher.SessionID() != m.SessionID || launcher.ProcessActivationID() == "" {
 			return true, nil
 		}
+		var renameErr error
+		if m.Result.Diagnostic != "" {
+			renameErr = errors.New(m.Result.Diagnostic)
+		}
+		if !m.Result.Applied {
+			if renameErr == nil {
+				renameErr = errors.New("rename did not apply")
+			}
+			launcher.SetNameResult(renameErr)
+			return true, c.refreshDataSeeded()
+		}
+		launcher.SetNameResult(nil)
+		if renameErr != nil {
+			c.err = renameErr
+		}
+
 		c.sessionEpoch++
-		if dashboard, ok := c.views[ViewDashboard].(*views.Dashboard); ok {
+		if dashboard, found := c.views[ViewDashboard].(*views.Dashboard); found {
 			dashboard.FocusSessionAfterRename(m.SessionID, m.Name)
 		}
-		return true, tea.Batch(c.navigateTo(ViewDashboard), c.requestAttach(m.SessionID))
+		return true, tea.Batch(
+			c.navigateTo(ViewDashboard),
+			c.requestAttachExpected(m.SessionID, launcher.ProcessActivationID(), messages.AttachRequestLaunch),
+		)
 
 	case messages.DashboardSessionRenamedMsg:
-		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || c.currentView != ViewDashboard {
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
 			return true, nil
+		}
+		if m.Request != c.renameRequest || c.currentView != ViewDashboard {
+			if m.Result.Applied {
+				c.sessionEpoch++
+			}
+			return true, c.refreshDataSeeded()
 		}
 		dashboard, ok := c.views[ViewDashboard].(*views.Dashboard)
-		if !ok || !dashboard.CompleteRename(m.SessionID, m.Err) {
+		if !ok {
 			return true, nil
 		}
-		if m.Err == nil {
+		var renameErr error
+		if m.Result.Diagnostic != "" {
+			renameErr = errors.New(m.Result.Diagnostic)
+		}
+		var formErr error
+		if !m.Result.Applied {
+			if renameErr == nil {
+				renameErr = errors.New("rename did not apply")
+			}
+			formErr = renameErr
+		}
+		if !dashboard.CompleteRename(m.SessionID, formErr) {
+			return true, nil
+		}
+		if m.Result.Applied {
+			c.sessionEpoch++
+			if renameErr != nil {
+				c.err = renameErr
+			}
+		}
+		return true, c.refreshDataSeeded()
+
+	case messages.WorkspaceOpenedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || m.Request != c.workspaceRequest {
+			return true, nil
+		}
+		if m.Result.Diagnostic != "" {
+			c.err = errors.New(m.Result.Diagnostic)
+		} else if !m.Result.Started {
+			c.err = errors.New("workspace command did not start")
+		}
+		return true, nil
+
+	case messages.SessionStoppedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, nil
+		}
+		if m.Request != c.mutationRequest {
+			if m.Result.ProcessTerminated {
+				c.sessionEpoch++
+			}
+			return true, c.refreshDataSeeded()
+		}
+		if m.Result.Diagnostic != "" {
+			c.err = errors.New(m.Result.Diagnostic)
+		}
+		if m.Result.ProcessTerminated {
+			c.sessionEpoch++
+		}
+		return true, c.refreshDataSeeded()
+	case messages.SessionRemovedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
+			return true, nil
+		}
+		if m.Request != c.mutationRequest {
+			if m.Result.InMemoryRemoved || m.Result.RecordDeleted || m.Result.WorkspaceRemoved {
+				c.sessionEpoch++
+			}
+			return true, c.refreshDataSeeded()
+		}
+		if m.Result.Diagnostic != "" {
+			c.err = errors.New(m.Result.Diagnostic)
+		}
+		if m.Result.InMemoryRemoved || m.Result.RecordDeleted || m.Result.WorkspaceRemoved {
 			c.sessionEpoch++
 		}
 		return true, c.refreshDataSeeded()
@@ -627,128 +777,92 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 	return false, nil
 }
 
-func (c *Coordinator) handleConversationChoiceRequested(m messages.ConversationChoiceRequestedMsg) tea.Cmd {
-	snapshot, found := c.session.GetSession(m.SessionID)
-	if !found {
-		c.err = fmt.Errorf("session not found: %s", m.SessionID)
+func (c *Coordinator) handleConversationPrepared(m messages.ConversationPreparedMsg) tea.Cmd {
+	if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || m.Epoch != c.conversationEpoch ||
+		m.Request != c.conversationReadRequest {
 		return nil
 	}
-	if snapshot.DashboardID != c.activeDashboard {
-		c.err = errors.New("session is outside dashboard scope")
-		return nil
-	}
-	if snapshot.Status != session.StatusTerminated {
-		c.err = errors.New("session is no longer terminated; refresh and retry the action")
-		return c.refreshDataSeeded()
-	}
-	cardID := m.CardID
-	if cardID == "" {
-		cardID = snapshot.CardID
-	}
-	bindings := snapshot.Conversations[cardID]
-	if len(bindings) == 0 {
-		c.err = errors.New("saved conversations are no longer available; refresh and retry the action")
-		return c.refreshDataSeeded()
+	c.conversationReading = false
+	if c.conversationCancel != nil {
+		c.conversationCancel()
+		c.conversationCancel = nil
 	}
 	choiceView, ok := c.views[ViewConversationChoice].(*views.ConversationChoiceView)
 	if !ok {
 		c.err = errors.New("conversation selection view is unavailable")
 		return nil
 	}
-	choiceView.SetContext(m.SessionID, cardID, m.Driver, m.ReturnView, bindings)
-	return c.navigateTo(ViewConversationChoice)
+	if err := validateConversationPrepared(m); err != nil {
+		c.err = err
+		if !m.Initial {
+			choiceView.SetContextError(err.Error())
+		}
+		return nil
+	}
+
+	if m.Initial &&
+		((m.ReturnView == messages.ViewDashboard && c.currentView != ViewDashboard) || (m.ReturnView == messages.ViewAgentSwitch && c.currentView != ViewAgentSwitch)) {
+		return nil
+	}
+	if m.Initial && !m.Preparation.HasSaved {
+		c.lifecycleExecuting = true
+		return c.actions.activate(
+			c.activeDashboard,
+			c.viewGeneration,
+			c.lifecycleRequest,
+			m.Preparation.SessionID,
+			m.Preparation.CardID,
+			m.ReturnView == messages.ViewDashboard,
+			contracts.ConversationChoice{Kind: contracts.ConversationNew},
+		)
+	}
+	if m.Initial {
+		choiceView.SetContext(m.Preparation.SessionID, m.Preparation.CardID, m.ReturnView, m.Preparation.Options)
+		return c.navigateTo(ViewConversationChoice)
+	}
+	choiceView.RefreshContext(m.Preparation.SessionID, m.Preparation.CardID, m.Preparation.Options)
+	return nil
 }
 
-func (c *Coordinator) refreshConversationChoiceContext() {
-	choiceView, ok := c.views[ViewConversationChoice].(*views.ConversationChoiceView)
-	if !ok {
-		return
+func validateConversationPrepared(m messages.ConversationPreparedMsg) error {
+	if err := m.Preparation.Validate(); err != nil {
+		return err
 	}
-	sessionID, cardID, _ := choiceView.Target()
-	snapshot, found := c.session.GetSession(sessionID)
-	if !found {
-		c.setConversationChoiceError(choiceView, "The selected session was removed. Cancel and start again.")
-		return
+	if m.Preparation.Diagnostic != "" {
+		return errors.New(m.Preparation.Diagnostic)
 	}
-	if snapshot.Status != session.StatusTerminated {
-		c.setConversationChoiceError(choiceView, "The session is no longer terminated. Cancel and choose another action.")
-		return
+	if m.Preparation.DashboardID != m.DashboardID || m.Preparation.SessionID != m.SessionID ||
+		(m.CardID != "" && m.Preparation.CardID != m.CardID) || m.Preparation.CardID == "" {
+		return errors.New("conversation preparation target mismatch")
 	}
-	dashboard, ok := c.views[ViewDashboard].(*views.Dashboard)
-	if !ok {
-		c.setConversationChoiceError(choiceView, "Session data is unavailable. Cancel and try again.")
-		return
+	if !m.Preparation.Availability.Enabled {
+		return errors.New(m.Preparation.Availability.Reason)
 	}
-	destinationDriver := ""
-	for _, card := range dashboard.Cards() {
-		if card.ID == cardID {
-			destinationDriver = card.Driver
-			break
-		}
-	}
-	if destinationDriver == "" {
-		c.setConversationChoiceError(choiceView, "The destination card was removed. Cancel and choose another card.")
-		return
-	}
-	bindings := snapshot.Conversations[cardID]
-	if len(bindings) == 0 {
-		c.setConversationChoiceError(choiceView, "Saved conversations are no longer available. Cancel and restart the action.")
-		return
-	}
-	if selected, hasSelected := choiceView.SelectedBinding(); hasSelected {
-		foundSelected := false
-		for _, binding := range bindings {
-			if binding.ID == selected.ID && binding.Driver == selected.Driver {
-				foundSelected = true
-				break
-			}
-		}
-		if !foundSelected {
-			c.setConversationChoiceError(
-				choiceView,
-				"The selected conversation is no longer available for this driver. Cancel and restart the action.",
-			)
-			return
-		}
-	}
-	choiceView.RefreshContext(sessionID, cardID, destinationDriver, bindings)
+	return nil
 }
 
-func (c *Coordinator) setConversationChoiceError(view *views.ConversationChoiceView, message string) {
-	err := errors.New(message)
-	view.SetContextError(message)
-	c.err = err
-}
-
-func (c *Coordinator) handleAgentSwitched(m messages.AgentSwitchedMsg) tea.Cmd {
-	if m.Err != nil && !errors.Is(m.Err, session.ErrPersistFailed) {
-		c.err = m.Err
-		return c.refreshDataSeeded()
+func (c *Coordinator) refreshConversationChoiceContext() tea.Cmd {
+	view, ok := c.views[ViewConversationChoice].(*views.ConversationChoiceView)
+	if !ok || c.conversationReading {
+		return nil
 	}
-	// The agent did switch (its process restarted); a persist failure only
-	// means its on-disk record didn't save, so still attach, but warn. Set
-	// c.err directly here (not only via SessionAttachRequestedMsg.Warning
-	// below) so the warning is visible even to a caller that processes this
-	// message without driving the follow-on Cmd - the same guarantee the
-	// "relaunch" path gets for free by returning a single message instead of
-	// a batch.
-	if m.Err != nil {
-		c.err = m.Err
-	}
-	// Route the warning through SessionAttachRequestedMsg.Warning too - the
-	// same path relaunch uses. This handler runs outside updateCurrentView's
-	// write-back, so unlike the OnSwitch callback that produced this message
-	// it is a safe place to hand off to the handler that navigates.
-	return tea.Batch(
-		c.refreshDataSeeded(),
-		func() tea.Msg {
-			return messages.SessionAttachRequestedMsg{
-				SessionID:   m.SessionID,
-				Warning:     m.Err,
-				DashboardID: m.DashboardID,
-				Generation:  m.Generation,
-			}
-		},
+	sessionID, cardID, returnView := view.Target()
+	c.conversationReadRequest++
+	c.conversationReading = true
+	ctx, cancel := context.WithCancel(context.Background())
+	c.conversationCancel = cancel
+	view.SetContextError("Refreshing conversations")
+	return conversationReadCommand(
+		ctx,
+		c.actions.port,
+		c.activeDashboard,
+		c.viewGeneration,
+		c.conversationEpoch,
+		c.conversationReadRequest,
+		sessionID,
+		cardID,
+		returnView,
+		false,
 	)
 }
 

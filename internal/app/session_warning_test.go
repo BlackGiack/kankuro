@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
@@ -51,28 +51,17 @@ func drive(t *testing.T, coord *app.Coordinator, cmd tea.Cmd) {
 	}
 }
 
-// permute calls fn once for every permutation of msgs (Heap's algorithm).
-// Exercise every delivery order because tea.Batch does not guarantee one.
-func permute(msgs []tea.Msg, fn func([]tea.Msg)) {
-	n := len(msgs)
-	cur := make([]tea.Msg, n)
-	copy(cur, msgs)
-	var generate func(k int)
-	generate = func(k int) {
-		if k == 1 {
-			fn(cur)
-			return
-		}
-		for i := range k {
-			generate(k - 1)
-			if k%2 == 0 {
-				cur[i], cur[k-1] = cur[k-1], cur[i]
-			} else {
-				cur[0], cur[k-1] = cur[k-1], cur[0]
-			}
-		}
+// executePreparedActivation drives the preparation read and then its activation.
+func executePreparedActivation(t *testing.T, coord *app.Coordinator, cmd tea.Cmd) tea.Msg {
+	t.Helper()
+	if cmd == nil {
+		t.Fatal("missing preparation command")
 	}
-	generate(n)
+	_, next := coord.Update(cmd())
+	if next == nil {
+		t.Fatalf("preparation did not start activation: %v", coord.Err())
+	}
+	return next()
 }
 
 // Persistence warnings must reach the error banner on both relaunch and switch.
@@ -108,13 +97,13 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 		coord.Init()
 
 		cmd := coord.DashboardCallbacks().OnRelaunch(sessionID)
-		msgs := collectMsgs(t, cmd)
+		msgs := []tea.Msg{executePreparedActivation(t, coord, cmd)}
 		defer func() {
 			restore()
 			_ = sm.Kill(sessionID)
 		}()
 
-		assertWarningSurvivesEveryOrder(t, repo, sm, msgs, "relaunch")
+		assertWarningVisible(t, coord, msgs, "relaunch")
 	})
 
 	t.Run("switch", func(t *testing.T) {
@@ -154,15 +143,16 @@ func TestPersistFailureWarningReachesViewOnBothPaths(t *testing.T) {
 
 		coord := newOpenedCoordinator(repo, sm)
 		coord.Init()
+		coord.Update(messages.AgentSwitchRequestedMsg{SessionID: sessionID, DashboardID: "default", Generation: 1})
 
-		cmd := coord.AgentSwitchCallbacks().OnSwitch(sessionID, card2.ID, card2.Driver)
-		msgs := collectMsgs(t, cmd)
+		cmd := coord.AgentSwitchCallbacks().OnSwitch(sessionID, card2.ID)
+		msgs := []tea.Msg{executePreparedActivation(t, coord, cmd)}
 		defer func() {
 			restore()
 			_ = sm.Kill(sessionID)
 		}()
 
-		assertWarningSurvivesEveryOrder(t, repo, sm, msgs, "switch")
+		assertWarningVisible(t, coord, msgs, "switch")
 	})
 }
 
@@ -226,7 +216,7 @@ func TestAgentSwitchDoesNotClobberDashboardView(t *testing.T) {
 
 	// Run the actual switch command and its resulting messages through the event loop.
 	_, cmd := coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	drive(t, coord, cmd)
+	coord.Update(executePreparedActivation(t, coord, cmd))
 
 	// The switch must have actually run before this test's result means
 	// anything - otherwise a no-op Enter would pass for the wrong reason too.
@@ -283,39 +273,17 @@ func makeSessionsDirReadOnly(t *testing.T, sessionsDir string) func() {
 	}
 }
 
-// assertWarningSurvivesEveryOrder replays msgs, in every possible order,
-// against a fresh Coordinator each time, and requires the persist-failure
-// warning to be visible after every single ordering. tea.Batch gives no
-// delivery-order guarantee, so anything less than "every order" leaves the
-// warning vulnerable to command scheduling.
-func assertWarningSurvivesEveryOrder(t *testing.T, repo config.Repository, sm *session.Manager, msgs []tea.Msg, label string) {
+func assertWarningVisible(t *testing.T, coord *app.Coordinator, msgs []tea.Msg, label string) {
 	t.Helper()
-	if len(msgs) == 0 {
-		t.Fatalf("%s: expected at least one message from the callback's command", label)
+	if len(msgs) != 1 {
+		t.Fatalf("%s: expected one result, got %v", label, msgs)
 	}
-
-	tested := 0
-	permute(msgs, func(order []tea.Msg) {
-		tested++
-		coord := newOpenedCoordinator(repo, sm)
-		coord.Init()
-		for _, m := range order {
-			coord.Update(m)
-		}
-
-		if coord.Err() == nil {
-			t.Errorf("%s: order %v: expected coord.Err() to carry the persist-failure warning, got nil", label, order)
-			return
-		}
-		if !errors.Is(coord.Err(), session.ErrPersistFailed) {
-			t.Errorf("%s: order %v: expected coord.Err() to wrap session.ErrPersistFailed, got: %v", label, order, coord.Err())
-			return
-		}
-		if !strings.Contains(coord.View(), "could not be saved") {
-			t.Errorf("%s: order %v: expected the rendered view to contain the warning, got: %q", label, order, coord.View())
-		}
-	})
-	if tested == 0 {
-		t.Fatalf("%s: permute never invoked fn", label)
+	result, ok := msgs[0].(messages.SessionActivationCompletedMsg)
+	if !ok || result.Result.Effect != contracts.UsableActivation || result.Result.Diagnostic == "" {
+		t.Fatalf("%s: activation result = %+v", label, msgs[0])
+	}
+	coord.Update(result)
+	if coord.Err() == nil || !strings.Contains(coord.View(), "could not be saved") {
+		t.Fatalf("%s: warning missing from view: %q", label, coord.View())
 	}
 }

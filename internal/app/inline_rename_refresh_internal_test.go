@@ -49,7 +49,7 @@ func TestInlineRenameRejectsOlderRefreshSnapshots(t *testing.T) {
 				t.Fatal("inline rename returned no save command")
 			}
 			result, ok := submit().(messages.DashboardSessionRenamedMsg)
-			if !ok || result.Err != nil || result.SessionID != id {
+			if !ok || result.Result.Diagnostic != "" || !result.Result.Applied || result.SessionID != id {
 				t.Fatalf("inline rename failed: %+v", result)
 			}
 			_, refresh := coordinator.Update(result)
@@ -89,7 +89,7 @@ func newInlineRenameCoordinator(t *testing.T) (*Coordinator, *views.Dashboard, s
 	if err != nil {
 		t.Fatal(err)
 	}
-	id, err := coordinator.actions.service.LaunchInDashboard(t.Context(), "default", card.ID)
+	id, err := coordinator.legacy.service.LaunchInDashboard(t.Context(), "default", card.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -102,11 +102,12 @@ const (
 // DashboardCardLoadedMsg carries a full card only to the legacy action adapter
 // that owns launching.
 type DashboardCardLoadedMsg struct {
+	Request     uint64
 	DashboardID string
 	Generation  uint64
 	CardID      string
 	Action      DashboardCardAction
-	Card        config.IDCard
+	Card        contracts.CardSummary
 	Err         error
 }
 
@@ -136,8 +137,15 @@ type ScopedActionFinishedMsg struct {
 	Err         error
 }
 
+const (
+	AttachRequestLaunch    = "launch"
+	AttachRequestLifecycle = "lifecycle"
+)
+
 // ScopedAttachReadyMsg carries an authorized attachment subscription.
 type ScopedAttachReadyMsg struct {
+	Request     uint64
+	RequestKind string
 	DashboardID string
 	Generation  uint64
 	SessionID   string
@@ -147,19 +155,39 @@ type ScopedAttachReadyMsg struct {
 
 // ScopedSessionNamedMsg reports a session rename before optional attachment.
 type ScopedSessionNamedMsg struct {
+	Request     uint64
 	DashboardID string
 	Generation  uint64
 	Name        string
 	SessionID   string
-	Err         error
+	Result      contracts.RenameSessionResult
 }
 
 // DashboardSessionRenamedMsg reports a rename initiated from the dashboard.
 type DashboardSessionRenamedMsg struct {
+	Request     uint64
 	DashboardID string
 	Generation  uint64
 	SessionID   string
-	Err         error
+	Result      contracts.RenameSessionResult
+}
+
+type WorkspaceOpenedMsg struct {
+	DashboardID, SessionID string
+	Generation, Request    uint64
+	Kind                   contracts.WorkspaceCommandKind
+	Result                 contracts.OpenSessionWorkspaceResult
+}
+
+type SessionStoppedMsg struct {
+	DashboardID, SessionID string
+	Generation, Request    uint64
+	Result                 contracts.StopSessionResult
+}
+type SessionRemovedMsg struct {
+	DashboardID, SessionID string
+	Generation, Request    uint64
+	Result                 contracts.RemoveSessionResult
 }
 
 // PuppetsSyncedMsg signals that a background puppet-source sync has finished.
@@ -169,10 +197,7 @@ type DashboardSessionRenamedMsg struct {
 type PuppetsSyncedMsg struct{}
 
 // SessionAttachRequestedMsg signals user wants to attach to session.
-// Warning carries a non-fatal problem the caller should still surface (e.g.
-// session.ErrPersistFailed): the session started/relaunched successfully and
-// should still be attached to, but something about the operation - usually
-// that its state could not be saved - deserves the user's attention.
+// Warning carries a non-fatal problem to surface during navigation.
 type SessionAttachRequestedMsg struct {
 	SessionID   string
 	Warning     error
@@ -182,8 +207,9 @@ type SessionAttachRequestedMsg struct {
 
 // SessionLaunchCompletedMsg signals that a session launch has completed.
 type SessionLaunchCompletedMsg struct {
-	SessionID   string
-	Err         error
+	CardID      string
+	Request     uint64
+	Result      contracts.LifecycleResult
 	DashboardID string
 	Generation  uint64
 }
@@ -196,19 +222,18 @@ type AgentSwitchRequestedMsg struct {
 	Generation  uint64
 }
 
-type ConversationChoiceRequestedMsg struct {
-	SessionID   string
-	CardID      string
-	Driver      string
-	ReturnView  ViewType
-	DashboardID string
-	Generation  uint64
+type ConversationPreparedMsg struct {
+	SessionID, CardID          string
+	DashboardID                string
+	Generation, Epoch, Request uint64
+	ReturnView                 ViewType
+	Initial                    bool
+	Preparation                contracts.ConversationPreparation
 }
-
-type ConversationChoiceSelectedMsg struct {
-	SessionID string
-	CardID    string
-	Choice    session.ConversationChoice
+type SessionActivationCompletedMsg struct {
+	DashboardID, SessionID, CardID string
+	Generation, Request            uint64
+	Result                         contracts.LifecycleResult
 }
 
 type MCPManagerScope struct {
@@ -244,19 +269,6 @@ type MCPDeletedMsg struct {
 
 // AttachFinishedMsg signals that an attach session has finished.
 type AttachFinishedMsg struct {
-	SessionID   string
-	Err         error
-	DashboardID string
-	Generation  uint64
-}
-
-// AgentSwitchedMsg signals that an agent-switch request has completed (or
-// failed). Err may wrap session.ErrPersistFailed: the agent process did
-// restart, but its on-disk record failed to save - callers should still
-// attach, but surface the warning. Syncing driver files and spawning the new
-// PTY process happens inside a tea.Cmd, off the UI goroutine - see
-// sessionActions.switchAgent.
-type AgentSwitchedMsg struct {
 	SessionID   string
 	Err         error
 	DashboardID string

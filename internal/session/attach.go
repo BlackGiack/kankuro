@@ -20,6 +20,18 @@ func (w driverInputWriter) Write(p []byte) (int, error) {
 // AttachChecked validates scope under the manager lock before subscribing.
 // The callback must not call the manager.
 func (m *Manager) AttachChecked(id string, check func([]Snapshot) error) (*AttachHandle, error) {
+	return m.attachChecked(id, "", check)
+}
+
+// AttachExpectedProcessChecked rejects a replaced process before subscribing or consuming the header.
+func (m *Manager) AttachExpectedProcessChecked(id, processID string, check func([]Snapshot) error) (*AttachHandle, error) {
+	if processID == "" {
+		return nil, errors.New("expected process identity is required")
+	}
+	return m.attachChecked(id, processID, check)
+}
+
+func (m *Manager) attachChecked(id, processID string, check func([]Snapshot) error) (*AttachHandle, error) {
 	if check == nil {
 		return nil, errors.New("attach scope check is required")
 	}
@@ -35,6 +47,9 @@ func (m *Manager) AttachChecked(id string, check func([]Snapshot) error) (*Attac
 	s, ok := m.sessions[id]
 	if !ok {
 		return nil, fmt.Errorf("session not found: %s", id)
+	}
+	if processID != "" && s.ProcessActivationID != processID {
+		return nil, errors.New("session process changed before attachment")
 	}
 	if s.Status == StatusTerminated {
 		return nil, fmt.Errorf("session terminated: %s", id)

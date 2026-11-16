@@ -7,35 +7,35 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/BlackGiack/kankuro/internal/session"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/uitest"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 func TestConversationChoiceRequiresExplicitCompatibleChoice(t *testing.T) {
-	var selected session.ConversationChoice
+	var selected contracts.ConversationChoice
 	var calls int
 	v := views.NewConversationChoiceView(views.ConversationChoiceCallbacks{
-		OnSelect: func(_, _ string, choice session.ConversationChoice) tea.Cmd {
+		OnSelect: func(_, _ string, _ bool, choice contracts.ConversationChoice) tea.Cmd {
 			calls++
 			selected = choice
 			return nil
 		},
 	})
 	v.SetSize(100, 30)
-	v.SetContext("session", "card", "claude", messages.ViewAgentSwitch, []session.ConversationBinding{
+	setTestConversationContext(v, "session", "card", "claude", messages.ViewAgentSwitch, []testBinding{
 		{ID: "wrong-driver", Name: "Wrong", Driver: "codex"},
 		{ID: "right-driver", Name: "Right", Driver: "claude"},
 	})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	if calls != 1 || selected.ID != "right-driver" || selected.New {
+	if calls != 1 || selected.SelectionID != "claude\x00right-driver" || selected.Kind != contracts.ConversationResume {
 		t.Fatalf("initial selection = %#v, calls=%d", selected, calls)
 	}
 
 	// Return to the view and select the incompatible entry; it must remain
 	// visible but must never be submitted to the activation service.
-	v.SetContext("session", "card", "claude", messages.ViewAgentSwitch, []session.ConversationBinding{
+	setTestConversationContext(v, "session", "card", "claude", messages.ViewAgentSwitch, []testBinding{
 		{ID: "wrong-driver", Name: "Wrong", Driver: "codex"},
 	})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyUp})
@@ -47,26 +47,26 @@ func TestConversationChoiceRequiresExplicitCompatibleChoice(t *testing.T) {
 
 func TestConversationChoiceViewFitsMinimumTerminal(t *testing.T) {
 	v := views.NewConversationChoiceView(views.ConversationChoiceCallbacks{})
-	bindings := make([]session.ConversationBinding, 20)
+	bindings := make([]testBinding, 20)
 	for i := range bindings {
-		bindings[i] = session.ConversationBinding{
+		bindings[i] = testBinding{
 			ID:     fmt.Sprintf("native-%03d-%s", i, strings.Repeat("x", 500)),
 			Name:   uitest.AdversarialNames[i%len(uitest.AdversarialNames)],
 			Driver: "codex",
 		}
 	}
-	v.SetContext("session", "card", "codex", messages.ViewAgentSwitch, bindings)
+	setTestConversationContext(v, "session", "card", "codex", messages.ViewAgentSwitch, bindings)
 	v.SetSize(80, 20)
 	uitest.AssertWithin(t, v.View(), 80, 20, "conversation choice minimum terminal")
 }
 
 func TestConversationChoiceFitsAfterSelectionAndAdversarialFiltering(t *testing.T) {
-	bindings := []session.ConversationBinding{
+	bindings := []testBinding{
 		{ID: "short-id", Name: "A short conversation", Driver: "codex"},
 		{ID: strings.Repeat("native-id-", 52), Name: "B long conversation", Driver: "codex"},
 	}
 	v := views.NewConversationChoiceView(views.ConversationChoiceCallbacks{})
-	v.SetContext("session", "card", "codex", messages.ViewAgentSwitch, bindings)
+	setTestConversationContext(v, "session", "card", "codex", messages.ViewAgentSwitch, bindings)
 	v.SetSize(80, 20)
 	uitest.AssertWithin(t, v.View(), 80, 20, "short selected ID")
 	v.Update(tea.KeyPressMsg{Code: tea.KeyDown})
@@ -78,7 +78,7 @@ func TestConversationChoiceFitsAfterSelectionAndAdversarialFiltering(t *testing.
 		"filter\twith\ncontrols\x1b[31m",
 	} {
 		filterView := views.NewConversationChoiceView(views.ConversationChoiceCallbacks{})
-		filterView.SetContext("session", "card", "codex", messages.ViewAgentSwitch, bindings)
+		setTestConversationContext(filterView, "session", "card", "codex", messages.ViewAgentSwitch, bindings)
 		filterView.SetSize(80, 20)
 		filterView.Update(tea.KeyPressMsg{Code: 0, Text: query})
 		uitest.AssertWithin(t, filterView.View(), 80, 20, "adversarial search query")
@@ -109,7 +109,7 @@ func TestConversationChoiceFitsMaximumUnbrokenIDAndScrollableDriverDetails(t *te
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			v := views.NewConversationChoiceView(views.ConversationChoiceCallbacks{})
-			v.SetContext("session", "card", "cat", messages.ViewAgentSwitch, []session.ConversationBinding{
+			setTestConversationContext(v, "session", "card", "cat", messages.ViewAgentSwitch, []testBinding{
 				{ID: test.firstID, Name: "A", Driver: "cat"},
 				{ID: test.secondID, Name: "B", Driver: test.secondDriver},
 			})
@@ -138,17 +138,17 @@ func TestConversationChoiceFitsMaximumUnbrokenIDAndScrollableDriverDetails(t *te
 }
 
 func TestConversationChoiceKeepsNewAvailableDuringFiltering(t *testing.T) {
-	var selected session.ConversationChoice
+	var selected contracts.ConversationChoice
 	v := views.NewConversationChoiceView(views.ConversationChoiceCallbacks{
-		OnSelect: func(_, _ string, choice session.ConversationChoice) tea.Cmd { selected = choice; return nil },
+		OnSelect: func(_, _ string, _ bool, choice contracts.ConversationChoice) tea.Cmd { selected = choice; return nil },
 	})
 	v.SetSize(100, 30)
-	v.SetContext("session", "card", "codex", messages.ViewAgentSwitch, []session.ConversationBinding{
+	setTestConversationContext(v, "session", "card", "codex", messages.ViewAgentSwitch, []testBinding{
 		{ID: "conversation-id", Name: "Saved work", Driver: "codex"},
 	})
 	v.Update(tea.KeyPressMsg{Code: 0, Text: "no-match"})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	if !selected.New {
+	if selected.Kind != contracts.ConversationNew {
 		t.Fatalf("filtering hid new conversation choice: %#v", selected)
 	}
 }
@@ -156,14 +156,14 @@ func TestConversationChoiceKeepsNewAvailableDuringFiltering(t *testing.T) {
 func TestConversationChoiceCancelDoesNotActivate(t *testing.T) {
 	var selected, cancelled int
 	v := views.NewConversationChoiceView(views.ConversationChoiceCallbacks{
-		OnSelect: func(_, _ string, _ session.ConversationChoice) tea.Cmd { selected++; return nil },
+		OnSelect: func(_, _ string, _ bool, _ contracts.ConversationChoice) tea.Cmd { selected++; return nil },
 		OnCancel: func(returnView messages.ViewType) tea.Cmd {
 			cancelled++
 			return func() tea.Msg { return messages.ScopedNavigateMsg{View: returnView} }
 		},
 	})
 	v.SetSize(80, 20)
-	v.SetContext("session", "card", "codex", messages.ViewAgentSwitch, []session.ConversationBinding{
+	setTestConversationContext(v, "session", "card", "codex", messages.ViewAgentSwitch, []testBinding{
 		{ID: "saved-id", Name: "Saved", Driver: "codex"},
 	})
 	_, cmd := v.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
@@ -181,19 +181,202 @@ func TestConversationChoiceCancelDoesNotActivate(t *testing.T) {
 func TestConversationChoiceRefreshPreservesSelectedBindingIdentity(t *testing.T) {
 	v := views.NewConversationChoiceView(views.ConversationChoiceCallbacks{})
 	v.SetSize(80, 20)
-	v.SetContext("session", "card", "codex", messages.ViewAgentSwitch, []session.ConversationBinding{
+	setTestConversationContext(v, "session", "card", "codex", messages.ViewAgentSwitch, []testBinding{
 		{ID: "first-id", Name: "A", Driver: "codex"},
 		{ID: "selected-id", Name: "B", Driver: "codex"},
 	})
 	v.Update(tea.KeyPressMsg{Code: tea.KeyDown})
-	if selected, ok := v.SelectedBinding(); !ok || selected.ID != "selected-id" {
+	if selected, ok := v.SelectedOption(); !ok || selected.NativeID != "selected-id" {
 		t.Fatalf("selected binding before refresh = %#v, found=%v", selected, ok)
 	}
-	v.RefreshContext("session", "card", "codex", []session.ConversationBinding{
+	refreshTestConversationContext(v, "session", "card", "codex", []testBinding{
 		{ID: "first-id", Name: "Z", Driver: "codex"},
 		{ID: "selected-id", Name: "A", Driver: "codex"},
 	})
-	if selected, ok := v.SelectedBinding(); !ok || selected.ID != "selected-id" {
+	if selected, ok := v.SelectedOption(); !ok || selected.NativeID != "selected-id" {
 		t.Fatalf("refresh did not preserve binding identity: %#v, found=%v", selected, ok)
+	}
+}
+
+type testBinding struct{ ID, Name, Driver string }
+
+func testConversationOptions(_, _, driverName string, bindings []testBinding) []contracts.ConversationOption {
+	options := make([]contracts.ConversationOption, 0, len(bindings))
+	for _, binding := range bindings {
+		option := contracts.ConversationOption{
+			SelectionID: binding.Driver + "\x00" + binding.ID,
+			NativeID:    binding.ID,
+			Name:        binding.Name,
+			Driver:      binding.Driver,
+			Compatible:  binding.Driver == driverName,
+		}
+		if !option.Compatible {
+			option.Reason = "incompatible driver"
+		}
+		options = append(options, option)
+	}
+	return options
+}
+
+//nolint:unparam // The helper mirrors the picker boundary for readable fixtures.
+func setTestConversationContext(
+	v *views.ConversationChoiceView,
+	sessionID, cardID, driverName string,
+	returnView messages.ViewType,
+	bindings []testBinding,
+) {
+	v.SetContext(sessionID, cardID, returnView, testConversationOptions(sessionID, cardID, driverName, bindings))
+}
+func refreshTestConversationContext(v *views.ConversationChoiceView, sessionID, cardID, driverName string, bindings []testBinding) {
+	v.RefreshContext(sessionID, cardID, testConversationOptions(sessionID, cardID, driverName, bindings))
+}
+
+func TestConversationOptionsAreDetachedFromCaller(t *testing.T) {
+	options := []contracts.ConversationOption{
+		{SelectionID: "token", NativeID: "native", Name: "Original", Driver: "driver", Compatible: true},
+	}
+	view := views.NewConversationChoiceView(views.ConversationChoiceCallbacks{})
+	view.SetContext("session", "card", messages.ViewDashboard, options)
+	options[0].Name = "mutated"
+	selected, ok := view.SelectedOption()
+	if !ok || selected.Name != "Original" {
+		t.Fatalf("view retained caller slice: %+v", selected)
+	}
+}
+
+//nolint:gocognit // The table exercises repeated invalidation and explicit selection for both fallback types.
+func TestConversationInvalidSelectionSurvivesRepeatedRefreshes(t *testing.T) {
+	original := contracts.ConversationOption{SelectionID: "original", NativeID: "one", Name: "A", Driver: "driver", Compatible: true}
+	replacement := contracts.ConversationOption{SelectionID: "replacement", NativeID: "two", Name: "B", Driver: "driver", Compatible: true}
+	for _, tc := range []struct {
+		name    string
+		options []contracts.ConversationOption
+		want    contracts.ConversationChoiceKind
+	}{
+		{name: "empty options", want: contracts.ConversationNew},
+		{name: "different compatible option", options: []contracts.ConversationOption{replacement}, want: contracts.ConversationResume},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var choices []contracts.ConversationChoice
+			v := views.NewConversationChoiceView(
+				views.ConversationChoiceCallbacks{OnSelect: func(_, _ string, _ bool, choice contracts.ConversationChoice) tea.Cmd {
+					choices = append(choices, choice)
+					return nil
+				}},
+			)
+			v.SetSize(100, 30)
+			v.SetContext("session", "card", messages.ViewDashboard, []contracts.ConversationOption{original})
+			for range 3 {
+				v.SetContextError("Refreshing conversations")
+				v.RefreshContext("session", "card", tc.options)
+				v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+				if len(choices) != 0 {
+					t.Fatalf("refresh silently chose %+v", choices)
+				}
+			}
+			if !strings.Contains(v.View(), "no longer available") {
+				t.Fatal("invalidation reason is missing")
+			}
+			// An arrow acknowledges the highlighted choice even when New is the only item.
+			v.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+			if tc.want == contracts.ConversationResume {
+				v.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+			}
+			v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+			if len(choices) != 1 || choices[0].Kind != tc.want {
+				t.Fatalf("explicit choice: %+v", choices)
+			}
+			if tc.want == contracts.ConversationResume && choices[0].SelectionID != replacement.SelectionID {
+				t.Fatalf("wrong saved choice: %+v", choices[0])
+			}
+		})
+	}
+}
+
+func TestConversationInvalidSelectionRecoversOnlyOriginalChoice(t *testing.T) {
+	original := contracts.ConversationOption{SelectionID: "original", NativeID: "one", Name: "A", Driver: "driver", Compatible: true}
+	calls := 0
+	v := views.NewConversationChoiceView(
+		views.ConversationChoiceCallbacks{OnSelect: func(_, _ string, _ bool, choice contracts.ConversationChoice) tea.Cmd {
+			if choice.Kind != contracts.ConversationResume || choice.SelectionID != original.SelectionID {
+				t.Fatalf("unexpected choice: %+v", choice)
+			}
+			calls++
+			return nil
+		}},
+	)
+	v.SetSize(100, 30)
+	v.SetContext("session", "card", messages.ViewDashboard, []contracts.ConversationOption{original})
+	v.RefreshContext("session", "card", nil)
+	v.SetContextError("read failed")
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if calls != 0 {
+		t.Fatal("failed read enabled selection")
+	}
+	v.SetContextError("Refreshing conversations")
+	v.RefreshContext("session", "card", []contracts.ConversationOption{original})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if calls != 1 {
+		t.Fatal("recovered original choice remained blocked")
+	}
+}
+
+func TestConversationReadErrorStillBlocksAnExplicitChoice(t *testing.T) {
+	original := contracts.ConversationOption{SelectionID: "original", NativeID: "one", Name: "A", Driver: "driver", Compatible: true}
+	calls := 0
+	v := views.NewConversationChoiceView(
+		views.ConversationChoiceCallbacks{OnSelect: func(_, _ string, _ bool, choice contracts.ConversationChoice) tea.Cmd {
+			if choice.Kind != contracts.ConversationNew {
+				t.Fatalf("unexpected choice: %+v", choice)
+			}
+			calls++
+			return nil
+		}},
+	)
+	v.SetSize(100, 30)
+	v.SetContext("session", "card", messages.ViewDashboard, []contracts.ConversationOption{original})
+	v.RefreshContext("session", "card", nil)
+	v.SetContextError("read failed")
+	v.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if calls != 0 {
+		t.Fatal("a failed read permitted submission")
+	}
+	v.RefreshContext("session", "card", nil)
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if calls != 1 {
+		t.Fatal("confirmed read did not allow the explicitly chosen New option")
+	}
+}
+
+func TestConversationIncompatibleSelectionRemainsBlockedUntilRecovered(t *testing.T) {
+	option := contracts.ConversationOption{SelectionID: "original", NativeID: "one", Name: "Saved", Driver: "driver", Compatible: true}
+	calls := 0
+	v := views.NewConversationChoiceView(
+		views.ConversationChoiceCallbacks{OnSelect: func(_, _ string, _ bool, choice contracts.ConversationChoice) tea.Cmd {
+			if choice.SelectionID != option.SelectionID {
+				t.Fatalf("unexpected choice: %+v", choice)
+			}
+			calls++
+			return nil
+		}},
+	)
+	v.SetSize(100, 30)
+	v.SetContext("session", "card", messages.ViewDashboard, []contracts.ConversationOption{option})
+	incompatible := option
+	incompatible.Compatible = false
+	incompatible.Reason = "driver changed"
+	for range 2 {
+		v.SetContextError("Refreshing conversations")
+		v.RefreshContext("session", "card", []contracts.ConversationOption{incompatible})
+		v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		if calls != 0 {
+			t.Fatal("incompatible choice was silently replaced")
+		}
+	}
+	v.RefreshContext("session", "card", []contracts.ConversationOption{option})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if calls != 1 {
+		t.Fatal("original compatible choice was not restored")
 	}
 }

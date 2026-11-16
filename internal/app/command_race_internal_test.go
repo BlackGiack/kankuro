@@ -236,7 +236,7 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 		{
 			name: "asynchronous session name",
 			run: func(_ *testing.T, f raceFixture) tea.Cmd {
-				return f.coord.sessionLauncherCallbacks().OnSetNameAsync(f.sessionID, "race session")
+				return f.coord.sessionLauncherCallbacks().OnSetNameAsync(f.sessionID, "race session", "expected-process")
 			},
 			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.ScopedSessionNamedMsg); return ok }),
 		},
@@ -270,7 +270,7 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 				_, cmd := f.coord.Update(key("x"))
 				return cmd
 			},
-			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.ScopedActionFinishedMsg); return ok }),
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.SessionStoppedMsg); return ok }),
 		},
 		{
 			name: "open IDE for the selected session",
@@ -279,7 +279,7 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 				_, cmd := f.coord.Update(key("o"))
 				return cmd
 			},
-			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.ScopedActionFinishedMsg); return ok }),
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.WorkspaceOpenedMsg); return ok }),
 		},
 		{
 			name: "open terminal for the selected session",
@@ -295,7 +295,7 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 				_, cmd := f.coord.Update(key("t"))
 				return cmd
 			},
-			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.ScopedActionFinishedMsg); return ok }),
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.WorkspaceOpenedMsg); return ok }),
 		},
 		{
 			name:       "relaunch a terminated session (Enter on the sessions pane)",
@@ -305,7 +305,7 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 				_, cmd := f.coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 				return cmd
 			},
-			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.SessionAttachRequestedMsg); return ok }),
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.ConversationPreparedMsg); return ok }),
 		},
 		{
 			name:       "switch agent on a terminated session",
@@ -330,7 +330,7 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 				_, cmd := f.coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 				return cmd
 			},
-			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.AgentSwitchedMsg); return ok }),
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.ConversationPreparedMsg); return ok }),
 		},
 	}
 

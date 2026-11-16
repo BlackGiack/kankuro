@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
@@ -68,17 +70,17 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 			pending = append(pending, collectMsgs(t, followup)...)
 		}
 	}
-	if launch.Err != nil || launch.SessionID == "" {
+	if launch.Result.Effect != contracts.UsableActivation || launch.Result.SessionID == "" {
 		t.Fatalf("launch did not succeed: %+v", launch)
 	}
-	snap, ok := sm.GetSession(launch.SessionID)
+	snap, ok := sm.GetSession(launch.Result.SessionID)
 	if !ok || snap.CardID != card.ID || snap.WorkingDir != workspace || !snap.ProcessStarted || snap.Status != session.StatusRunning ||
 		snap.PID <= 0 {
 		t.Fatalf("missing live activation: %+v", snap)
 	}
 	selected, selectedOK := dashboard.SessionList().Selected()
-	if !selectedOK || selected.ID != launch.SessionID || dashboard.FocusedPane() != views.PaneSessions ||
-		dashboard.PreviewSessionID() != launch.SessionID {
+	if !selectedOK || selected.ID != launch.Result.SessionID || dashboard.FocusedPane() != views.PaneSessions ||
+		dashboard.PreviewSessionID() != launch.Result.SessionID {
 		t.Fatalf("launched session was not selected: selected=%+v ok=%v pane=%v preview=%q", selected, selectedOK,
 			dashboard.FocusedPane(), dashboard.PreviewSessionID())
 	}
@@ -94,7 +96,7 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 			nameResult = result
 		}
 	}
-	if nameResult.SessionID != launch.SessionID || nameResult.Err != nil {
+	if nameResult.SessionID != launch.Result.SessionID || nameResult.Result.Diagnostic != "" || !nameResult.Result.Applied {
 		t.Fatalf("name confirmation failed: %+v", nameResult)
 	}
 	_, attachFlow := coord.Update(nameResult)
@@ -108,20 +110,20 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 		t.Fatal("name confirmation did not request attachment")
 	}
 	_, refresh := coord.Update(messages.AttachFinishedMsg{
-		SessionID: launch.SessionID, DashboardID: launch.DashboardID, Generation: launch.Generation,
+		SessionID: launch.Result.SessionID, DashboardID: launch.DashboardID, Generation: launch.Generation,
 	})
 	for _, refreshMsg := range collectMsgs(t, refresh) {
 		coord.Update(refreshMsg)
 	}
 	selected, selectedOK = dashboard.SessionList().Selected()
-	if !selectedOK || selected.ID != launch.SessionID || dashboard.PreviewSessionID() != launch.SessionID {
+	if !selectedOK || selected.ID != launch.Result.SessionID || dashboard.PreviewSessionID() != launch.Result.SessionID {
 		t.Fatalf("detachment refresh changed launched session selection: selected=%+v ok=%v preview=%q", selected,
 			selectedOK, dashboard.PreviewSessionID())
 	}
 	if dashboard.Search().SessionsQuery != "" {
 		t.Fatalf("filter that no longer matches confirmed name was not cleared: %+v", dashboard.Search())
 	}
-	bytes, err := os.ReadFile(filepath.Join(repo.Dir(), "sessions", launch.SessionID+".json"))
+	bytes, err := os.ReadFile(filepath.Join(repo.Dir(), "sessions", launch.Result.SessionID+".json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +131,7 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 	if err = json.Unmarshal(bytes, &persisted); err != nil {
 		t.Fatal(err)
 	}
-	if persisted.ID != launch.SessionID || persisted.CardID != card.ID || persisted.DashboardID != "default" ||
+	if persisted.ID != launch.Result.SessionID || persisted.CardID != card.ID || persisted.DashboardID != "default" ||
 		persisted.WorkingDir != workspace {
 		t.Fatalf("persisted wrong session: %+v", persisted)
 	}
@@ -389,12 +391,13 @@ func TestSessionActionsFlow(t *testing.T) {
 	// SwitchAgent call runs inside the returned Cmd, not synchronously
 	// here), so drive it through Update the way a real Bubble Tea runtime
 	// would: execute the Cmd, feed the resulting message back in.
-	switchCmd := coord.AgentSwitchCallbacks().OnSwitch(sessionID, newCard.ID, newCard.Driver)
+	coord.Update(messages.AgentSwitchRequestedMsg{SessionID: sessionID, DashboardID: "default", Generation: 1})
+	switchCmd := coord.AgentSwitchCallbacks().OnSwitch(sessionID, newCard.ID)
 	if switchCmd == nil {
 		t.Fatal("Expected cmd for switch")
 	}
-	result := switchCmd()
-	if switched, ok := result.(messages.AgentSwitchedMsg); !ok || switched.Err != nil {
+	result := executePreparedActivation(t, coord, switchCmd)
+	if switched, ok := result.(messages.SessionActivationCompletedMsg); !ok || switched.Result.Diagnostic != "" {
 		t.Fatalf("switch result: %#v", result)
 	}
 	coord.Update(result)
@@ -531,17 +534,19 @@ func TestSessionLauncherBehavior(t *testing.T) {
 
 	// Navigate to session launcher
 	launcher := coord.Views()[app.ViewSessionLauncher].(*views.SessionLauncher)
-	launcher.SetCard(card)
+	launcher.SetCard(contracts.CardSummary{ID: card.ID, Name: card.Name})
 	launcher.SetName("Test Session")
 
 	// Simulate async launch completion
-	sessionID, err := launchCurrentSession(repo, sm, card)
-	if err != nil {
-		t.Fatalf("Launch failed: %v", err)
+	result := api.New(repo, sm).
+		LaunchSession(context.Background(), contracts.LaunchSessionRequest{DashboardID: card.DashboardID, CardID: card.ID})
+	if result.Effect != contracts.UsableActivation {
+		t.Fatalf("launch: %+v", result)
 	}
+	sessionID := result.SessionID
 
 	// Simulate the launch completion message
-	launcher.SetLaunchResult(sessionID, nil)
+	launcher.SetLaunchResult(result)
 
 	if !launcher.LaunchDone() {
 		t.Error("Expected launch to be marked as done")
@@ -561,7 +566,7 @@ func TestSessionLauncherBehavior(t *testing.T) {
 		t.Fatal("name submission returned no command")
 	}
 	nameResult, ok := nameCmd().(messages.ScopedSessionNamedMsg)
-	if !ok || nameResult.Err != nil {
+	if !ok || nameResult.Result.Diagnostic != "" || !nameResult.Result.Applied {
 		t.Fatalf("name submission: %#v", nameResult)
 	}
 	coord.Update(nameResult)
