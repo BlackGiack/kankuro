@@ -58,7 +58,7 @@ func TestMultiDashboardDiscardsStaleResultsAndPreservesViews(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := NewCoordinator(repo, manager, service)
+	c := NewCoordinator(manager, service)
 	c.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	c.Update(
 		messages.DashboardOpenRequestedMsg{

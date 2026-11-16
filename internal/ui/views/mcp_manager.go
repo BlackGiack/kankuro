@@ -4,17 +4,17 @@ import (
 	"errors"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
-type mcpManagerItem struct{ server config.MCPServer }
+type mcpManagerItem struct{ server contracts.MCPRow }
 
 func (i mcpManagerItem) ID() string { return i.server.ID }
 func (i mcpManagerItem) Display() string {
-	if i.server.ID == config.BuiltinMCPKankuro {
+	if i.server.Builtin {
 		return i.server.Name + " (built-in, read-only)"
 	}
 	return i.server.Name
@@ -71,7 +71,7 @@ func (m *MCPManager) DiscardDelete(visit uint64) {
 	}
 }
 func (m *MCPManager) SetData(data messages.DataLoadedMsg) {
-	if data.MCPs == nil {
+	if data.MCPRows == nil {
 		return
 	}
 	selected := ""
@@ -80,8 +80,8 @@ func (m *MCPManager) SetData(data messages.DataLoadedMsg) {
 	}
 	wasNew := m.loaded && m.list.Cursor == len(m.list.Items)
 	m.loaded = true
-	items := make([]components.SourceItem, len(data.MCPs))
-	for i, server := range data.MCPs {
+	items := make([]components.SourceItem, len(data.MCPRows))
+	for i, server := range data.MCPRows {
 		items[i] = mcpManagerItem{server}
 	}
 	m.list.SetItems(items)
@@ -130,10 +130,10 @@ func (m *MCPManager) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 		if !ok {
 			return m, nil
 		}
-		if item.ID() == config.BuiltinMCPKankuro {
-			return m, func() tea.Msg { return messages.ErrorMsg{Err: errors.New("the built-in kankuro MCP is read-only")} }
+		if !item.server.Edit.Enabled {
+			return m, func() tea.Msg { return messages.ErrorMsg{Err: errors.New(item.server.Edit.Reason)} }
 		}
-		return m, func() tea.Msg { return messages.MCPManagerEditMsg{MCP: item.server, Scope: scope} }
+		return m, func() tea.Msg { return messages.MCPManagerEditMsg{MCPID: item.ID(), Scope: scope} }
 	case tea.KeyDelete, tea.KeyBackspace:
 		if m.deleting || m.list.Cursor >= len(m.list.Items) {
 			return m, nil
@@ -142,9 +142,9 @@ func (m *MCPManager) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 		if !ok {
 			return m, nil
 		}
-		if item.ID() == config.BuiltinMCPKankuro {
+		if !item.server.Delete.Enabled {
 			return m, func() tea.Msg {
-				return messages.ErrorMsg{Err: errors.New("the built-in kankuro MCP cannot be deleted")}
+				return messages.ErrorMsg{Err: errors.New(item.server.Delete.Reason)}
 			}
 		}
 		m.pendingID = item.ID()

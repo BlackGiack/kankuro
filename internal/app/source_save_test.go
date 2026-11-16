@@ -1,256 +1,98 @@
 package app_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
-// TestSaveSkillSourceAbortsOnMalformedRegistry verifies #5: a save that
-// cannot read the current source list must not durably overwrite it with a
-// truncated one-element list. Before the fix, saveStringSource discarded the
-// list-read error and happily wrote `[newPath]` over whatever was on disk.
-func TestSaveSkillSourceAbortsOnMalformedRegistry(t *testing.T) {
-	repo, err := newCurrentRepository(t.TempDir())
-	if err != nil {
-		t.Fatalf("new repo: %v", err)
-	}
-	sm := newTestManager(t, repo.Dir(), repo)
-	coord := newScopedCoordinator(repo, sm)
-	coord.Init()
-	openDefaultDashboard(coord)
-
-	sourcesPath := filepath.Join(repo.Dir(), config.SkillsSourcesFilename)
-	original, err := os.ReadFile(sourcesPath)
-	if err != nil {
-		t.Fatalf("read original sources file: %v", err)
-	}
-
-	malformed := []byte("this: is: not: valid: yaml: [")
-	if writeErr := os.WriteFile(sourcesPath, malformed, 0o600); writeErr != nil {
-		t.Fatalf("corrupt sources file: %v", writeErr)
-	}
-
-	callbacks := coord.SourceManagerCallbacks(views.SourceTypeSkills)
-	cmd, err := callbacks.SaveSimpleSource("/some/new/skill/source", -1)
-	if err != nil {
-		t.Fatalf("SaveSimpleSource returned error building cmd: %v", err)
-	}
-	if cmd == nil {
-		t.Fatal("expected a non-nil command")
-	}
-
-	msg := cmd()
-	if _, ok := msg.(messages.ErrorMsg); !ok {
-		t.Fatalf("expected ErrorMsg, got %#v", msg)
-	}
-
-	after, err := os.ReadFile(sourcesPath)
-	if err != nil {
-		t.Fatalf("read sources file after failed save: %v", err)
-	}
-	if string(after) != string(malformed) {
-		t.Fatalf("save must not touch the file on read failure: got %q, want unchanged %q", after, malformed)
-	}
-	if string(after) == string(original) {
-		t.Fatal("test setup invariant broken: malformed content equals original")
-	}
-}
-
-// TestDeleteSourceAbortsOnMalformedRegistry is TestSaveSkillSourceAbortsOnMalformedRegistry's
-// counterpart for the delete path (a separate code site: deleteSource /
-// UpdateSkillSources called with a delete-by-index mutator instead of an
-// append/edit one).
-func TestDeleteSourceAbortsOnMalformedRegistry(t *testing.T) {
-	repo, err := newCurrentRepository(t.TempDir())
-	if err != nil {
-		t.Fatalf("new repo: %v", err)
-	}
-	sm := newTestManager(t, repo.Dir(), repo)
-	coord := newScopedCoordinator(repo, sm)
-	coord.Init()
-	openDefaultDashboard(coord)
-
-	if saveErr := repo.SaveSkillSources([]string{"/one", "/two"}); saveErr != nil {
-		t.Fatalf("seed sources: %v", saveErr)
-	}
-
-	sourcesPath := filepath.Join(repo.Dir(), config.SkillsSourcesFilename)
-	malformed := []byte("this: is: not: valid: yaml: [")
-	if writeErr := os.WriteFile(sourcesPath, malformed, 0o600); writeErr != nil {
-		t.Fatalf("corrupt sources file: %v", writeErr)
-	}
-
-	dashboardless := coord.SourceManagerCallbacks(views.SourceTypeSkills)
-	cmd, err := dashboardless.DeleteSource(0)
-	if err != nil {
-		t.Fatalf("DeleteSource returned error building cmd: %v", err)
-	}
-	if cmd == nil {
-		t.Fatal("expected a non-nil command")
-	}
-
-	msg := cmd()
-	if _, ok := msg.(messages.ErrorMsg); !ok {
-		t.Fatalf("expected ErrorMsg, got %#v", msg)
-	}
-
-	after, err := os.ReadFile(sourcesPath)
-	if err != nil {
-		t.Fatalf("read sources file after failed delete: %v", err)
-	}
-	if string(after) != string(malformed) {
-		t.Fatalf("delete must not touch the file on read failure: got %q, want unchanged %q", after, malformed)
+//nolint:gocognit // Covers each source family and mutation against malformed storage.
+func TestSourceMutationAbortsOnMalformedRegistry(t *testing.T) {
+	for _, tt := range []struct {
+		name, filename string
+		kind           contracts.SourceKind
+		view           views.SourceType
+		delete         bool
+	}{
+		{"skill create", config.SkillsSourcesFilename, contracts.SourceSkills, views.SourceTypeSkills, false},
+		{"persona create", config.PersonaSourcesFilename, contracts.SourcePersonas, views.SourceTypePersonas, false},
+		{"puppet create", config.PuppetSourcesFilename, contracts.SourcePuppets, views.SourceTypePuppets, false},
+		{"skill delete", config.SkillsSourcesFilename, contracts.SourceSkills, views.SourceTypeSkills, true},
+		{"workspace create", config.WorkspaceSourcesFilename, contracts.SourceWorkspaces, views.SourceTypeWorkspaces, false},
+		{"workspace delete", config.WorkspaceSourcesFilename, contracts.SourceWorkspaces, views.SourceTypeWorkspaces, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			repo, err := newCurrentRepository(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			callbacks := newScopedCoordinator(repo, newTestManager(t, repo.Dir(), repo)).SourceManagerCallbacks(tt.view)
+			var identity string
+			if tt.delete {
+				result := callbacks.Mutate(context.Background(), contracts.SourceMutation{Kind: tt.kind, Path: t.TempDir()})
+				if !result.Saved {
+					t.Fatalf("seed: %+v", result)
+				}
+				rows, loadErr := callbacks.Load(tt.kind)
+				if loadErr != nil || len(rows) == 0 {
+					t.Fatalf("load: %v, %v", rows, loadErr)
+				}
+				identity = rows[0].Identity
+			}
+			path := filepath.Join(repo.Dir(), tt.filename)
+			malformed := []byte("this: is: not: valid: yaml: [")
+			if writeErr := os.WriteFile(path, malformed, 0o600); writeErr != nil {
+				t.Fatal(writeErr)
+			}
+			result := callbacks.Mutate(
+				context.Background(),
+				contracts.SourceMutation{Kind: tt.kind, Identity: identity, Delete: tt.delete, Path: t.TempDir()},
+			)
+			if result.Saved || result.Err == nil {
+				t.Fatalf("result: %+v", result)
+			}
+			after, err := os.ReadFile(path)
+			if err != nil || string(after) != string(malformed) {
+				t.Fatalf("file changed: %q %v", after, err)
+			}
+		})
 	}
 }
 
-// TestSaveWorkspaceSourceAbortsOnMalformedRegistry covers the workspace
-// branch of the read-error-abort guard: SaveWorkspaceSource is a separate
-// code path from the string-source save above (it goes through
-// UpdateWorkspaceSources, not UpdateSkillSources).
-func TestSaveWorkspaceSourceAbortsOnMalformedRegistry(t *testing.T) {
-	repo, err := newCurrentRepository(t.TempDir())
-	if err != nil {
-		t.Fatalf("new repo: %v", err)
-	}
-	sm := newTestManager(t, repo.Dir(), repo)
-	coord := newScopedCoordinator(repo, sm)
-	coord.Init()
-	openDefaultDashboard(coord)
-
-	sourcesPath := filepath.Join(repo.Dir(), config.WorkspaceSourcesFilename)
-	malformed := []byte("this: is: not: valid: yaml: [")
-	if writeErr := os.WriteFile(sourcesPath, malformed, 0o600); writeErr != nil {
-		t.Fatalf("corrupt sources file: %v", writeErr)
-	}
-
-	callbacks := coord.SourceManagerCallbacks(views.SourceTypeWorkspaces)
-	cmd, err := callbacks.SaveWorkspaceSource(config.WorkspaceSource{Path: t.TempDir()}, -1)
-	if err != nil {
-		t.Fatalf("SaveWorkspaceSource returned error building cmd: %v", err)
-	}
-	if cmd == nil {
-		t.Fatal("expected a non-nil command")
-	}
-
-	msg := cmd()
-	if _, ok := msg.(messages.ErrorMsg); !ok {
-		t.Fatalf("expected ErrorMsg, got %#v", msg)
-	}
-
-	after, err := os.ReadFile(sourcesPath)
-	if err != nil {
-		t.Fatalf("read sources file after failed save: %v", err)
-	}
-	if string(after) != string(malformed) {
-		t.Fatalf("save must not touch the file on read failure: got %q, want unchanged %q", after, malformed)
-	}
-}
-
-// TestDeleteWorkspaceSourceAbortsOnMalformedRegistry is the delete-path
-// counterpart for workspaces.
-func TestDeleteWorkspaceSourceAbortsOnMalformedRegistry(t *testing.T) {
-	repo, err := newCurrentRepository(t.TempDir())
-	if err != nil {
-		t.Fatalf("new repo: %v", err)
-	}
-	sm := newTestManager(t, repo.Dir(), repo)
-	coord := newScopedCoordinator(repo, sm)
-	coord.Init()
-	openDefaultDashboard(coord)
-
-	if saveErr := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: t.TempDir()}}); saveErr != nil {
-		t.Fatalf("seed workspace source: %v", saveErr)
-	}
-
-	sourcesPath := filepath.Join(repo.Dir(), config.WorkspaceSourcesFilename)
-	malformed := []byte("this: is: not: valid: yaml: [")
-	if writeErr := os.WriteFile(sourcesPath, malformed, 0o600); writeErr != nil {
-		t.Fatalf("corrupt sources file: %v", writeErr)
-	}
-
-	callbacks := coord.SourceManagerCallbacks(views.SourceTypeWorkspaces)
-	cmd, err := callbacks.DeleteSource(0)
-	if err != nil {
-		t.Fatalf("DeleteSource returned error building cmd: %v", err)
-	}
-	if cmd == nil {
-		t.Fatal("expected a non-nil command")
-	}
-
-	msg := cmd()
-	if _, ok := msg.(messages.ErrorMsg); !ok {
-		t.Fatalf("expected ErrorMsg, got %#v", msg)
-	}
-
-	after, err := os.ReadFile(sourcesPath)
-	if err != nil {
-		t.Fatalf("read sources file after failed delete: %v", err)
-	}
-	if string(after) != string(malformed) {
-		t.Fatalf("delete must not touch the file on read failure: got %q, want unchanged %q", after, malformed)
-	}
-}
-
-// TestWorkspaceSourceIDAssignedAndPreservedOnEdit is the Step 4.2 test the
-// review flagged as missing: a newly saved workspace source must get a
-// non-empty, repository-assigned ID, and editing that source afterwards must
-// not change its ID.
 func TestWorkspaceSourceIDAssignedAndPreservedOnEdit(t *testing.T) {
 	repo, err := newCurrentRepository(t.TempDir())
 	if err != nil {
-		t.Fatalf("new repo: %v", err)
+		t.Fatal(err)
 	}
-	sm := newTestManager(t, repo.Dir(), repo)
-	coord := newScopedCoordinator(repo, sm)
-	coord.Init()
-	openDefaultDashboard(coord)
-
-	callbacks := coord.SourceManagerCallbacks(views.SourceTypeWorkspaces)
-
-	wd := t.TempDir()
-	cmd, err := callbacks.SaveWorkspaceSource(config.WorkspaceSource{Path: wd}, -1)
-	if err != nil {
-		t.Fatalf("SaveWorkspaceSource returned error building cmd: %v", err)
+	callbacks := newScopedCoordinator(repo, newTestManager(t, repo.Dir(), repo)).SourceManagerCallbacks(views.SourceTypeWorkspaces)
+	if result := callbacks.Mutate(
+		context.Background(),
+		contracts.SourceMutation{Kind: contracts.SourceWorkspaces, Path: t.TempDir()},
+	); !result.Saved {
+		t.Fatalf("create: %+v", result)
 	}
-	_ = cmd()
-
 	sources, err := repo.ListWorkspaceSources()
+	if err != nil || len(sources) != 1 || sources[0].ID == "" {
+		t.Fatalf("sources: %v %v", sources, err)
+	}
+	id := sources[0].ID
+	rows, err := callbacks.Load(contracts.SourceWorkspaces)
 	if err != nil {
-		t.Fatalf("list workspace sources: %v", err)
+		t.Fatal(err)
 	}
-	if len(sources) != 1 {
-		t.Fatalf("expected exactly one workspace source, got %d: %v", len(sources), sources)
+	result := callbacks.Mutate(context.Background(),
+		contracts.SourceMutation{Kind: contracts.SourceWorkspaces, Identity: rows[0].Identity, Path: rows[0].Path, IsRoot: true},
+	)
+	if !result.Saved {
+		t.Fatalf("edit: %+v", result)
 	}
-	if sources[0].ID == "" {
-		t.Fatal("expected the repository to assign a non-empty ID")
-	}
-	originalID := sources[0].ID
-
-	// Edit it (same index, different flag) and confirm the ID is preserved.
-	edited := sources[0]
-	edited.IsRoot = !edited.IsRoot
-	cmd, err = callbacks.SaveWorkspaceSource(edited, 0)
-	if err != nil {
-		t.Fatalf("SaveWorkspaceSource (edit) returned error building cmd: %v", err)
-	}
-	_ = cmd()
-
 	sources, err = repo.ListWorkspaceSources()
-	if err != nil {
-		t.Fatalf("list workspace sources after edit: %v", err)
-	}
-	if len(sources) != 1 {
-		t.Fatalf("expected exactly one workspace source after edit, got %d: %v", len(sources), sources)
-	}
-	if sources[0].ID != originalID {
-		t.Fatalf("expected ID to survive the edit: want %q, got %q", originalID, sources[0].ID)
-	}
-	if sources[0].IsRoot != edited.IsRoot {
-		t.Fatalf("expected the edit itself to apply: want IsRoot=%v, got %v", edited.IsRoot, sources[0].IsRoot)
+	if err != nil || len(sources) != 1 || sources[0].ID != id || !sources[0].IsRoot {
+		t.Fatalf("sources: %v %v", sources, err)
 	}
 }

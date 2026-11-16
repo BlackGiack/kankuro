@@ -11,6 +11,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -89,7 +90,18 @@ func TestTerminalLaunchThroughDashboard(t *testing.T) {
 	if err := repo.SaveAppSettings(settings); err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(messages.SettingsSavedMsg{Settings: settings, DashboardID: "default", Generation: 1})
+	coord.Update(
+		messages.SettingsSavedMsg{
+			Settings: contracts.Settings{
+				IDECommand:               settings.IDECommand,
+				TerminalCommand:          settings.TerminalCommand,
+				ShowPersonasInCardEditor: settings.ShowPersonasInCardEditor,
+				ShowMCPsInCardEditor:     settings.ShowMCPsInCardEditor,
+			},
+			DashboardID: "default",
+			Generation:  1,
+		},
+	)
 	coord.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	_, command := coord.Update(tea.KeyPressMsg{Code: 0, Text: "t"})
 	if command == nil {
@@ -181,7 +193,7 @@ func TestTerminalLaunchReportsConfigurationAndLookupErrors(t *testing.T) {
 	if err := repo.SaveAppSettings(config.AppSettings{}); err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(messages.SettingsSavedMsg{Settings: config.AppSettings{}, DashboardID: "default", Generation: 1})
+	coord.Update(messages.SettingsSavedMsg{Settings: contracts.Settings{}, DashboardID: "default", Generation: 1})
 	ide := callbacks.OnLaunchIDE(sessionID)().(messages.WorkspaceOpenedMsg)
 	if ide.Result.Diagnostic == "" || ide.Result.Diagnostic != "IDE command not configured" {
 		t.Fatalf("unconfigured IDE: %s", ide.Result.Diagnostic)
@@ -195,7 +207,18 @@ func TestTerminalLaunchReportsConfigurationAndLookupErrors(t *testing.T) {
 	if err := repo.SaveAppSettings(settings); err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(messages.SettingsSavedMsg{Settings: settings, DashboardID: "default", Generation: 1})
+	coord.Update(
+		messages.SettingsSavedMsg{
+			Settings: contracts.Settings{
+				IDECommand:               settings.IDECommand,
+				TerminalCommand:          settings.TerminalCommand,
+				ShowPersonasInCardEditor: settings.ShowPersonasInCardEditor,
+				ShowMCPsInCardEditor:     settings.ShowMCPsInCardEditor,
+			},
+			DashboardID: "default",
+			Generation:  1,
+		},
+	)
 	result = coord.DashboardCallbacks().OnLaunchTerminal(sessionID)().(messages.WorkspaceOpenedMsg)
 	if result.Result.Diagnostic == "" {
 		t.Fatal("expected command spawn failure")
@@ -208,7 +231,18 @@ func TestTerminalLaunchReportsConfigurationAndLookupErrors(t *testing.T) {
 	if err := repo.SaveAppSettings(settings); err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(messages.SettingsSavedMsg{Settings: settings, DashboardID: "default", Generation: 1})
+	coord.Update(
+		messages.SettingsSavedMsg{
+			Settings: contracts.Settings{
+				IDECommand:               settings.IDECommand,
+				TerminalCommand:          settings.TerminalCommand,
+				ShowPersonasInCardEditor: settings.ShowPersonasInCardEditor,
+				ShowMCPsInCardEditor:     settings.ShowMCPsInCardEditor,
+			},
+			DashboardID: "default",
+			Generation:  1,
+		},
+	)
 	snapshot, ok := sm.GetSession(sessionID)
 	if !ok {
 		t.Fatal("session disappeared")

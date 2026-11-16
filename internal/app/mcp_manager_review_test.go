@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -24,7 +25,7 @@ func TestMCPManagerStaleRequests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(messages.DataLoadedMsg{DashboardID: "default", Generation: 1, MCPs: servers})
+	coord.Update(messages.DataLoadedMsg{DashboardID: "default", Generation: 1, MCPRows: mcpRowsForTest(servers)})
 	open := func() { t.Helper(); _, cmd := coord.Update(tea.KeyPressMsg{Text: "m"}); coord.Update(cmd()) }
 	leave := func() { t.Helper(); _, cmd := coord.Update(tea.KeyPressMsg{Code: tea.KeyEsc}); coord.Update(cmd()) }
 	open()
@@ -84,11 +85,12 @@ func TestMCPManagerEditPreservesMetadataAndNewIsBlank(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(messages.DataLoadedMsg{DashboardID: "default", Generation: 1, MCPs: servers})
+	coord.Update(messages.DataLoadedMsg{DashboardID: "default", Generation: 1, MCPRows: mcpRowsForTest(servers)})
 	_, cmd := coord.Update(tea.KeyPressMsg{Text: "m"})
 	coord.Update(cmd())
 	_, cmd = coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	coord.Update(cmd())
+	_, load := coord.Update(cmd())
+	drive(t, coord, load)
 	form := coord.Views()[app.ViewMCPForm].(*views.MCPForm)
 	form.Inputs()[0].SetValue("Updated")
 	_, cmd = coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -101,12 +103,13 @@ func TestMCPManagerEditPreservesMetadataAndNewIsBlank(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(messages.DataLoadedMsg{DashboardID: "default", Generation: 1, MCPs: servers})
+	coord.Update(messages.DataLoadedMsg{DashboardID: "default", Generation: 1, MCPRows: mcpRowsForTest(servers)})
 	// Move from the selected custom server through the built-in row to New.
 	coord.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	coord.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	_, cmd = coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	coord.Update(cmd())
+	_, load = coord.Update(cmd())
+	drive(t, coord, load)
 	form = coord.Views()[app.ViewMCPForm].(*views.MCPForm)
 	for _, input := range form.Inputs() {
 		if input.Value() != "" {
@@ -149,7 +152,7 @@ func TestMCPManagerReferencedDeleteReportsError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(messages.DataLoadedMsg{DashboardID: "default", Generation: 1, MCPs: servers})
+	coord.Update(messages.DataLoadedMsg{DashboardID: "default", Generation: 1, MCPRows: mcpRowsForTest(servers)})
 	_, cmd := coord.Update(tea.KeyPressMsg{Text: "m"})
 	coord.Update(cmd())
 	coord.Update(tea.KeyPressMsg{Code: tea.KeyDelete})
@@ -174,4 +177,23 @@ func TestMCPManagerReferencedDeleteReportsError(t *testing.T) {
 	if !found {
 		t.Fatal("referenced server was removed")
 	}
+}
+
+func mcpRowsForTest(servers []config.MCPServer) []contracts.MCPRow {
+	rows := make([]contracts.MCPRow, 0, len(servers))
+	for _, server := range servers {
+		row := contracts.MCPRow{
+			ID:      server.ID,
+			Name:    server.Name,
+			Builtin: server.Builtin,
+			Edit:    contracts.Availability{Enabled: true},
+			Delete:  contracts.Availability{Enabled: true},
+		}
+		if server.ID == config.BuiltinMCPKankuro {
+			row.Edit = contracts.Availability{Reason: "read-only"}
+			row.Delete = contracts.Availability{Reason: "cannot be deleted"}
+		}
+		rows = append(rows, row)
+	}
+	return rows
 }

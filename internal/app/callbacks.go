@@ -2,13 +2,12 @@ package app
 
 import (
 	"context"
-	"errors"
+	"maps"
+	"slices"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
-	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
@@ -280,181 +279,39 @@ func (c *Coordinator) cardEditorCallbacks() views.CardEditorCallbacks {
 	}
 }
 
-func (c *Coordinator) sourceManagerCallbacks(sourceType views.SourceType) views.SourceManagerCallbacks {
-	return views.SourceManagerCallbacks{
-		LoadSources: func() []components.SourceItem {
-			return c.loadSources(sourceType)
-		},
-
-		SaveSimpleSource: func(path string, editingIndex int) (tea.Cmd, error) {
-			return c.saveSimpleSource(sourceType, path, editingIndex)
-		},
-
-		SaveWorkspaceSource: func(source config.WorkspaceSource, editingIndex int) (tea.Cmd, error) {
-			return func() tea.Msg {
-				err := c.repo.UpdateWorkspaceSources(func(sources []config.WorkspaceSource) ([]config.WorkspaceSource, error) {
-					if editingIndex >= 0 && editingIndex < len(sources) {
-						sources[editingIndex] = source
-					} else {
-						// ID is assigned inside UpdateWorkspaceSources so
-						// there is one scheme for workspace-source
-						// identifiers.
-						sources = append(sources, source)
-					}
-					return sources, nil
-				})
-				return c.sourceUpdateMsg(err)
-			}, nil
-		},
-
-		DeleteSource: func(index int) (tea.Cmd, error) {
-			return c.deleteSource(sourceType, index)
-		},
-
-		Refresh: func() tea.Cmd {
-			return func() tea.Msg {
-				var err error
-				switch sourceType {
-				case views.SourceTypeWorkspaces:
-					err = c.repo.SyncWorkspacesFromSources()
-				case views.SourceTypeSkills, views.SourceTypePersonas:
-					// No specific refresh needed for skills and personas
-				case views.SourceTypePuppets:
-					err = c.repo.SyncPuppetsFromSources()
-				}
-				if err != nil {
-					return tea.Batch(refreshRequestedCmd(), errorCmd(err))()
-				}
-				return messages.DataRefreshRequestedMsg{}
-			}
-		},
-	}
-}
-
-func (c *Coordinator) loadSources(sourceType views.SourceType) []components.SourceItem {
-	switch sourceType {
-	case views.SourceTypeSkills:
-		sources, _ := c.repo.ListSkillSources()
-		return components.ToSimpleItems(sources)
-	case views.SourceTypePersonas:
-		sources, _ := c.repo.ListPersonaSources()
-		return components.ToSimpleItems(sources)
-	case views.SourceTypePuppets:
-		sources, _ := c.repo.ListPuppetSources()
-		return components.ToSimpleItems(sources)
-	case views.SourceTypeWorkspaces:
-		sources, _ := c.repo.ListWorkspaceSources()
-		return components.ToWorkspaceItems(sources)
-	}
-	return nil
-}
-
-func (c *Coordinator) saveSimpleSource(sourceType views.SourceType, path string, editingIndex int) (tea.Cmd, error) {
-	// The error return is always nil here (an edit/append can't fail), but
-	// the signature must match UpdateXxxSources' func([]string) ([]string, error).
-	mutate := func(sources []string) ([]string, error) { //nolint:unparam // must match UpdateXxxSources signature
-		if editingIndex >= 0 && editingIndex < len(sources) {
-			sources[editingIndex] = path
-		} else {
-			sources = append(sources, path)
-		}
-		return sources, nil
-	}
-
-	var updateFn func(func([]string) ([]string, error)) error
-	switch sourceType {
-	case views.SourceTypeSkills:
-		updateFn = c.repo.UpdateSkillSources
-	case views.SourceTypePersonas:
-		updateFn = c.repo.UpdatePersonaSources
-	case views.SourceTypePuppets:
-		updateFn = c.repo.UpdatePuppetSources
-	case views.SourceTypeWorkspaces:
-		return func() tea.Msg {
-			return messages.ErrorMsg{Err: errors.New("unsupported source type for simple save")}
-		}, nil
-	default:
-		return func() tea.Msg {
-			return messages.ErrorMsg{Err: errors.New("unknown source type")}
-		}, nil
-	}
-
-	return func() tea.Msg {
-		return c.sourceUpdateMsg(updateFn(mutate))
-	}, nil
-}
-
-func (c *Coordinator) deleteSource(sourceType views.SourceType, index int) (tea.Cmd, error) {
-	deleteAt := func(sources []string) ([]string, error) {
-		if index < 0 || index >= len(sources) {
-			return nil, errors.New("invalid index")
-		}
-		return append(sources[:index], sources[index+1:]...), nil
-	}
-
-	var updateFn func(func([]string) ([]string, error)) error
-	switch sourceType {
-	case views.SourceTypeSkills:
-		updateFn = c.repo.UpdateSkillSources
-	case views.SourceTypePersonas:
-		updateFn = c.repo.UpdatePersonaSources
-	case views.SourceTypePuppets:
-		updateFn = c.repo.UpdatePuppetSources
-	case views.SourceTypeWorkspaces:
-		return func() tea.Msg {
-			err := c.repo.UpdateWorkspaceSources(func(sources []config.WorkspaceSource) ([]config.WorkspaceSource, error) {
-				if index < 0 || index >= len(sources) {
-					return nil, errors.New("invalid index")
-				}
-				return append(sources[:index], sources[index+1:]...), nil
-			})
-			return c.sourceUpdateMsg(err)
-		}, nil
-	default:
-		return nil, errors.New("unknown source type")
-	}
-
-	return func() tea.Msg {
-		return c.sourceUpdateMsg(updateFn(deleteAt))
-	}, nil
-}
-
-// sourceUpdateMsg turns the result of a repository UpdateXxxSources call into
-// the message the UI should react to: nil is a plain data refresh, a
-// *SyncFailedError still refreshes (the source list itself did save) but
-// also surfaces a warning that the derived registry is now stale, and any
-// other error is reported without refreshing (nothing was persisted).
-func (c *Coordinator) sourceUpdateMsg(err error) tea.Msg {
-	if err == nil {
-		return messages.DataRefreshRequestedMsg{}
-	}
-	if _, ok := errors.AsType[*config.SyncFailedError](err); ok {
-		return tea.Batch(refreshRequestedCmd(), errorCmd(err))()
-	}
-	return messages.ErrorMsg{Err: err}
-}
-
-// refreshRequestedCmd asks the coordinator to refresh on its own goroutine.
-// It exists so callers already inside a tea.Cmd closure can batch a refresh
-// alongside another message without building refreshData() there - see
-// messages.DataRefreshRequestedMsg.
-func refreshRequestedCmd() tea.Cmd {
-	return func() tea.Msg { return messages.DataRefreshRequestedMsg{} }
-}
-
-// errorCmd wraps err in a tea.Cmd that reports it via messages.ErrorMsg.
-func errorCmd(err error) tea.Cmd {
-	return func() tea.Msg { return messages.ErrorMsg{Err: err} }
+func (c *Coordinator) sourceManagerCallbacks(_ views.SourceType) views.SourceManagerCallbacks {
+	service := c.configuration
+	return views.SourceManagerCallbacks{Load: service.ReadSources, Mutate: service.MutateSource, Sync: service.SyncSources}
 }
 
 func (c *Coordinator) settingsCallbacks() views.SettingsCallbacks {
 	return views.SettingsCallbacks{
-		OnBack: func() tea.Cmd { return c.navigationCommand(messages.ViewDashboard) },
-		OnSave: func(settings config.AppSettings) tea.Cmd {
-			dashboardID, generation, repo := c.activeDashboard, c.viewGeneration, c.repo
+		OnBack:      func() tea.Cmd { return c.navigationCommand(messages.ViewDashboard) },
+		SavePending: func() bool { return c.settingsSaving },
+		ReadPending: func() bool { return c.settingsLoading },
+		OnSave: func(settings contracts.Settings) tea.Cmd {
+			if c.settingsSaving {
+				return nil
+			}
+			c.settingsSaving = true
+			c.settingsRequest++
+			c.settingsSaveRequest++
+			dashboardID, generation, service, request, visit := c.activeDashboard, c.viewGeneration, c.configuration, c.settingsSaveRequest, c.settingsVisit
+			var draft uint64
+			if view, ok := c.views[ViewSettings].(*views.SettingsView); ok {
+				draft = view.DraftID()
+			}
 			return func() tea.Msg {
-				err := repo.SaveAppSettings(settings)
-				return messages.SettingsSavedMsg{Settings: settings, Err: err, DashboardID: dashboardID, Generation: generation}
+				err := service.SaveSettings(settings)
+				return messages.SettingsSavedMsg{
+					Settings:    settings,
+					Visit:       visit,
+					Draft:       draft,
+					Err:         err,
+					DashboardID: dashboardID,
+					Generation:  generation,
+					Request:     request,
+				}
 			}
 		},
 		OnOpenPuppetSources: func() tea.Cmd {
@@ -465,10 +322,21 @@ func (c *Coordinator) settingsCallbacks() views.SettingsCallbacks {
 
 func (c *Coordinator) mcpCallbacks() views.MCPFormCallbacks {
 	return views.MCPFormCallbacks{
-		OnSave: func(mcp config.MCPServer) tea.Cmd {
-			dashboardID, generation, request, repo := c.activeDashboard, c.viewGeneration, c.mcpRequest, c.repo
+		OnSave: func(mcp contracts.MCPEditor) tea.Cmd {
+			if c.mcpSaving {
+				return nil
+			}
+			c.mcpSaving = true
+			if form, ok := c.views[ViewMCPForm].(*views.MCPForm); ok {
+				form.SetSaving(true)
+			}
+			c.mcpRequest++
+			mcp.Args = slices.Clone(mcp.Args)
+			mcp.Env = maps.Clone(mcp.Env)
+			mcp.Headers = maps.Clone(mcp.Headers)
+			dashboardID, generation, request, service := c.activeDashboard, c.viewGeneration, c.mcpRequest, c.configuration
 			return func() tea.Msg {
-				saved, err := repo.UpsertMCP(mcp)
+				saved, err := service.SaveMCP(mcp)
 				return messages.MCPSavedMsg{MCP: saved, Err: err, DashboardID: dashboardID, Generation: generation, Request: request}
 			}
 		},

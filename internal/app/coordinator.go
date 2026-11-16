@@ -8,7 +8,6 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
-	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
@@ -42,7 +41,11 @@ type Coordinator struct {
 	width                                                        int
 	height                                                       int
 	err                                                          error
-	settings                                                     config.AppSettings
+	settings                                                     contracts.Settings
+	settingsRequest                                              uint64
+	settingsSaveRequest, settingsVisit                           uint64
+	settingsLoading, settingsSaving                              bool
+	configuration                                                configurationPort
 	preview                                                      previewSub
 	activeDashboard                                              string
 	viewGeneration                                               uint64
@@ -65,6 +68,7 @@ type Coordinator struct {
 	editorCompleted                                              bool
 	mcpReturn                                                    ViewType
 	mcpRequest                                                   uint64
+	mcpSaving                                                    bool
 	mcpManagerVisit                                              uint64
 	mcpDeleteRequest                                             uint64
 
@@ -77,7 +81,6 @@ type Coordinator struct {
 
 	// --- safe from any goroutine: concurrency-safe handles, and helpers that
 	// hold no coordinator pointer ---
-	repo    config.Repository
 	session *session.Manager
 	refresh refresher
 	reads   dashboardInventoryReader
@@ -86,26 +89,22 @@ type Coordinator struct {
 	legacy  legacyActions
 }
 
-func NewCoordinator(repo config.Repository, sm *session.Manager, service *api.Service) *Coordinator {
+func NewCoordinator(sm *session.Manager, service *api.Service) *Coordinator {
 	c := &Coordinator{
-		repo:           repo,
+		configuration:  service,
 		session:        sm,
 		preview:        previewSub{sessions: sm},
-		refresh:        refresher{repo: repo, sessions: sm, editor: service},
+		refresh:        refresher{sessions: sm, editor: service, configuration: service},
 		reads:          service,
 		editor:         service,
 		actions:        sessionActions{port: service},
-		legacy:         legacyActions{repo: repo, service: service},
+		legacy:         legacyActions{service: service},
 		views:          make(map[ViewType]component.Model),
 		currentView:    ViewDashboardList,
 		dashboardViews: make(map[string]*views.Dashboard),
 	}
 
-	settings, err := repo.GetAppSettings()
-	if err != nil {
-		settings = config.DefaultAppSettings()
-	}
-	c.settings = settings
+	c.settings = service.DefaultSettings()
 
 	c.initViews()
 	c.views[ViewDashboardList] = views.NewDashboardList(c.dashboardListCallbacks())
@@ -156,6 +155,7 @@ func (c *Coordinator) Init() tea.Cmd {
 		c.refreshDataSeeded(),
 		tick(),
 		c.refresh.syncPuppets(),
+		c.loadSettings(),
 		c.refresh.sessionLoadErrors(),
 	)
 }
@@ -349,9 +349,13 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		}
 		cmd := c.navigateTo(ViewMCPForm)
 		if form, ok := c.views[ViewMCPForm].(*views.MCPForm); ok {
-			form.SetMCP(m.MCP)
+			form.SetLoading(true)
 		}
-		return true, cmd
+		service, dashboard, generation, request, id := c.configuration, c.activeDashboard, c.viewGeneration, c.mcpRequest, m.MCPID
+		return true, tea.Batch(cmd, func() tea.Msg {
+			data, err := service.LoadMCPEditor(id)
+			return messages.MCPEditorLoadedMsg{MCP: data, Err: err, DashboardID: dashboard, Generation: generation, Request: request}
+		})
 
 	case messages.MCPManagerDeleteMsg:
 		manager, ok := c.views[ViewMCPManager].(*views.MCPManager)
@@ -366,7 +370,7 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 			return true, nil
 		}
 		c.mcpDeleteRequest++
-		return true, c.legacy.deleteMCPFromManager(m.MCPID, c.activeDashboard, c.viewGeneration, c.mcpDeleteRequest)
+		return true, deleteMCPFromManagerCommand(c.configuration, m.MCPID, c.activeDashboard, c.viewGeneration, c.mcpDeleteRequest)
 
 	case messages.MCPManagerDeletedMsg:
 		if m.Request == c.mcpDeleteRequest {
@@ -441,13 +445,33 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		c.editorEpoch++
 		return true, tea.Batch(c.refreshDataSeeded(), c.navigateTo(ViewDashboard))
 
+	case messages.MCPEditorLoadedMsg:
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || m.Request != c.mcpRequest ||
+			c.currentView != ViewMCPForm {
+			return true, nil
+		}
+		if m.Err != nil {
+			c.err = m.Err
+			return true, c.navigateTo(c.mcpReturn)
+		}
+		if form, ok := c.views[ViewMCPForm].(*views.MCPForm); ok {
+			form.SetMCP(m.MCP)
+		}
+		return true, nil
+
 	case messages.MCPSavedMsg:
-		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration ||
-			m.Request != c.mcpRequest || c.currentView != ViewMCPForm {
+		if m.Request == c.mcpRequest {
+			c.mcpSaving = false
+		}
+		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || m.Request != c.mcpRequest ||
+			c.currentView != ViewMCPForm {
 			if m.Err == nil {
 				return true, c.refreshDataSeeded()
 			}
 			return true, nil
+		}
+		if form, ok := c.views[ViewMCPForm].(*views.MCPForm); ok {
+			form.SetSaving(false)
 		}
 		if m.Err != nil {
 			c.err = m.Err
@@ -455,15 +479,13 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		}
 		return true, tea.Batch(c.refreshDataSeeded(), c.navigateTo(c.mcpReturn))
 
-	case messages.SettingsSavedMsg:
-		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {
-			if m.Err == nil {
-				c.settings = m.Settings
-				if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
-					editor.SetSettings(editorSettings(m.Settings.ShowPersonasInCardEditor, m.Settings.ShowMCPsInCardEditor))
-				}
-			}
-			return true, c.refreshDataSeeded()
+	case messages.SettingsLoadedMsg:
+		if m.Request != c.settingsRequest {
+			return true, nil
+		}
+		c.settingsLoading = false
+		if settings, ok := c.views[ViewSettings].(*views.SettingsView); ok {
+			settings.ReadFinished()
 		}
 		if m.Err != nil {
 			c.err = m.Err
@@ -472,6 +494,39 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		c.settings = m.Settings
 		if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
 			editor.SetSettings(editorSettings(m.Settings.ShowPersonasInCardEditor, m.Settings.ShowMCPsInCardEditor))
+		}
+		if settings, ok := c.views[ViewSettings].(*views.SettingsView); ok {
+			settings.ApplyLoadedSettings(m.Settings)
+		}
+		return true, nil
+
+	case messages.SettingsSavedMsg:
+		if m.Request != c.settingsSaveRequest {
+			return true, nil
+		}
+		c.settingsSaving = false
+		if m.Err == nil {
+			c.settings = m.Settings
+			if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
+				editor.SetSettings(editorSettings(m.Settings.ShowPersonasInCardEditor, m.Settings.ShowMCPsInCardEditor))
+			}
+		}
+		settings, ok := c.views[ViewSettings].(*views.SettingsView)
+		if ok && c.currentView == ViewSettings {
+			settings.SaveFinished()
+		}
+		current := ok && c.currentView == ViewSettings && m.DashboardID == c.activeDashboard && m.Generation == c.viewGeneration &&
+			m.Visit == c.settingsVisit &&
+			m.Draft == settings.DraftID()
+		if !current {
+			if m.Err == nil {
+				return true, c.refreshDataSeeded()
+			}
+			return true, nil
+		}
+		if m.Err != nil {
+			c.err = m.Err
+			return true, nil
 		}
 		return true, tea.Batch(c.refreshDataSeeded(), c.navigateTo(ViewDashboard))
 
@@ -495,7 +550,7 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 	case messages.MCPDeleteRequestedMsg:
 		// Disk I/O deferred to a tea.Cmd, consistent with every other
 		// mutation - this used to run synchronously inside Update.
-		return true, c.legacy.deleteMCP(m)
+		return true, deleteMCPCommand(c.configuration, m)
 
 	case messages.ClearErrorMsg:
 		c.err = nil

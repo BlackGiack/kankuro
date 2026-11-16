@@ -20,7 +20,7 @@ func newCurrentRepository(dir string) (*config.FileRepository, error) {
 }
 
 func newScopedCoordinator(repo config.Repository, manager *session.Manager) *app.Coordinator {
-	return app.NewCoordinator(repo, manager, api.New(repo, manager))
+	return app.NewCoordinator(manager, api.New(repo, manager))
 }
 
 func openDefaultDashboard(coordinator *app.Coordinator) {

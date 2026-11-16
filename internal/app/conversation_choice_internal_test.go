@@ -118,7 +118,7 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 		t.Fatalf("options not detached: %+v %v", again, err)
 	}
 
-	coord := NewCoordinator(repo, manager, service)
+	coord := NewCoordinator(manager, service)
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coord.Update(
 		messages.DashboardOpenRequestedMsg{DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive},

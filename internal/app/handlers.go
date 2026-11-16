@@ -162,7 +162,11 @@ func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
 			Scrollback: m.PreviewScrollback,
 		})
 	}
-	return tea.Batch(conversationRefresh, c.maybeSubscribeAutoSelectedPreview())
+	var sourceReload tea.Cmd
+	if source, ok := c.views[c.currentView].(*views.SourceManager); ok {
+		sourceReload = source.Reload()
+	}
+	return tea.Batch(conversationRefresh, sourceReload, c.maybeSubscribeAutoSelectedPreview())
 }
 
 // handleSessionsRefreshed applies scoped cards, sessions and preview data to their
@@ -202,7 +206,11 @@ func (c *Coordinator) handleSessionsRefreshed(m messages.SessionsRefreshedMsg) t
 			Scrollback: m.PreviewScrollback,
 		})
 	}
-	return tea.Batch(conversationRefresh, c.maybeSubscribeAutoSelectedPreview())
+	var sourceReload tea.Cmd
+	if source, ok := c.views[c.currentView].(*views.SourceManager); ok {
+		sourceReload = source.Reload()
+	}
+	return tea.Batch(conversationRefresh, sourceReload, c.maybeSubscribeAutoSelectedPreview())
 }
 
 func (c *Coordinator) applyDisplayChoices(results contracts.DisplayChoicesResult) {

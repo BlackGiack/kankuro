@@ -18,6 +18,15 @@ import (
 
 func newLaunchFocusCoordinator(t *testing.T, sessions ...session.Snapshot) (*Coordinator, *views.Dashboard) {
 	t.Helper()
+	coordinator, dashboard, _ := newLaunchFocusCoordinatorWithRepo(t, sessions...)
+	return coordinator, dashboard
+}
+
+func newLaunchFocusCoordinatorWithRepo(
+	t *testing.T,
+	sessions ...session.Snapshot,
+) (*Coordinator, *views.Dashboard, *config.FileRepository) {
+	t.Helper()
 	root := t.TempDir()
 	if err := configstartup.PrepareStartup(root); err != nil {
 		t.Fatal(err)
@@ -27,7 +36,7 @@ func newLaunchFocusCoordinator(t *testing.T, sessions ...session.Snapshot) (*Coo
 		t.Fatal(err)
 	}
 	manager := newTestManager(t, repo.Dir(), repo)
-	coordinator := NewCoordinator(repo, manager, api.New(repo, manager))
+	coordinator := NewCoordinator(manager, api.New(repo, manager))
 	coordinator.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coordinator.Update(messages.DashboardOpenRequestedMsg{
 		DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive,
@@ -36,7 +45,7 @@ func newLaunchFocusCoordinator(t *testing.T, sessions ...session.Snapshot) (*Coo
 	coordinator.launchCardID = "test-card"
 	coordinator.views[ViewSessionLauncher].(*views.SessionLauncher).SetCard(contracts.CardSummary{ID: "test-card"})
 	setFocusedSessionSnapshots(dashboard, sessions)
-	return coordinator, dashboard
+	return coordinator, dashboard, repo
 }
 
 func launchCompleted(coordinator *Coordinator, sessionID string, err error) messages.SessionLaunchCompletedMsg {

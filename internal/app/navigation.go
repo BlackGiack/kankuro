@@ -106,7 +106,11 @@ func (c *Coordinator) navigateTo(vt ViewType) tea.Cmd {
 			})
 		}
 	}
+	if vt == ViewSettings {
+		c.settingsVisit++
+	}
 	if vt == ViewMCPForm {
+		c.mcpSaving = false
 		c.mcpReturn = c.currentView
 		c.mcpRequest++
 	}

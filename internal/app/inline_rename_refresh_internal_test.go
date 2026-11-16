@@ -75,15 +75,15 @@ func TestInlineRenameRejectsOlderRefreshSnapshots(t *testing.T) {
 
 func newInlineRenameCoordinator(t *testing.T) (*Coordinator, *views.Dashboard, string) {
 	t.Helper()
-	coordinator, dashboard := newLaunchFocusCoordinator(t)
-	if err := coordinator.repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: t.TempDir()}}); err != nil {
+	coordinator, dashboard, repo := newLaunchFocusCoordinatorWithRepo(t)
+	if err := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: t.TempDir()}}); err != nil {
 		t.Fatal(err)
 	}
-	workspaces, err := coordinator.repo.ListWorkspaces()
+	workspaces, err := repo.ListWorkspaces()
 	if err != nil || len(workspaces) != 1 {
 		t.Fatalf("workspace discovery: %v, %v", workspaces, err)
 	}
-	card, err := coordinator.repo.CreateIDCard(config.IDCard{
+	card, err := repo.CreateIDCard(config.IDCard{
 		DashboardID: "default", Name: "Original session", Driver: "cat", WorkspaceID: workspaces[0].ID,
 	})
 	if err != nil {

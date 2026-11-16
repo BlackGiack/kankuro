@@ -2,7 +2,6 @@ package messages
 
 import (
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
-	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 )
 
@@ -242,7 +241,7 @@ type MCPManagerScope struct {
 	Visit       uint64
 }
 type MCPManagerEditMsg struct {
-	MCP   config.MCPServer
+	MCPID string
 	Scope MCPManagerScope
 }
 type MCPManagerDeleteMsg struct {
@@ -317,15 +316,31 @@ type CardSavedMsg struct {
 // MCPSavedMsg signals that an MCP server has been saved.
 type MCPSavedMsg struct {
 	Request     uint64
-	MCP         config.MCPServer
+	MCP         contracts.MCPEditor
 	Err         error
 	DashboardID string
 	Generation  uint64
 }
 
+type MCPEditorLoadedMsg struct {
+	MCP                 contracts.MCPEditor
+	Err                 error
+	DashboardID         string
+	Generation, Request uint64
+}
+
+type SettingsLoadedMsg struct {
+	Settings contracts.Settings
+	Err      error
+	Request  uint64
+}
+
 // SettingsSavedMsg signals that application settings have been saved.
 type SettingsSavedMsg struct {
-	Settings    config.AppSettings
+	Visit       uint64
+	Draft       uint64
+	Request     uint64
+	Settings    contracts.Settings
 	Err         error
 	DashboardID string
 	Generation  uint64
@@ -342,19 +357,15 @@ type ClearErrorMsg struct{}
 // MCPServerFailedMsg reports an unexpected failure of the local MCP endpoint.
 type MCPServerFailedMsg struct{ Err error }
 
-// DataLoadedMsg contains a full repository snapshot. Nil fields indicate failed reads
-// and preserve receiver data. Preview-only updates use PreviewDataMsg.
+// DataLoadedMsg contains focused inventory reads. Failed reads preserve receiver data.
+// Preview-only updates use PreviewDataMsg.
 type DataLoadedMsg struct {
 	DashboardID        string
 	InventoryRequestID uint64
 	RegistryErr        error
 	Generation         uint64
 	SessionEpoch       uint64
-	Skills             []config.Skill
-	Personas           []config.Persona
-	MCPs               []config.MCPServer
-	Workspaces         []config.Workspace
-	Puppets            []config.Puppet
+	MCPRows            []contracts.MCPRow
 	Inventory          contracts.ReadResult[contracts.DashboardInventory]
 	Choices            contracts.DisplayChoicesResult
 	EditorChoices      contracts.CardEditorChoices
@@ -366,10 +377,7 @@ type DataLoadedMsg struct {
 	PreviewSessionID  string
 	PreviewScrollback []byte
 
-	// Err reports any error hit while reading one or more registries. When
-	// set, the corresponding field(s) above are left nil rather than
-	// overwritten with an empty slice, so a transient read failure cannot
-	// blank data a receiver already has.
+	// Err reports read failures; individual read results distinguish failure from empty.
 	Err error
 }
 

@@ -132,8 +132,8 @@ func TestTransientSkillsReadFailureDoesNotWipeCardEditor(t *testing.T) {
 	if msg.Err == nil {
 		t.Fatal("expected refreshData to surface the corrupt skills.yaml read error")
 	}
-	if msg.Skills != nil {
-		t.Fatalf("expected Skills to be nil on a read error (not an emptied slice), got: %v", msg.Skills)
+	if !msg.EditorChoices.Skills.Attempted || msg.EditorChoices.Skills.Err == nil {
+		t.Fatal("expected failed skills read")
 	}
 
 	coord.Update(msg)

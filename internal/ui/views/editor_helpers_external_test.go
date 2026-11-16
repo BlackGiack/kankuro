@@ -3,7 +3,6 @@ package views_test
 import (
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
@@ -64,7 +63,16 @@ func editorCard(e *views.CardEditor) config.IDCard {
 func setEditorSettings(e *views.CardEditor, s config.AppSettings) {
 	e.SetSettings(models.EditorSettings{ShowPersonas: s.ShowPersonasInCardEditor, ShowMCPs: s.ShowMCPsInCardEditor})
 }
-func setEditorData(e *views.CardEditor, d messages.DataLoadedMsg) {
+
+type editorTestData struct {
+	Workspaces []config.Workspace
+	Skills     []config.Skill
+	Personas   []config.Persona
+	MCPs       []config.MCPServer
+	Puppets    []config.Puppet
+}
+
+func setEditorData(e *views.CardEditor, d editorTestData) {
 	var c contracts.CardEditorChoices
 	if d.Workspaces != nil {
 		c.Workspaces.Attempted = true

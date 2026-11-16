@@ -1,14 +1,13 @@
 package app
 
 import (
+	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
-	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
@@ -19,42 +18,24 @@ import (
 // values passed in as arguments, so invariant 1 (no tea.Cmd closure touches
 // coordinator state) holds here by construction.
 type refresher struct {
-	repo         config.Repository
-	editor       cardEditorPort
-	sessionEpoch uint64
-	sessions     *session.Manager
+	editor        cardEditorPort
+	configuration configurationPort
+	sessionEpoch  uint64
+	sessions      *session.Manager
 }
 
 // loadGlobalConfigData reads registries shared by all dashboards.
 func (r refresher) loadGlobalConfigData() messages.DataLoadedMsg {
-	repo := r.repo
 	var errs []error
-	skills, err := repo.ListSkills()
-	if err != nil {
-		errs = append(errs, fmt.Errorf("list skills: %w", err))
-		skills = nil
-	}
-	personas, err := repo.ListPersonas()
-	if err != nil {
-		errs = append(errs, fmt.Errorf("list personas: %w", err))
-		personas = nil
-	}
-	mcps, err := repo.ListMCPs()
-	if err != nil {
-		errs = append(errs, fmt.Errorf("list mcps: %w", err))
-		mcps = nil
-	}
-	workspaces, err := repo.ListWorkspaces()
-	if err != nil {
-		errs = append(errs, fmt.Errorf("list workspaces: %w", err))
-		workspaces = nil
-	}
-	puppets, err := repo.ListPuppets()
-	if err != nil {
-		errs = append(errs, fmt.Errorf("list puppets: %w", err))
-		puppets = nil
-	}
 
+	var rows []contracts.MCPRow
+	if r.configuration != nil {
+		var rowErr error
+		rows, rowErr = r.configuration.ReadMCPRows()
+		if rowErr != nil {
+			errs = append(errs, rowErr)
+		}
+	}
 	var choices contracts.CardEditorChoices
 	if r.editor != nil {
 		choices = r.editor.ReadCardEditorChoices()
@@ -62,11 +43,7 @@ func (r refresher) loadGlobalConfigData() messages.DataLoadedMsg {
 	}
 	return messages.DataLoadedMsg{
 		EditorChoices: choices,
-		Skills:        skills,
-		Personas:      personas,
-		MCPs:          mcps,
-		Workspaces:    workspaces,
-		Puppets:       puppets,
+		MCPRows:       rows,
 		Err:           errors.Join(errs...),
 		RegistryErr:   errors.Join(errs...),
 	}
@@ -87,7 +64,16 @@ func (r refresher) sessionLoadErrors() tea.Cmd {
 // syncPuppets rescans the puppet sources off the UI goroutine.
 func (r refresher) syncPuppets() tea.Cmd {
 	return func() tea.Msg {
-		_ = r.repo.SyncPuppetsFromSources()
+		if r.configuration == nil {
+			return nil
+		}
+		result := r.configuration.SyncSources(context.Background(), contracts.SourcePuppets)
+		if result.Err != nil {
+			return tea.Batch(
+				func() tea.Msg { return messages.ErrorMsg{Err: result.Err} },
+				func() tea.Msg { return messages.PuppetsSyncedMsg{} },
+			)()
+		}
 		return messages.PuppetsSyncedMsg{}
 	}
 }

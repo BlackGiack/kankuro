@@ -230,7 +230,7 @@ func TestApp_CurrentConstructor(t *testing.T) {
 	repo, _ := newCurrentRepository(t.TempDir())
 	sm := newTestManager(t, repo.Dir(), repo)
 
-	app, err := app.New(repo, sm, api.New(repo, sm))
+	app, err := app.New(sm, api.New(repo, sm))
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}

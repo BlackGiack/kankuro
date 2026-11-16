@@ -11,7 +11,6 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
-	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/uitest"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
@@ -197,7 +196,7 @@ func TestFocusedSubWorkspaceClearHintFitsLongSummaries(t *testing.T) {
 			{ID: "sub-a", Name: strings.Repeat("Alpha Workspace ", 8)},
 			{ID: "sub-b", Name: strings.Repeat("Beta Workspace ", 8)},
 		}
-		setEditorData(e, messages.DataLoadedMsg{Workspaces: workspaces})
+		setEditorData(e, editorTestData{Workspaces: workspaces})
 		loadEditor(e, config.IDCard{ID: "long-sub-workspaces", WorkspaceID: "main", SubWorkspaceIDs: []string{"sub-a", "sub-b"}})
 		e.CycleFocus(views.FocusSubWorkspaces)
 		height := views.MinTerminalHeight - views.CoordinatorRows

@@ -1,180 +1,218 @@
 package views
 
 import (
+	"context"
 	"errors"
 
 	tea "charm.land/bubbletea/v2"
-
-	"github.com/BlackGiack/kankuro/internal/config"
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
-var errNoCallback = errors.New("no callback")
-
-// SourceManagerCallbacks defines repository callbacks.
+// SourceManagerCallbacks are application capabilities. The manager invokes them only from commands.
 type SourceManagerCallbacks struct {
-	LoadSources         func() []components.SourceItem
-	SaveSimpleSource    func(path string, editingIndex int) (tea.Cmd, error)
-	SaveWorkspaceSource func(source config.WorkspaceSource, editingIndex int) (tea.Cmd, error)
-	DeleteSource        func(index int) (tea.Cmd, error)
-	Refresh             func() tea.Cmd
+	Load   func(contracts.SourceKind) ([]contracts.SourceRow, error)
+	Mutate func(context.Context, contracts.SourceMutation) contracts.SourceMutationResult
+	Sync   func(context.Context, contracts.SourceKind) contracts.SourceSyncResult
 }
 
-// SourceManager is a composite view for managing source lists.
-// It wraps SourceList and configures it for skills, personas, or workspaces.
+type sourceLoaded struct {
+	kind           SourceType
+	visit, request uint64
+	rows           []contracts.SourceRow
+	err            error
+}
+type sourceMutated struct {
+	kind           SourceType
+	visit, request uint64
+	result         contracts.SourceMutationResult
+}
+type sourceSynced struct {
+	kind           SourceType
+	visit, request uint64
+	result         contracts.SourceSyncResult
+}
+
 type SourceManager struct {
 	component.Base
 
-	sourceList *components.SourceList
-	sourceType SourceType
-	typeConfig SourceTypeConfig
-	callbacks  SourceManagerCallbacks
+	sourceList     *components.SourceList
+	sourceType     SourceType
+	typeConfig     SourceTypeConfig
+	callbacks      SourceManagerCallbacks
+	visit, request uint64
+	pending        bool
 }
 
-// NewSourceManager creates a new source manager for the given type.
-func NewSourceManager(
-	sourceType SourceType,
-	callbacks SourceManagerCallbacks,
-) *SourceManager {
-	typeConfig := GetSourceTypeConfig(sourceType)
-
-	listConfig := components.SourceListConfig{
-		Title:       typeConfig.Title,
-		Legend:      typeConfig.Legend,
-		FormPrompt:  typeConfig.FormPrompt,
-		FormFields:  typeConfig.FormFields,
-		Field2Label: typeConfig.Field2Label,
-	}
-
-	m := &SourceManager{
-		sourceType: sourceType,
-		typeConfig: typeConfig,
-		callbacks:  callbacks,
-	}
-
-	listCallbacks := components.SourceListCallbacks{
-		OnSave: func(item components.SourceItem, editingIndex int) (tea.Cmd, error) {
-			return handleSave(sourceType, callbacks, item, editingIndex)
+func NewSourceManager(sourceType SourceType, callbacks SourceManagerCallbacks) *SourceManager {
+	cfg := GetSourceTypeConfig(sourceType)
+	m := &SourceManager{sourceType: sourceType, typeConfig: cfg, callbacks: callbacks}
+	m.sourceList = components.NewSourceList(
+		components.SourceListConfig{
+			Title:       cfg.Title,
+			Legend:      cfg.Legend,
+			FormPrompt:  cfg.FormPrompt,
+			FormFields:  cfg.FormFields,
+			Field2Label: cfg.Field2Label,
 		},
-		OnDelete: func(index int) (tea.Cmd, error) {
-			if callbacks.DeleteSource != nil {
-				return callbacks.DeleteSource(index)
-			}
-			return nil, errNoCallback
+		components.SourceListCallbacks{
+			OnSave: func(item components.SourceItem, _ int) (tea.Cmd, error) {
+				if m.pending {
+					return nil, errors.New("source operation in progress")
+				}
+				row := contracts.SourceMutation{Kind: contracts.SourceKind(m.sourceType), Identity: item.ID()}
+				if ws, ok := item.(components.WorkspaceSourceItem); ok {
+					row.Path, row.IsRoot = ws.Source.Path, ws.Source.IsRoot
+				} else {
+					row.Path = item.Display()
+				}
+				return m.mutate(row), nil
+			},
+			OnDelete: func(index int) (tea.Cmd, error) {
+				if m.pending || index < 0 || index >= len(m.sourceList.Items) {
+					return nil, errors.New("source operation unavailable")
+				}
+				return m.mutate(
+					contracts.SourceMutation{
+						Kind:     contracts.SourceKind(m.sourceType),
+						Identity: m.sourceList.Items[index].ID(),
+						Delete:   true,
+					},
+				), nil
+			},
+			OnRefresh: func() tea.Cmd { return m.sync() },
 		},
-		OnRefresh: func() tea.Cmd {
-			if callbacks.Refresh != nil {
-				return callbacks.Refresh()
-			}
-			return nil
-		},
-		OnReload: func() {
-			m.Reload()
-		},
-		OnClose: func() {},
-	}
-
-	m.sourceList = components.NewSourceList(listConfig, listCallbacks)
-
+	)
 	return m
 }
 
-// handleSave routes save to the appropriate callback based on source type.
-func handleSave(
-	sourceType SourceType,
-	callbacks SourceManagerCallbacks,
-	item components.SourceItem,
-	editingIndex int,
-) (tea.Cmd, error) {
-	switch sourceType {
-	case SourceTypeSkills, SourceTypePersonas, SourceTypePuppets:
-		if callbacks.SaveSimpleSource != nil {
-			return callbacks.SaveSimpleSource(item.Display(), editingIndex)
-		}
+func (m *SourceManager) load() tea.Cmd {
+	if m.callbacks.Load == nil {
+		return nil
+	}
+	m.request++
+	load, kind, visit, request := m.callbacks.Load, m.sourceType, m.visit, m.request
+	return func() tea.Msg {
+		rows, err := load(contracts.SourceKind(kind))
+		return sourceLoaded{kind: kind, visit: visit, request: request, rows: rows, err: err}
+	}
+}
 
-	case SourceTypeWorkspaces:
-		if wsItem, ok := item.(components.WorkspaceSourceItem); ok {
-			if callbacks.SaveWorkspaceSource != nil {
-				return callbacks.SaveWorkspaceSource(wsItem.Source, editingIndex)
+func (m *SourceManager) mutate(input contracts.SourceMutation) tea.Cmd {
+	if m.callbacks.Mutate == nil {
+		return nil
+	}
+	m.pending = true
+	m.request++
+	mutate, kind, visit, request := m.callbacks.Mutate, m.sourceType, m.visit, m.request
+	return func() tea.Msg {
+		result := mutate(context.Background(), input)
+		msg := sourceMutated{kind: kind, visit: visit, request: request, result: result}
+		if result.Refresh {
+			return tea.Batch(func() tea.Msg { return msg }, func() tea.Msg { return messages.DataRefreshRequestedMsg{} })()
+		}
+		return msg
+	}
+}
+
+func (m *SourceManager) sync() tea.Cmd {
+	if m.pending || m.callbacks.Sync == nil {
+		return nil
+	}
+	m.pending = true
+	m.request++
+	sync, kind, visit, request := m.callbacks.Sync, m.sourceType, m.visit, m.request
+	return func() tea.Msg {
+		result := sync(context.Background(), contracts.SourceKind(kind))
+		msg := sourceSynced{kind: kind, visit: visit, request: request, result: result}
+		if result.Refresh {
+			return tea.Batch(func() tea.Msg { return msg }, func() tea.Msg { return messages.DataRefreshRequestedMsg{} })()
+		}
+		return msg
+	}
+}
+
+func (m *SourceManager) Init() tea.Cmd                    { m.visit++; m.pending = false; return m.load() }
+func (m *SourceManager) SetData(_ messages.DataLoadedMsg) {}
+
+// Reload schedules a fresh read without replacing an in-flight mutation.
+func (m *SourceManager) Reload() tea.Cmd {
+	if m.pending {
+		return nil
+	}
+	return m.load()
+}
+func (m *SourceManager) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+	switch value := msg.(type) {
+	case sourceLoaded:
+		if value.kind != m.sourceType || value.visit != m.visit || value.request != m.request {
+			return m, nil
+		}
+		if value.err != nil {
+			return m, func() tea.Msg { return messages.ErrorMsg{Err: value.err} }
+		}
+		items := make([]components.SourceItem, 0, len(value.rows))
+		for _, row := range value.rows {
+			if m.sourceType == SourceTypeWorkspaces {
+				items = append(items, components.WorkspaceSourceItem{Source: row})
+			} else {
+				items = append(items, components.PathSourceItem{Path: row.Path, Identity: row.Identity})
 			}
 		}
-		return nil, errors.New("invalid workspace source item")
-	}
-
-	return nil, errNoCallback
-}
-
-// HandleSave exports handleSave for testing.
-func HandleSave(
-	sourceType SourceType,
-	callbacks SourceManagerCallbacks,
-	item components.SourceItem,
-	editingIndex int,
-) (tea.Cmd, error) {
-	return handleSave(sourceType, callbacks, item, editingIndex)
-}
-
-// Reload loads sources from the repository into the manager's list.
-func (m *SourceManager) Reload() {
-	if m.callbacks.LoadSources != nil {
-		items := m.callbacks.LoadSources()
 		m.sourceList.SetItems(items)
-	}
-}
-
-// SetData implements messages.DataReceiver to receive broadcasted data updates.
-func (m *SourceManager) SetData(_ messages.DataLoadedMsg) {
-	m.Reload()
-}
-
-// Init initializes the manager.
-func (m *SourceManager) Init() tea.Cmd {
-	m.Reload()
-	return m.sourceList.Init()
-}
-
-// Update handles messages.
-func (m *SourceManager) Update(msg tea.Msg) (component.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		if keyMsg.Code == tea.KeyEsc && m.sourceList.Mode == components.SourceListModeList {
+		return m, nil
+	case sourceMutated:
+		if value.kind != m.sourceType || value.visit != m.visit || value.request != m.request {
+			return m, nil
+		}
+		m.pending = false
+		result := value.result
+		if result.Saved {
+			m.sourceList.Mode = components.SourceListModeList
+		}
+		var load tea.Cmd
+		if result.Saved || result.Reload {
+			load = m.load()
+		}
+		err := result.Err
+		if err == nil {
+			err = result.Warning
+		}
+		if err != nil {
+			return m, tea.Batch(load, func() tea.Msg { return messages.ErrorMsg{Err: err} })
+		}
+		return m, load
+	case sourceSynced:
+		if value.kind != m.sourceType || value.visit != m.visit || value.request != m.request {
+			return m, nil
+		}
+		m.pending = false
+		if value.result.Err != nil {
+			err := value.result.Err
+			return m, tea.Batch(m.load(), func() tea.Msg { return messages.ErrorMsg{Err: err} })
+		}
+		return m, m.load()
+	case tea.KeyPressMsg:
+		if value.Code == tea.KeyEsc && m.sourceList.Mode == components.SourceListModeList {
 			return m, func() tea.Msg { return messages.NavigateBackMsg{} }
 		}
+		if m.pending {
+			return m, nil
+		}
 	}
-
 	model, cmd := m.sourceList.Update(msg)
-	sl, ok := model.(*components.SourceList)
-	if !ok {
-		return m, cmd
+	if list, ok := model.(*components.SourceList); ok {
+		m.sourceList = list
 	}
-	m.sourceList = sl
-
 	return m, cmd
 }
-
-// View renders the manager.
-func (m *SourceManager) View() string {
-	return m.sourceList.View()
-}
-
-// SetSize implements component.Model.
+func (m *SourceManager) View() string { return m.sourceList.View() }
 func (m *SourceManager) SetSize(width, height int) {
 	m.Base.SetSize(width, height)
 	m.sourceList.SetSize(width, height)
 }
-
-// SourceType returns the managed source type.
-func (m *SourceManager) SourceType() SourceType {
-	return m.sourceType
-}
-
-// TypeConfig returns the configuration for the source type.
-func (m *SourceManager) TypeConfig() SourceTypeConfig {
-	return m.typeConfig
-}
-
-// SourceList returns the underlying source list component.
-func (m *SourceManager) SourceList() *components.SourceList {
-	return m.sourceList
-}
+func (m *SourceManager) SourceType() SourceType             { return m.sourceType }
+func (m *SourceManager) TypeConfig() SourceTypeConfig       { return m.typeConfig }
+func (m *SourceManager) SourceList() *components.SourceList { return m.sourceList }

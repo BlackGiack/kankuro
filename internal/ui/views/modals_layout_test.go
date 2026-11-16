@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/uitest"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
@@ -52,7 +51,7 @@ func workspaceFixtures(n int) []config.Workspace {
 	return ws
 }
 
-func newModalEditor(t *testing.T, w, h int, data messages.DataLoadedMsg) *views.CardEditor {
+func newModalEditor(t *testing.T, w, h int, data editorTestData) *views.CardEditor {
 	t.Helper()
 	e := newLayoutEditor(true, true, 3, false)
 	setEditorData(e, data)
@@ -65,7 +64,7 @@ func TestWorkspacePickerModalStaysWithinTheScreen(t *testing.T) {
 		for _, typed := range []string{"", "a", "漢"} {
 			for _, sz := range modalSizes {
 				w, h := sz[0], sz[1]
-				e := newModalEditor(t, w, h, messages.DataLoadedMsg{Workspaces: workspaceFixtures(n)})
+				e := newModalEditor(t, w, h, editorTestData{Workspaces: workspaceFixtures(n)})
 				openModal(t, e, views.FocusWorkspace)
 				if typed != "" {
 					e.Update(tea.KeyPressMsg{Code: 0, Text: typed})
@@ -85,7 +84,7 @@ func TestWorkspacePickerModalStaysWithinTheScreen(t *testing.T) {
 // smaller box appeared at the top-left.
 func TestWorkspacePickerModalHasTheEditorsSize(t *testing.T) {
 	for _, sz := range modalSizes {
-		e := newModalEditor(t, sz[0], sz[1], messages.DataLoadedMsg{Workspaces: workspaceFixtures(5)})
+		e := newModalEditor(t, sz[0], sz[1], editorTestData{Workspaces: workspaceFixtures(5)})
 		openModal(t, e, views.FocusWorkspace)
 		uitest.AssertExactRect(t, e.View(), sz[0], sz[1], fmt.Sprintf("%dx%d", sz[0], sz[1]))
 	}
@@ -94,7 +93,7 @@ func TestWorkspacePickerModalHasTheEditorsSize(t *testing.T) {
 func TestPuppetSelectorModalStaysWithinTheScreen(t *testing.T) {
 	for _, sz := range modalSizes {
 		w, h := sz[0], sz[1]
-		e := newModalEditor(t, w, h, messages.DataLoadedMsg{Puppets: builtinPuppetsForViews(t)})
+		e := newModalEditor(t, w, h, editorTestData{Puppets: builtinPuppetsForViews(t)})
 		openModal(t, e, views.FocusPuppet)
 		label := fmt.Sprintf("builtin puppets %dx%d", w, h)
 		if !strings.Contains(ansi.Strip(e.View()), "Select Puppet:") {
@@ -112,7 +111,7 @@ func TestPuppetSelectorModalStaysWithinTheScreen(t *testing.T) {
 func TestPuppetSelectorModalClipsUserPuppets(t *testing.T) {
 	for _, sz := range modalSizes {
 		puppets := append(append([]config.Puppet(nil), builtinPuppetsForViews(t)...), uitest.UserPuppet(60, 12))
-		e := newModalEditor(t, sz[0], sz[1], messages.DataLoadedMsg{Puppets: puppets})
+		e := newModalEditor(t, sz[0], sz[1], editorTestData{Puppets: puppets})
 		openModal(t, e, views.FocusPuppet)
 		uitest.AssertWithin(t, e.View(), sz[0], sz[1], fmt.Sprintf("user puppet %dx%d", sz[0], sz[1]))
 	}
@@ -275,7 +274,7 @@ func TestPuppetSelectorScrollsToTheCursor(t *testing.T) {
 	puppets = append(builtinPuppetsForViews(t), puppets...)
 
 	for _, sz := range modalSizes {
-		e := newModalEditor(t, sz[0], sz[1], messages.DataLoadedMsg{Puppets: puppets})
+		e := newModalEditor(t, sz[0], sz[1], editorTestData{Puppets: puppets})
 		openModal(t, e, views.FocusPuppet)
 		sawLeft, sawRight := false, false
 		for i := range puppets {
@@ -369,7 +368,7 @@ func pickerViews(t *testing.T, sz [2]int, ws []config.Workspace) map[string]stru
 	m.SetSize(sz[0], sz[1])
 	m.Open()
 
-	e := newModalEditor(t, sz[0], sz[1], messages.DataLoadedMsg{Workspaces: ws})
+	e := newModalEditor(t, sz[0], sz[1], editorTestData{Workspaces: ws})
 	openModal(t, e, views.FocusWorkspace)
 	return map[string]pv{
 		"modal":  {m.View, func(msg tea.Msg) { m.Update(msg) }},

@@ -109,7 +109,7 @@ func newPreviewRecoveryFixture(t *testing.T) (*Coordinator, *session.Manager, st
 	if err != nil {
 		t.Fatal(err)
 	}
-	coordinator := NewCoordinator(repo, manager, api.New(repo, manager))
+	coordinator := NewCoordinator(manager, api.New(repo, manager))
 	coordinator.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coordinator.Update(messages.DashboardOpenRequestedMsg{
 		DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive,

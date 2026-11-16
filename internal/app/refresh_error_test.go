@@ -51,7 +51,7 @@ func TestRefreshDataSurfacesErrorAndKeepsPreviousCards(t *testing.T) {
 		t.Fatalf("create card: %v", errCreate)
 	}
 
-	coord := app.NewCoordinator(repo, sm, api.New(repo, sm))
+	coord := app.NewCoordinator(sm, api.New(repo, sm))
 	coord.Init()
 	coord.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	coord.Update(

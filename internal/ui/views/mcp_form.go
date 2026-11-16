@@ -8,7 +8,10 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/BlackGiack/kankuro/internal/config"
+	"maps"
+	"slices"
+
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/styles"
@@ -54,7 +57,7 @@ const MCPInputCount = mcpInputCount
 
 // MCPFormCallbacks defines callbacks for MCP form actions.
 type MCPFormCallbacks struct {
-	OnSave func(mcp config.MCPServer) tea.Cmd
+	OnSave func(mcp contracts.MCPEditor) tea.Cmd
 }
 
 // MCPForm is a simple form for creating/editing MCP servers.
@@ -62,11 +65,13 @@ type MCPForm struct {
 	component.Base
 
 	inputs []textinput.Model
-	mcp    config.MCPServer
+	mcp    contracts.MCPEditor
 
 	callbacks MCPFormCallbacks
 
-	err error
+	err     error
+	loading bool
+	saving  bool
 }
 
 // NewMCPForm creates a new MCP form.
@@ -94,11 +99,22 @@ func (f *MCPForm) Inputs() []textinput.Model {
 
 // HandleSubmit manually triggers the submit logic.
 func (f *MCPForm) HandleSubmit() tea.Cmd {
+	if f.saving || f.loading {
+		return nil
+	}
 	return f.handleSubmit()
 }
 
+func (f *MCPForm) SetLoading(loading bool) { f.loading = loading }
+
+func (f *MCPForm) SetSaving(saving bool) { f.saving = saving }
+
 // SetMCP sets the MCP server to edit.
-func (f *MCPForm) SetMCP(mcp config.MCPServer) {
+func (f *MCPForm) SetMCP(mcp contracts.MCPEditor) {
+	mcp.Args = slices.Clone(mcp.Args)
+	mcp.Env = maps.Clone(mcp.Env)
+	mcp.Headers = maps.Clone(mcp.Headers)
+	f.loading = false
 	f.mcp = mcp
 	f.inputs[mcpNameIdx].SetValue(mcp.Name)
 	f.inputs[mcpCommandIdx].SetValue(mcp.Command)
@@ -111,13 +127,15 @@ func (f *MCPForm) SetMCP(mcp config.MCPServer) {
 
 // Reset clears the form.
 func (f *MCPForm) Reset() {
-	f.mcp = config.MCPServer{}
+	f.mcp = contracts.MCPEditor{}
 	for i := range f.inputs {
 		f.inputs[i].SetValue("")
 		f.inputs[i].Blur()
 	}
 	f.inputs[mcpNameIdx].Focus()
 	f.err = nil
+	f.loading = false
+	f.saving = false
 }
 
 // Init initializes the component.
@@ -128,6 +146,12 @@ func (f *MCPForm) Init() tea.Cmd {
 
 // Update handles messages.
 func (f *MCPForm) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+	if f.loading || f.saving {
+		key, ok := msg.(tea.KeyPressMsg)
+		if !ok || (key.Code != tea.KeyEsc && key.String() != keyCtrlC) {
+			return f, nil
+		}
+	}
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if keyMsg.String() == keyCtrlC {
 			return f, tea.Quit
@@ -153,6 +177,9 @@ func (f *MCPForm) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 // View renders the form.
 func (f *MCPForm) View() string {
 	var content strings.Builder
+	if f.saving {
+		content.WriteString("Saving MCP…\n\n")
+	}
 
 	if f.err != nil {
 		content.WriteString(styles.ErrorStyle.Render(f.err.Error()) + "\n\n")

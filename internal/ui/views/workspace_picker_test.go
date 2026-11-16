@@ -7,7 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/config"
-	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
@@ -19,7 +18,7 @@ func TestWorkspacePicker_SearchAndFilter(t *testing.T) {
 		{ID: "ws-2", Name: "Beta Project", Path: "/path/beta"},
 		{ID: "ws-3", Name: "Gamma Project", Path: "/path/gamma"},
 	}
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: workspaces})
+	setEditorData(e, editorTestData{Workspaces: workspaces})
 
 	// Open picker (simulated by focusing workspace and pressing space)
 	e.CycleFocus(3) // FocusWorkspace is 3
@@ -53,7 +52,7 @@ func TestWorkspacePicker_SearchAndFilter(t *testing.T) {
 
 func TestWorkspacePickerSpaceSearchesNamesWithSpaces(t *testing.T) {
 	e := views.NewCardEditor(views.CardEditorCallbacks{})
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: []config.Workspace{
+	setEditorData(e, editorTestData{Workspaces: []config.Workspace{
 		{ID: "spaced", Name: "Alpha Project", Path: "/work/with space"},
 		{ID: "joined", Name: "AlphaProject", Path: "/work/joined"},
 	}})
@@ -85,7 +84,7 @@ func TestSubWorkspacePickerMultipleUnresolvedAndMainModes(t *testing.T) {
 	e := views.NewCardEditor(
 		views.CardEditorCallbacks{OnSave: func(draft models.CardEditorDraft) tea.Cmd { saved = valuesCard(draft.Values); return nil }},
 	)
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: workspaces})
+	setEditorData(e, editorTestData{Workspaces: workspaces})
 	loadEditor(e, config.IDCard{WorkspaceID: "main", SubWorkspaceIDs: []string{"removed"}})
 	e.CycleFocus(views.FocusSubWorkspaces)
 	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
@@ -133,7 +132,7 @@ func TestSubWorkspaceNewSelectionSurvivesRegistryRefresh(t *testing.T) {
 	alpha := config.Workspace{ID: "a", Name: "Alpha", Path: "/alpha"}
 	beta := config.Workspace{ID: "b", Name: "Beta", Path: "/beta"}
 	e := views.NewCardEditor(views.CardEditorCallbacks{})
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: []config.Workspace{alpha, beta}})
+	setEditorData(e, editorTestData{Workspaces: []config.Workspace{alpha, beta}})
 	loadEditor(e, config.IDCard{WorkspaceID: "main"})
 	e.CycleFocus(views.FocusSubWorkspaces)
 
@@ -145,11 +144,11 @@ func TestSubWorkspaceNewSelectionSurvivesRegistryRefresh(t *testing.T) {
 	}
 
 	openAndSelectAlpha()
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: []config.Workspace{beta}})
+	setEditorData(e, editorTestData{Workspaces: []config.Workspace{beta}})
 	if view := e.View(); !strings.Contains(view, "[missing] Alpha (a)") {
 		t.Fatalf("newly checked workspace disappeared after removal:\n%s", view)
 	}
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: []config.Workspace{alpha, beta}})
+	setEditorData(e, editorTestData{Workspaces: []config.Workspace{alpha, beta}})
 	e.Update(tea.KeyPressMsg{Code: tea.KeyEsc}) // clear search
 	e.Update(tea.KeyPressMsg{Code: tea.KeyEsc}) // cancel
 	if got := editorCard(e).SubWorkspaceIDs; len(got) != 0 {
@@ -158,7 +157,7 @@ func TestSubWorkspaceNewSelectionSurvivesRegistryRefresh(t *testing.T) {
 
 	// Reopen, remove Alpha again, and explicitly deselect its unresolved row.
 	openAndSelectAlpha()
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: []config.Workspace{beta}})
+	setEditorData(e, editorTestData{Workspaces: []config.Workspace{beta}})
 	if view := e.View(); !strings.Contains(view, "[missing] Alpha (a)") {
 		t.Fatalf("missing workspace was not available for deselection:\n%s", view)
 	}
@@ -169,9 +168,9 @@ func TestSubWorkspaceNewSelectionSurvivesRegistryRefresh(t *testing.T) {
 	}
 
 	// A newly checked ID that is absent at confirmation remains selected.
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: []config.Workspace{alpha, beta}})
+	setEditorData(e, editorTestData{Workspaces: []config.Workspace{alpha, beta}})
 	openAndSelectAlpha()
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: []config.Workspace{beta}})
+	setEditorData(e, editorTestData{Workspaces: []config.Workspace{beta}})
 	e.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if got := editorCard(e).SubWorkspaceIDs; len(got) != 1 || got[0] != "a" {
 		t.Fatalf("newly checked ID disappeared on confirmation: %v", got)
@@ -180,7 +179,7 @@ func TestSubWorkspaceNewSelectionSurvivesRegistryRefresh(t *testing.T) {
 
 func TestWorkspacePicker_EscapeBehavior(t *testing.T) {
 	e := views.NewCardEditor(views.CardEditorCallbacks{})
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: []config.Workspace{{ID: "1", Name: "Alpha"}}})
+	setEditorData(e, editorTestData{Workspaces: []config.Workspace{{ID: "1", Name: "Alpha"}}})
 
 	// Open picker
 	e.CycleFocus(3)
@@ -210,7 +209,7 @@ func TestWorkspacePicker_EscapeBehavior(t *testing.T) {
 
 func TestWorkspacePicker_QNonQuit(t *testing.T) {
 	e := views.NewCardEditor(views.CardEditorCallbacks{})
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: []config.Workspace{{ID: "1", Name: "Alpha"}}})
+	setEditorData(e, editorTestData{Workspaces: []config.Workspace{{ID: "1", Name: "Alpha"}}})
 
 	// Open picker
 	e.CycleFocus(3)
@@ -258,7 +257,7 @@ func TestWorkspacePicker_ReopenAfterSearch(t *testing.T) {
 		{ID: "ws-4", Name: "Delta Project", Path: "/path/delta"},
 		{ID: "ws-5", Name: "Epsilon Project", Path: "/path/epsilon"},
 	}
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: workspaces})
+	setEditorData(e, editorTestData{Workspaces: workspaces})
 
 	// First open
 	e.CycleFocus(3) // FocusWorkspace
@@ -308,7 +307,7 @@ func TestWorkspacePicker_SizeRestoration(t *testing.T) {
 		{ID: "ws-1", Name: "Alpha Project", Path: "/path/alpha"},
 		{ID: "ws-2", Name: "Beta Project", Path: "/path/beta"},
 	}
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: workspaces})
+	setEditorData(e, editorTestData{Workspaces: workspaces})
 
 	// Open picker
 	e.CycleFocus(3)
@@ -347,7 +346,7 @@ func TestWorkspacePicker_SmallTerminal(t *testing.T) {
 		{ID: "ws-1", Name: "Alpha", Path: "/path/alpha"},
 		{ID: "ws-2", Name: "Beta", Path: "/path/beta"},
 	}
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: workspaces})
+	setEditorData(e, editorTestData{Workspaces: workspaces})
 
 	// Open picker on small terminal
 	e.CycleFocus(3)
@@ -372,7 +371,7 @@ func TestWorkspacePicker_SelectionRestoration(t *testing.T) {
 		{ID: "ws-2", Name: "Beta Project", Path: "/path/beta"},
 		{ID: "ws-3", Name: "Gamma Project", Path: "/path/gamma"},
 	}
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: workspaces})
+	setEditorData(e, editorTestData{Workspaces: workspaces})
 
 	// Start with Alpha selected
 	e.SetWorkspaceID("ws-1")
@@ -412,7 +411,7 @@ func TestWorkspacePicker_Filtering(t *testing.T) {
 		{ID: "ws-2", Name: "Beta Project", Path: "/path/beta"},
 		{ID: "ws-3", Name: "Gamma Project", Path: "/path/gamma"},
 	}
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: workspaces})
+	setEditorData(e, editorTestData{Workspaces: workspaces})
 
 	// Open picker
 	e.CycleFocus(3)

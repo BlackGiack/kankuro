@@ -10,7 +10,6 @@ import (
 
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/ui/components"
-	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
@@ -94,7 +93,7 @@ func TestCardEditor_Card(t *testing.T) {
 	skills := []config.Skill{
 		{ID: "s1", Name: "Skill 1"},
 	}
-	setEditorData(e, messages.DataLoadedMsg{
+	setEditorData(e, editorTestData{
 		Skills: skills,
 	})
 	e.SkillList().SetSelected([]string{"s1"})
@@ -134,13 +133,13 @@ func TestDashboardControlCardEditorToggleRoundTrip(t *testing.T) {
 
 func TestSelectedOnlySkillCursorNormalizesAfterRegistryRefresh(t *testing.T) {
 	e := views.NewCardEditor(views.CardEditorCallbacks{})
-	setEditorData(e, messages.DataLoadedMsg{Skills: []config.Skill{
+	setEditorData(e, editorTestData{Skills: []config.Skill{
 		{ID: "a", Name: "A"}, {ID: "b", Name: "B"}, {ID: "c", Name: "C"},
 	}})
 	e.SkillList().SetSelected([]string{"a", "b"})
 	e.SkillList().SetSelectedOnly(true)
 	e.SkillList().SetCursor(1)
-	setEditorData(e, messages.DataLoadedMsg{Skills: []config.Skill{{ID: "a", Name: "A"}, {ID: "c", Name: "C"}}})
+	setEditorData(e, editorTestData{Skills: []config.Skill{{ID: "a", Name: "A"}, {ID: "c", Name: "C"}}})
 	item, ok := e.SkillList().SelectedItem()
 	if !ok || item.GetID() != "a" {
 		t.Fatalf("selected-only cursor item = %v, %v; want A", item, ok)
@@ -166,7 +165,7 @@ func TestCtrlXClearsOnlySubWorkspaceSelection(t *testing.T) {
 		OnSave:   func(models.CardEditorDraft) tea.Cmd { saves++; return nil },
 		OnCancel: func() tea.Cmd { cancels++; return nil },
 	})
-	setEditorData(e, messages.DataLoadedMsg{
+	setEditorData(e, editorTestData{
 		Workspaces: []config.Workspace{{ID: "main", Name: "Main"}, {ID: "sub", Name: "Sub"}},
 		Skills:     []config.Skill{{ID: "skill", Name: "Skill"}},
 		Personas:   []config.Persona{{ID: "persona", Name: "Persona"}},
@@ -215,7 +214,7 @@ func TestCtrlXOutsideSubWorkspaceFieldPreservesSelection(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("focus-%d", focus), func(t *testing.T) {
 			e := views.NewCardEditor(views.CardEditorCallbacks{})
-			setEditorData(e, messages.DataLoadedMsg{Skills: []config.Skill{{ID: "skill", Name: "Skill"}}})
+			setEditorData(e, editorTestData{Skills: []config.Skill{{ID: "skill", Name: "Skill"}}})
 			loadEditor(e, config.IDCard{SubWorkspaceIDs: []string{"sub", "unresolved"}, SkillIDs: []string{"skill"}})
 			e.CycleFocus(focus)
 			e.Update(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
@@ -237,7 +236,7 @@ func TestCtrlXPickerSaveAndCancelFlow(t *testing.T) {
 		OnSave:   func(draft models.CardEditorDraft) tea.Cmd { saved = valuesCard(draft.Values); saves++; return nil },
 		OnCancel: func() tea.Cmd { cancels++; return nil },
 	})
-	setEditorData(e, messages.DataLoadedMsg{Workspaces: workspaces})
+	setEditorData(e, editorTestData{Workspaces: workspaces})
 	loadEditor(e, original)
 	e.CycleFocus(views.FocusSubWorkspaces)
 	e.Update(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
@@ -278,7 +277,7 @@ func TestCtrlXPickerSaveAndCancelFlow(t *testing.T) {
 		OnSave:   func(models.CardEditorDraft) tea.Cmd { t.Error("cancel path called OnSave"); return nil },
 		OnCancel: func() tea.Cmd { cancels++; return nil },
 	})
-	setEditorData(cancelEditor, messages.DataLoadedMsg{Workspaces: workspaces})
+	setEditorData(cancelEditor, editorTestData{Workspaces: workspaces})
 	loadEditor(cancelEditor, original)
 	cancelEditor.CycleFocus(views.FocusSubWorkspaces)
 	cancelEditor.Update(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
@@ -367,7 +366,7 @@ func TestCardEditor_SetData(t *testing.T) {
 		{ID: "m1", Name: "MCP 1"},
 	}
 
-	setEditorData(e, messages.DataLoadedMsg{
+	setEditorData(e, editorTestData{
 		Workspaces: workspaces,
 		Skills:     skills,
 		Personas:   personas,
@@ -384,7 +383,7 @@ func TestCardEditor_SetData(t *testing.T) {
 
 func TestCardEditor_WorkspaceSummary(t *testing.T) {
 	e := views.NewCardEditor(views.CardEditorCallbacks{})
-	setEditorData(e, messages.DataLoadedMsg{
+	setEditorData(e, editorTestData{
 		Workspaces: []config.Workspace{
 			{ID: "ws-1", Name: "My Workspace"},
 		},
@@ -512,7 +511,7 @@ func TestCardEditor_HiddenSectionsPreserveSelections(t *testing.T) {
 // protect).
 func TestCardEditor_HiddenSectionsCaptureDeselection(t *testing.T) {
 	e := views.NewCardEditor(views.CardEditorCallbacks{})
-	setEditorData(e, messages.DataLoadedMsg{
+	setEditorData(e, editorTestData{
 		Personas: []config.Persona{{ID: "p1", Name: "Persona 1"}},
 		MCPs:     []config.MCPServer{{ID: "m1", Name: "MCP 1"}},
 	})
@@ -591,7 +590,7 @@ func TestTemporaryWorkspaceSpaceAndSave(t *testing.T) {
 			editor := views.NewCardEditor(views.CardEditorCallbacks{
 				OnSave: func(draft models.CardEditorDraft) tea.Cmd { saved = valuesCard(draft.Values); saves++; return nil },
 			})
-			setEditorData(editor, messages.DataLoadedMsg{Workspaces: []config.Workspace{{ID: "main", Name: "Main"}}})
+			setEditorData(editor, editorTestData{Workspaces: []config.Workspace{{ID: "main", Name: "Main"}}})
 			loadEditor(editor, original)
 			original = editorCard(editor)
 			editor.CycleFocus(views.FocusUseTmp)

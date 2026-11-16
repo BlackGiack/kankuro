@@ -51,6 +51,7 @@ import (
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
 // raceNoopMsg is a message no handler knows, so Update routes it to the
@@ -108,7 +109,7 @@ func newRaceFixture(t *testing.T, killSession bool) raceFixture {
 		}
 	}
 
-	c := NewCoordinator(repo, sm, service)
+	c := NewCoordinator(sm, service)
 	c.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	c.Update(messages.DashboardOpenRequestedMsg{
 		DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive,
@@ -122,7 +123,13 @@ func hammer(c *Coordinator) {
 	c.Update(raceNoopMsg{})
 	c.Update(messages.ErrorMsg{Err: errors.New("hammer")})
 	c.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	c.Update(messages.SettingsSavedMsg{Settings: config.DefaultAppSettings(), DashboardID: c.activeDashboard, Generation: c.viewGeneration})
+	c.Update(
+		messages.SettingsSavedMsg{
+			Settings:    contracts.Settings{ShowPersonasInCardEditor: true, ShowMCPsInCardEditor: true},
+			DashboardID: c.activeDashboard,
+			Generation:  c.viewGeneration,
+		},
+	)
 	c.Update(messages.ScopedNavigateMsg{View: messages.ViewSettings, DashboardID: c.activeDashboard, Generation: c.viewGeneration})
 	_ = c.View()
 	c.Update(messages.ScopedNavigateMsg{View: messages.ViewDashboard, DashboardID: c.activeDashboard, Generation: c.viewGeneration})
@@ -210,6 +217,27 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 		run  func(t *testing.T, f raceFixture) tea.Cmd
 		want func(tea.Msg) bool
 	}{
+		{name: "source load", run: func(_ *testing.T, f raceFixture) tea.Cmd { return f.coord.navigateTo(ViewSourceManagerSkills) }},
+		{name: "source save", run: func(t *testing.T, f raceFixture) tea.Cmd {
+			f.coord.navigateTo(ViewSourceManagerSkills)
+			view := f.coord.views[ViewSourceManagerSkills].(*views.SourceManager)
+			view.SourceList().OpenForm(-1)
+			view.SourceList().Inputs[0].SetValue(t.TempDir())
+			_, cmd := f.coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+			return cmd
+		}},
+		{name: "source sync", run: func(_ *testing.T, f raceFixture) tea.Cmd {
+			f.coord.navigateTo(ViewSourceManagerWorkspaces)
+			_, cmd := f.coord.Update(tea.KeyPressMsg{Text: "r"})
+			return cmd
+		}},
+		{name: "settings save", run: func(_ *testing.T, f raceFixture) tea.Cmd {
+			return f.coord.settingsCallbacks().OnSave(contracts.Settings{IDECommand: "editor"})
+		}, want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.SettingsSavedMsg); return ok })},
+		{name: "mcp save", run: func(_ *testing.T, f raceFixture) tea.Cmd {
+			return f.coord.mcpCallbacks().OnSave(contracts.MCPEditor{Name: "race", Command: "echo", Args: []string{"test"}})
+		}, want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.MCPSavedMsg); return ok })},
+
 		{
 			name: "idle tick",
 			run: func(_ *testing.T, f raceFixture) tea.Cmd {
@@ -286,7 +314,7 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 			run: func(_ *testing.T, f raceFixture) tea.Cmd {
 				f.coord.Update(
 					messages.SettingsSavedMsg{
-						Settings:    config.AppSettings{TerminalCommand: "/bin/true"},
+						Settings:    contracts.Settings{TerminalCommand: "/bin/true"},
 						DashboardID: f.coord.activeDashboard,
 						Generation:  f.coord.viewGeneration,
 					},

@@ -51,7 +51,7 @@ func TestScopedRefreshPreservesDataOnInventoryFailure(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			c := NewCoordinator(repo, manager, service)
+			c := NewCoordinator(manager, service)
 			c.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 			c.Update(
 				messages.DashboardOpenRequestedMsg{
@@ -111,7 +111,7 @@ func TestScopedRefreshReturnsExplicitEmptyInventory(t *testing.T) {
 	}
 	manager := newTestManager(t, repo.Dir(), repo)
 	service := api.New(repo, manager)
-	r := refresher{repo: repo, sessions: manager}
+	r := refresher{sessions: manager, editor: service, configuration: service}
 	full := unwrapRefresh(r.scopedFull(service, "default", 1, 1, 1, "")()).(messages.DataLoadedMsg)
 	if full.Err != nil || !full.Inventory.Attempted || full.Inventory.Err != nil ||
 		len(full.Inventory.Value.Cards) != 0 || len(full.Inventory.Value.Sessions) != 0 {

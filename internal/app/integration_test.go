@@ -214,7 +214,13 @@ func TestSourceManagementFlow(t *testing.T) {
 	if err = repo.SaveSkillSources([]string{"/first/source", "/second/source"}); err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(coord.RefreshData()())
+	_, refreshCmd := coord.Update(tea.KeyPressMsg{Text: "r"})
+	for _, msg := range collectMsgs(t, refreshCmd) {
+		_, next := coord.Update(msg)
+		if next != nil {
+			drive(t, coord, next)
+		}
+	}
 	items := manager.SourceList().Items
 	if len(items) != 2 || items[0].Display() != "/first/source" || items[1].Display() != "/second/source" {
 		t.Fatalf("refresh was not propagated to source view: %v", items)
@@ -222,7 +228,13 @@ func TestSourceManagementFlow(t *testing.T) {
 	if err = repo.SaveSkillSources(nil); err != nil {
 		t.Fatal(err)
 	}
-	coord.Update(coord.RefreshData()())
+	_, refreshCmd = coord.Update(tea.KeyPressMsg{Text: "r"})
+	for _, msg := range collectMsgs(t, refreshCmd) {
+		_, next := coord.Update(msg)
+		if next != nil {
+			drive(t, coord, next)
+		}
+	}
 	if len(manager.SourceList().Items) != 0 {
 		t.Fatal("refresh did not clear removed sources")
 	}
@@ -438,12 +450,9 @@ func TestSourceSyncSideEffects(t *testing.T) {
 	callbacks := coord.SourceManagerCallbacks(views.SourceTypeSkills)
 
 	// Add a skill source (dummy path)
-	cmd, err := callbacks.SaveSimpleSource("/tmp/skills", -1)
-	if err != nil {
-		t.Fatalf("SaveSimpleSource failed: %v", err)
-	}
-	if cmd != nil {
-		cmd()
+	result := callbacks.Mutate(context.Background(), contracts.SourceMutation{Kind: contracts.SourceSkills, Path: "/tmp/skills"})
+	if !result.Saved {
+		t.Fatalf("source not saved: %+v", result)
 	}
 
 	sources, _ := repo.ListSkillSources()

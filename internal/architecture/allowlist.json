@@ -1,43 +1,5 @@
 [
   {
-    "path": "internal/ui/views/mcp_form.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "MCPServer"
-    ],
-    "edges": [
-      "func receiver *MCPForm Reset body uses config.MCPServer",
-      "func receiver *MCPForm SetMCP parameter mcp config.MCPServer uses config.MCPServer",
-      "type MCPForm field mcp config.MCPServer uses config.MCPServer",
-      "type MCPFormCallbacks method OnSave signature field mcp config.MCPServer uses config.MCPServer"
-    ],
-    "edge_owners": {
-      "func receiver *MCPForm Reset body uses config.MCPServer": "5",
-      "func receiver *MCPForm SetMCP parameter mcp config.MCPServer uses config.MCPServer": "5",
-      "type MCPForm field mcp config.MCPServer uses config.MCPServer": "5",
-      "type MCPFormCallbacks method OnSave signature field mcp config.MCPServer uses config.MCPServer": "5"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "5"
-  },
-  {
-    "path": "internal/ui/components/source_list.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "WorkspaceSource"
-    ],
-    "edges": [
-      "func receiver *SourceList HandleSave body uses config.WorkspaceSource"
-    ],
-    "edge_owners": {
-      "func receiver *SourceList HandleSave body uses config.WorkspaceSource": "5"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "5"
-  },
-  {
     "path": "internal/app/coordinator.go",
     "dependency": "github.com/BlackGiack/kankuro/internal/session",
     "rule": "frontend imports backend implementation",
@@ -54,57 +16,6 @@
     },
     "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
     "owner": "7"
-  },
-  {
-    "path": "internal/ui/components/source_item.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "WorkspaceSource"
-    ],
-    "edges": [
-      "func ToWorkspaceItems parameter sources []config.WorkspaceSource uses config.WorkspaceSource",
-      "type WorkspaceSourceItem field Source config.WorkspaceSource uses config.WorkspaceSource"
-    ],
-    "edge_owners": {
-      "func ToWorkspaceItems parameter sources []config.WorkspaceSource uses config.WorkspaceSource": "5",
-      "type WorkspaceSourceItem field Source config.WorkspaceSource uses config.WorkspaceSource": "5"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "5"
-  },
-  {
-    "path": "internal/app/callbacks.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "AppSettings",
-      "MCPServer",
-      "SyncFailedError",
-      "WorkspaceSource"
-    ],
-    "edges": [
-      "func receiver *Coordinator deleteSource parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource",
-      "func receiver *Coordinator deleteSource parameter sources []config.WorkspaceSource uses config.WorkspaceSource",
-      "func receiver *Coordinator mcpCallbacks parameter mcp config.MCPServer uses config.MCPServer",
-      "func receiver *Coordinator settingsCallbacks parameter settings config.AppSettings uses config.AppSettings",
-      "func receiver *Coordinator sourceManagerCallbacks parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource",
-      "func receiver *Coordinator sourceManagerCallbacks parameter source config.WorkspaceSource uses config.WorkspaceSource",
-      "func receiver *Coordinator sourceManagerCallbacks parameter sources []config.WorkspaceSource uses config.WorkspaceSource",
-      "func receiver *Coordinator sourceUpdateMsg body uses config.SyncFailedError"
-    ],
-    "edge_owners": {
-      "func receiver *Coordinator deleteSource parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource": "5",
-      "func receiver *Coordinator deleteSource parameter sources []config.WorkspaceSource uses config.WorkspaceSource": "5",
-      "func receiver *Coordinator mcpCallbacks parameter mcp config.MCPServer uses config.MCPServer": "5",
-      "func receiver *Coordinator settingsCallbacks parameter settings config.AppSettings uses config.AppSettings": "5",
-      "func receiver *Coordinator sourceManagerCallbacks parameter <unnamed> []config.WorkspaceSource uses config.WorkspaceSource": "5",
-      "func receiver *Coordinator sourceManagerCallbacks parameter source config.WorkspaceSource uses config.WorkspaceSource": "5",
-      "func receiver *Coordinator sourceManagerCallbacks parameter sources []config.WorkspaceSource uses config.WorkspaceSource": "5",
-      "func receiver *Coordinator sourceUpdateMsg body uses config.SyncFailedError": "5"
-    },
-    "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
-    "owner": "4/5"
   },
   {
     "path": "internal/app/refresh.go",
@@ -210,22 +121,6 @@
     "owner": "2/7"
   },
   {
-    "path": "internal/ui/views/source_manager.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "WorkspaceSource"
-    ],
-    "edges": [
-      "type SourceManagerCallbacks method SaveWorkspaceSource signature field source config.WorkspaceSource uses config.WorkspaceSource"
-    ],
-    "edge_owners": {
-      "type SourceManagerCallbacks method SaveWorkspaceSource signature field source config.WorkspaceSource uses config.WorkspaceSource": "5"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "5"
-  },
-  {
     "path": "internal/app/app.go",
     "dependency": "github.com/BlackGiack/kankuro/internal/session",
     "rule": "frontend imports backend implementation",
@@ -262,41 +157,6 @@
   },
   {
     "path": "internal/ui/messages/messages.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "AppSettings",
-      "MCPServer",
-      "Persona",
-      "Puppet",
-      "Skill",
-      "Workspace"
-    ],
-    "edges": [
-      "type DataLoadedMsg field MCPs []config.MCPServer uses config.MCPServer",
-      "type DataLoadedMsg field Personas []config.Persona uses config.Persona",
-      "type DataLoadedMsg field Puppets []config.Puppet uses config.Puppet",
-      "type DataLoadedMsg field Skills []config.Skill uses config.Skill",
-      "type DataLoadedMsg field Workspaces []config.Workspace uses config.Workspace",
-      "type MCPManagerEditMsg field MCP config.MCPServer uses config.MCPServer",
-      "type MCPSavedMsg field MCP config.MCPServer uses config.MCPServer",
-      "type SettingsSavedMsg field Settings config.AppSettings uses config.AppSettings"
-    ],
-    "edge_owners": {
-      "type DataLoadedMsg field MCPs []config.MCPServer uses config.MCPServer": "5",
-      "type DataLoadedMsg field Personas []config.Persona uses config.Persona": "5",
-      "type DataLoadedMsg field Puppets []config.Puppet uses config.Puppet": "5",
-      "type DataLoadedMsg field Skills []config.Skill uses config.Skill": "5",
-      "type DataLoadedMsg field Workspaces []config.Workspace uses config.Workspace": "5",
-      "type MCPManagerEditMsg field MCP config.MCPServer uses config.MCPServer": "5",
-      "type MCPSavedMsg field MCP config.MCPServer uses config.MCPServer": "5",
-      "type SettingsSavedMsg field Settings config.AppSettings uses config.AppSettings": "5"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "2/3/4/5/6/7"
-  },
-  {
-    "path": "internal/ui/messages/messages.go",
     "dependency": "github.com/BlackGiack/kankuro/internal/session",
     "rule": "frontend imports backend implementation",
     "symbols": [
@@ -309,47 +169,6 @@
       "type ScopedAttachReadyMsg field Handle *session.AttachHandle uses session.AttachHandle": "7"
     },
     "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "7"
-  },
-  {
-    "path": "internal/ui/views/settings.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "AppSettings",
-      "DefaultAppSettings"
-    ],
-    "edges": [
-      "func NewSettingsView body uses config.DefaultAppSettings",
-      "func receiver *SettingsView SetSettings parameter cfg config.AppSettings uses config.AppSettings",
-      "func receiver *SettingsView Settings result <unnamed> config.AppSettings uses config.AppSettings",
-      "type SettingsCallbacks method OnSave signature field settings config.AppSettings uses config.AppSettings",
-      "type SettingsView field settings config.AppSettings uses config.AppSettings"
-    ],
-    "edge_owners": {
-      "func NewSettingsView body uses config.DefaultAppSettings": "5",
-      "func receiver *SettingsView SetSettings parameter cfg config.AppSettings uses config.AppSettings": "5",
-      "func receiver *SettingsView Settings result <unnamed> config.AppSettings uses config.AppSettings": "5",
-      "type SettingsCallbacks method OnSave signature field settings config.AppSettings uses config.AppSettings": "5",
-      "type SettingsView field settings config.AppSettings uses config.AppSettings": "5"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "5"
-  },
-  {
-    "path": "internal/app/app.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "Repository"
-    ],
-    "edges": [
-      "func New parameter repo config.Repository uses config.Repository"
-    ],
-    "edge_owners": {
-      "func New parameter repo config.Repository uses config.Repository": "7"
-    },
-    "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
     "owner": "7"
   },
   {
@@ -369,22 +188,6 @@
     "owner": "6"
   },
   {
-    "path": "internal/app/refresh.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "Repository"
-    ],
-    "edges": [
-      "type refresher field repo config.Repository uses config.Repository"
-    ],
-    "edge_owners": {
-      "type refresher field repo config.Repository uses config.Repository": "5"
-    },
-    "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
-    "owner": "5"
-  },
-  {
     "path": "internal/app/legacy_actions.go",
     "dependency": "github.com/BlackGiack/kankuro/internal/api",
     "rule": "frontend imports backend implementation",
@@ -399,66 +202,5 @@
     },
     "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
     "owner": "5/7"
-  },
-  {
-    "path": "internal/ui/views/mcp_manager.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "BuiltinMCPKankuro",
-      "MCPServer"
-    ],
-    "edges": [
-      "func receiver *MCPManager Update body uses config.BuiltinMCPKankuro",
-      "func receiver mcpManagerItem Display body uses config.BuiltinMCPKankuro",
-      "type mcpManagerItem field server config.MCPServer uses config.MCPServer"
-    ],
-    "edge_owners": {
-      "func receiver *MCPManager Update body uses config.BuiltinMCPKankuro": "5",
-      "func receiver mcpManagerItem Display body uses config.BuiltinMCPKankuro": "5",
-      "type mcpManagerItem field server config.MCPServer uses config.MCPServer": "5"
-    },
-    "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
-    "owner": "5"
-  },
-  {
-    "path": "internal/app/legacy_actions.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "Repository"
-    ],
-    "edges": [
-      "type legacyActions field repo config.Repository uses config.Repository"
-    ],
-    "edge_owners": {
-      "type legacyActions field repo config.Repository uses config.Repository": "5"
-    },
-    "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
-    "owner": "5"
-  },
-  {
-    "path": "internal/app/coordinator.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/config",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "AppSettings",
-      "DefaultAppSettings",
-      "Repository"
-    ],
-    "edges": [
-      "func NewCoordinator body uses config.DefaultAppSettings",
-      "func NewCoordinator parameter repo config.Repository uses config.Repository",
-      "type Coordinator field repo config.Repository uses config.Repository",
-      "type Coordinator field settings config.AppSettings uses config.AppSettings"
-    ],
-    "edge_owners": {
-      "func NewCoordinator body uses config.DefaultAppSettings": "7",
-      "func NewCoordinator parameter repo config.Repository uses config.Repository": "7",
-      "type Coordinator field repo config.Repository uses config.Repository": "7",
-      "type Coordinator field settings config.AppSettings uses config.AppSettings": "5"
-    },
-    "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
-    "owner": "2/3/5/7"
   }
 ]

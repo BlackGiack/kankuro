@@ -87,6 +87,16 @@ func (f *mcpGapFixture) open(t *testing.T) {
 	}
 }
 
+func (f *mcpGapFixture) openEditor(t *testing.T) {
+	t.Helper()
+	cmd := f.key(t, tea.KeyEnter)
+	if cmd == nil {
+		t.Fatal("missing editor request")
+	}
+	_, load := f.coord.Update(cmd())
+	drive(t, f.coord, load)
+}
+
 func (f *mcpGapFixture) switchDashboard(t *testing.T) {
 	t.Helper()
 	current := f.coord.RefreshData()().(messages.DataLoadedMsg)
@@ -174,14 +184,14 @@ func TestMCPManagerCrossDashboardSaveResults(t *testing.T) {
 func checkMCPManagerCrossDashboardSaveResults(t *testing.T, failed bool) {
 	t.Helper()
 	f := newMCPGapFixture(t)
-	drive(t, f.coord, f.key(t, tea.KeyEnter))
+	f.openEditor(t)
 	f.coord.Views()[app.ViewMCPForm].(*views.MCPForm).Inputs()[0].SetValue("Saved from first dashboard")
 	held := f.key(t, tea.KeyEnter)
 	if failed {
 		f.faults.saveErr = mcpDiskFailure(f.repo)
 	}
 	f.switchDashboard(t)
-	drive(t, f.coord, f.key(t, tea.KeyEnter))
+	f.openEditor(t)
 	form := f.coord.Views()[app.ViewMCPForm].(*views.MCPForm)
 	form.Inputs()[0].SetValue("Other dashboard draft")
 	marker := errors.New("current dashboard error")
@@ -206,7 +216,7 @@ func checkMCPManagerCrossDashboardSaveResults(t *testing.T, failed bool) {
 		want = "Saved from first dashboard"
 	}
 	data := f.coord.RefreshData()().(messages.DataLoadedMsg)
-	if data.DashboardID != f.other.ID || data.MCPs[0].Name != want {
+	if data.DashboardID != f.other.ID || data.MCPRows[0].Name != want {
 		t.Fatalf("global save or current refresh scope incorrect: %+v", data)
 	}
 }
@@ -270,7 +280,7 @@ func checkMCPManagerWriteFailuresRetainDataAndAllowRetry(t *testing.T, action st
 	failure := mcpDiskFailure(f.repo)
 	var result tea.Msg
 	if action == "save" {
-		drive(t, f.coord, f.key(t, tea.KeyEnter))
+		f.openEditor(t)
 		f.coord.Views()[app.ViewMCPForm].(*views.MCPForm).Inputs()[0].SetValue("Retry draft")
 		f.faults.saveErr = failure
 		result = f.key(t, tea.KeyEnter)()

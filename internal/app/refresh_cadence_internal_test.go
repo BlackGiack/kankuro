@@ -54,7 +54,7 @@ func newCountingCoordinator(t *testing.T) (*Coordinator, *countingRepo, *config.
 	}
 	repo := &countingRepo{Repository: base}
 	sm := newTestManager(t, base.Dir(), base)
-	c := NewCoordinator(repo, sm, api.New(repo, sm))
+	c := NewCoordinator(sm, api.New(repo, sm))
 	c.Update(messages.DashboardOpenRequestedMsg{
 		DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive,
 	})
@@ -290,7 +290,7 @@ func TestLaunchCardAbortsOnRegistryReadError(t *testing.T) {
 		t.Fatalf("new repo: %v", err)
 	}
 	sm := newTestManager(t, base.Dir(), base)
-	c := NewCoordinator(base, sm, api.New(base, sm))
+	c := NewCoordinator(sm, api.New(base, sm))
 	c.Update(messages.DashboardOpenRequestedMsg{
 		DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive,
 	})

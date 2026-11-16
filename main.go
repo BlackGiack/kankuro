@@ -102,7 +102,7 @@ func run(registry driver.Registry) (returnErr error) {
 	sharedAPI := api.New(repo, sm)
 	operationRunner := api.NewOperationRunner(repo.Dir(), sharedAPI)
 	sharedAPI.SetOperationRunner(operationRunner)
-	application, err := app.New(repo, sm, sharedAPI)
+	application, err := app.New(sm, sharedAPI)
 	if err != nil {
 		operationRunner.Shutdown()
 		sm.Shutdown()
