@@ -590,7 +590,7 @@ func (m *Manager) switchAgentWithChoiceCore(
 		card.Name, now.Format(time.RFC3339))
 	gen := s.generation
 
-	go m.trackOutput(id, gen, h.Output)
+	go m.trackOutput(id, gen, h.Output, s.Subscribers)
 	m.startWatchLocked(id, gen, d)
 	*evidence = ActivationResult{
 		Effect:              ActivationPublished,
@@ -895,7 +895,7 @@ func (m *Manager) startSessionCore(
 	}
 	gen := s.generation
 
-	go m.trackOutput(sid, gen, h.Output)
+	go m.trackOutput(sid, gen, h.Output, s.Subscribers)
 	m.startWatchLocked(sid, gen, d)
 	*evidence = ActivationResult{
 		Effect:              ActivationPublished,
@@ -973,6 +973,8 @@ func (m *Manager) activateSessionLocked(
 	now time.Time,
 ) {
 	s.generation++
+	s.outputComplete = false
+	s.Subscribers = make(map[chan []byte]struct{})
 	s.ProcessActivationID = uuid.NewString()
 	m.cardReferenceRevision++
 	s.activating = false
@@ -1191,7 +1193,11 @@ func (m *Manager) removeDetailedChecked(id string, check func([]Snapshot) error)
 	s.deleting = true
 	m.cancelPendingMessageAdmissionsLocked(s)
 	m.revokeSessionActivationLocked(s)
-	m.closeSubscribersLocked(id)
+	// The output tracker owns closure for an activation so it can publish its
+	// remaining queued output even if the session row is removed first.
+	if s.Output == nil {
+		m.closeSubscribersLocked(id)
+	}
 	tmp := s.UseTmpWorkspace
 	workingDir := s.WorkingDir
 	m.mu.Unlock()

@@ -16,13 +16,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api"
-	"github.com/BlackGiack/kankuro/internal/app"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/driver"
 	"github.com/BlackGiack/kankuro/internal/mcp"
 	"github.com/BlackGiack/kankuro/internal/session"
-	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui"
 )
 
 //go:embed kankuro_skills/mcp-cli/SKILL.md
@@ -102,7 +101,10 @@ func run(registry driver.Registry) (returnErr error) {
 	sharedAPI := api.New(repo, sm)
 	operationRunner := api.NewOperationRunner(repo.Dir(), sharedAPI)
 	sharedAPI.SetOperationRunner(operationRunner)
-	application, err := app.New(sm, sharedAPI)
+	application, err := ui.New(ui.Capabilities{
+		Configuration: sharedAPI, Center: sharedAPI, Reads: sharedAPI, Editor: sharedAPI,
+		Actions: sharedAPI, Attachment: sharedAPI, Deletion: sharedAPI,
+	}, sm.LoadErrors())
 	if err != nil {
 		operationRunner.Shutdown()
 		sm.Shutdown()
@@ -127,7 +129,7 @@ func run(registry driver.Registry) (returnErr error) {
 		select {
 		case serverErr := <-mcpRuntime.Failures():
 			serverFailures <- serverErr
-			p.Send(messages.MCPServerFailedMsg{Err: fmt.Errorf("MCP server stopped: %w", serverErr)})
+			p.Send(ui.RuntimeError(fmt.Errorf("MCP server stopped: %w", serverErr)))
 		case <-failureCtx.Done():
 		}
 	}()

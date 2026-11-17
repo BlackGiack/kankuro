@@ -105,6 +105,7 @@ type Dashboard struct {
 	pendingFocusName      string
 	pendingFocusWaitName  bool
 	cardImpactOpen        bool
+	cardResultOpen        bool
 	cardImpactID          string
 	cardImpactToken       string
 	cardImpactViewport    viewport.Model
@@ -269,6 +270,28 @@ func (d *Dashboard) ShowCardDeletionImpact(cardID, token string, summary []strin
 		lines = append(lines, components.DisplayText(line))
 	}
 	d.cardImpactViewport.SetContent(strings.Join(lines, "\n"))
+}
+
+// ShowCardDeletionResult displays an execution result without offering confirmation.
+func (d *Dashboard) ShowCardDeletionResult(lines []string) {
+	d.cardImpactOpen = false
+	d.cardResultOpen = true
+	d.cardImpactViewport = viewport.New()
+	d.cardImpactViewport.SetWidth(max(1, min(d.Width-cardImpactMargin, cardImpactMaxWidth)))
+	d.cardImpactViewport.SetHeight(max(1, min(d.Height-cardImpactMargin, cardImpactMaxHeight)))
+	safe := make([]string, 0, len(lines))
+	for _, line := range lines {
+		safe = append(safe, components.DisplayText(line))
+	}
+	d.cardImpactViewport.SetContent(strings.Join(safe, "\n"))
+}
+
+// CancelCardDeletionImpact discards a confirmation belonging to a past visit.
+func (d *Dashboard) CancelCardDeletionImpact() {
+	d.cardImpactOpen = false
+	d.cardResultOpen = false
+	d.cardImpactID = ""
+	d.cardImpactToken = ""
 }
 
 func (d *Dashboard) updateCardImpact(msg tea.Msg) (component.Model, tea.Cmd) {
@@ -473,6 +496,15 @@ func disableKittyProtocolCmd() tea.Msg {
 
 // Update handles messages.
 func (d *Dashboard) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+	if d.cardResultOpen {
+		if key, ok := msg.(tea.KeyPressMsg); ok && (key.Code == tea.KeyEsc || key.Code == tea.KeyEnter) {
+			d.cardResultOpen = false
+			return d, nil
+		}
+		var cmd tea.Cmd
+		d.cardImpactViewport, cmd = d.cardImpactViewport.Update(msg)
+		return d, cmd
+	}
 	if d.cardImpactOpen {
 		return d.updateCardImpact(msg)
 	}
@@ -1029,7 +1061,7 @@ func (d *Dashboard) togglePane() {
 // SetSize implements component.Model.
 func (d *Dashboard) SetSize(width, height int) {
 	d.Base.SetSize(width, height)
-	if d.cardImpactOpen {
+	if d.cardImpactOpen || d.cardResultOpen {
 		d.cardImpactViewport.SetWidth(max(1, min(width-cardImpactMargin, cardImpactMaxWidth)))
 		d.cardImpactViewport.SetHeight(max(1, min(height-cardImpactMargin, cardImpactMaxHeight)))
 	}
@@ -1071,6 +1103,11 @@ func (d *Dashboard) SetSize(width, height int) {
 
 // View renders the dashboard.
 func (d *Dashboard) View() string {
+	if d.cardResultOpen {
+		content := "Deletion result\n" + d.cardImpactViewport.View() + "\nEsc: close  ↑/↓: scroll"
+		modal := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).Render(content)
+		return lipgloss.Place(d.Width, d.Height, lipgloss.Center, lipgloss.Center, modal)
+	}
 	if d.cardImpactOpen {
 		content := "Delete this card globally?\n" + d.cardImpactViewport.View() + "\nEnter: confirm  Esc: cancel  ↑/↓: scroll"
 		modal := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).Render(content)

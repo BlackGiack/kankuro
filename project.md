@@ -56,9 +56,9 @@ the local MCP endpoint for authorized session control and communication.
 | `internal/session/attach.go`, `io.go`, `watch.go` | Attachment, output subscriptions, scrollback and process/status watchers. |
 | `internal/session/workspace.go`, `storage.go`, `ide_launcher.go` | Workspace copies, session records and shared IDE/terminal command execution. |
 | `internal/driver/` | `AgentDriver`, CLI-specific arguments, instruction/capability deployment, workspace trust, MCP configuration and serialized PTY writes. |
-| `internal/app/` | Bubble Tea adapters. `coordinator.go` routes messages; `navigation.go` owns view changes; `callbacks.go` wires views. |
-| `internal/app/refresh.go`, `handlers.go`, `center.go` | Background data reads, application of snapshots and selected-session center subscriptions. |
-| `internal/app/session_actions.go`, `attach.go`, `size_guard.go` | Command adapters, raw terminal attachment and minimum-size behavior. |
+| `internal/ui/` | Bubble Tea orchestration and adapters. `coordinator.go` routes messages; `navigation.go` owns view changes; `callbacks.go` wires views. |
+| `internal/ui/refresh.go`, `handlers.go`, `center.go` | Background data reads, application of snapshots and selected-session center subscriptions. |
+| `internal/ui/session_actions.go`, `attach.go`, `size_guard.go` | Command adapters and minimum-size behavior; `internal/ui/terminal/` owns human terminal attachment. |
 | `internal/ui/messages/` | Messages exchanged between commands and the coordinator. |
 | `internal/ui/views/` | Full screens, including dashboard list, dashboard, editor, settings and conversation picker. |
 | `internal/ui/components/`, `component/`, `styles/` | Reusable lists, modals, text/rendering helpers, component contract and theme. |
@@ -364,15 +364,15 @@ workspace MCP file is the source of endpoint/authentication configuration.
 | Change dashboard ownership or deletion | `internal/api/membership.go`, confirmation/deletion files, `internal/session/dashboard_admission.go`, `internal/config/dashboard_deletions.go`. |
 | Change configuration startup | `internal/configstartup/`; initialization and validation run before the repository and runtime. |
 | Add a card field or registry | `internal/config/types.go`, validation and repository files; `internal/ui/views/card_editor.go` for editable card fields. |
-| Add a view or UI message | `internal/ui/views/`, `messages/messages.go`, `internal/app/navigation.go`, `callbacks.go` and coordinator handlers. |
-| Change dashboard keys or layout | `internal/ui/views/dashboard_list.go`, `dashboard.go`, `internal/app/size_guard.go`; keep product key documentation current. |
+| Add a view or UI message | `internal/ui/views/`, `messages/messages.go`, `internal/ui/navigation.go`, `callbacks.go` and coordinator handlers. |
+| Change dashboard keys or layout | `internal/ui/views/dashboard_list.go`, `dashboard.go`, `internal/ui/size_guard.go`; keep product key documentation current. |
 | Change text, lists or puppet rendering | `internal/ui/components/text.go`, list/rendering components, `internal/ui/styles/`, `internal/ascii/`; preserve layout contracts. |
-| Change refresh or center | `internal/app/refresh.go`, `handlers.go`, `center.go`; capture scope/generation and keep commands independent of coordinator state. |
-| Add a session-level UI action | `internal/app/session_ports.go`, `session_actions.go` and `callbacks.go`; delegate policy to the application and return scoped results. |
+| Change refresh or center | `internal/ui/refresh.go`, `handlers.go`, `center.go`; capture scope/generation and keep commands independent of coordinator state. |
+| Add a session-level UI action | `internal/ui/session_ports.go`, `session_actions.go` and `callbacks.go`; delegate policy to the application and return scoped results. |
 | Change MCP tools or security | `internal/mcp/server.go`, shared API methods and activation authorization; `main.go` owns endpoint lifetime. |
 | Change message admission or report kinds | `internal/api/messaging.go`, `internal/session/messaging.go`, `internal/driver/driver.go`, deployed puppet skill. |
 | Change notification retries or authorization | `internal/api/notifications.go`, `operations.go`, `internal/session/message_notifications.go`; reuse `preparedDelivery`. |
-| Change attachment or workspace commands | `internal/app/attach.go`, `internal/session/attach.go`, `internal/api/session_actions.go` and `internal/session/workspace_launcher.go`. |
+| Change attachment or workspace commands | `internal/ui/terminal/attach.go`, `internal/session/attach.go`, `internal/api/session_actions.go` and `internal/session/workspace_launcher.go`. |
 
 ## 11. Known quirks / pitfalls
 

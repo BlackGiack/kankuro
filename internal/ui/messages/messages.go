@@ -2,7 +2,6 @@ package messages
 
 import (
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
-	"github.com/BlackGiack/kankuro/internal/session"
 )
 
 // ViewType represents the current view mode.
@@ -51,6 +50,7 @@ type DataRefreshRequestedMsg struct{}
 
 // DashboardDeletionPreparedMsg carries a human-only deletion confirmation.
 type DashboardDeletionPreparedMsg struct {
+	Request, Visit              uint64
 	DashboardID                 string
 	Token                       string
 	Summary                     []string
@@ -60,13 +60,15 @@ type DashboardDeletionPreparedMsg struct {
 
 // DashboardDeletionStatusMsg reports recoverable per-item cascade outcomes.
 type DashboardDeletionStatusMsg struct {
-	DashboardID string
-	Summary     []string
-	Err         error
+	Request, Visit uint64
+	DashboardID    string
+	Summary        []string
+	Err            error
 }
 
 // CardDeletionPreparedMsg carries a revision-bound card deletion impact.
 type CardDeletionPreparedMsg struct {
+	Request, Visit              uint64
 	DashboardID                 string
 	Generation                  uint64
 	CardID                      string
@@ -117,15 +119,19 @@ type DashboardListLoadedMsg struct {
 
 // DashboardMutationFinishedMsg reports a save or cascade completion.
 type DashboardMutationFinishedMsg struct {
-	Err        error
-	Generation uint64
+	Request, Visit uint64
+	Progress       contracts.DeletionProgress
+	Err            error
+	Generation     uint64
 }
 
 // ScopedActionFinishedMsg carries a result bound to the originating view.
 type ScopedActionFinishedMsg struct {
-	DashboardID string
-	Generation  uint64
-	Err         error
+	Request, Visit uint64
+	Progress       contracts.DeletionProgress
+	DashboardID    string
+	Generation     uint64
+	Err            error
 }
 
 const (
@@ -135,12 +141,13 @@ const (
 
 // ScopedAttachReadyMsg carries an authorized attachment subscription.
 type ScopedAttachReadyMsg struct {
+	Sequence    uint64
 	Request     uint64
 	RequestKind string
 	DashboardID string
 	Generation  uint64
 	SessionID   string
-	Handle      *session.AttachHandle
+	Handle      contracts.Attachment
 	Err         error
 }
 
@@ -260,6 +267,7 @@ type MCPDeletedMsg struct {
 
 // AttachFinishedMsg signals that an attach session has finished.
 type AttachFinishedMsg struct {
+	Sequence    uint64
 	SessionID   string
 	Err         error
 	DashboardID string

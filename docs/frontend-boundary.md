@@ -1,115 +1,25 @@
-# Frontend boundary baseline
-
-This document records the current boundary and remaining migration work for features 1–8. The enforcement test is `go test ./internal/architecture/...`; it scans every `.go` file under `internal`, regardless of the host platform or active build tags. `_test.go` files are excluded from production rules, and `internal/ui/uitest/shape.go` is classified through one exact test-support edge because its only importers are test files. `internal/architecture/testdata` is reserved for checker fixtures.
+# Frontend boundary
 
 ## Ownership and allowed dependencies
 
-`main` is the concrete composition root. During migration, `internal/app` owns Bubble Tea orchestration and may use UI child packages, but its production calls are adapted behind consumer-owned capabilities as features 2–7 land. `internal/ui` owns interaction, navigation, presentation, messages and rendering. It may import `internal/api/contracts` and its own child packages. `internal/api/contracts` owns independent application inputs, facts, identities, revisions and outcomes; it must not import backend implementation packages, UI packages, Bubble Tea or Lip Gloss. `internal/ui/models` owns display rows and local drafts. Backend policy remains in `internal/api` and domain owners; backend packages may depend on contracts but not UI or terminal frameworks. Main remains responsible for concrete construction and process lifetime.
+`main` is the composition root. `internal/ui` owns orchestration, navigation, interaction and presentation; its child packages do not import the root UI package. The frontend consumes focused capabilities and independent values in `internal/api/contracts`. Backend packages own policy, revalidation, persistence, process lifetime and PTY operations, and do not import UI or presentation frameworks. Contracts do not import backend implementation or UI types. Main supplies capabilities and startup diagnostics and owns shutdown ordering.
 
-Root coordination may import children; views and components may not import `internal/app`. Views receive models and emit intents, not service handles. Consumer-owned interfaces group dashboard reads, card editing, session actions, configuration, center reads and attachment/deletion where appropriate. Keep interfaces beside current coordination until feature 7 moves the coordinator, then put them in `internal/ui/ports.go`. Exact Go signatures use independent contract types; the service does not import UI for conformance. Add contracts only with the feature that consumes them.
+Attachments are owned resources: the backend owns the subscribed activation, input serialization and PTY resize; `internal/ui/terminal` owns the human terminal and releases the attachment on exit. Deletion preparation exposes summaries and an opaque confirmation token; execution returns progress and the backend retains confirmation and durable recovery authority. Commands capture scope and request identity before leaving the coordinator goroutine.
 
-For frontend dependencies, forbid concrete `api`, `config`, `configstartup`, `session`, `driver` and `mcp` packages and descendants, except `api/contracts`. For backend dependencies, forbid UI and terminal-presentation packages. Inspect shared helpers transitively before treating them as neutral. The current `internal/ascii` dependency graph contains only ASCII helpers and `internal/ascii/characters` back to the helper package; it does not import backend packages.
+## Exceptions and test support
 
-## Exact current import exceptions
-
-Every row is an exact production file/import pair. The `symbols` field in `internal/architecture/allowlist.json` freezes the currently referenced package selectors on that edge; introducing another imported symbol requires a reviewed baseline update. Reasons and feature owners are stored alongside each row. No directory or package wildcard is accepted.
-
-| File | Imported package | Rule | Current package selectors | Declaration/member/signature edge and removal owner |
-|---|---|---|---|---|
-| `internal/app/coordinator.go` | `internal/session` | frontend imports backend implementation | `Manager` | `func NewCoordinator parameter sm *session.Manager uses session.Manager` → feature 7<br>`type Coordinator field session *session.Manager uses session.Manager` → feature 7 |
-| `internal/app/refresh.go` | `internal/session` | frontend imports backend implementation | `Manager` | `type refresher field sessions *session.Manager uses session.Manager` → feature 7 |
-| `internal/app/app.go` | `internal/api` | frontend imports backend implementation | `Service` | `func New parameter service *api.Service uses api.Service` → feature 7 |
-| `internal/app/coordinator.go` | `internal/api` | frontend imports backend implementation | `Service` | `func NewCoordinator parameter service *api.Service uses api.Service` → feature 7 |
-| `internal/app/dashboard_list.go` | `internal/api` | frontend imports backend implementation | `DashboardDeletionPreflight`, `Service` | `func cardDeletionPreflightCommand parameter service *api.Service uses api.Service` → feature 7<br>`func confirmCardDeletionCommand parameter service *api.Service uses api.Service` → feature 7<br>`func dashboardDeletionSummary parameter preflight api.DashboardDeletionPreflight uses api.DashboardDeletionPreflight` → feature 7<br>`func retryCardDeletionCommand parameter service *api.Service uses api.Service` → feature 7 |
-| `internal/app/attach.go` | `internal/session` | frontend imports backend implementation | `AttachHandle` | `type attachExec field handle *session.AttachHandle uses session.AttachHandle` → feature 7 |
-| `internal/app/dashboard_list.go` | `internal/config` | frontend imports backend implementation | `DashboardDeletion` | `func dashboardDeletionStatus parameter manifest config.DashboardDeletion uses config.DashboardDeletion` → feature 7 |
-| `internal/app/app.go` | `internal/session` | frontend imports backend implementation | `Manager` | `func New parameter sm *session.Manager uses session.Manager` → feature 7 |
-| `internal/ui/uitest/shape.go` | `internal/config` | frontend imports backend implementation | `Puppet` | `func UserPuppet body uses config.Puppet` → feature 8<br>`func UserPuppet result <unnamed> config.Puppet uses config.Puppet` → feature 8 |
-| `internal/ui/messages/messages.go` | `internal/session` | frontend imports backend implementation | `AttachHandle` | `type ScopedAttachReadyMsg field Handle *session.AttachHandle uses session.AttachHandle` → feature 7 |
-| `internal/app/legacy_actions.go` | `internal/api` | frontend imports backend implementation | `Service` | `type legacyActions field service *api.Service uses api.Service` → feature 7 |
-
-## Migration inventory
-
-The exception table is the complete current production import-edge inventory for restricted package dependencies in `internal/app` and `internal/ui`. The following symbol inventory records key exposed records, operations and callback paths carried across those edges. Each listed file can own multiple roadmap features; the feature owner belongs to the individual field or operation, as indicated.
-
-| Owner | Files and exposed surfaces |
-|---|---|
-| 2 — reads and list models | `internal/app/read_ports.go` defines the coordinator-owned focused read capability. `scoped_refresh.go` and `dashboard_list.go` use it for contract inventory, choices, dashboard summaries and opaque registry tokens; the selected-card launch adapter uses a focused card summary. `DataLoadedMsg` and `SessionsRefreshedMsg` carry focused inventory/choice outcomes without broad card/session fields. `AgentSwitchView`, dashboard lists, and card/session components consume presentation rows. The center receives selected session data through independent report and workspace contracts. Preserve PID, workspace, registration, conversation summary, search and selection identity. |
-| 3 — card editor | `internal/app/read_ports.go` owns the card editor capability; editor reads and saves use independent contracts, explicit changes and an opaque full-record revision. `CardEditor` owns a draft and independent choices. The service revalidates admission, ownership, revision and sharing before saving. |
-| 4 — lifecycle and workspace actions | `internal/app/session_ports.go` defines focused contract operations; `session_actions.go` runs captured requests. Launch, relaunch and switch use publication evidence, explicit conversation choices and expected-process attachment. Rename, stop, removal and configured workspace commands use scoped application operations. The remaining attachment handle belongs to feature 7. |
-| 5 — configuration | Source, MCP, settings and registry operations use independent contracts and captured commands. Source mutations validate expected identity under repository locks; list rows exclude connection credentials. |
-| 6 — session center | `internal/app/center.go` owns selection-scoped operations through `centerPort`; the service validates scope and inspects retained reports and the saved workspace. Structured results are formatted by `SessionCenter`. |
-| 7 — attachment, deletion and composition | `internal/app/app.go`, `coordinator.go`, `attach.go`, `callbacks.go`, and deletion portions of `dashboard_list.go`; attachment/deletion result fields in `internal/ui/messages/messages.go`. `New`/`NewCoordinator` currently take the concrete manager and service for composition. Preserve attachment release versus process termination, durable deletion intent, admission closure and retry semantics. |
-| 8 — final audit | `internal/ui/uitest/shape.go` test-support classification and final removal of stale exceptions. |
-
-Configuration messages carry application contracts: MCP manager rows contain display and availability facts, editor data carries only editable connection fields, settings carry four values, and registry choices use per-inventory read results. `DataLoadedMsg`/`SessionsRefreshedMsg` do not carry broad storage models. `ScopedAttachReadyMsg.Handle` remains attachment (7). The exact remaining exception edges are recorded in the allowlists.
-
-Backend-only `readDashboardData` derives focused reads. Session workflows use `LaunchSession`, `RelaunchDashboardSession`, `SwitchSession`, `ReadConversationPreparationResult`, `RenameDashboardSession`, `StopDashboardSession`, `RemoveDashboardSession`, and `OpenSessionWorkspace` through the consumer-owned port. Legacy MCP-facing methods retain their own wire types. Dashboard and component callbacks capture scope and request identities before asynchronous commands.
-
-## Operational calls on the current frontend boundary
-
-The remaining concrete service calls in frontend code support dashboard/card deletion and raw attachment (feature 7). Configuration operations use focused service capabilities through consumer-owned ports. Session lifecycle and workspace workflows use independent contracts through `sessionActionPort`; attachment still holds `session.AttachHandle` until feature 7.
-
-Frontend production code makes no direct configuration repository calls. Direct manager access remains for composition (7). `attachExec` reads `AttachHandle.PTY`, `.Input`, `.Output`, `.Done`, `.Scrollback`, `.Header` and closes the handle (7); feature 7 must hide PTY ownership while preserving serialized input and release semantics.
-
-## Existing test-only backend integrations
-
-These package test files deliberately exercise frontend adapters against concrete repositories, managers or policies. They are excluded by the `_test.go` rule and are not permission to add production imports.
-
-| Test file | Backend packages imported |
-|---|---|
-| `internal/app/command_race_internal_test.go` | `internal/api`, `internal/config`, `internal/configstartup` |
-| `internal/app/conversation_choice_internal_test.go` | `internal/api`, `internal/config`, `internal/configstartup`, `internal/driver`, `internal/session` |
-| `internal/app/coordinator_test.go` | `internal/api`, `internal/config`, `internal/session` |
-| `internal/app/current_fixture_external_test.go` | `internal/api`, `internal/config`, `internal/configstartup`, `internal/session` |
-| `internal/app/delete_card_guard_test.go` | `internal/config` |
-| `internal/app/helpers_internal_test.go` | `internal/session` |
-| `internal/app/inline_rename_refresh_internal_test.go` | `internal/config` |
-| `internal/app/integration_test.go` | `internal/config`, `internal/session` |
-| `internal/app/launch_focus_internal_test.go` | `internal/api`, `internal/config`, `internal/configstartup`, `internal/session` |
-| `internal/app/main_test.go` | `internal/config`, `internal/session` |
-| `internal/app/mcp_manager_gaps_test.go` | `internal/config` |
-| `internal/app/mcp_manager_review_test.go` | `internal/config` |
-| `internal/app/multi_dashboard_internal_test.go` | `internal/api`, `internal/config`, `internal/configstartup` |
-| `internal/app/refresh_cadence_internal_test.go` | `internal/api`, `internal/config`, `internal/configstartup` |
-| `internal/app/refresh_error_test.go` | `internal/api`, `internal/config`, `internal/configstartup` |
-| `internal/app/scoped_refresh_error_internal_test.go` | `internal/api`, `internal/config`, `internal/configstartup` |
-| `internal/app/session_actions_registry_test.go` | `internal/config` |
-| `internal/app/session_warning_test.go` | `internal/config`, `internal/session` |
-| `internal/app/settings_error_test.go` | `internal/config` |
-| `internal/app/source_save_test.go` | `internal/config` |
-| `internal/app/terminal_launch_test.go` | `internal/config` |
-| `internal/ui/components/card_list_test.go` | `internal/config` |
-| `internal/ui/components/card_render_layout_test.go` | `internal/config` |
-| `internal/ui/components/session_list_layout_test.go` | `internal/config`, `internal/session` |
-| `internal/ui/components/session_list_test.go` | `internal/config`, `internal/session` |
-| `internal/ui/components/source_list_test.go` | `internal/config` |
-| `internal/ui/views/agent_switch_test.go` | `internal/config` |
-| `internal/ui/views/card_editor_internal_test.go` | `internal/config` |
-| `internal/ui/views/card_editor_layout_test.go` | `internal/config` |
-| `internal/ui/views/card_editor_setsize_test.go` | `internal/config` |
-| `internal/ui/views/card_editor_test.go` | `internal/config` |
-| `internal/ui/views/dashboard_layout_test.go` | `internal/config`, `internal/session` |
-| `internal/ui/views/dashboard_list_test.go` | `internal/config` |
-| `internal/ui/views/dashboard_test.go` | `internal/config`, `internal/session` |
-| `internal/ui/views/mcp_form_test.go` | `internal/config` |
-| `internal/ui/views/mcp_manager_test.go` | `internal/config` |
-| `internal/ui/views/modal_reopen_test.go` | `internal/config` |
-| `internal/ui/views/modals_layout_test.go` | `internal/config` |
-| `internal/ui/views/settings_test.go` | `internal/config` |
-| `internal/ui/views/source_manager_test.go` | `internal/config` |
-| `internal/ui/views/workspace_picker_test.go` | `internal/config` |
+There are no production frontend import or transitive type-exposure exceptions. `internal/ui/uitest/shape.go` is the sole direct-import exception: it is shared exclusively by tests and its dependency is checked by the architecture test. The transitive exposure allowlist is empty. Real-backend integration tests may import backend packages; production frontend code may not. `go test ./internal/architecture/...` enforces these directions and detects stale exceptions.
 
 ## Behavior and evidence to preserve
 
 | Workflow | Visible behavior and ownership | Async/failure and resource rules | Existing evidence to inspect during each migration |
 |---|---|---|---|
-| Inventory/refresh | Scoped dashboard results; PID, names, workspace, registration, active conversation; sorting/filtering and identity selection; deleted-card display. Policy in API, mapping in frontend. | Failed reads retain valid data and report errors; confirmed empty reads clear. Keep dashboard ID, generation and session epoch in envelopes. | `internal/app/scoped_refresh_error_internal_test.go`, `refresh_cadence_internal_test.go`, `multi_dashboard_internal_test.go`, `internal/api/membership_internal_test.go`. |
-| Commands/navigation | Views return commands/messages; coordinator owns navigation. | Capture values before `tea.Cmd`; no coordinator reads inside command closures or blocking repository calls in callbacks. | `internal/app/command_race_internal_test.go`, navigation and coordinator tests. |
+| Inventory/refresh | Scoped dashboard results; PID, names, workspace, registration, active conversation; sorting/filtering and identity selection; deleted-card display. Policy in API, mapping in frontend. | Failed reads retain valid data and report errors; confirmed empty reads clear. Keep dashboard ID, generation and session epoch in envelopes. | `internal/ui/scoped_refresh_error_internal_test.go`, `refresh_cadence_internal_test.go`, `multi_dashboard_internal_test.go`, `internal/api/membership_internal_test.go`. |
+| Commands/navigation | Views return commands/messages; coordinator owns navigation. | Capture values before `tea.Cmd`; no coordinator reads inside command closures or blocking repository calls in callbacks. | `internal/ui/command_race_internal_test.go`, navigation and coordinator tests. |
 | Card edit/save | Editable-only drafts with owner-only saves and application-side preservation of uneditable fields. | Application checks scope/ownership and stale state atomically; revision includes hidden fields. Explicit presence separates unchanged from clear/false/zero/empty. | `internal/ui/views/card_editor.go` and editor tests; `internal/api/membership.go` and membership tests. |
-| Lifecycle/conversations | Launch, attach, stop, switch, relaunch, workspace and conversation selection. | Revalidate authorization/state/compatibility; missing workspace errors; usable activation survives metadata warning; never replay uncertain effects. | `internal/app/session_warning_test.go`, conversation-choice tests and API/session lifecycle tests. |
+| Lifecycle/conversations | Launch, attach, stop, switch, relaunch, workspace and conversation selection. | Revalidate authorization/state/compatibility; missing workspace errors; usable activation survives metadata warning; never replay uncertain effects. | `internal/ui/session_warning_test.go`, conversation-choice tests and API/session lifecycle tests. |
 | Config/source/MCP/settings | Registry and source management, built-in MCP restrictions and settings defaults. | Atomic source update; distinguish saved-with-sync-warning; validate expected source identity rather than stale row index. | `source_save_test.go`, `source_sync_warning_test.go`, MCP and settings error tests. |
-| Center/attachment | Center uses structured reports and workspace reads; terminal attachment remains independent. | Selection and navigation cancel center work; Ctrl+K releases attachment without stopping the process; serialized input and stale-result cleanup remain intact. | `center_internal_test.go`, `internal/app/attach.go`, `internal/session/attach.go` and attachment tests. |
+| Center/attachment | Center uses structured reports and workspace reads; terminal attachment remains independent. | Selection and navigation cancel center work; Ctrl+K releases attachment without stopping the process; serialized input and stale-result cleanup remain intact. | `center_internal_test.go`, `internal/ui/terminal/attach.go`, `internal/session/attach.go` and attachment tests. |
 | Deletion | Confirmation prompts and scope-aware deletion. | Confirmation token, admission closure, durable intent, per-effect checkpoint/retry and foreign-session preservation. | API confirmation/deletion tests. |
 
 Test names above identify existing evidence, not proof that every semantic is covered or currently passes. Inventory gaps found for an owning migration must be recorded there; do not silently treat the baseline as approval.

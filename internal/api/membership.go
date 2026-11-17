@@ -144,20 +144,26 @@ func (s *Service) CheckSessionInDashboard(dashboardID, sessionID string) error {
 }
 
 // AttachInDashboard validates membership at the subscription boundary.
-func (s *Service) AttachInDashboard(dashboardID, sessionID string) (*session.AttachHandle, error) {
-	return s.attachInDashboard(dashboardID, sessionID, "")
+func (s *Service) AttachInDashboard(ctx context.Context, dashboardID, sessionID string) (contracts.Attachment, error) {
+	return s.attachInDashboard(ctx, dashboardID, sessionID, "")
 }
 
 // AttachExpectedProcessInDashboard attaches only to the specified process generation.
-func (s *Service) AttachExpectedProcessInDashboard(dashboardID, sessionID, processID string) (*session.AttachHandle, error) {
+func (s *Service) AttachExpectedProcessInDashboard(
+	ctx context.Context,
+	dashboardID, sessionID, processID string,
+) (contracts.Attachment, error) {
 	if processID == "" {
 		return nil, errors.New("expected process identity is required")
 	}
-	return s.attachInDashboard(dashboardID, sessionID, processID)
+	return s.attachInDashboard(ctx, dashboardID, sessionID, processID)
 }
 
-func (s *Service) attachInDashboard(dashboardID, sessionID, processID string) (*session.AttachHandle, error) {
+func (s *Service) attachInDashboard(ctx context.Context, dashboardID, sessionID, processID string) (contracts.Attachment, error) {
 	check := func(sessions []session.Snapshot) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		inventory, err := s.loadMembershipInventory(sessions)
 		if err != nil {
 			return err
@@ -167,10 +173,22 @@ func (s *Service) attachInDashboard(dashboardID, sessionID, processID string) (*
 		}
 		return nil
 	}
+	var handle *session.AttachHandle
+	var err error
 	if processID != "" {
-		return s.sessions.AttachExpectedProcessChecked(sessionID, processID, check)
+		handle, err = s.sessions.AttachExpectedProcessChecked(sessionID, processID, check)
+	} else {
+		handle, err = s.sessions.AttachChecked(sessionID, check)
 	}
-	return s.sessions.AttachChecked(sessionID, check)
+	if err != nil {
+		return nil, err
+	}
+	resource := &attachment{handle: handle, closed: make(chan struct{})}
+	if contextErr := ctx.Err(); contextErr != nil {
+		_ = resource.Close()
+		return nil, contextErr
+	}
+	return resource, nil
 }
 
 // sessionScopeCheck executes while manager admission is held.

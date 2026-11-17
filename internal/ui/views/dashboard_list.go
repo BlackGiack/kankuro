@@ -62,16 +62,19 @@ const (
 type DashboardList struct {
 	component.Base
 
-	list            list.Model
-	inputs          [2]textinput.Model
-	focus           int
-	editingID       string
-	mode            dashboardListMode
-	pending         messages.DashboardDeletionPreparedMsg
-	preparingStatus bool
-	viewport        viewport.Model
-	err             error
-	callbacks       DashboardListCallbacks
+	list               list.Model
+	inputs             [2]textinput.Model
+	focus              int
+	editingID          string
+	mode               dashboardListMode
+	pending            messages.DashboardDeletionPreparedMsg
+	statusSummary      map[string][]string
+	statusRetry        map[string]bool
+	preparingStatus    bool
+	statusRetryAllowed bool
+	viewport           viewport.Model
+	err                error
+	callbacks          DashboardListCallbacks
 }
 
 func NewDashboardList(callbacks DashboardListCallbacks) *DashboardList {
@@ -147,6 +150,13 @@ func (v *DashboardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 		}
 		if status.Err != nil {
 			v.err = status.Err
+			if previous, exists := v.statusSummary[status.DashboardID]; exists {
+				lines := append([]string{"Error: " + components.DisplayText(status.Err.Error())}, previous...)
+				v.viewport.SetContent(strings.Join(lines, "\n"))
+				v.statusRetryAllowed = v.statusRetry[status.DashboardID]
+				v.mode = dashboardListModeStatus
+				return v, nil
+			}
 			v.mode = dashboardListModeList
 			return v, nil
 		}
@@ -155,7 +165,19 @@ func (v *DashboardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 		for _, line := range status.Summary {
 			lines = append(lines, components.DisplayText(line))
 		}
+		if v.statusSummary == nil {
+			v.statusSummary = make(map[string][]string)
+			v.statusRetry = make(map[string]bool)
+		}
+		if len(lines) == 0 {
+			delete(v.statusSummary, status.DashboardID)
+			delete(v.statusRetry, status.DashboardID)
+		} else {
+			v.statusSummary[status.DashboardID] = append([]string(nil), lines...)
+			v.statusRetry[status.DashboardID] = true
+		}
 		v.viewport.SetContent(strings.Join(lines, "\n"))
+		v.statusRetryAllowed = true
 		v.mode = dashboardListModeStatus
 		return v, nil
 	}
@@ -266,9 +288,10 @@ func (v *DashboardList) updateConfirmation(msg tea.Msg) (component.Model, tea.Cm
 	if key, ok := msg.(tea.KeyPressMsg); ok {
 		if key.Code == tea.KeyEsc {
 			v.mode, v.pending = dashboardListModeList, messages.DashboardDeletionPreparedMsg{}
+			v.err = nil
 			return v, nil
 		}
-		if (key.Code == tea.KeyDelete || key.Code == tea.KeyBackspace) && v.mode == dashboardListModeStatus {
+		if (key.Code == tea.KeyDelete || key.Code == tea.KeyBackspace) && v.mode == dashboardListModeStatus && v.statusRetryAllowed {
 			return v, v.retryDeletion(v.pending.DashboardID)
 		}
 		if key.Code == tea.KeyEnter && v.mode == dashboardListModeConfirm {
@@ -299,6 +322,37 @@ func (v *DashboardList) confirmDeletion(foreign bool) (component.Model, tea.Cmd)
 	return v, nil
 }
 
+// ShowDeletionResult retains the execution outcome independently of inventory reads.
+func (v *DashboardList) ShowDeletionResult(id string, summary []string, allowRetry bool) {
+	lines := make([]string, 0, len(summary))
+	for _, line := range summary {
+		lines = append(lines, components.DisplayText(line))
+	}
+	if v.statusSummary == nil {
+		v.statusSummary = make(map[string][]string)
+		v.statusRetry = make(map[string]bool)
+	}
+	v.statusSummary[id] = append([]string(nil), lines...)
+	v.statusRetry[id] = allowRetry
+	v.pending = messages.DashboardDeletionPreparedMsg{DashboardID: id}
+	v.statusRetryAllowed = allowRetry
+	v.viewport.SetContent(strings.Join(lines, "\n"))
+	v.mode = dashboardListModeStatus
+}
+
+// CancelDeletionInteraction discards confirmation state from a past visit.
+func (v *DashboardList) CancelDeletionInteraction() {
+	v.statusSummary = nil
+	v.statusRetry = nil
+	v.statusRetryAllowed = false
+	if v.mode == dashboardListModePreparing || v.mode == dashboardListModeConfirm || v.mode == dashboardListModeForeign ||
+		v.mode == dashboardListModeStatus {
+		v.mode = dashboardListModeList
+		v.pending = messages.DashboardDeletionPreparedMsg{}
+		v.preparingStatus = false
+	}
+}
+
 func (v *DashboardList) retryDeletion(id string) tea.Cmd {
 	v.mode, v.pending, v.err = dashboardListModeList, messages.DashboardDeletionPreparedMsg{}, nil
 	if v.callbacks.RetryDelete != nil {
@@ -321,7 +375,11 @@ func (v *DashboardList) View() string {
 		return v.renderPage("Preparing deletion impact…", "", "Esc: cancel")
 	}
 	if v.mode == dashboardListModeStatus {
-		return v.renderPage("Dashboard deletion progress", v.viewport.View(), "Delete: retry  Esc: back  ↑/↓: scroll")
+		legend := "Esc: back  ↑/↓: scroll"
+		if v.statusRetryAllowed {
+			legend = "Delete: retry  " + legend
+		}
+		return v.renderPage("Dashboard deletion progress", v.viewport.View(), legend)
 	}
 	if v.mode == dashboardListModeForeign {
 		return v.renderPage("Foreign sessions reference owned cards.",

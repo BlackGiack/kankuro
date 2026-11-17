@@ -82,6 +82,8 @@ type Session struct {
 	// It lets goroutines started by a previous activation detect that they
 	// are stale and stop touching the session.
 	generation uint64
+	// outputComplete is guarded by m.mu and belongs to the current generation.
+	outputComplete bool
 	// activating is set, under m.mu, by Relaunch/SwitchAgent between passing
 	// the "must be terminated" guard and activateSessionLocked (or failure).
 	// It is what makes that guard exclusive: the unlocked middle of an
@@ -105,9 +107,11 @@ type AttachHandle struct {
 	// Header is a one-shot banner (e.g. a relaunch / agent-switch marker) to
 	// emit before the scrollback. It is consumed by the manager when the
 	// handle is created and will not appear on subsequent attaches.
-	Header []byte
-	Done   <-chan struct{}
-	Close  func()
+	Header        []byte
+	Done          <-chan struct{}
+	Close         func()
+	WriteChecked  func([]byte) (int, error)
+	ResizeChecked func(int, int) error
 }
 
 var (
@@ -702,7 +706,11 @@ func (m *Manager) SubscribeOutput(id string) (chan []byte, error) {
 		return nil, fmt.Errorf("session not found: %s", id)
 	}
 	ch := make(chan []byte, outputChanSize)
-	s.Subscribers[ch] = struct{}{}
+	if s.outputComplete {
+		close(ch)
+	} else {
+		s.Subscribers[ch] = struct{}{}
+	}
 	return ch, nil
 }
 

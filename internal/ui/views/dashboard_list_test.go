@@ -256,3 +256,30 @@ func TestDashboardListRetriesDeletionWithTheDeleteKey(t *testing.T) {
 		}
 	}
 }
+
+func TestDashboardDeletionStatusFailureRetainsPreviousProgress(t *testing.T) {
+	v := views.NewDashboardList(views.DashboardListCallbacks{InspectDelete: func(string) tea.Cmd { return nil }})
+	v.SetSize(80, 21)
+	v.SetDashboards([]contracts.DashboardSummary{dashboardSummaryFixture("a", "A", "", contracts.DashboardDeleting)})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	v.Update(messages.DashboardDeletionStatusMsg{DashboardID: "a", Summary: []string{"retained checkpoint"}})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	v.Update(messages.DashboardDeletionStatusMsg{DashboardID: "a", Err: errors.New("read failed")})
+	if rendered := v.View(); !strings.Contains(rendered, "retained checkpoint") || !strings.Contains(rendered, "read failed") {
+		t.Fatalf("status lost: %s", rendered)
+	}
+}
+
+func TestDeletionResultRetryRequiresKnownPendingIntent(t *testing.T) {
+	for _, allow := range []bool{false, true} {
+		var retried bool
+		v := views.NewDashboardList(views.DashboardListCallbacks{RetryDelete: func(string) tea.Cmd { retried = true; return nil }})
+		v.SetSize(80, 21)
+		v.ShowDeletionResult("d", []string{"outcome"}, allow)
+		v.Update(tea.KeyPressMsg{Code: tea.KeyDelete})
+		if retried != allow {
+			t.Fatalf("allow=%t retried=%t", allow, retried)
+		}
+	}
+}

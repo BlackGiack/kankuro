@@ -1591,7 +1591,7 @@ func TestServiceActivationPersistenceFailuresKeepSessionsUsable(t *testing.T) {
 			if !ok || active.Status == session.StatusTerminated {
 				t.Fatalf("activation not usable after persistence failure: %#v, exists=%v", active, ok)
 			}
-			handle, err := api.AttachInDashboard(DefaultDashboardID, sid)
+			handle, err := api.AttachInDashboard(context.Background(), DefaultDashboardID, sid)
 			if err != nil {
 				t.Fatalf("Attach after persistence failure: %v", err)
 			}

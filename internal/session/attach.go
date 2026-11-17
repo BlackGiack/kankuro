@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/BlackGiack/kankuro/internal/driver"
+	"github.com/creack/pty"
 )
 
 // driverInputWriter routes attach input through the driver lock shared with Kill.
@@ -55,9 +56,17 @@ func (m *Manager) attachChecked(id, processID string, check func([]Snapshot) err
 		return nil, fmt.Errorf("session terminated: %s", id)
 	}
 	ch := make(chan []byte, outputChanSize)
-	s.Subscribers[ch] = struct{}{}
+	if s.outputComplete {
+		close(ch)
+	} else {
+		s.Subscribers[ch] = struct{}{}
+	}
+	subscribers := s.Subscribers
 	header := s.PendingAttachHeader
 	s.PendingAttachHeader = nil
+	generation := s.generation
+	d := s.Driver
+	terminal := s.PTY
 	return &AttachHandle{
 		Input:      driverInputWriter{driver: s.Driver},
 		PTY:        s.PTY,
@@ -66,7 +75,29 @@ func (m *Manager) attachChecked(id, processID string, check func([]Snapshot) err
 		Header:     header,
 		Done:       s.Done,
 		Close: func() {
-			m.removeSubscriber(id, ch)
+			m.removeSubscriber(subscribers, ch)
+		},
+		WriteChecked: func(data []byte) (int, error) {
+			m.mu.RLock()
+			current, exists := m.sessions[id]
+			active := exists && current.generation == generation && current.Status != StatusTerminated
+			m.mu.RUnlock()
+			if !active {
+				return 0, errors.New("attachment process is no longer active")
+			}
+			return d.SendInputBytes(data)
+		},
+		ResizeChecked: func(rows, columns int) error {
+			if rows <= 0 || columns <= 0 || rows > 65535 || columns > 65535 {
+				return errors.New("invalid terminal size")
+			}
+			m.mu.RLock()
+			defer m.mu.RUnlock()
+			current, exists := m.sessions[id]
+			if !exists || current.generation != generation || current.Status == StatusTerminated || terminal == nil {
+				return errors.New("attachment process is no longer active")
+			}
+			return pty.Setsize(terminal, &pty.Winsize{Rows: uint16(rows), Cols: uint16(columns)})
 		},
 	}, nil
 }
@@ -81,15 +112,11 @@ func (m *Manager) Detach(id string) error {
 	return nil
 }
 
-func (m *Manager) removeSubscriber(sessionID string, ch chan []byte) {
+func (m *Manager) removeSubscriber(subscribers map[chan []byte]struct{}, ch chan []byte) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	s, ok := m.sessions[sessionID]
-	if !ok {
-		return
-	}
-	if _, okSub := s.Subscribers[ch]; okSub {
-		delete(s.Subscribers, ch)
+	if _, okSub := subscribers[ch]; okSub {
+		delete(subscribers, ch)
 		close(ch)
 	}
 }

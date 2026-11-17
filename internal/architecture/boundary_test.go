@@ -62,7 +62,7 @@ func TestBoundaryRuleFixtures(t *testing.T) {
 		{"clean graph", "internal/ui/views/view.go", "package views\ntype Row struct{ Label string }", ""},
 		{"forbidden direct import", "internal/ui/views/view.go", "package views\nimport \"github.com/BlackGiack/kankuro/internal/session\"", "frontend imports backend implementation"},
 		{"reverse backend import", "internal/api/service.go", "package api\nimport \"github.com/BlackGiack/kankuro/internal/ui/models\"", "backend imports frontend"},
-		{"child imports root", "internal/ui/views/view.go", "package views\nimport \"github.com/BlackGiack/kankuro/internal/app\"", "child frontend imports root coordinator"},
+		{"child imports root", "internal/ui/views/view.go", "package views\nimport \"github.com/BlackGiack/kankuro/internal/ui\"", "child frontend imports root coordinator"},
 		{"framework contract import", "internal/api/contracts/types.go", "package contracts\nimport tea \"charm.land/bubbletea/v2\"\ntype Event tea.Msg", "contracts import implementation or presentation"},
 		{"inactive build-tag import", "internal/ui/views/other_windows.go", "//go:build windows\npackage views\nimport \"github.com/BlackGiack/kankuro/internal/driver\"", "frontend imports backend implementation"},
 	}
@@ -657,7 +657,7 @@ func TestHelperAndTestSupportFixtures(t *testing.T) {
 	})
 	t.Run("backend cannot import coordinator", func(t *testing.T) {
 		root := newFixtureRoot(t)
-		writeFixture(t, filepath.Join(root, "internal/config/backend.go"), "package config\nimport \""+module+"internal/app\"")
+		writeFixture(t, filepath.Join(root, "internal/config/backend.go"), "package config\nimport \""+module+"internal/ui\"")
 		findings, err := inspect(root, map[string]exception{})
 		if err != nil {
 			t.Fatal(err)
@@ -1709,16 +1709,13 @@ func directFinding(rel, dep string) *finding {
 		return nil
 	}
 	if isFrontend(rel) {
-		if strings.HasPrefix(rel, "internal/app/") && importWithin(dep, "internal/ui") {
-			return nil
-		}
 		if isContractPackagePath(dep) {
 			return nil
 		}
 		if forbiddenFrontendImport(dep) {
 			return &finding{path: rel, symbol: "import", rule: "frontend imports backend implementation", dependency: dep}
 		}
-		if strings.HasPrefix(rel, "internal/ui/") && importWithin(dep, "internal/app") {
+		if strings.Contains(strings.TrimPrefix(rel, "internal/ui/"), "/") && dep == module+"internal/ui" {
 			return &finding{path: rel, symbol: "import", rule: "child frontend imports root coordinator", dependency: dep}
 		}
 	}
@@ -1752,7 +1749,7 @@ func forbiddenFramework(dep string) bool {
 	return strings.HasPrefix(dep, "charm.land/bubbletea") || strings.HasPrefix(dep, "charm.land/lipgloss") || strings.HasPrefix(dep, "charm.land/bubbles") || strings.HasPrefix(dep, "github.com/charmbracelet/")
 }
 func isFrontend(path string) bool {
-	return strings.HasPrefix(path, "internal/app/") || strings.HasPrefix(path, "internal/ui/")
+	return strings.HasPrefix(path, "internal/ui/")
 }
 
 func testSupportIsSafe(rel string, files []string, imports map[string][]string, root string) bool {
@@ -1834,7 +1831,7 @@ func dependencyGraphFindings(root, importPath, chain string, seen map[string]boo
 }
 
 func isFrontendImport(path string) bool {
-	return importWithin(path, "internal/app") || importWithin(path, "internal/ui")
+	return importWithin(path, "internal/ui")
 }
 
 func importWithin(path, packagePath string) bool {
