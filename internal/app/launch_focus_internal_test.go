@@ -211,9 +211,9 @@ func sessionInventory(snapshots ...session.Snapshot) contracts.DashboardInventor
 func assertFocusedSession(t *testing.T, dashboard *views.Dashboard, sessionID string) {
 	t.Helper()
 	selected, ok := dashboard.SessionList().Selected()
-	if !ok || selected.ID != sessionID || dashboard.FocusedPane() != views.PaneSessions || dashboard.PreviewSessionID() != sessionID {
+	if !ok || selected.ID != sessionID || dashboard.FocusedPane() != views.PaneSessions || dashboard.CenterSessionID() != sessionID {
 		t.Fatalf("session focus mismatch: selected=%+v ok=%v pane=%v preview=%q", selected, ok,
-			dashboard.FocusedPane(), dashboard.PreviewSessionID())
+			dashboard.FocusedPane(), dashboard.CenterSessionID())
 	}
 }
 

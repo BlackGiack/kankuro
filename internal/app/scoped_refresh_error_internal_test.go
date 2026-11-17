@@ -112,17 +112,17 @@ func TestScopedRefreshReturnsExplicitEmptyInventory(t *testing.T) {
 	manager := newTestManager(t, repo.Dir(), repo)
 	service := api.New(repo, manager)
 	r := refresher{sessions: manager, editor: service, configuration: service}
-	full := unwrapRefresh(r.scopedFull(service, "default", 1, 1, 1, "")()).(messages.DataLoadedMsg)
+	full := unwrapRefresh(r.scopedFull(service, "default", 1, 1, 1)()).(messages.DataLoadedMsg)
 	if full.Err != nil || !full.Inventory.Attempted || full.Inventory.Err != nil ||
 		len(full.Inventory.Value.Cards) != 0 || len(full.Inventory.Value.Sessions) != 0 {
 		t.Fatalf("empty full refresh: %+v", full)
 	}
-	tick := r.scopedSessions(service, "default", 1, 1, "")().(messages.SessionsRefreshedMsg)
+	tick := r.scopedSessions(service, "default", 1, 1)().(messages.SessionsRefreshedMsg)
 	if tick.Err != nil || !tick.Inventory.Attempted || tick.Inventory.Err != nil ||
 		len(tick.Inventory.Value.Cards) != 0 || len(tick.Inventory.Value.Sessions) != 0 || tick.Choices.Skills.Attempted {
 		t.Fatalf("empty session refresh: %+v", tick)
 	}
-	changed := r.scopedConfigIfChanged(service, "default", 1, "", 1, 1, "")().(configFingerprintMsg)
+	changed := r.scopedConfigIfChanged(service, "default", 1, "", 1, 1)().(configFingerprintMsg)
 	if changed.data == nil || changed.data.Err != nil || !changed.data.Inventory.Attempted ||
 		changed.data.Inventory.Err != nil || len(changed.data.Inventory.Value.Cards) != 0 {
 		t.Fatalf("empty config refresh: %+v", changed)

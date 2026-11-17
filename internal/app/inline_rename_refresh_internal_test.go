@@ -96,7 +96,7 @@ func newInlineRenameCoordinator(t *testing.T) (*Coordinator, *views.Dashboard, s
 	coordinator.Update(coordinator.refreshDataSeeded()())
 	coordinator.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	dashboard.SessionList().SetSelectedByID(id)
-	dashboard.SyncPreviewSelection()
+	dashboard.SyncCenterSelection()
 	return coordinator, dashboard, id
 }
 
@@ -107,7 +107,7 @@ func assertInlineRenamedSession(t *testing.T, coordinator *Coordinator, dashboar
 	}
 	assertFocusedSession(t, dashboard, id)
 	selected, ok := dashboard.SessionList().Selected()
-	if !ok || selected.Name != name || !strings.Contains(dashboard.Preview().View(), name) {
-		t.Fatalf("refresh displaced renamed selection or preview: selected=%+v preview=%q", selected, dashboard.Preview().View())
+	if !ok || selected.Name != name {
+		t.Fatalf("refresh displaced renamed selection or preview: selected=%+v preview=%q", selected, dashboard.Center().View())
 	}
 }

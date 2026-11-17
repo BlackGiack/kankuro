@@ -28,12 +28,12 @@ type SessionListItem struct {
 }
 
 type SessionListCallbacks struct {
-	OnSelect  func(models.SessionRow) tea.Cmd
-	OnAttach  func(sessionID string)
-	OnKill    func(sessionID string)
-	OnDelete  func(sessionID string)
-	OnSwitch  func(sessionID string)
-	OnPreview func(sessionID string) tea.Cmd
+	OnSelect    func(models.SessionRow) tea.Cmd
+	OnAttach    func(sessionID string)
+	OnKill      func(sessionID string)
+	OnDelete    func(sessionID string)
+	OnSwitch    func(sessionID string)
+	OnSelection func(sessionID string) tea.Cmd
 }
 
 type SessionList struct {
@@ -120,8 +120,8 @@ func (s *SessionList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	s.list, cmd = s.list.Update(msg)
 	if s.list.Index() != prevIndex {
-		if previewCmd := s.handleSelectionChange(); previewCmd != nil {
-			cmd = tea.Batch(cmd, previewCmd)
+		if selectionCmd := s.handleSelectionChange(); selectionCmd != nil {
+			cmd = tea.Batch(cmd, selectionCmd)
 		}
 	}
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
@@ -130,8 +130,8 @@ func (s *SessionList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	return s, cmd
 }
 func (s *SessionList) handleSelectionChange() tea.Cmd {
-	if selected, ok := s.Selected(); ok && s.callbacks.OnPreview != nil {
-		return s.callbacks.OnPreview(selected.ID)
+	if selected, ok := s.Selected(); ok && s.callbacks.OnSelection != nil {
+		return s.callbacks.OnSelection(selected.ID)
 	}
 	return nil
 }

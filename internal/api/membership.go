@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
 	"github.com/google/uuid"
@@ -136,7 +137,7 @@ func (s *Service) CheckSessionInDashboard(dashboardID, sessionID string) error {
 			return err
 		}
 		if !inventory.allowsSession(dashboardID, sessionID) {
-			return errors.New("session is outside dashboard scope")
+			return contracts.ErrSessionScope
 		}
 		return nil
 	})

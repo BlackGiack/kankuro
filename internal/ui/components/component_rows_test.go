@@ -4,7 +4,6 @@ import (
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
-	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/models"
 )
 
@@ -28,36 +27,6 @@ func cardRowsFromConfig(cards []config.IDCard, skills []config.Skill, personas [
 		})
 	}
 	return models.CardRows(summaries, choices)
-}
-
-func setPreviewSession(preview *components.SessionPreview, snapshot *session.Snapshot, card *config.IDCard) {
-	if snapshot == nil {
-		preview.SetSession(nil)
-		return
-	}
-	row := models.SessionRow{
-		ID: snapshot.ID, DashboardID: snapshot.DashboardID, CardID: snapshot.CardID,
-		Name: snapshot.Name, Status: string(snapshot.Status), StartedAt: snapshot.StartedAt,
-		PID: snapshot.PID, WorkingDir: snapshot.WorkingDir, OriginalDir: snapshot.OriginalDir,
-		TemporaryWorkspace: snapshot.UseTmpWorkspace, CardDeleted: snapshot.CardDeleted,
-		Registration: string(snapshot.Registration), RegistrationPersistence: string(snapshot.RegistrationPersistence),
-		RegistrationError: snapshot.RegistrationErr, ActiveConversationID: snapshot.ActiveConversationID,
-	}
-	if card != nil {
-		row.CardName, row.PuppetName, row.FaceStyle = card.Name, card.Puppet, card.FaceStyle
-		row.PuppetBuiltin = true
-	}
-	preview.SetSession(&row)
-}
-
-func setPreviewPuppets(preview *components.SessionPreview, puppets []config.Puppet) {
-	choices := make([]contracts.PuppetChoice, 0, len(puppets))
-	for _, puppet := range puppets {
-		choices = append(choices, contracts.PuppetChoice{
-			ID: puppet.ID, Name: puppet.Name, Lines: append([]string(nil), puppet.Lines...), Builtin: puppet.Builtin,
-		})
-	}
-	preview.SetPuppetChoices(choices)
 }
 
 func sessionRowsFromSnapshots(sessions []session.Snapshot, cards []config.IDCard) []models.SessionRow {

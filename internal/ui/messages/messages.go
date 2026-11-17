@@ -38,23 +38,15 @@ const (
 
 // ===== User Action Messages (Components → App) =====
 
-// SessionPreviewRequestedMsg signals that a specific session should be previewed immediately.
-type SessionPreviewRequestedMsg struct {
-	SessionID string
-}
-
-// SessionOutputMsg signals that new output has been received for a session.
-type SessionOutputMsg struct {
-	SessionID string
-	Output    []byte
-}
+// SessionSelectedMsg signals a change in the selected session.
+type SessionSelectedMsg struct{ SessionID string }
 
 // DataRefreshRequestedMsg asks the coordinator to run refreshData(). It exists
 // so that callbacks running inside an already-async tea.Cmd closure (e.g. a
 // save/delete handler) can hand the actual refresh back to Update, which runs
 // on the main Bubble Tea goroutine. Building and immediately invoking
 // refreshData() inside such a closure would touch coordinator-goroutine state
-// (c.views, c.preview, ...) from the wrong goroutine.
+// (c.views, c.center, ...) from the wrong goroutine.
 type DataRefreshRequestedMsg struct{}
 
 // DashboardDeletionPreparedMsg carries a human-only deletion confirmation.
@@ -358,7 +350,6 @@ type ClearErrorMsg struct{}
 type MCPServerFailedMsg struct{ Err error }
 
 // DataLoadedMsg contains focused inventory reads. Failed reads preserve receiver data.
-// Preview-only updates use PreviewDataMsg.
 type DataLoadedMsg struct {
 	DashboardID        string
 	InventoryRequestID uint64
@@ -370,13 +361,6 @@ type DataLoadedMsg struct {
 	Choices            contracts.DisplayChoicesResult
 	EditorChoices      contracts.CardEditorChoices
 
-	// PreviewSessionID/PreviewScrollback carry the current preview's
-	// scrollback alongside a full refresh. The coordinator forwards these to
-	// PreviewReceiver.SetPreviewData rather than handing them to
-	// DataReceiver.SetData directly.
-	PreviewSessionID  string
-	PreviewScrollback []byte
-
 	// Err reports read failures; individual read results distinguish failure from empty.
 	Err error
 }
@@ -387,7 +371,7 @@ type DataReceiver interface {
 	SetData(msg DataLoadedMsg)
 }
 
-// SessionsRefreshedMsg carries scoped cards, sessions and preview data with the
+// SessionsRefreshedMsg carries scoped cards and sessions with the
 // originating dashboard and generation. Only their consumers receive this update.
 type SessionsRefreshedMsg struct {
 	DashboardID        string
@@ -398,21 +382,4 @@ type SessionsRefreshedMsg struct {
 	Inventory          contracts.ReadResult[contracts.DashboardInventory]
 	Choices            contracts.DisplayChoicesResult
 	EditorChoices      contracts.CardEditorChoices
-	PreviewSessionID   string
-	PreviewScrollback  []byte
-}
-
-// PreviewDataMsg carries an update to the currently previewed session's
-// scrollback only. It is a distinct type from DataLoadedMsg so a receiver can
-// never mistake a partial preview update for a full snapshot.
-type PreviewDataMsg struct {
-	SessionID     string
-	Scrollback    []byte
-	IsIncremental bool
-}
-
-// PreviewReceiver is implemented by views that render a live session
-// preview and need incremental scrollback updates.
-type PreviewReceiver interface {
-	SetPreviewData(msg PreviewDataMsg)
 }

@@ -13,9 +13,10 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
-	"github.com/BlackGiack/kankuro/internal/ui/messages"
+	"github.com/BlackGiack/kankuro/internal/ui/models"
 	"github.com/BlackGiack/kankuro/internal/ui/styles"
 	"github.com/BlackGiack/kankuro/internal/ui/uitest"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
@@ -113,8 +114,13 @@ func newDashboard(t testing.TB, w, rows int, d dashboardData) *views.Dashboard {
 	dash := views.NewDashboard(views.DashboardCallbacks{})
 	dash.SetSize(w, rows-views.CoordinatorRows)
 	setDashboardData(dash, dashboardFixtures(t, d))
-	if len(d.preview) > 0 && dash.PreviewSessionID() != "" {
-		dash.SetPreviewData(messages.PreviewDataMsg{SessionID: dash.PreviewSessionID(), Scrollback: d.preview})
+	if len(d.preview) > 0 && dash.CenterSessionID() != "" {
+		dash.SetCenterData(
+			models.SessionCenterData{
+				SessionID: dash.CenterSessionID(),
+				Reports:   []contracts.SessionReport{{Kind: "report", Text: string(d.preview)}},
+			},
+		)
 	}
 	return dash
 }
@@ -187,7 +193,7 @@ func assertRenameDialogFits(t *testing.T, d *views.Dashboard, width, height int)
 
 func assertPaneBorders(t *testing.T, body string, d *views.Dashboard, w, bodyRows int, label string) {
 	t.Helper()
-	cw, pw := d.CardsWidth(), d.PreviewWidth()
+	cw, pw := d.CardsWidth(), d.CenterWidth()
 	cols := []int{cw - 1, cw, cw + pw - 1, cw + pw, w - 1}
 	for y := range bodyRows {
 		for _, x := range cols {
@@ -340,41 +346,26 @@ func assertEmptyDashboardPreview(t *testing.T, dash *views.Dashboard, width, hei
 	if len(wordRows) == 0 {
 		t.Fatalf("empty %dx%d dashboard lost the preview placeholder words:\n%s", width, height, plain)
 	}
-	if !strings.Contains(plain, "session") || !strings.Contains(plain, "selected") {
+	if !strings.Contains(plain, "session") || !strings.Contains(plain, "Select") {
 		t.Errorf("empty %dx%d dashboard should retain complete session/selected words:\n%s", width, height, plain)
 	}
 
-	// The placeholder is vertically centered inside the preview's content box,
-	// after the dashboard's header and the pane's top border.
-	first, last := wordRows[0], wordRows[len(wordRows)-1]
-	previewTop := 3             // header + margin + top pane border
-	previewHeight := height - 5 // header, margin, footer, and preview borders
-	contentCenter := previewTop + previewHeight/2
-	wordsCenter := (first + last) / 2
-	if wordsCenter < contentCenter-2 || wordsCenter > contentCenter+2 {
-		t.Errorf("empty %dx%d placeholder rows %d..%d are not centered near row %d", width, height, first, last, contentCenter)
-	}
 	assertDashboardShape(t, dash, width, height, fmt.Sprintf("empty dashboard %dx%d", width, height))
 }
 
 func assertDashboardContentBaselines(t *testing.T, dash *views.Dashboard, width int, state string) {
 	t.Helper()
 	rows := strings.Split(ansi.Strip(dash.View()), "\n")
-	cardTitle, ok := findCellColumn(rows, "ID Cards", 0, 0)
+	cardTitle, ok := findCellColumn(rows, "ID Cards", 0)
 	if !ok || cardTitle != 3 {
 		t.Errorf("%s width=%d: card title column=%d found=%v, want 3", state, width, cardTitle, ok)
 	}
-	activeTitle, ok := findCellColumn(rows, "Active Sessions", 0, 0)
-	if !ok || activeTitle != dash.CardsWidth()+dash.PreviewWidth()+3 {
+	activeTitle, ok := findCellColumn(rows, "Active Sessions", 0)
+	if !ok || activeTitle != dash.CardsWidth()+dash.CenterWidth()+3 {
 		t.Errorf("%s width=%d: sessions title column=%d found=%v, want %d", state, width, activeTitle, ok,
-			dash.CardsWidth()+dash.PreviewWidth()+3)
+			dash.CardsWidth()+dash.CenterWidth()+3)
 	}
-	previewID, ok := findCellColumn(rows, "ID: ", dash.CardsWidth()+1, dash.CardsWidth()+dash.PreviewWidth())
-	if !ok || previewID != dash.CardsWidth()+3 {
-		t.Errorf("%s width=%d: preview metadata column=%d found=%v, want %d", state, width, previewID, ok,
-			dash.CardsWidth()+3)
-	}
-	sessionStart := dash.CardsWidth() + dash.PreviewWidth()
+	sessionStart := dash.CardsWidth() + dash.CenterWidth()
 	sessionNames := findAllCellColumns(rows, "Aligned session", sessionStart, width)
 	if len(sessionNames) == 0 {
 		t.Errorf("%s width=%d: no session names found after pane origin", state, width)
@@ -384,7 +375,7 @@ func assertDashboardContentBaselines(t *testing.T, dash *views.Dashboard, width 
 			t.Errorf("%s width=%d: session text column=%d, want %d", state, width, column, sessionStart+3)
 		}
 	}
-	cardBorder, ok := findCellColumn(rows, "╭", 0, dash.CardsWidth())
+	cardBorder, ok := findCellColumn(rows, "╭", dash.CardsWidth())
 	if !ok || cardBorder != 3 {
 		t.Errorf("%s width=%d: card border column=%d found=%v, want 3", state, width, cardBorder, ok)
 	}
@@ -396,27 +387,21 @@ func assertDashboardPaneTitles(t *testing.T, dash *views.Dashboard, width int, s
 	for _, title := range []struct {
 		text string
 		want int
-	}{{"ID Cards", 3}, {"Active Sessions", dash.CardsWidth() + dash.PreviewWidth() + 3}} {
-		got, ok := findCellColumn(rows, title.text, 0, 0)
+	}{{"ID Cards", 3}, {"Active Sessions", dash.CardsWidth() + dash.CenterWidth() + 3}} {
+		got, ok := findCellColumn(rows, title.text, 0)
 		if !ok || got != title.want {
 			t.Errorf("%s width=%d: %q column=%d found=%v, want %d", state, width, title.text, got, ok, title.want)
 		}
 	}
 }
 
-func findCellColumn(rows []string, text string, minColumn, maxColumn int) (int, bool) {
+func findCellColumn(rows []string, text string, maxColumn int) (int, bool) {
 	for _, row := range rows {
-		search := row
-		base := 0
-		if minColumn > 0 {
-			search = ansi.TruncateLeft(row, minColumn, "")
-			base = minColumn
-		}
-		byteIndex := strings.Index(search, text)
-		if byteIndex < 0 {
+		before, _, found := strings.Cut(row, text)
+		if !found {
 			continue
 		}
-		column := base + ansi.StringWidth(search[:byteIndex])
+		column := ansi.StringWidth(before)
 		if maxColumn == 0 || column+ansi.StringWidth(text) <= maxColumn {
 			return column, true
 		}
@@ -620,8 +605,8 @@ func TestScopedDashboardFooterKeepsBackNavigationAtMinimumWidth(t *testing.T) {
 func TestDashboardSizeNeverNegative(t *testing.T) {
 	for w := 1; w < views.MinTerminalWidth; w++ {
 		d := newDashboard(t, w, views.MinTerminalHeight, dashboardData{sessions: 1, cards: 1})
-		if d.PreviewWidth() < 0 || d.CardsWidth() < 0 {
-			t.Errorf("width %d: cards %d preview %d", w, d.CardsWidth(), d.PreviewWidth())
+		if d.CenterWidth() < 0 || d.CardsWidth() < 0 {
+			t.Errorf("width %d: cards %d preview %d", w, d.CardsWidth(), d.CenterWidth())
 		}
 		_ = d.View()
 	}

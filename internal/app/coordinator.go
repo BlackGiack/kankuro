@@ -46,7 +46,8 @@ type Coordinator struct {
 	settingsSaveRequest, settingsVisit                           uint64
 	settingsLoading, settingsSaving                              bool
 	configuration                                                configurationPort
-	preview                                                      previewSub
+	center                                                       centerState
+	centerBlockedSession, centerBlockedDashboard                 string
 	activeDashboard                                              string
 	viewGeneration                                               uint64
 	sessionEpoch                                                 uint64
@@ -93,7 +94,7 @@ func NewCoordinator(sm *session.Manager, service *api.Service) *Coordinator {
 	c := &Coordinator{
 		configuration:  service,
 		session:        sm,
-		preview:        previewSub{sessions: sm},
+		center:         centerState{port: service},
 		refresh:        refresher{sessions: sm, editor: service, configuration: service},
 		reads:          service,
 		editor:         service,
@@ -161,6 +162,9 @@ func (c *Coordinator) Init() tea.Cmd {
 }
 
 func (c *Coordinator) Update(msg tea.Msg) (*Coordinator, tea.Cmd) {
+	if handled, cmd := c.handleCenter(msg); handled {
+		return c, cmd
+	}
 	// Below the minimum terminal size the user cannot see the view, so input
 	// must not reach it (see size_guard.go).
 	if c.tooSmall() {
@@ -186,7 +190,7 @@ func (c *Coordinator) Update(msg tea.Msg) (*Coordinator, tea.Cmd) {
 	if updated != nil {
 		c.views[c.currentView] = updated
 	}
-	return c, cmd
+	return c, tea.Batch(cmd, c.reconcileCenter())
 }
 
 //nolint:funlen,gocognit,gocyclo,cyclop // Central message router keeps ordering-sensitive app transitions together.
@@ -196,7 +200,7 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		c.width = m.Width
 		c.height = m.Height
 		c.resizeAll()
-		return true, nil
+		return true, c.reconcileCenter()
 
 	case tickMsg:
 		// Refresh scoped sessions every tick; reread configuration only when its
@@ -569,11 +573,8 @@ func (c *Coordinator) handleSessionMessages(msg tea.Msg) (bool, tea.Cmd) {
 	case messages.SessionsRefreshedMsg:
 		return true, c.handleSessionsRefreshed(m)
 
-	case messages.SessionPreviewRequestedMsg:
-		return true, c.handlePreviewRequest(m.SessionID)
-
-	case messages.SessionOutputMsg:
-		return true, c.handleSessionOutput(m)
+	case messages.SessionSelectedMsg:
+		return true, c.reconcileCenter()
 
 	case messages.SessionLaunchCompletedMsg:
 		if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration {

@@ -72,7 +72,7 @@ type DashboardCallbacks struct {
 	OnLaunchTerminal      func(sessionID string) tea.Cmd
 }
 
-// Dashboard is the main composite view showing cards, preview, and sessions.
+// Dashboard is the main composite view showing cards, center, and sessions.
 const (
 	cardImpactMargin    = 8
 	cardImpactMaxWidth  = 72
@@ -84,7 +84,7 @@ type Dashboard struct {
 
 	cardList    *components.CardList
 	sessionList *components.SessionList
-	preview     *components.SessionPreview
+	center      *components.SessionCenter
 
 	deleteModal     *components.Modal
 	renameModal     *components.Modal
@@ -118,13 +118,13 @@ type Dashboard struct {
 	// Layout (computed from size)
 	cardsWidth    int
 	sessionsWidth int
-	previewWidth  int
+	centerWidth   int
 	contentHeight int
 }
 
 // NewDashboard creates a new dashboard view.
 func NewDashboard(callbacks DashboardCallbacks) *Dashboard {
-	preview := components.NewSessionPreview()
+	center := components.NewSessionCenter()
 
 	deleteModal := components.NewModal("Confirm Delete")
 	renameModal := components.NewModal("Rename Session")
@@ -135,7 +135,7 @@ func NewDashboard(callbacks DashboardCallbacks) *Dashboard {
 	d := &Dashboard{
 		cardList:    nil,
 		sessionList: nil,
-		preview:     preview,
+		center:      center,
 		deleteModal: deleteModal,
 		renameModal: renameModal,
 		renameInput: renameInput,
@@ -155,9 +155,9 @@ func NewDashboard(callbacks DashboardCallbacks) *Dashboard {
 		OnKill:   func(_ string) {},
 		OnDelete: func(_ string) {},
 		OnSwitch: func(_ string) {},
-		OnPreview: func(sessionID string) tea.Cmd {
+		OnSelection: func(sessionID string) tea.Cmd {
 			return func() tea.Msg {
-				return messages.SessionPreviewRequestedMsg{SessionID: sessionID}
+				return messages.SessionSelectedMsg{SessionID: sessionID}
 			}
 		},
 	})
@@ -247,7 +247,7 @@ func (d *Dashboard) applyPendingSessionFocus() {
 		d.pendingFocusSessionID = ""
 		d.pendingFocusName = ""
 		d.pendingFocusWaitName = false
-		d.syncPreviewSelection()
+		d.syncCenterSelection()
 		return
 	}
 }
@@ -333,40 +333,30 @@ func (d *Dashboard) SetInventory(
 	d.cardList.SetRows(d.cardRows)
 	d.sessionList.SetRows(d.sessionRows)
 	d.applyPendingSessionFocus()
-	d.syncPreviewSelection()
+	d.syncCenterSelection()
 }
 
-// SetPreviewData implements messages.PreviewReceiver, handling partial,
-// preview-only updates that must never be confused with a full SetData
-// snapshot (see messages.PreviewDataMsg).
-func (d *Dashboard) SetPreviewData(msg messages.PreviewDataMsg) {
-	if msg.SessionID == "" || msg.SessionID != d.preview.SessionID() {
-		return
-	}
-	if msg.IsIncremental {
-		d.preview.AppendScrollback(msg.Scrollback)
-	} else {
-		d.preview.SetScrollback(msg.Scrollback)
-	}
+// SetCenterData applies a detached snapshot for the selected session.
+func (d *Dashboard) SetCenterData(data models.SessionCenterData) { d.center.SetData(data) }
+func (d *Dashboard) CenterReportLimit() int                      { return d.center.ReportLimit() }
+
+func (d *Dashboard) CenterSessionID() string {
+	return d.center.SessionID()
 }
 
-func (d *Dashboard) PreviewSessionID() string {
-	return d.preview.SessionID()
-}
-
-func (d *Dashboard) syncPreviewSelection() {
-	// If there are no sessions at all, clear preview.
+func (d *Dashboard) syncCenterSelection() {
+	// If there are no sessions at all, clear center.
 	if len(d.sessionRows) == 0 {
-		d.preview.Clear()
+		d.center.Clear()
 		return
 	}
 
-	// Check if current preview session still exists
+	// Check if current center session still exists
 	currentStillExists := false
 	var currentSession *models.SessionRow
-	if d.preview.SessionID() != "" {
+	if d.center.SessionID() != "" {
 		for i := range d.sessionRows {
-			if d.sessionRows[i].ID == d.preview.SessionID() {
+			if d.sessionRows[i].ID == d.center.SessionID() {
 				currentStillExists = true
 				currentSession = &d.sessionRows[i]
 				break
@@ -374,9 +364,9 @@ func (d *Dashboard) syncPreviewSelection() {
 		}
 	}
 
-	// If we are NOT in sessions pane AND current preview still exists, just refresh it.
+	// If we are NOT in sessions pane AND current center still exists, just refresh it.
 	if d.focusedPane != PaneSessions && currentStillExists {
-		d.preview.SetSession(currentSession)
+		d.center.SetSession(currentSession)
 		return
 	}
 
@@ -384,7 +374,7 @@ func (d *Dashboard) syncPreviewSelection() {
 	selected, ok := d.sessionList.Selected()
 	if !ok {
 		if len(d.sessionRows) == 0 {
-			d.preview.Clear()
+			d.center.Clear()
 			return
 		}
 		currentSession = &d.sessionRows[0]
@@ -397,10 +387,10 @@ func (d *Dashboard) syncPreviewSelection() {
 		}
 	}
 	if currentSession == nil {
-		d.preview.Clear()
+		d.center.Clear()
 		return
 	}
-	d.preview.SetSession(currentSession)
+	d.center.SetSession(currentSession)
 }
 
 // FocusedPane returns the currently focused pane.
@@ -438,14 +428,14 @@ func (d *Dashboard) SessionList() *components.SessionList {
 	return d.sessionList
 }
 
-// Preview returns the session preview component.
-func (d *Dashboard) Preview() *components.SessionPreview {
-	return d.preview
+// Center returns the session center component.
+func (d *Dashboard) Center() *components.SessionCenter {
+	return d.center
 }
 
-// SyncPreviewSelection synchronizes preview with selection.
-func (d *Dashboard) SyncPreviewSelection() {
-	d.syncPreviewSelection()
+// SyncCenterSelection synchronizes center with selection.
+func (d *Dashboard) SyncCenterSelection() {
+	d.syncCenterSelection()
 }
 
 // CardsWidth returns the width of the cards pane.
@@ -453,9 +443,9 @@ func (d *Dashboard) CardsWidth() int {
 	return d.cardsWidth
 }
 
-// PreviewWidth returns the width of the preview pane.
-func (d *Dashboard) PreviewWidth() int {
-	return d.previewWidth
+// CenterWidth returns the width of the center pane.
+func (d *Dashboard) CenterWidth() int {
+	return d.centerWidth
 }
 
 // Init initializes the dashboard.
@@ -464,7 +454,7 @@ func (d *Dashboard) Init() tea.Cmd {
 		disableKittyProtocolCmd,
 		d.cardList.Init(),
 		d.sessionList.Init(),
-		d.preview.Init(),
+		d.center.Init(),
 	)
 }
 
@@ -699,7 +689,7 @@ func (d *Dashboard) handleSearch(keyMsg tea.KeyPressMsg) bool {
 		return true
 	case tea.KeyEnter:
 		d.search.IsActive = false
-		d.syncPreviewSelection()
+		d.syncCenterSelection()
 		return true
 	case tea.KeyBackspace:
 		d.handleSearchBackspace()
@@ -722,7 +712,7 @@ func (d *Dashboard) cancelSearch() {
 	d.search.IsActive = false
 	d.cardList.SetSearchQuery("")
 	d.sessionList.SetSearchQuery("")
-	d.syncPreviewSelection()
+	d.syncCenterSelection()
 }
 
 func (d *Dashboard) handleSearchBackspace() {
@@ -732,7 +722,7 @@ func (d *Dashboard) handleSearchBackspace() {
 	} else if d.focusedPane == PaneSessions && len(d.search.SessionsQuery) > 0 {
 		d.search.SessionsQuery = d.search.SessionsQuery[:len(d.search.SessionsQuery)-1]
 		d.sessionList.SetSearchQuery(d.search.SessionsQuery)
-		d.syncPreviewSelection()
+		d.syncCenterSelection()
 	}
 }
 
@@ -744,7 +734,7 @@ func (d *Dashboard) handleSearchRune(ch rune) {
 		} else {
 			d.search.SessionsQuery += string(ch)
 			d.sessionList.SetSearchQuery(d.search.SessionsQuery)
-			d.syncPreviewSelection()
+			d.syncCenterSelection()
 		}
 	}
 }
@@ -992,7 +982,7 @@ func (d *Dashboard) confirmDelete() (component.Model, tea.Cmd) {
 			if err != nil {
 				return d, func() tea.Msg { return messages.ErrorMsg{Err: err} }
 			}
-			d.syncPreviewSelection()
+			d.syncCenterSelection()
 			return d, cmd
 		}
 	case "delete-card":
@@ -1016,7 +1006,7 @@ func (d *Dashboard) updateFocusedPane(msg tea.Msg) (component.Model, tea.Cmd) {
 		d.sessionList, _ = model.(*components.SessionList)
 		cmd = c
 
-		d.syncPreviewSelection()
+		d.syncCenterSelection()
 	} else {
 		model, c := d.cardList.Update(msg)
 		d.cardList, _ = model.(*components.CardList)
@@ -1033,7 +1023,7 @@ func (d *Dashboard) togglePane() {
 	} else {
 		d.focusedPane = PaneCards
 	}
-	d.syncPreviewSelection()
+	d.syncCenterSelection()
 }
 
 // SetSize implements component.Model.
@@ -1047,17 +1037,17 @@ func (d *Dashboard) SetSize(width, height int) {
 	const cardListMinWidth = 46
 
 	d.sessionsWidth = width / dashboardSessionsWidthRatio
-	d.previewWidth = (width / dashboardSessionsWidthRatio) * dashboardPreviewWidthRatio
-	d.cardsWidth = width - d.sessionsWidth - d.previewWidth
+	d.centerWidth = (width / dashboardSessionsWidthRatio) * dashboardCenterWidthRatio
+	d.cardsWidth = width - d.sessionsWidth - d.centerWidth
 
 	if d.cardsWidth < cardListMinWidth {
 		diff := cardListMinWidth - d.cardsWidth
 		d.cardsWidth += diff
-		d.previewWidth -= diff
+		d.centerWidth -= diff
 	}
 	// Below the minimum terminal size the coordinator shows a "too small"
 	// screen instead of this view, but it is still sized; never go negative.
-	d.previewWidth = max(0, d.previewWidth)
+	d.centerWidth = max(0, d.centerWidth)
 
 	// The coordinator sizes the dashboard to (terminal rows - CoordinatorRows).
 	// For the whole render (header + body + footer) to fill the terminal with no
@@ -1067,11 +1057,11 @@ func (d *Dashboard) SetSize(width, height int) {
 	d.contentHeight = paneHeight
 
 	// In border-box, lists must fit inside outer Height - borders (2) - title block (2) = paneHeight - 4.
-	// Preview pane has no title block, so its component fits in outer Height - borders (2) = paneHeight - 2.
-	d.cardList.SetSize(d.cardsWidth-paneBorderRing, paneHeight-paneBorderRing-previewTitleBlock)
-	d.sessionList.SetSize(d.sessionsWidth-paneBorderRing, paneHeight-paneBorderRing-previewTitleBlock)
-	d.preview.SetSize(
-		d.previewWidth-paneBorderRing-2*paneContentGutter,
+	// Center pane has no title block, so its component fits in outer Height - borders (2) = paneHeight - 2.
+	d.cardList.SetSize(d.cardsWidth-paneBorderRing, paneHeight-paneBorderRing-centerTitleBlock)
+	d.sessionList.SetSize(d.sessionsWidth-paneBorderRing, paneHeight-paneBorderRing-centerTitleBlock)
+	d.center.SetSize(
+		d.centerWidth-paneBorderRing-2*paneContentGutter,
 		paneHeight-paneBorderRing,
 	)
 	d.deleteModal.SetSize(width, height)
@@ -1114,7 +1104,7 @@ func (d *Dashboard) View() string {
 func (d *Dashboard) renderBase() string {
 	// Build panes
 	leftPane := d.renderCardsPane()
-	centerPane := d.renderPreviewPane()
+	centerPane := d.renderCenterPane()
 	rightPane := d.renderSessionsPane()
 
 	// Join horizontally
@@ -1169,45 +1159,45 @@ func (d *Dashboard) renderCardsPane() string {
 	return style.Render(content)
 }
 
-// renderPreviewPane renders the center pane.
-func (d *Dashboard) renderPreviewPane() string {
+// renderCenterPane renders the center pane.
+func (d *Dashboard) renderCenterPane() string {
 	// Note: MaxWidth/MaxHeight here would clip the right/bottom borders because
 	// they cap the total rendered size *including* the border ring. The inner
-	// SessionPreview already hard-clamps its own output to previewWidth ×
+	// SessionCenter already hard-clamps its own output to centerWidth ×
 	// contentHeight via clampToSize, so the bordered pane below is guaranteed
-	// to be exactly previewWidth+2 × contentHeight+2.
+	// to be exactly centerWidth+2 × contentHeight+2.
 	style := lipgloss.NewStyle().
-		Width(d.previewWidth).
+		Width(d.centerWidth).
 		Height(d.contentHeight).
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(normalBorderColor)
 
-	// Final defensive clamp: even though SessionPreview clamps its own View()
+	// Final defensive clamp: even though SessionCenter clamps its own View()
 	// and the bordered style above adds exactly 2 cells in each dimension,
 	// hard-truncate the rendered pane to the expected outer size as a last
 	// safety net. This is what prevents punctual overflow from a single
 	// unforeseen content shape (malformed escapes, exotic graphemes, etc.)
 	// from breaking the whole dashboard layout.
-	// The preview was sized to (previewWidth, contentHeight + previewTitleBlock)
-	// in SetSize, so its body is up to contentHeight + previewTitleBlock rows.
+	// The center was sized to (centerWidth, contentHeight + centerTitleBlock)
+	// in SetSize, so its body is up to contentHeight + centerTitleBlock rows.
 	// Adding the 2-cell border ring gives the expected bordered pane height.
 	// Cutting this short would shave the bottom border off.
-	content := lipgloss.NewStyle().Padding(0, paneContentGutter).Render(d.preview.View())
+	content := lipgloss.NewStyle().Padding(0, paneContentGutter).Render(d.center.View())
 	rendered := style.Render(content)
-	maxW := d.previewWidth
+	maxW := d.centerWidth
 	maxH := d.contentHeight
 	return components.ClampToSize(rendered, maxW, maxH)
 }
 
 // paneBorderRing is the number of rows/columns added by a 4-side lipgloss
 // border around a pane (1 top + 1 bottom, 1 left + 1 right).
-// previewTitleBlock is the number of rows the cards/sessions panes spend on
-// their internal title + filter/spacer line before the list. The preview pane
+// centerTitleBlock is the number of rows the cards/sessions panes spend on
+// their internal title + filter/spacer line before the list. The center pane
 // has no such title block, so we extend its inner height by the same amount
 // to keep the three panes' bottom borders aligned.
 const (
 	paneBorderRing    = 2
-	previewTitleBlock = 2
+	centerTitleBlock  = 2
 	paneContentGutter = 2
 
 	// paneTitlePadding is the columns the title block's horizontal padding takes

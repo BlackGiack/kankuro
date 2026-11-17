@@ -31,7 +31,7 @@
       "type refresher field sessions *session.Manager uses session.Manager": "7"
     },
     "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
-    "owner": "5/6/7"
+    "owner": "7"
   },
   {
     "path": "internal/app/app.go",
@@ -170,22 +170,6 @@
     },
     "reason": "Legacy view/component/message backend model dependency; migration surface listed in docs/frontend-boundary.md.",
     "owner": "7"
-  },
-  {
-    "path": "internal/app/preview.go",
-    "dependency": "github.com/BlackGiack/kankuro/internal/session",
-    "rule": "frontend imports backend implementation",
-    "symbols": [
-      "Manager"
-    ],
-    "edges": [
-      "type previewSub field sessions *session.Manager uses session.Manager"
-    ],
-    "edge_owners": {
-      "type previewSub field sessions *session.Manager uses session.Manager": "6"
-    },
-    "reason": "Legacy coordinator/application adapter dependency; symbol-level migration listed in docs/frontend-boundary.md.",
-    "owner": "6"
   },
   {
     "path": "internal/app/legacy_actions.go",

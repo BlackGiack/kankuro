@@ -67,9 +67,9 @@ func TestMultiDashboardDiscardsStaleResultsAndPreservesViews(t *testing.T) {
 		},
 	)
 	viewA := c.views[ViewDashboard]
-	c.Update(messages.SessionPreviewRequestedMsg{SessionID: idB})
-	if c.preview.current() == idB {
-		t.Fatal("foreign session preview was subscribed")
+	c.Update(messages.SessionSelectedMsg{SessionID: idB})
+	if c.center.sessionID == idB {
+		t.Fatal("foreign session center was selected")
 	}
 	stale := c.refreshData()
 	stalePuppetNavigation := c.settingsCallbacks().OnOpenPuppetSources()

@@ -26,7 +26,6 @@ Every row is an exact production file/import pair. The `symbols` field in `inter
 | `internal/app/app.go` | `internal/session` | frontend imports backend implementation | `Manager` | `func New parameter sm *session.Manager uses session.Manager` → feature 7 |
 | `internal/ui/uitest/shape.go` | `internal/config` | frontend imports backend implementation | `Puppet` | `func UserPuppet body uses config.Puppet` → feature 8<br>`func UserPuppet result <unnamed> config.Puppet uses config.Puppet` → feature 8 |
 | `internal/ui/messages/messages.go` | `internal/session` | frontend imports backend implementation | `AttachHandle` | `type ScopedAttachReadyMsg field Handle *session.AttachHandle uses session.AttachHandle` → feature 7 |
-| `internal/app/preview.go` | `internal/session` | frontend imports backend implementation | `Manager` | `type previewSub field sessions *session.Manager uses session.Manager` → feature 6 |
 | `internal/app/legacy_actions.go` | `internal/api` | frontend imports backend implementation | `Service` | `type legacyActions field service *api.Service uses api.Service` → feature 7 |
 
 ## Migration inventory
@@ -35,15 +34,15 @@ The exception table is the complete current production import-edge inventory for
 
 | Owner | Files and exposed surfaces |
 |---|---|
-| 2 — reads and list models | `internal/app/read_ports.go` defines the coordinator-owned focused read capability. `scoped_refresh.go` and `dashboard_list.go` use it for contract inventory, choices, dashboard summaries and opaque registry tokens; the selected-card launch adapter uses a focused card summary. `DataLoadedMsg` and `SessionsRefreshedMsg` carry focused inventory/choice outcomes without broad card/session fields. `AgentSwitchView`, dashboard lists, and card/session components consume presentation rows. Preview receives selected row metadata and remains on the feature 6 output adapter. Preserve PID, workspace, registration, conversation summary, search and selection identity. |
+| 2 — reads and list models | `internal/app/read_ports.go` defines the coordinator-owned focused read capability. `scoped_refresh.go` and `dashboard_list.go` use it for contract inventory, choices, dashboard summaries and opaque registry tokens; the selected-card launch adapter uses a focused card summary. `DataLoadedMsg` and `SessionsRefreshedMsg` carry focused inventory/choice outcomes without broad card/session fields. `AgentSwitchView`, dashboard lists, and card/session components consume presentation rows. The center receives selected session data through independent report and workspace contracts. Preserve PID, workspace, registration, conversation summary, search and selection identity. |
 | 3 — card editor | `internal/app/read_ports.go` owns the card editor capability; editor reads and saves use independent contracts, explicit changes and an opaque full-record revision. `CardEditor` owns a draft and independent choices. The service revalidates admission, ownership, revision and sharing before saving. |
 | 4 — lifecycle and workspace actions | `internal/app/session_ports.go` defines focused contract operations; `session_actions.go` runs captured requests. Launch, relaunch and switch use publication evidence, explicit conversation choices and expected-process attachment. Rename, stop, removal and configured workspace commands use scoped application operations. The remaining attachment handle belongs to feature 7. |
 | 5 — configuration | Source, MCP, settings and registry operations use independent contracts and captured commands. Source mutations validate expected identity under repository locks; list rows exclude connection credentials. |
-| 6 — legacy preview | `internal/app/preview.go`: `previewSub` manager access through `GetScrollback`, `SubscribeOutput`, `UnsubscribeOutput`; `handlers.go`, `navigation.go`, `scoped_refresh.go`; `internal/ui/components/session_preview.go`: `SetSession`, `Snapshot`, `Card` and status rendering; `internal/ui/views/dashboard.go`; `internal/ui/messages/messages.go`: `SessionPreviewRequestedMsg`, `SessionOutputMsg`, `PreviewDataMsg`, preview receiver and refresh scrollback fields. Keep attachment output paths until feature 7; preview-only output subscription/state is removed in 6. |
+| 6 — session center | `internal/app/center.go` owns selection-scoped operations through `centerPort`; the service validates scope and inspects retained reports and the saved workspace. Structured results are formatted by `SessionCenter`. |
 | 7 — attachment, deletion and composition | `internal/app/app.go`, `coordinator.go`, `attach.go`, `callbacks.go`, and deletion portions of `dashboard_list.go`; attachment/deletion result fields in `internal/ui/messages/messages.go`. `New`/`NewCoordinator` currently take the concrete manager and service for composition. Preserve attachment release versus process termination, durable deletion intent, admission closure and retry semantics. |
 | 8 — final audit | `internal/ui/uitest/shape.go` test-support classification and final removal of stale exceptions. |
 
-Configuration messages carry application contracts: MCP manager rows contain display and availability facts, editor data carries only editable connection fields, settings carry four values, and registry choices use per-inventory read results. `DataLoadedMsg`/`SessionsRefreshedMsg` do not carry broad storage models. `ScopedAttachReadyMsg.Handle` remains attachment (7); preview output remains the feature 6 adapter. The exact remaining exception edges are recorded in the allowlists.
+Configuration messages carry application contracts: MCP manager rows contain display and availability facts, editor data carries only editable connection fields, settings carry four values, and registry choices use per-inventory read results. `DataLoadedMsg`/`SessionsRefreshedMsg` do not carry broad storage models. `ScopedAttachReadyMsg.Handle` remains attachment (7). The exact remaining exception edges are recorded in the allowlists.
 
 Backend-only `readDashboardData` derives focused reads. Session workflows use `LaunchSession`, `RelaunchDashboardSession`, `SwitchSession`, `ReadConversationPreparationResult`, `RenameDashboardSession`, `StopDashboardSession`, `RemoveDashboardSession`, and `OpenSessionWorkspace` through the consumer-owned port. Legacy MCP-facing methods retain their own wire types. Dashboard and component callbacks capture scope and request identities before asynchronous commands.
 
@@ -51,7 +50,7 @@ Backend-only `readDashboardData` derives focused reads. Session workflows use `L
 
 The remaining concrete service calls in frontend code support dashboard/card deletion and raw attachment (feature 7). Configuration operations use focused service capabilities through consumer-owned ports. Session lifecycle and workspace workflows use independent contracts through `sessionActionPort`; attachment still holds `session.AttachHandle` until feature 7.
 
-Frontend production code makes no direct configuration repository calls. Direct manager access remains for composition (7), and `GetSession`, `GetScrollback`, `SubscribeOutput`, `UnsubscribeOutput` for preview (6). `attachExec` reads `AttachHandle.PTY`, `.Input`, `.Output`, `.Done`, `.Scrollback`, `.Header` and closes the handle (7); feature 7 must hide PTY ownership while preserving serialized input and release semantics.
+Frontend production code makes no direct configuration repository calls. Direct manager access remains for composition (7). `attachExec` reads `AttachHandle.PTY`, `.Input`, `.Output`, `.Done`, `.Scrollback`, `.Header` and closes the handle (7); feature 7 must hide PTY ownership while preserving serialized input and release semantics.
 
 ## Existing test-only backend integrations
 
@@ -72,8 +71,6 @@ These package test files deliberately exercise frontend adapters against concret
 | `internal/app/mcp_manager_gaps_test.go` | `internal/config` |
 | `internal/app/mcp_manager_review_test.go` | `internal/config` |
 | `internal/app/multi_dashboard_internal_test.go` | `internal/api`, `internal/config`, `internal/configstartup` |
-| `internal/app/preview_broadcast_test.go` | `internal/config` |
-| `internal/app/preview_integration_test.go` | `internal/config` |
 | `internal/app/refresh_cadence_internal_test.go` | `internal/api`, `internal/config`, `internal/configstartup` |
 | `internal/app/refresh_error_test.go` | `internal/api`, `internal/config`, `internal/configstartup` |
 | `internal/app/scoped_refresh_error_internal_test.go` | `internal/api`, `internal/config`, `internal/configstartup` |
@@ -86,10 +83,6 @@ These package test files deliberately exercise frontend adapters against concret
 | `internal/ui/components/card_render_layout_test.go` | `internal/config` |
 | `internal/ui/components/session_list_layout_test.go` | `internal/config`, `internal/session` |
 | `internal/ui/components/session_list_test.go` | `internal/config`, `internal/session` |
-| `internal/ui/components/session_preview_integration_test.go` | `internal/session` |
-| `internal/ui/components/session_preview_layout_test.go` | `internal/config`, `internal/session` |
-| `internal/ui/components/session_preview_overflow_test.go` | `internal/config`, `internal/session` |
-| `internal/ui/components/session_preview_test.go` | `internal/config`, `internal/session` |
 | `internal/ui/components/source_list_test.go` | `internal/config` |
 | `internal/ui/views/agent_switch_test.go` | `internal/config` |
 | `internal/ui/views/card_editor_internal_test.go` | `internal/config` |
@@ -116,7 +109,7 @@ These package test files deliberately exercise frontend adapters against concret
 | Card edit/save | Editable-only drafts with owner-only saves and application-side preservation of uneditable fields. | Application checks scope/ownership and stale state atomically; revision includes hidden fields. Explicit presence separates unchanged from clear/false/zero/empty. | `internal/ui/views/card_editor.go` and editor tests; `internal/api/membership.go` and membership tests. |
 | Lifecycle/conversations | Launch, attach, stop, switch, relaunch, workspace and conversation selection. | Revalidate authorization/state/compatibility; missing workspace errors; usable activation survives metadata warning; never replay uncertain effects. | `internal/app/session_warning_test.go`, conversation-choice tests and API/session lifecycle tests. |
 | Config/source/MCP/settings | Registry and source management, built-in MCP restrictions and settings defaults. | Atomic source update; distinguish saved-with-sync-warning; validate expected source identity rather than stale row index. | `source_save_test.go`, `source_sync_warning_test.go`, MCP and settings error tests. |
-| Preview/attachment | Dashboard preview until feature 6; terminal attach remains independent. | Preview subscription is released on switch/close; attachment Ctrl+K releases subscription without stopping process; serialized input, resize/EOF, stale-result cleanup. | `preview_*_test.go`, `internal/app/attach.go`, `internal/session/attach.go` and attachment tests. |
+| Center/attachment | Center uses structured reports and workspace reads; terminal attachment remains independent. | Selection and navigation cancel center work; Ctrl+K releases attachment without stopping the process; serialized input and stale-result cleanup remain intact. | `center_internal_test.go`, `internal/app/attach.go`, `internal/session/attach.go` and attachment tests. |
 | Deletion | Confirmation prompts and scope-aware deletion. | Confirmation token, admission closure, durable intent, per-effect checkpoint/retry and foreign-session preservation. | API confirmation/deletion tests. |
 
 Test names above identify existing evidence, not proof that every semantic is covered or currently passes. Inventory gaps found for an owning migration must be recorded there; do not silently treat the baseline as approval.

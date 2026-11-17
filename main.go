@@ -147,6 +147,7 @@ func run(registry driver.Registry) (returnErr error) {
 	}()
 
 	_, runErr := p.Run()
+	application.Close()
 	stopFailureWatch()
 	<-failureWatcherDone
 	select {

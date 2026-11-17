@@ -40,3 +40,6 @@ func (a *App) SetSize(width, height int) {
 	a.coordinator.height = height
 	a.coordinator.resizeAll()
 }
+
+// Close releases selection-scoped background operations after the program stops.
+func (a *App) Close() { a.coordinator.clearCenter() }

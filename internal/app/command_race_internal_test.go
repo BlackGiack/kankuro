@@ -2,7 +2,7 @@ package app
 
 // TestCommandClosuresDoNotRaceCoordinator is a runtime backstop for invariant
 // 1 (no tea.Cmd closure touches coordinator-goroutine state: c.views,
-// c.preview, c.currentView, c.err, c.settings), in addition to the structural
+// c.center, c.currentView, c.err, c.settings), in addition to the structural
 // rule (refresher and sessionActions hold no *Coordinator) and the greps in
 // project.md §6. It only means something under `go test -race`; without the
 // race detector it merely checks that the flows still complete.
@@ -282,14 +282,26 @@ func TestCommandClosuresDoNotRaceCoordinator(t *testing.T) {
 			want: isMsg(func(m tea.Msg) bool { _, ok := m.(messages.DashboardCardLoadedMsg); return ok }),
 		},
 		{
-			name: "preview request",
+			name: "center report read",
 			run: func(t *testing.T, f raceFixture) tea.Cmd {
-				_, cmd := f.coord.Update(messages.SessionPreviewRequestedMsg{SessionID: f.sessionID})
+				cmd := f.coord.centerRead()
 				if cmd == nil {
-					t.Fatal("expected a live-output wait command: the preview should have subscribed")
+					t.Fatal("expected selected-session report command")
 				}
 				return cmd
 			},
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(centerReportsMsg); return ok }),
+		},
+		{
+			name: "center workspace read",
+			run: func(t *testing.T, f raceFixture) tea.Cmd {
+				cmd := f.coord.centerWorkspace()
+				if cmd == nil {
+					t.Fatal("expected selected-session workspace command")
+				}
+				return cmd
+			},
+			want: isMsg(func(m tea.Msg) bool { _, ok := m.(centerWorkspaceMsg); return ok }),
 		},
 		{
 			name: "kill the selected session",

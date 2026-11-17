@@ -20,11 +20,11 @@ func TestSessionList_New(t *testing.T) {
 		OnSelect: func(models.SessionRow) tea.Cmd {
 			return nil
 		},
-		OnAttach:  func(string) {},
-		OnKill:    func(string) {},
-		OnDelete:  func(string) {},
-		OnSwitch:  func(string) {},
-		OnPreview: func(string) tea.Cmd { return nil },
+		OnAttach:    func(string) {},
+		OnKill:      func(string) {},
+		OnDelete:    func(string) {},
+		OnSwitch:    func(string) {},
+		OnSelection: func(string) tea.Cmd { return nil },
 	}
 
 	sl := components.NewSessionList(callbacks)

@@ -248,9 +248,9 @@ func TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch(t *testing
 		{ID: "existing", Name: "Existing"},
 	})
 	selected, ok := d.SessionList().Selected()
-	if !ok || selected.ID != "new" || d.FocusedPane() != views.PaneSessions || d.PreviewSessionID() != "new" {
+	if !ok || selected.ID != "new" || d.FocusedPane() != views.PaneSessions || d.CenterSessionID() != "new" {
 		t.Fatalf("focus not applied to new session: selected=%+v ok=%v pane=%v preview=%q",
-			selected, ok, d.FocusedPane(), d.PreviewSessionID())
+			selected, ok, d.FocusedPane(), d.CenterSessionID())
 	}
 	if d.Search().SessionsQuery != "" {
 		t.Fatalf("filter hiding target was not cleared: %+v", d.Search())
@@ -262,9 +262,9 @@ func TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch(t *testing
 		{ID: "new", Name: "New"},
 	})
 	selected, ok = d.SessionList().Selected()
-	if !ok || selected.ID != "existing" || d.PreviewSessionID() != "existing" {
+	if !ok || selected.ID != "existing" || d.CenterSessionID() != "existing" {
 		t.Fatalf("consumed focus request stole selection on later refresh: selected=%+v ok=%v preview=%q",
-			selected, ok, d.PreviewSessionID())
+			selected, ok, d.CenterSessionID())
 	}
 }
 
@@ -279,9 +279,9 @@ func TestDashboard_FocusSessionPreservesMatchingSearch(t *testing.T) {
 		{ID: "new", Name: "New session"},
 	})
 	selected, ok := d.SessionList().Selected()
-	if !ok || selected.ID != "new" || d.Search().SessionsQuery != "New" || d.PreviewSessionID() != "new" {
+	if !ok || selected.ID != "new" || d.Search().SessionsQuery != "New" || d.CenterSessionID() != "new" {
 		t.Fatalf("matching filter was not preserved with target selected: selected=%+v ok=%v search=%+v preview=%q",
-			selected, ok, d.Search(), d.PreviewSessionID())
+			selected, ok, d.Search(), d.CenterSessionID())
 	}
 }
 
@@ -632,7 +632,7 @@ func TestDashboard_SetSize_Flexible(t *testing.T) {
 	d := views.NewDashboard(views.DashboardCallbacks{})
 
 	// Test wide terminal
-	// width=200, dashboardSessionsWidthRatio=4, dashboardPreviewWidthRatio=2
+	// width=200, dashboardSessionsWidthRatio=4, dashboardCenterWidthRatio=2
 	// sessionsWidth = 200 / 4 = 50
 	// previewWidth = 50 * 2 = 100
 	// cardsWidth = 200 - 50 - 100 = 50
@@ -655,8 +655,8 @@ func TestDashboard_SetSize_Flexible(t *testing.T) {
 	if d.CardsWidth() != 46 {
 		t.Errorf("Expected cards width 46, got %d", d.CardsWidth())
 	}
-	if d.PreviewWidth() != 14 {
-		t.Errorf("Expected preview width 14, got %d", d.PreviewWidth())
+	if d.CenterWidth() != 14 {
+		t.Errorf("Expected preview width 14, got %d", d.CenterWidth())
 	}
 }
 
@@ -679,19 +679,19 @@ func TestDashboard_PreviewPersistence(t *testing.T) {
 		d.TogglePane()
 	}
 	d.SessionList().SetSelectedByID("s2")
-	d.SyncPreviewSelection()
+	d.SyncCenterSelection()
 
-	if d.Preview().SessionID() != "s2" {
-		t.Errorf("Expected previewing s2, got %s", d.Preview().SessionID())
+	if d.Center().SessionID() != "s2" {
+		t.Errorf("Expected previewing s2, got %s", d.Center().SessionID())
 	}
 
 	// Switch back to cards pane
 	d.TogglePane()
-	d.SyncPreviewSelection()
+	d.SyncCenterSelection()
 
 	// Should still preview s2 (stable preview)
-	if d.Preview().SessionID() != "s2" {
-		t.Errorf("Expected preview to stay on s2 when switching panes, got %s", d.Preview().SessionID())
+	if d.Center().SessionID() != "s2" {
+		t.Errorf("Expected preview to stay on s2 when switching panes, got %s", d.Center().SessionID())
 	}
 
 	// Remove s2
@@ -701,8 +701,8 @@ func TestDashboard_PreviewPersistence(t *testing.T) {
 	})
 
 	// Preview should recover to s1
-	if d.Preview().SessionID() != "s1" {
-		t.Errorf("Expected preview to recover to s1 after s2 removed, got %s", d.Preview().SessionID())
+	if d.Center().SessionID() != "s1" {
+		t.Errorf("Expected preview to recover to s1 after s2 removed, got %s", d.Center().SessionID())
 	}
 
 	// Remove all sessions
@@ -712,7 +712,7 @@ func TestDashboard_PreviewPersistence(t *testing.T) {
 	})
 
 	// Preview should be cleared
-	if d.Preview().SessionID() != "" {
+	if d.Center().SessionID() != "" {
 		t.Error("Expected preview to be cleared when no sessions remain")
 	}
 }

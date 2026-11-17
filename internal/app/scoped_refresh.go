@@ -16,7 +16,6 @@ func (r refresher) scopedFull(
 	generation uint64,
 	requestID uint64,
 	inventoryRequestID uint64,
-	previewSessionID string,
 ) tea.Cmd {
 	return func() tea.Msg {
 		before, beforeErr := service.ReadRegistryChangeToken()
@@ -24,7 +23,6 @@ func (r refresher) scopedFull(
 		data.DashboardID, data.Generation, data.SessionEpoch = dashboardID, generation, r.sessionEpoch
 		data.InventoryRequestID = inventoryRequestID
 		data.Inventory, data.Choices, _ = readFocusedDashboard(service, dashboardID)
-		data.PreviewSessionID, data.PreviewScrollback = retainedPreview(r.sessions, previewSessionID, data.Inventory)
 		choiceErr := displayChoiceError(data.Choices)
 		after, afterErr := service.ReadRegistryChangeToken()
 		tokenErr := errors.Join(tokenReadError("before", beforeErr), tokenReadError("after", afterErr))
@@ -50,7 +48,6 @@ func (r refresher) scopedSessions(
 	dashboardID string,
 	generation uint64,
 	inventoryRequestID uint64,
-	previewSessionID string,
 ) tea.Cmd {
 	return func() tea.Msg {
 		result := messages.SessionsRefreshedMsg{
@@ -68,7 +65,6 @@ func (r refresher) scopedSessions(
 			return result
 		}
 		result.Inventory = contracts.ReadResult[contracts.DashboardInventory]{Attempted: true, Value: inventory}
-		result.PreviewSessionID, result.PreviewScrollback = retainedPreview(r.sessions, previewSessionID, result.Inventory)
 		return result
 	}
 }
@@ -80,7 +76,6 @@ func (r refresher) scopedConfigIfChanged(
 	prev contracts.RegistryChangeToken,
 	requestID uint64,
 	inventoryRequestID uint64,
-	previewSessionID string,
 ) tea.Cmd {
 	return func() tea.Msg {
 		before, beforeErr := service.ReadRegistryChangeToken()
@@ -94,7 +89,6 @@ func (r refresher) scopedConfigIfChanged(
 		data.DashboardID, data.Generation, data.SessionEpoch = dashboardID, generation, r.sessionEpoch
 		data.InventoryRequestID = inventoryRequestID
 		data.Inventory, data.Choices, _ = readFocusedDashboard(service, dashboardID)
-		data.PreviewSessionID, data.PreviewScrollback = retainedPreview(r.sessions, previewSessionID, data.Inventory)
 		choiceErr := displayChoiceError(data.Choices)
 		after, afterErr := service.ReadRegistryChangeToken()
 		tokenErr := errors.Join(tokenReadError("before", beforeErr), tokenReadError("after", afterErr))
@@ -113,22 +107,6 @@ func (r refresher) scopedConfigIfChanged(
 			generation: generation, sessionEpoch: r.sessionEpoch, data: &data,
 		}
 	}
-}
-
-func retainedPreview(
-	sessions interface{ GetScrollback(string) []byte },
-	selectedID string,
-	inventory contracts.ReadResult[contracts.DashboardInventory],
-) (string, []byte) {
-	if selectedID == "" || !inventory.Attempted || inventory.Err != nil || sessions == nil {
-		return "", nil
-	}
-	for _, summary := range inventory.Value.Sessions {
-		if summary.ID == selectedID {
-			return selectedID, sessions.GetScrollback(selectedID)
-		}
-	}
-	return "", nil
 }
 
 func tokenReadError(stage string, err error) error {

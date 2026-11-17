@@ -87,7 +87,7 @@ func (c *Coordinator) invalidateSessionRequestsOnNavigation(vt ViewType) {
 // from a handler in handleSpecialMessages / handleSessionMessages, which
 // return early and never write c.views.
 //
-// Leaving the dashboard also drops the preview subscription. navigateTo does
+// Leaving the dashboard also releases the selected-session center. navigateTo does
 // not touch the error banner: that is cleared by the next keypress (see
 // Update), so an ErrorMsg batched beside a NavigateMsg survives either order.
 func (c *Coordinator) navigateTo(vt ViewType) tea.Cmd {
@@ -118,12 +118,12 @@ func (c *Coordinator) navigateTo(vt ViewType) tea.Cmd {
 		c.editorEpoch++
 	}
 	if c.currentView == ViewDashboard && vt != ViewDashboard {
-		c.preview.unsubscribe()
+		c.suspendCenter()
 	}
 	c.prevView = c.currentView
 	c.currentView = vt
 	if view, ok := c.views[vt]; ok {
-		return view.Init()
+		return tea.Batch(view.Init(), c.reconcileCenter())
 	}
 	return nil
 }
@@ -158,18 +158,6 @@ func (c *Coordinator) broadcastData(msg messages.DataLoadedMsg) {
 	for _, view := range c.views {
 		if dataReceiver, ok := view.(messages.DataReceiver); ok {
 			dataReceiver.SetData(msg)
-		}
-	}
-}
-
-// broadcastPreview delivers a partial, preview-only update to the views that
-// render a live session preview. Unlike broadcastData, this never reaches
-// DataReceiver.SetData - see messages.PreviewDataMsg for why the two must
-// stay separate.
-func (c *Coordinator) broadcastPreview(msg messages.PreviewDataMsg) {
-	for _, view := range c.views {
-		if previewReceiver, ok := view.(messages.PreviewReceiver); ok {
-			previewReceiver.SetPreviewData(msg)
 		}
 	}
 }

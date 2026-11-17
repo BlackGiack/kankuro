@@ -29,35 +29,28 @@
   },
   {
     "path": "internal/app/coordinator.go",
-    "symbol": "type Coordinator @49:63",
+    "symbol": "type Coordinator @86:10",
     "dependency": "github.com/BlackGiack/kankuro/internal/session.Manager",
     "owner": "7",
     "reason": "Existing composition, attachment and deletion adapter exposure remains owned by feature 7; see docs/frontend-boundary.md."
   },
   {
     "path": "internal/app/coordinator.go",
-    "symbol": "type Coordinator @85:10",
+    "symbol": "func NewCoordinator @93:65",
     "dependency": "github.com/BlackGiack/kankuro/internal/session.Manager",
     "owner": "7",
     "reason": "Existing composition, attachment and deletion adapter exposure remains owned by feature 7; see docs/frontend-boundary.md."
   },
   {
     "path": "internal/app/coordinator.go",
-    "symbol": "func NewCoordinator @92:65",
+    "symbol": "func Update @164:45",
     "dependency": "github.com/BlackGiack/kankuro/internal/session.Manager",
     "owner": "7",
     "reason": "Existing composition, attachment and deletion adapter exposure remains owned by feature 7; see docs/frontend-boundary.md."
   },
   {
     "path": "internal/app/coordinator.go",
-    "symbol": "func Update @163:45",
-    "dependency": "github.com/BlackGiack/kankuro/internal/session.Manager",
-    "owner": "7",
-    "reason": "Existing composition, attachment and deletion adapter exposure remains owned by feature 7; see docs/frontend-boundary.md."
-  },
-  {
-    "path": "internal/app/coordinator.go",
-    "symbol": "type Coordinator @89:10",
+    "symbol": "type Coordinator @90:10",
     "dependency": "github.com/BlackGiack/kankuro/internal/api.Service",
     "owner": "7",
     "reason": "Existing composition, attachment and deletion adapter exposure remains owned by feature 7; see docs/frontend-boundary.md."

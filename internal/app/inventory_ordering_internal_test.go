@@ -42,8 +42,8 @@ func TestInventoryPublishersShareOrdering(t *testing.T) {
 			if selected, ok := dashboard.SessionList().Selected(); !ok || selected.ID != "session" {
 				t.Fatalf("selected identity changed: %+v, %v", selected, ok)
 			}
-			if dashboard.PreviewSessionID() != "session" {
-				t.Fatalf("preview selection changed: %q", dashboard.PreviewSessionID())
+			if dashboard.CenterSessionID() != "session" {
+				t.Fatalf("preview selection changed: %q", dashboard.CenterSessionID())
 			}
 		})
 	}

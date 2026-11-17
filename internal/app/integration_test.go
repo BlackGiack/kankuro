@@ -80,9 +80,9 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 	}
 	selected, selectedOK := dashboard.SessionList().Selected()
 	if !selectedOK || selected.ID != launch.Result.SessionID || dashboard.FocusedPane() != views.PaneSessions ||
-		dashboard.PreviewSessionID() != launch.Result.SessionID {
+		dashboard.CenterSessionID() != launch.Result.SessionID {
 		t.Fatalf("launched session was not selected: selected=%+v ok=%v pane=%v preview=%q", selected, selectedOK,
-			dashboard.FocusedPane(), dashboard.PreviewSessionID())
+			dashboard.FocusedPane(), dashboard.CenterSessionID())
 	}
 	if dashboard.Search().SessionsQuery != "Agent" {
 		t.Fatalf("matching initial session name did not preserve filter: %+v", dashboard.Search())
@@ -116,9 +116,9 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 		coord.Update(refreshMsg)
 	}
 	selected, selectedOK = dashboard.SessionList().Selected()
-	if !selectedOK || selected.ID != launch.Result.SessionID || dashboard.PreviewSessionID() != launch.Result.SessionID {
+	if !selectedOK || selected.ID != launch.Result.SessionID || dashboard.CenterSessionID() != launch.Result.SessionID {
 		t.Fatalf("detachment refresh changed launched session selection: selected=%+v ok=%v preview=%q", selected,
-			selectedOK, dashboard.PreviewSessionID())
+			selectedOK, dashboard.CenterSessionID())
 	}
 	if dashboard.Search().SessionsQuery != "" {
 		t.Fatalf("filter that no longer matches confirmed name was not cleared: %+v", dashboard.Search())

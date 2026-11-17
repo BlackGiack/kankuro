@@ -13,7 +13,7 @@ import (
 
 // The views are laid out for a terminal of at least views.MinTerminalWidth ×
 // views.MinTerminalHeight. Below that they have no defined shape (the dashboard's
-// preview pane would get a negative width, the card editor cannot fit), so the
+// center pane would get a negative width, the card editor cannot fit), so the
 // coordinator replaces whatever the current view would draw with a notice, and
 // drops keys so that a keypress aimed at a screen the user cannot see does not
 // launch or delete anything. Everything that is not a keypress keeps flowing,
