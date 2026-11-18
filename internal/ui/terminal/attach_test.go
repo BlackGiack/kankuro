@@ -16,6 +16,7 @@ type testAttachment struct {
 	input  bytes.Buffer
 	closed bool
 	short  bool
+	writes []string
 }
 
 func (*testAttachment) Initial() contracts.AttachmentInitial { return contracts.AttachmentInitial{} }
@@ -34,6 +35,7 @@ func (a *testAttachment) Write(p []byte) (int, error) {
 	if a.short {
 		return 0, nil
 	}
+	a.writes = append(a.writes, string(p))
 	return a.input.Write(p)
 }
 func (*testAttachment) Resize(int, int) error { return nil }
@@ -74,5 +76,56 @@ func TestSetupFailureClosesAttachment(t *testing.T) {
 	c.SetStdout(io.Discard)
 	if err := c.Run(); err == nil || !a.closed {
 		t.Fatalf("error = %v, closed = %v", err, a.closed)
+	}
+}
+
+func TestInputDecoderPreservesNonmatchingAndTimedOutPrefix(t *testing.T) {
+	a := &testAttachment{}
+	d := inputDecoder{command: &Command{handle: a}}
+	for _, chunk := range []string{"a\x1b[10", "8;5ub", "\x1b"} {
+		if err := d.forward([]byte(chunk)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := a.input.String(); got != "a\x1b[108;5ub" {
+		t.Fatalf("forwarded %q", got)
+	}
+	if err := d.flush(); err != nil {
+		t.Fatal(err)
+	}
+	if got := a.input.String(); got != "a\x1b[108;5ub\x1b" {
+		t.Fatalf("flushed %q", got)
+	}
+}
+
+func TestInputDecoderPreservesWholeOrdinaryKeyWrite(t *testing.T) {
+	for _, input := range []string{"\x1b[A", "text\x1b[Aafter", "\x1bx"} {
+		t.Run(input, func(t *testing.T) {
+			a := &testAttachment{}
+			d := inputDecoder{command: &Command{handle: a}}
+			if err := d.forward([]byte(input)); err != nil {
+				t.Fatal(err)
+			}
+			if len(a.writes) != 1 || a.writes[0] != input {
+				t.Fatalf("writes = %q, want one write of %q", a.writes, input)
+			}
+		})
+	}
+}
+
+func TestInputDecoderSplitDetach(t *testing.T) {
+	a := &testAttachment{}
+	d := inputDecoder{command: &Command{handle: a, stop: make(chan struct{})}}
+	if err := d.forward([]byte("before\x1b[107;")); err != nil {
+		t.Fatal(err)
+	}
+	if len(a.writes) != 1 || a.writes[0] != "before" {
+		t.Fatalf("first writes = %q", a.writes)
+	}
+	if err := d.forward([]byte("5uafter")); !errors.Is(err, errDetach) {
+		t.Fatalf("second chunk: %v", err)
+	}
+	if len(a.writes) != 1 {
+		t.Fatalf("key or trailing bytes forwarded: %q", a.writes)
 	}
 }

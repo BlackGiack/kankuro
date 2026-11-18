@@ -16,15 +16,43 @@ import (
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
 
-func newLaunchFocusCoordinator(t *testing.T, sessions ...session.Snapshot) (*Coordinator, *views.Dashboard) {
+type focusConfiguration struct{ configurationPort }
+
+func (focusConfiguration) DefaultSettings() contracts.Settings {
+	return contracts.Settings{ShowPersonasInCardEditor: true, ShowMCPsInCardEditor: true}
+}
+func (focusConfiguration) SaveSettings(contracts.Settings) error { return nil }
+func (focusConfiguration) SaveMCP(value contracts.MCPEditor) (contracts.MCPEditor, error) {
+	return value, nil
+}
+
+// Focus-only tests inject inert capabilities and supply scoped results directly.
+func newLaunchFocusCoordinator(t *testing.T, sessions ...contracts.SessionSummary) (*Coordinator, *views.Dashboard) {
 	t.Helper()
-	coordinator, dashboard, _, _ := newLaunchFocusCoordinatorWithRepo(t, sessions...)
+	coordinator := NewCoordinator(Capabilities{
+		Configuration: focusConfiguration{}, Center: centerTestPort{}, Actions: &fakeSessionPort{},
+	}, nil)
+	coordinator.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	coordinator.Update(messages.DashboardOpenRequestedMsg{
+		DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive,
+	})
+	dashboard := coordinator.views[ViewDashboard].(*views.Dashboard)
+	coordinator.launchCardID = "test-card"
+	coordinator.views[ViewSessionLauncher].(*views.SessionLauncher).SetCard(contracts.CardSummary{ID: "test-card"})
+	setFocusSummaries(dashboard, sessions...)
 	return coordinator, dashboard
 }
 
+func setFocusSummaries(dashboard *views.Dashboard, sessions ...contracts.SessionSummary) {
+	dashboard.SetInventory(
+		contracts.ReadResult[contracts.DashboardInventory]{Attempted: true, Value: contracts.DashboardInventory{Sessions: sessions}},
+		contracts.DisplayChoicesResult{},
+	)
+}
+
+// Real repository/service fixture for tests that verify persistence and refresh.
 func newLaunchFocusCoordinatorWithRepo(
 	t *testing.T,
-	sessions ...session.Snapshot,
 ) (*Coordinator, *views.Dashboard, *config.FileRepository, *session.Manager) {
 	t.Helper()
 	root := t.TempDir()
@@ -44,7 +72,7 @@ func newLaunchFocusCoordinatorWithRepo(
 	dashboard := coordinator.views[ViewDashboard].(*views.Dashboard)
 	coordinator.launchCardID = "test-card"
 	coordinator.views[ViewSessionLauncher].(*views.SessionLauncher).SetCard(contracts.CardSummary{ID: "test-card"})
-	setFocusedSessionSnapshots(dashboard, sessions)
+	setFocusedSessionSnapshots(dashboard, nil)
 	return coordinator, dashboard, repo, manager
 }
 
@@ -66,23 +94,23 @@ func launchCompleted(coordinator *Coordinator, sessionID string, err error) mess
 
 func TestLaunchFocusSnapshotBeforeCompletion(t *testing.T) {
 	coordinator, dashboard := newLaunchFocusCoordinator(t,
-		session.Snapshot{ID: "existing", Name: "Existing"},
-		session.Snapshot{ID: "new", Name: "New"},
+		contracts.SessionSummary{ID: "existing", Name: "Existing"},
+		contracts.SessionSummary{ID: "new", Name: "New"},
 	)
 	coordinator.Update(launchCompleted(coordinator, "new", nil))
 	assertFocusedSession(t, dashboard, "new")
 }
 
 func TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName(t *testing.T) {
-	oldSession := session.Snapshot{ID: "old", Name: "Agent", StartedAt: time.Unix(1, 0)}
-	newSession := session.Snapshot{ID: "new", Name: "Agent", StartedAt: time.Unix(2, 0)}
+	oldSession := contracts.SessionSummary{ID: "old", Name: "Agent", StartedAt: time.Unix(1, 0)}
+	newSession := contracts.SessionSummary{ID: "new", Name: "Agent", StartedAt: time.Unix(2, 0)}
 	coordinator, dashboard := newLaunchFocusCoordinator(t, oldSession)
 	preLaunchEpoch := coordinator.sessionEpoch
 	coordinator.Update(messages.ScopedNavigateMsg{
 		View: messages.ViewSessionLauncher, DashboardID: coordinator.activeDashboard, Generation: coordinator.viewGeneration,
 	})
 	coordinator.Update(launchCompleted(coordinator, newSession.ID, nil))
-	setFocusedSessionSnapshots(dashboard, []session.Snapshot{oldSession, newSession})
+	setFocusSummaries(dashboard, oldSession, newSession)
 	assertFocusedSession(t, dashboard, newSession.ID)
 
 	coordinator.Update(messages.ScopedSessionNamedMsg{
@@ -92,7 +120,9 @@ func TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName(t *testing.T) {
 	stale := messages.SessionsRefreshedMsg{
 		DashboardID: coordinator.activeDashboard, Generation: coordinator.viewGeneration,
 		SessionEpoch: preLaunchEpoch,
-		Inventory:    contracts.ReadResult[contracts.DashboardInventory]{Attempted: true, Value: sessionInventory(oldSession)},
+		Inventory: contracts.ReadResult[contracts.DashboardInventory]{
+			Attempted: true, Value: contracts.DashboardInventory{Sessions: []contracts.SessionSummary{oldSession}},
+		},
 	}
 	coordinator.Update(stale)
 	assertFocusedSession(t, dashboard, newSession.ID)
@@ -101,7 +131,9 @@ func TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName(t *testing.T) {
 	current := messages.SessionsRefreshedMsg{
 		DashboardID: coordinator.activeDashboard, Generation: coordinator.viewGeneration,
 		SessionEpoch: coordinator.sessionEpoch,
-		Inventory:    contracts.ReadResult[contracts.DashboardInventory]{Attempted: true, Value: sessionInventory(oldSession, newSession)},
+		Inventory: contracts.ReadResult[contracts.DashboardInventory]{
+			Attempted: true, Value: contracts.DashboardInventory{Sessions: []contracts.SessionSummary{oldSession, newSession}},
+		},
 	}
 	coordinator.Update(current)
 	assertFocusedSession(t, dashboard, newSession.ID)
@@ -117,7 +149,7 @@ func TestLaunchFocusFailureAndEmptyIDDoNotMoveFocus(t *testing.T) {
 		{name: "empty ID"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			coordinator, dashboard := newLaunchFocusCoordinator(t, session.Snapshot{ID: "existing", Name: "Existing"})
+			coordinator, dashboard := newLaunchFocusCoordinator(t, contracts.SessionSummary{ID: "existing", Name: "Existing"})
 			coordinator.Update(launchCompleted(coordinator, test.sessionID, test.err))
 			selected, ok := dashboard.SessionList().Selected()
 			if !ok || selected.ID != "existing" || dashboard.FocusedPane() != views.PaneCards {
@@ -129,8 +161,8 @@ func TestLaunchFocusFailureAndEmptyIDDoNotMoveFocus(t *testing.T) {
 
 func TestLaunchFocusPersistenceWarningStillSelectsSession(t *testing.T) {
 	coordinator, dashboard := newLaunchFocusCoordinator(t,
-		session.Snapshot{ID: "existing", Name: "Existing"},
-		session.Snapshot{ID: "new", Name: "New"},
+		contracts.SessionSummary{ID: "existing", Name: "Existing"},
+		contracts.SessionSummary{ID: "new", Name: "New"},
 	)
 	warning := errors.Join(session.ErrPersistFailed, errors.New("disk full"))
 	coordinator.Update(launchCompleted(coordinator, "new", warning))
@@ -151,7 +183,7 @@ func TestLaunchFocusIgnoresStaleResults(t *testing.T) {
 		{name: "generation", dashboardID: "default", generation: func(c *Coordinator) uint64 { return c.viewGeneration - 1 }},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			coordinator, dashboard := newLaunchFocusCoordinator(t, session.Snapshot{ID: "existing", Name: "Existing"})
+			coordinator, dashboard := newLaunchFocusCoordinator(t, contracts.SessionSummary{ID: "existing", Name: "Existing"})
 			coordinator.Update(messages.SessionLaunchCompletedMsg{
 				Result: contracts.LifecycleResult{
 					Effect:              contracts.UsableActivation,
@@ -170,7 +202,7 @@ func TestLaunchFocusIgnoresStaleResults(t *testing.T) {
 }
 
 func TestLaunchFocusPendingRequestIsCancelledOnDashboardExit(t *testing.T) {
-	coordinator, dashboard := newLaunchFocusCoordinator(t, session.Snapshot{ID: "existing", Name: "Existing"})
+	coordinator, dashboard := newLaunchFocusCoordinator(t, contracts.SessionSummary{ID: "existing", Name: "Existing"})
 	staleLaunch := launchCompleted(coordinator, "new", nil)
 	coordinator.Update(staleLaunch)
 	coordinator.Update(messages.DashboardListRequestedMsg{
@@ -180,10 +212,10 @@ func TestLaunchFocusPendingRequestIsCancelledOnDashboardExit(t *testing.T) {
 		DashboardID: "default", DashboardName: "Default", DashboardState: contracts.DashboardActive,
 	})
 	coordinator.Update(staleLaunch)
-	setFocusedSessionSnapshots(dashboard, []session.Snapshot{
+	setFocusSummaries(dashboard, []contracts.SessionSummary{
 		{ID: "existing", Name: "Existing"},
 		{ID: "new", Name: "New"},
-	})
+	}...)
 	selected, ok := dashboard.SessionList().Selected()
 	if !ok || selected.ID != "existing" || dashboard.FocusedPane() != views.PaneCards {
 		t.Fatalf("pending focus crossed dashboard exit: selected=%+v ok=%v pane=%v", selected, ok, dashboard.FocusedPane())

@@ -34,7 +34,7 @@ func TestSettingsSaveCompletionRespectsVisitAndDraft(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		for _, destination := range []string{"source", "reopened", "new draft"} {
 			t.Run(destination+map[bool]string{true: " failure", false: " success"}[fail], func(t *testing.T) {
-				c, _ := newLaunchFocusCoordinator(t)
+				c, _, _, _ := newLaunchFocusCoordinatorWithRepo(t)
 				failure := errors.New("save failed")
 				override := pendingSaveOverride{configurationPort: c.configuration}
 				if fail {
@@ -102,7 +102,7 @@ func TestSettingsSaveCompletionRespectsVisitAndDraft(t *testing.T) {
 }
 
 func TestMCPSavePendingBlocksEditingAndRecoversOnFailure(t *testing.T) {
-	c, _ := newLaunchFocusCoordinator(t)
+	c, _, _, _ := newLaunchFocusCoordinatorWithRepo(t)
 	failure := errors.New("save failed")
 	c.configuration = pendingSaveOverride{configurationPort: c.configuration, mcpErr: failure}
 	c.navigateTo(ViewMCPForm)
@@ -144,7 +144,7 @@ func TestSettingsPendingBlocksEditAndAllowsRetryAfterFailure(t *testing.T) {
 		{"edit", tea.KeyPressMsg{Text: "e"}},
 	} {
 		t.Run(key.name, func(t *testing.T) {
-			c, _ := newLaunchFocusCoordinator(t)
+			c, _, _, _ := newLaunchFocusCoordinatorWithRepo(t)
 			failure := errors.New("settings save failed")
 			base := c.configuration
 			c.configuration = pendingSaveOverride{configurationPort: base, settingsErr: failure}
@@ -184,7 +184,7 @@ func TestSettingsPendingBlocksEditAndAllowsRetryAfterFailure(t *testing.T) {
 }
 
 func TestMCPSavePendingCommitsOnlyDisplayedDraft(t *testing.T) {
-	c, _ := newLaunchFocusCoordinator(t)
+	c, _, _, _ := newLaunchFocusCoordinatorWithRepo(t)
 	c.navigateTo(ViewMCPForm)
 	form := c.views[ViewMCPForm].(*views.MCPForm)
 	form.Inputs()[0].SetValue("first")

@@ -8,7 +8,7 @@ Attachments are owned resources: the backend owns the subscribed activation, inp
 
 ## Exceptions and test support
 
-There are no production frontend import or transitive type-exposure exceptions. `internal/ui/uitest/shape.go` is the sole direct-import exception: it is shared exclusively by tests and its dependency is checked by the architecture test. The transitive exposure allowlist is empty. Real-backend integration tests may import backend packages; production frontend code may not. `go test ./internal/architecture/...` enforces these directions and detects stale exceptions.
+Both direct-import and transitive type-exposure allowlists are empty. Shared rendering assertions use neutral types. Real-backend integration tests may import backend packages; production frontend code may not. `go test ./internal/architecture/...` enforces these directions and detects stale exceptions.
 
 ## Behavior and evidence to preserve
 

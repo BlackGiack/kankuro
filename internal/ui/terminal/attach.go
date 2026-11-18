@@ -1,7 +1,6 @@
 package terminal
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	cterm "github.com/charmbracelet/x/term"
@@ -21,8 +21,12 @@ import (
 const (
 	detachKey = 11
 
-	inputBufferSize = 256
-	pollTimeout     = 100
+	inputBufferSize        = 256
+	pollTimeout            = 100
+	escapeAmbiguityTimeout = 30 * time.Millisecond
+	kittyPrefixTimeout     = 750 * time.Millisecond
+	kittyDetachPrefix      = "\x1b[107;"
+	kittyMaxModifierDigits = 9
 )
 
 type Command struct {
@@ -172,8 +176,14 @@ func (e *Command) pumpInput(stdinFile *os.File, resizeCh <-chan os.Signal, write
 		return fmt.Errorf("file descriptor %d out of range", fdUint)
 	}
 	fd := int32(fdUint)
+	input := inputDecoder{command: e}
 
 	for {
+		if len(input.pending) > 0 && !time.Now().Before(input.deadline()) {
+			if err := input.flush(); err != nil {
+				return err
+			}
+		}
 		select {
 		case err := <-writeErr:
 			return err
@@ -185,7 +195,7 @@ func (e *Command) pumpInput(stdinFile *os.File, resizeCh <-chan os.Signal, write
 		}
 
 		poll := []unix.PollFd{{Fd: fd, Events: unix.POLLIN}}
-		n, err := unix.Poll(poll, pollTimeout)
+		n, err := unix.Poll(poll, input.pollTimeout())
 		if err != nil {
 			if errors.Is(err, unix.EINTR) {
 				continue
@@ -202,7 +212,7 @@ func (e *Command) pumpInput(stdinFile *os.File, resizeCh <-chan os.Signal, write
 		if readN == 0 {
 			continue
 		}
-		if errForward := e.forwardInput(buf[:readN]); errForward != nil {
+		if errForward := input.forward(buf[:readN]); errForward != nil {
 			if errors.Is(errForward, errDetach) {
 				return nil
 			}
@@ -211,56 +221,109 @@ func (e *Command) pumpInput(stdinFile *os.File, resizeCh <-chan os.Signal, write
 	}
 }
 
-func detectKittyDetach(buf []byte) int {
-	kittyPrefix := []byte("\x1b[107;")
-	i := bytes.Index(buf, kittyPrefix)
-	if i == -1 {
-		return -1
+// inputDecoder holds only a possible Kitty Ctrl+K prefix. A timeout releases
+// incomplete sequences so an ordinary Escape key does not remain buffered.
+type inputDecoder struct {
+	command      *Command
+	pending      []byte
+	pendingSince time.Time
+}
+
+func (d *inputDecoder) flush() error {
+	if len(d.pending) == 0 {
+		return nil
 	}
-	remaining := buf[i+len(kittyPrefix):]
-	modBytes, _, found := bytes.Cut(remaining, []byte("u"))
-	if !found {
-		return -1
+	err := writeAllOnce(d.command.handle, d.pending)
+	d.pending = nil
+	return err
+}
+
+func (d *inputDecoder) deadline() time.Time {
+	timeout := escapeAmbiguityTimeout
+	if len(d.pending) >= len(kittyDetachPrefix) {
+		timeout = kittyPrefixTimeout
 	}
-	mod, err := strconv.Atoi(string(modBytes))
-	if err != nil {
-		return -1
+	return d.pendingSince.Add(timeout)
+}
+
+func (d *inputDecoder) pollTimeout() int {
+	if len(d.pending) == 0 {
+		return pollTimeout
 	}
-	if (mod-1)&4 != 0 {
-		return i
+	remaining := time.Until(d.deadline())
+	if remaining <= 0 {
+		return 0
 	}
-	return -1
+	milliseconds := int((remaining + time.Millisecond - 1) / time.Millisecond)
+	return min(pollTimeout, milliseconds)
+}
+
+//nolint:gocognit,nestif // Streaming key parsing preserves ordering across partial reads.
+func (d *inputDecoder) forward(data []byte) error {
+	plain := make([]byte, 0, len(d.pending)+len(data))
+	for _, b := range data {
+		// A rejected prefix joins this read's ordinary bytes before the shared gate.
+		for {
+			if len(d.pending) == 0 {
+				if b == detachKey {
+					if len(plain) > 0 {
+						if err := writeAllOnce(d.command.handle, plain); err != nil {
+							return err
+						}
+					}
+					d.command.stopOutput()
+					return errDetach
+				}
+				if b == kittyDetachPrefix[0] {
+					d.pending = append(d.pending, b)
+					d.pendingSince = time.Now()
+				} else {
+					plain = append(plain, b)
+				}
+				break
+			}
+			n := len(d.pending)
+			if n < len(kittyDetachPrefix) && b == kittyDetachPrefix[n] {
+				d.pending = append(d.pending, b)
+				if len(d.pending) == len(kittyDetachPrefix) {
+					d.pendingSince = time.Now()
+				}
+				break
+			}
+			if n >= len(kittyDetachPrefix) && b >= '0' && b <= '9' && n-len(kittyDetachPrefix) < kittyMaxModifierDigits {
+				d.pending = append(d.pending, b)
+				break
+			}
+			if n > len(kittyDetachPrefix) && b == 'u' {
+				mod, parseErr := strconv.Atoi(string(d.pending[len(kittyDetachPrefix):]))
+				if parseErr == nil && mod > 0 && (mod-1)&4 != 0 {
+					if len(plain) > 0 {
+						if err := writeAllOnce(d.command.handle, plain); err != nil {
+							return err
+						}
+					}
+					d.pending = nil
+					d.command.stopOutput()
+					return errDetach
+				}
+			}
+			plain = append(plain, d.pending...)
+			d.pending = nil
+			// Reconsider the mismatching byte: it can itself begin a detach sequence.
+		}
+	}
+	if len(plain) > 0 {
+		return writeAllOnce(d.command.handle, plain)
+	}
+	return nil
 }
 
 func (e *Command) forwardInput(buf []byte) error {
-	// 1. Check for Kitty Protocol sequence: \x1b[107;<MODIFIER>u
-	idx := detectKittyDetach(buf)
-
-	// 2. Fallback to legacy Ctrl+K (0x0B / 11)
-	if idx == -1 {
-		idx = bytes.IndexByte(buf, byte(detachKey))
+	d := inputDecoder{command: e}
+	if err := d.forward(buf); err != nil {
+		return err
 	}
-
-	// 3. No signal? Send the whole buffer to the agent.
-	if idx == -1 {
-		if len(buf) > 0 {
-			return writeAllOnce(e.handle, buf)
-		}
-		return nil
-	}
-
-	// 4. Signal found!
-	// Write only the bytes that came BEFORE the hotkey to the agent.
-	if idx > 0 {
-		if err := writeAllOnce(e.handle, buf[:idx]); err != nil {
-			e.stopOutput()
-			return err
-		}
-	}
-
-	// 5. Trigger the detach logic immediately.
-	e.stopOutput()
-	return errDetach
+	return d.flush()
 }
 
 func writeAllOnce(w io.Writer, data []byte) error {

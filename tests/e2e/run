@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+if [ "${1:-}" != token-usage ]; then
+    echo "Usage: tests/e2e/run token-usage" >&2
+    exit 2
+fi
+
+cd "$(dirname "$0")/../.."
+KANKURO_E2E_TOKEN_USAGE=1 exec go test -tags=e2e,token_usage ./tests/e2e -run '^TestNativeAgentJourney$' -count=1 -timeout=5m -v

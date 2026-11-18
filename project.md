@@ -310,8 +310,9 @@ Testing practices:
   Native CLI configuration and built-in skill fixtures need isolated state and
   cleanup; tests that mutate shared built-in content must not run in parallel.
 - Drive coordinator behavior through `Update`, then inspect views/state. The
-  constructor is `app.NewCoordinator(repo, manager, service)`, with the shared
-  `api.Service`. Calling callbacks alone bypasses routing and view write-back.
+  constructor is `ui.NewCoordinator(ports, startupError)`, using independent
+  capabilities from `internal/api/contracts`. Main composes the application with
+  `ui.New(ui.Capabilities{…}, sm.LoadErrors())`. Calling callbacks alone bypasses routing and view write-back.
 - Test shared policy in `internal/api` without constructing a TUI. MCP tests
   exercise the transport over the real service; manager tests own process and
   persistence behavior. Close MCP clients/transports before their server.

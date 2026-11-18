@@ -494,3 +494,41 @@ func TestCenterNavigationRestoresWorkspaceAndClearsOnScopeLoss(t *testing.T) {
 		t.Fatal("scope rejection retained cached content")
 	}
 }
+
+type delayedCenterPort struct {
+	centerTestPort
+
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (p delayedCenterPort) ReadSessionReports(
+	_ context.Context, _ contracts.SessionReportsRequest,
+) (contracts.SessionReportsResult, error) {
+	close(p.entered)
+	<-p.release
+	return contracts.SessionReportsResult{Reports: []contracts.SessionReport{{Text: "old session report"}}}, nil
+}
+
+func TestCenterSwitchWhileReadInFlight(t *testing.T) {
+	c := centerTestCoordinator(t)
+	port := delayedCenterPort{entered: make(chan struct{}), release: make(chan struct{})}
+	c.center.port = port
+	cmd := c.centerRead()
+	result := make(chan tea.Msg, 1)
+	go func() { result <- cmd() }()
+	<-port.entered
+	c.clearCenter()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	//nolint:fatcontext // New selection intentionally owns a fresh context.
+	c.center.ctx = ctx
+	c.center.cancel = cancel
+	c.center.dashboardID = "new-dashboard"
+	c.center.sessionID = "new-session"
+	close(port.release)
+	c.handleCenter(<-result)
+	if c.center.dashboardID != "new-dashboard" || c.center.sessionID != "new-session" || len(c.center.data.Reports) != 0 {
+		t.Fatalf("stale read crossed selection: %+v", c.center.data)
+	}
+}

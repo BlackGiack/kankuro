@@ -110,7 +110,7 @@ func TestPuppetSelectorModalStaysWithinTheScreen(t *testing.T) {
 // not pad it down. Every puppet now has a fixed cell and the row scrolls.
 func TestPuppetSelectorModalClipsUserPuppets(t *testing.T) {
 	for _, sz := range modalSizes {
-		puppets := append(append([]config.Puppet(nil), builtinPuppetsForViews(t)...), uitest.UserPuppet(60, 12))
+		puppets := append(append([]config.Puppet(nil), builtinPuppetsForViews(t)...), userPuppet(60, 12))
 		e := newModalEditor(t, sz[0], sz[1], editorTestData{Puppets: puppets})
 		openModal(t, e, views.FocusPuppet)
 		uitest.AssertWithin(t, e.View(), sz[0], sz[1], fmt.Sprintf("user puppet %dx%d", sz[0], sz[1]))
@@ -208,8 +208,8 @@ func TestWorkspacePickerModalIsAnExactBox(t *testing.T) {
 func TestPuppetSelectorModalIsAnIntactBox(t *testing.T) {
 	for name, puppets := range map[string][]config.Puppet{
 		"builtin":    builtinPuppetsForViews(t),
-		"with-user":  append(append([]config.Puppet(nil), builtinPuppetsForViews(t)...), uitest.UserPuppet(30, 8)),
-		"user-alone": {uitest.UserPuppet(15, 4)},
+		"with-user":  append(append([]config.Puppet(nil), builtinPuppetsForViews(t)...), userPuppet(30, 8)),
+		"user-alone": {userPuppet(15, 4)},
 	} {
 		for cursor := range puppets {
 			m := views.NewPuppetSelectorModal()
@@ -266,7 +266,7 @@ func TestAgentsMDEditorModalHonoursItsWidth(t *testing.T) {
 func TestPuppetSelectorScrollsToTheCursor(t *testing.T) {
 	var puppets []config.Puppet
 	for i := range 14 {
-		p := uitest.UserPuppet(10, 5)
+		p := userPuppet(10, 5)
 		p.Name = fmt.Sprintf("user-%02d", i)
 		p.Lines[2] = fmt.Sprintf("|%-8d|", i) // tells the cells apart
 		puppets = append(puppets, p)

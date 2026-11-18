@@ -216,3 +216,110 @@ func TestTerminalPTYOutputEOFAndErrorRestore(t *testing.T) {
 		})
 	}
 }
+
+func TestTerminalPTYSplitKittyDetach(t *testing.T) {
+	master, slave, err := pty.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer master.Close()
+	defer slave.Close()
+	if err = pty.Setsize(slave, &pty.Winsize{Rows: 24, Cols: 80}); err != nil {
+		t.Fatal(err)
+	}
+	a := &ptyAttachment{output: make(chan []byte), sizes: make(chan [2]int, 1)}
+	var output lockedBuffer
+	c := New(a)
+	c.SetStdin(slave)
+	c.SetStdout(&output)
+	done := make(chan error, 1)
+	go func() { done <- c.Run() }()
+	select {
+	case <-a.sizes:
+	case <-time.After(3 * time.Second):
+		t.Fatal("setup timeout")
+	}
+	if _, err = master.WriteString("before\x1b[107;"); err != nil {
+		t.Fatal(err)
+	}
+	// Exercise a delayed continuation; the decoder test forces the split deterministically.
+	time.Sleep(250 * time.Millisecond)
+	if _, err = master.WriteString("5uafter"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err = <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("split key did not detach")
+	}
+	if got := a.input.String(); got != "before" {
+		t.Fatalf("child input = %q, want only preceding input", got)
+	}
+}
+
+type observedInputAttachment struct {
+	*ptyAttachment
+
+	writes chan string
+}
+
+func (a *observedInputAttachment) Write(p []byte) (int, error) {
+	a.writes <- string(p)
+	return len(p), nil
+}
+
+func TestTerminalPTYReleasesIncompleteEscape(t *testing.T) {
+	master, slave, err := pty.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer master.Close()
+	defer slave.Close()
+	if err = pty.Setsize(slave, &pty.Winsize{Rows: 24, Cols: 80}); err != nil {
+		t.Fatal(err)
+	}
+	a := &observedInputAttachment{
+		ptyAttachment: &ptyAttachment{output: make(chan []byte), sizes: make(chan [2]int, 1)},
+		writes:        make(chan string, 2),
+	}
+	var output lockedBuffer
+	c := New(a)
+	c.SetStdin(slave)
+	c.SetStdout(&output)
+	done := make(chan error, 1)
+	go func() { done <- c.Run() }()
+	select {
+	case <-a.sizes:
+	case <-time.After(3 * time.Second):
+		t.Fatal("setup timeout")
+	}
+	start := time.Now()
+	if _, err = master.WriteString("\x1b"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case got := <-a.writes:
+		if got != "\x1b" {
+			t.Fatalf("input %q", got)
+		}
+		if elapsed := time.Since(start); elapsed > 250*time.Millisecond {
+			t.Fatalf("Escape took %v to reach the child", elapsed)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("incomplete Escape was not released")
+	}
+	if _, err = master.WriteString("\x0b"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err = <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("detach timeout")
+	}
+}

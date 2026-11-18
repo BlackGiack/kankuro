@@ -26,7 +26,13 @@ import (
 // prompt. Enter after detach must attach to the created session, not launch a
 // second session from the card or relaunch the older session.
 func TestNativeLaunchFocusReturn(t *testing.T) {
-	j := newLaunchFocusJourney(t)
+	j := newLaunchFocusJourney(t, "")
+	runLaunchFocus(j)
+	j.finish()
+}
+
+func runLaunchFocus(j *nativeJourney) session.Data {
+	t := j.t
 	j.run.Stage = "launch"
 	j.expect("Dashboards")
 	j.press("Enter")
@@ -68,10 +74,10 @@ func TestNativeLaunchFocusReturn(t *testing.T) {
 		"reattached",
 		"Enter without pane navigation reattaches to the same live process; exactly two persisted sessions remain and the older session stays terminated.",
 	)
-	j.finish()
+	return created
 }
 
-func newLaunchFocusJourney(t *testing.T) *nativeJourney {
+func newLaunchFocusJourney(t *testing.T, workspaceMode string) *nativeJourney {
 	t.Helper()
 	if _, err := exec.LookPath("codex"); err != nil {
 		t.Skip("startup-only launch-focus test requires Codex on PATH")
@@ -87,8 +93,11 @@ func newLaunchFocusJourney(t *testing.T) *nativeJourney {
 		artifacts, err = filepath.Abs(override)
 		must(t, err)
 	}
+	if workspaceMode != "" {
+		artifacts = filepath.Join(artifacts, workspaceMode)
+	}
 	must(t, os.MkdirAll(artifacts, 0o700))
-	for _, name := range []string{"attached.png", "dashboard.png", "reattached.png", "failure.png", "result.json"} {
+	for _, name := range []string{"attached.png", "dashboard.png", "reattached.png", "failure.png", "result.json", "workspace-initial.png", "workspace-updated.png", "minimum-size.png", "stopped.png", "relaunched.png", "report-after-relaunch.png", "restart-report.png"} {
 		if removeErr := os.Remove(filepath.Join(artifacts, name)); removeErr != nil && !os.IsNotExist(removeErr) {
 			t.Fatal(removeErr)
 		}
@@ -97,6 +106,9 @@ func newLaunchFocusJourney(t *testing.T) *nativeJourney {
 		Agent: "codex", Revision: "WORKTREE", Fingerprint: sourceFingerprint(t, root),
 		Command:   "go test -tags=e2e ./tests/e2e -run '^TestNativeLaunchFocusReturn$' -count=1 -timeout=3m -v",
 		StartedAt: time.Now().UTC(), Size: [2]int{120, 40}, Stage: "setup",
+	}
+	if workspaceMode != "" {
+		run.Command = "go test -tags=e2e ./tests/e2e -run '^TestCodexOfflineWorkspaceAndReports$/" + workspaceMode + "$' -count=1 -timeout=3m -v"
 	}
 	t.Cleanup(func() {
 		if sourceFingerprint(t, root) != run.Fingerprint {
@@ -124,6 +136,12 @@ func newLaunchFocusJourney(t *testing.T) *nativeJourney {
 	})
 	workspace := filepath.Join(sandbox, "workspace")
 	must(t, os.MkdirAll(workspace, 0o700))
+	if workspaceMode == "git" {
+		git := exec.Command("git", "init", "-q")
+		git.Dir = workspace
+		must(t, git.Run())
+		must(t, os.WriteFile(filepath.Join(workspace, ".git/info/exclude"), []byte(".kankuro/\n.agents/\nAGENTS.md\n"), 0600))
+	}
 	configDir := filepath.Join(sandbox, "config")
 	must(t, os.MkdirAll(configDir, 0o700))
 	must(t, configstartup.PrepareStartup(configDir))
@@ -148,6 +166,9 @@ func newLaunchFocusJourney(t *testing.T) *nativeJourney {
 	must(t, err)
 	must(t, os.MkdirAll(filepath.Join(configDir, "sessions"), 0o700))
 	must(t, os.WriteFile(filepath.Join(configDir, "sessions/older-session.json"), data, 0o600))
+	if workspaceMode != "" {
+		seedOfflineReport(t, configDir, older.ID)
+	}
 	binary := filepath.Join(sandbox, "kankuro")
 	buildCtx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
@@ -194,26 +215,24 @@ func stopCodexUpdater(t *testing.T, codexHome string) {
 	}
 }
 
-// Copy only login credentials. User hooks, instructions, plugins and MCP servers
-// are deliberately absent; this scenario only opens an empty input screen.
+// Use a synthetic key and an unreachable loopback provider for idle Codex tests.
 func startupOnlyCodexEnvironment(t *testing.T, sandbox string) map[string]string {
 	t.Helper()
-	home, err := os.UserHomeDir()
-	must(t, err)
-	source := os.Getenv("CODEX_HOME")
-	if source == "" {
-		source = filepath.Join(home, ".codex")
-	}
-	home = filepath.Join(sandbox, "home")
+	home := filepath.Join(sandbox, "home")
 	codexHome := filepath.Join(home, ".codex")
 	must(t, os.MkdirAll(codexHome, 0o700))
-	copyConfiguration(t, filepath.Join(source, "auth.json"), filepath.Join(codexHome, "auth.json"))
-	must(t, os.WriteFile(filepath.Join(codexHome, "config.toml"), []byte("check_for_update_on_startup = false\n"), 0o600))
+	const endpoint = "http://127.0.0.1:1"
+	const fixtureKey = "appediff-offline-fixture"
+	must(t, os.WriteFile(filepath.Join(codexHome, "auth.json"), []byte(`{"OPENAI_API_KEY":"`+fixtureKey+`"}`), 0600))
+	settings := "check_for_update_on_startup = false\nmodel = \"gpt-6-sol\"\nopenai_base_url = \"" + endpoint + "/v1\"\n"
+	must(t, os.WriteFile(filepath.Join(codexHome, "config.toml"), []byte(settings), 0600))
 	return map[string]string{
 		"HOME": home, "CODEX_HOME": codexHome, "XDG_CONFIG_HOME": filepath.Join(home, ".config"),
 		"XDG_DATA_HOME": filepath.Join(home, ".local/share"), "XDG_STATE_HOME": filepath.Join(home, ".local/state"),
 		"XDG_CACHE_HOME": filepath.Join(home, ".cache"), "TERM": "xterm-256color", "COLORTERM": "truecolor",
 		"NO_COLOR": "", "CLICOLOR_FORCE": "1",
+		"OPENAI_API_KEY": fixtureKey, "OPENAI_BASE_URL": endpoint + "/v1",
+		"HTTP_PROXY": endpoint, "HTTPS_PROXY": endpoint, "ALL_PROXY": endpoint, "NO_PROXY": "localhost,127.0.0.1",
 	}
 }
 

@@ -62,7 +62,7 @@ type dashboardData struct {
 func dashboardFixtures(t testing.TB, d dashboardData) dashboardFixture {
 	t.Helper()
 	names := uitest.AdversarialNames
-	puppets := append(append([]config.Puppet(nil), builtinPuppetsForViews(t)...), uitest.UserPuppet(60, 20))
+	puppets := append(append([]config.Puppet(nil), builtinPuppetsForViews(t)...), userPuppet(60, 20))
 	statuses := []session.Status{session.StatusRunning, session.StatusWaiting, session.StatusTerminated}
 	skillNames := []string{"architecture", "clean-code", "golang", "plan-writing", "日本語のスキル"}
 
