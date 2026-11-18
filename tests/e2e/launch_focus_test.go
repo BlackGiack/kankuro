@@ -54,12 +54,14 @@ func runLaunchFocus(j *nativeJourney) session.Data {
 	j.expect("[Session] Enter=Attach")
 	j.expect("Created focus session")
 	j.expect("Older session")
+	j.expect("Started:")
+	j.expect("Card: Focus E2E")
 	state, err := j.terminal.State()
 	must(t, err)
 	if state.Cols != 120 || state.Rows != 40 {
 		t.Fatalf("dashboard terminal size = %dx%d, want 120x40", state.Cols, state.Rows)
 	}
-	j.capture("dashboard", "Ctrl+K restores the dashboard with both sessions visible and session-pane action hints, without pressing Tab.")
+	j.capture("dashboard", "Ctrl+K restores the dashboard with both sessions, action hints and the selected session header.")
 
 	// Check keyboard restoration without changing the sessions selection.
 	j.press("c")
@@ -97,7 +99,7 @@ func newLaunchFocusJourney(t *testing.T, workspaceMode string) *nativeJourney {
 		artifacts = filepath.Join(artifacts, workspaceMode)
 	}
 	must(t, os.MkdirAll(artifacts, 0o700))
-	for _, name := range []string{"attached.png", "dashboard.png", "reattached.png", "failure.png", "result.json", "workspace-initial.png", "workspace-updated.png", "minimum-size.png", "stopped.png", "relaunched.png", "report-after-relaunch.png", "restart-report.png"} {
+	for _, name := range []string{"attached.png", "dashboard.png", "reattached.png", "failure.png", "result.json", "workspace-initial.png", "workspace-updated.png", "supported-minimum.png", "minimum-size.png", "stopped.png", "relaunched.png", "report-after-relaunch.png", "restart-report.png"} {
 		if removeErr := os.Remove(filepath.Join(artifacts, name)); removeErr != nil && !os.IsNotExist(removeErr) {
 			t.Fatal(removeErr)
 		}

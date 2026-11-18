@@ -43,6 +43,13 @@ func checkOfflineWorkspace(j *nativeJourney, workspace, mode string) {
 	must(t, os.WriteFile(filepath.Join(workspace, file), []byte("offline fixture"), 0600))
 	expectWithTimeout(t, j.terminal, file, 45*time.Second)
 	j.capture("workspace-updated", "The live workspace refresh displays the new file.")
+	if mode == "directory" {
+		must(t, j.terminal.Resize(80, 24))
+		j.expect("Active Sessions")
+		j.expect("ID:")
+		j.expect("Direc...")
+		j.capture("supported-minimum", "At 80×24 the selected session header and directory body remain visible.")
+	}
 	must(t, j.terminal.Resize(60, 20))
 	j.expect("Terminal too small")
 	j.capture("minimum-size", "At 60×20 cells the dashboard displays its minimum-size warning.")

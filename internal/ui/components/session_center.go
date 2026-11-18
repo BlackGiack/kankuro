@@ -16,27 +16,27 @@ import (
 type SessionCenter struct {
 	component.Base
 
-	sessionID string
-	data      models.SessionCenterData
+	session models.SessionRow
+	data    models.SessionCenterData
 }
 
 func NewSessionCenter() *SessionCenter                               { return &SessionCenter{} }
 func (p *SessionCenter) Init() tea.Cmd                               { return nil }
 func (p *SessionCenter) Update(_ tea.Msg) (component.Model, tea.Cmd) { return p, nil }
-func (p *SessionCenter) SessionID() string                           { return p.sessionID }
+func (p *SessionCenter) SessionID() string                           { return p.session.ID }
 func (p *SessionCenter) SetSession(row *models.SessionRow) {
-	id := ""
+	previousID := p.session.ID
+	p.session = models.SessionRow{}
 	if row != nil {
-		id = row.ID
+		p.session = models.CloneSessionRow(*row)
 	}
-	if id != p.sessionID {
-		p.sessionID = id
-		p.data = models.SessionCenterData{SessionID: id, Loading: id != ""}
+	if p.session.ID != previousID {
+		p.data = models.SessionCenterData{SessionID: p.session.ID, Loading: p.session.ID != ""}
 	}
 }
 func (p *SessionCenter) Clear() { p.SetSession(nil) }
 func (p *SessionCenter) SetData(data models.SessionCenterData) {
-	if data.SessionID == p.sessionID {
+	if data.SessionID == p.session.ID {
 		p.data = models.CloneSessionCenterData(data)
 	}
 }
@@ -44,7 +44,7 @@ func (p *SessionCenter) ReportLimit() int {
 	if p.Width <= 0 || p.Height <= 0 {
 		return 0
 	}
-	return max(1, p.Height-2-len(p.data.Warnings))
+	return max(1, p.Height-len(p.headerRows())-centerMinBodyRows-len(p.data.Warnings))
 }
 func centerSafeText(text string) string {
 	text = ansi.Strip(text)
@@ -73,22 +73,27 @@ func centerSafePath(text string) string {
 	}, text)
 }
 
-//nolint:gocognit,mnd // Rendering preserves bounded, warning-aware panel layout.
 func (p *SessionCenter) View() string {
 	if p.Width <= 0 || p.Height <= 0 {
 		return ""
 	}
+	if p.session.ID == "" {
+		return ClampToSize(ansi.Hardwrap("Select a session", p.Width, true), p.Width, p.Height)
+	}
+	header := p.headerRows()
+	body := p.bodyRows(p.Height - len(header))
+	return ClampToSize(strings.Join(append(header, body...), "\n"), p.Width, p.Height)
+}
+
+//nolint:gocognit,mnd // Rendering preserves bounded, warning-aware panel layout.
+func (p *SessionCenter) bodyRows(height int) []string {
 	var lines []string
 	add := func(s string) {
-		if len(lines) >= p.Height {
+		if len(lines) >= height {
 			return
 		}
 		wrapped := ansi.Hardwrap(centerSafeText(s), p.Width, true)
 		lines = append(lines, strings.Split(wrapped, "\n")...)
-	}
-	if p.sessionID == "" {
-		add("Select a session")
-		return ClampToSize(strings.Join(lines, "\n"), p.Width, p.Height)
 	}
 	if p.data.Stale {
 		add("[stale]")
@@ -97,35 +102,35 @@ func (p *SessionCenter) View() string {
 		add("Warning: " + centerSafePath(warning))
 	}
 	// Keep at least one row for the newest report when warnings are long.
-	if len(p.data.Reports) > 0 && len(lines) >= p.Height {
-		lines = lines[:max(0, p.Height-1)]
-	} else if p.data.Workspace != nil && len(lines) > max(0, p.Height-2) {
-		lines = lines[:max(0, p.Height-2)]
+	if len(p.data.Reports) > 0 && len(lines) >= height {
+		lines = lines[:height-1]
+	} else if p.data.Workspace != nil && len(lines) > max(0, height-2) {
+		lines = lines[:max(0, height-2)]
 	}
 	switch {
 	case len(p.data.Reports) > 0:
 		for _, report := range p.data.Reports {
-			if p.Height-len(lines) >= 2 {
+			if height-len(lines) >= 2 {
 				stamp := report.CreatedAt.Local().Format("15:04")
 				if p.Width >= 20 {
 					stamp = report.CreatedAt.Local().Format("2006-01-02 15:04")
 				}
 				header := stamp + " [" + report.Kind + "]"
-				if p.Height-len(lines) == 2 && ansi.StringWidth(centerSafeText(header)) > p.Width {
+				if height-len(lines) == 2 && ansi.StringWidth(centerSafeText(header)) > p.Width {
 					header = report.CreatedAt.Local().Format("15:04") + " [" + report.Kind + "]"
 					header = TruncateHead(centerSafeText(header), p.Width)
 				}
 				add(header)
-				if len(lines) >= p.Height {
-					lines = lines[:p.Height-1]
+				if len(lines) >= height {
+					lines = lines[:height-1]
 				}
 			}
 			add(report.Text)
-			if len(lines) >= p.Height {
+			if len(lines) >= height {
 				break
 			}
 		}
-		if p.data.Omitted > 0 && len(lines) < p.Height {
+		if p.data.Omitted > 0 && len(lines) < height {
 			add(fmt.Sprintf("… %d older reports omitted", p.data.Omitted))
 		}
 	case p.data.Workspace != nil:
@@ -135,7 +140,7 @@ func (p *SessionCenter) View() string {
 	default:
 		add("No workspace information")
 	}
-	return ClampToSize(strings.Join(lines, "\n"), p.Width, p.Height)
+	return lines
 }
 
 //nolint:gocognit,nestif // Workspace rows preserve detailed metadata at small widths.
