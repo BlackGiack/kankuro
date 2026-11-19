@@ -43,5 +43,5 @@ func createCurrentCard(repo config.Repository, card config.IDCard) (config.IDCar
 }
 
 func launchCurrentSession(repo config.Repository, manager *session.Manager, card config.IDCard) (string, error) {
-	return api.New(repo, manager).LaunchInDashboard(context.Background(), card.DashboardID, card.ID)
+	return launchSessionForTest(context.Background(), api.New(repo, manager), card.DashboardID, card.ID)
 }

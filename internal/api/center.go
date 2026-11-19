@@ -86,7 +86,8 @@ func (s *Service) SubscribeSessionReports(ctx context.Context, req contracts.Sco
 	if store == nil {
 		return nil, errMessagingUnavailable
 	}
-	signal := store.Changed()
+	signal := store.ReportsChanged()
+	scope := store.ReportScopeChanged()
 	shutdown := s.sessions.ShutdownStarted()
 	select {
 	case <-shutdown:
@@ -98,7 +99,7 @@ func (s *Service) SubscribeSessionReports(ctx context.Context, req contracts.Sco
 	}
 	subctx, cancel := context.WithCancel(ctx)
 	sub := &reportSubscription{changes: make(chan struct{}, 1), cancel: cancel}
-	go watchReportChanges(subctx, cancel, shutdown, signal, store.Changed, func() error {
+	go watchReportChanges(subctx, cancel, shutdown, signal, scope, store.ReportsChanged, store.ReportScopeChanged, func() error {
 		return s.CheckSessionInDashboard(req.DashboardID, req.SessionID)
 	}, sub)
 	return sub, nil
@@ -110,8 +111,8 @@ func watchReportChanges(
 	ctx context.Context,
 	cancel context.CancelFunc,
 	shutdown <-chan struct{},
-	signal <-chan struct{},
-	changed func() <-chan struct{},
+	signal, scope <-chan struct{},
+	changed, scopeChanged func() <-chan struct{},
 	check func() error,
 	sub *reportSubscription,
 ) {
@@ -124,6 +125,12 @@ func watchReportChanges(
 		case <-ctx.Done():
 			sub.finish(ctx.Err())
 			return
+		case <-scope:
+			scope = scopeChanged()
+			if err := check(); err != nil {
+				sub.finish(err)
+				return
+			}
 		case <-signal:
 			signal = changed()
 			if err := check(); err != nil {

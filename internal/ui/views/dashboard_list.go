@@ -142,43 +142,47 @@ func (v *DashboardList) SetSize(width, height int) {
 	}
 }
 
+func (v *DashboardList) handleDeletionStatus(status messages.DashboardDeletionStatusMsg) {
+	if v.mode != dashboardListModePreparing || !v.preparingStatus || status.DashboardID != v.pending.DashboardID {
+		return
+	}
+	if status.Err != nil {
+		v.err = status.Err
+		if previous, exists := v.statusSummary[status.DashboardID]; exists {
+			lines := append([]string{"Error: " + components.DisplayText(status.Err.Error())}, previous...)
+			v.viewport.SetContent(strings.Join(lines, "\n"))
+			v.statusRetryAllowed = v.statusRetry[status.DashboardID]
+			v.mode = dashboardListModeStatus
+			return
+		}
+		v.mode = dashboardListModeList
+		return
+	}
+	v.err = nil
+	lines := make([]string, 0, len(status.Summary))
+	for _, line := range status.Summary {
+		lines = append(lines, components.DisplayText(line))
+	}
+	if v.statusSummary == nil {
+		v.statusSummary = make(map[string][]string)
+		v.statusRetry = make(map[string]bool)
+	}
+	if len(lines) == 0 {
+		delete(v.statusSummary, status.DashboardID)
+		delete(v.statusRetry, status.DashboardID)
+	} else {
+		v.statusSummary[status.DashboardID] = append([]string(nil), lines...)
+		v.statusRetry[status.DashboardID] = true
+	}
+	v.viewport.SetContent(strings.Join(lines, "\n"))
+	v.statusRetryAllowed = true
+	v.mode = dashboardListModeStatus
+}
+
 //nolint:gocognit,gocyclo,cyclop,funlen // All modal states are handled in this state machine.
 func (v *DashboardList) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	if status, ok := msg.(messages.DashboardDeletionStatusMsg); ok {
-		if v.mode != dashboardListModePreparing || !v.preparingStatus || status.DashboardID != v.pending.DashboardID {
-			return v, nil
-		}
-		if status.Err != nil {
-			v.err = status.Err
-			if previous, exists := v.statusSummary[status.DashboardID]; exists {
-				lines := append([]string{"Error: " + components.DisplayText(status.Err.Error())}, previous...)
-				v.viewport.SetContent(strings.Join(lines, "\n"))
-				v.statusRetryAllowed = v.statusRetry[status.DashboardID]
-				v.mode = dashboardListModeStatus
-				return v, nil
-			}
-			v.mode = dashboardListModeList
-			return v, nil
-		}
-		v.err = nil
-		lines := make([]string, 0, len(status.Summary))
-		for _, line := range status.Summary {
-			lines = append(lines, components.DisplayText(line))
-		}
-		if v.statusSummary == nil {
-			v.statusSummary = make(map[string][]string)
-			v.statusRetry = make(map[string]bool)
-		}
-		if len(lines) == 0 {
-			delete(v.statusSummary, status.DashboardID)
-			delete(v.statusRetry, status.DashboardID)
-		} else {
-			v.statusSummary[status.DashboardID] = append([]string(nil), lines...)
-			v.statusRetry[status.DashboardID] = true
-		}
-		v.viewport.SetContent(strings.Join(lines, "\n"))
-		v.statusRetryAllowed = true
-		v.mode = dashboardListModeStatus
+		v.handleDeletionStatus(status)
 		return v, nil
 	}
 	if prepared, ok := msg.(messages.DashboardDeletionPreparedMsg); ok {

@@ -28,7 +28,7 @@ func TestCenterReportSurvivesBackendReconstruction(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := api.New(repo, manager)
-	id, err := service.LaunchInDashboard(context.Background(), "default", card.ID)
+	id, err := launchSessionForTest(context.Background(), service, "default", card.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

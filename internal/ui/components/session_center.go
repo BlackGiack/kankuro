@@ -109,26 +109,17 @@ func (p *SessionCenter) bodyRows(height int) []string {
 	}
 	switch {
 	case len(p.data.Reports) > 0:
-		for _, report := range p.data.Reports {
-			if height-len(lines) >= 2 {
-				stamp := report.CreatedAt.Local().Format("15:04")
-				if p.Width >= 20 {
-					stamp = report.CreatedAt.Local().Format("2006-01-02 15:04")
+		for index, report := range p.data.Reports {
+			remaining := height - len(lines)
+			if remaining < centerMinBodyRows {
+				if index == 0 && remaining == 1 {
+					stamp := report.CreatedAt.Local().Format("15:04")
+					add(TruncateHead(stamp+" "+DisplayText(report.Text), p.Width))
 				}
-				header := stamp + " [" + report.Kind + "]"
-				if height-len(lines) == 2 && ansi.StringWidth(centerSafeText(header)) > p.Width {
-					header = report.CreatedAt.Local().Format("15:04") + " [" + report.Kind + "]"
-					header = TruncateHead(centerSafeText(header), p.Width)
-				}
-				add(header)
-				if len(lines) >= height {
-					lines = lines[:height-1]
-				}
-			}
-			add(report.Text)
-			if len(lines) >= height {
 				break
 			}
+			add(centerReportHeader(report, p.Width))
+			add(report.Text)
 		}
 		if p.data.Omitted > 0 && len(lines) < height {
 			add(fmt.Sprintf("… %d older reports omitted", p.data.Omitted))
@@ -141,6 +132,16 @@ func (p *SessionCenter) bodyRows(height int) []string {
 		add("No workspace information")
 	}
 	return lines
+}
+
+func centerReportHeader(report contracts.SessionReport, width int) string {
+	at := report.CreatedAt.Local()
+	kind := " [" + DisplayText(report.Kind) + "]"
+	header := at.Format("2006-01-02 15:04") + kind
+	if ansi.StringWidth(header) > width {
+		header = at.Format("15:04") + kind
+	}
+	return TruncateHead(header, width)
 }
 
 //nolint:gocognit,nestif // Workspace rows preserve detailed metadata at small widths.

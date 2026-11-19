@@ -10,7 +10,6 @@ import (
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/session"
-	"github.com/google/uuid"
 )
 
 type dashboardWriter interface {
@@ -191,11 +190,6 @@ func (s *Service) attachInDashboard(ctx context.Context, dashboardID, sessionID,
 	return resource, nil
 }
 
-// sessionScopeCheck executes while manager admission is held.
-func (s *Service) sessionScopeCheck(dashboardID, sessionID string) func([]session.Snapshot) error {
-	return s.sessionScopeCheckContext(context.Background(), dashboardID, sessionID)
-}
-
 func (s *Service) sessionScopeCheckContext(ctx context.Context, dashboardID, sessionID string) func([]session.Snapshot) error {
 	return func(sessions []session.Snapshot) error {
 		if err := ctx.Err(); err != nil {
@@ -212,24 +206,6 @@ func (s *Service) sessionScopeCheckContext(ctx context.Context, dashboardID, ses
 	}
 }
 
-// RenameInDashboard validates membership at the mutation boundary.
-func (s *Service) RenameInDashboard(dashboardID, sessionID, name string) error {
-	_, err := s.sessions.SetNameDetailedChecked(sessionID, name, s.sessionScopeCheck(dashboardID, sessionID))
-	return err
-}
-
-// StopInDashboard validates membership at the stop reservation boundary.
-func (s *Service) StopInDashboard(dashboardID, sessionID string) error {
-	_, err := s.sessions.KillDetailedChecked(sessionID, s.sessionScopeCheck(dashboardID, sessionID))
-	return err
-}
-
-// RemoveInDashboard validates membership at the deletion reservation boundary.
-func (s *Service) RemoveInDashboard(dashboardID, sessionID string) error {
-	_, err := s.sessions.RemoveDetailedChecked(sessionID, s.sessionScopeCheck(dashboardID, sessionID))
-	return err
-}
-
 func hasForeignCardReferences(impact session.CardReferenceImpact, ownerID string) bool {
 	for _, reference := range impact.Sessions {
 		if reference.DashboardID != ownerID {
@@ -242,13 +218,6 @@ func hasForeignCardReferences(impact session.CardReferenceImpact, ownerID string
 		}
 	}
 	return false
-}
-
-// LaunchInDashboard reserves a card and revalidates its configuration before
-// publishing a new session. Dashboard and card mutations must use the same
-// manager-owned admission boundary for this check to provide isolation.
-func (s *Service) LaunchInDashboard(ctx context.Context, dashboardID, cardID string) (string, error) {
-	return s.launchDashboardWithID(ctx, dashboardID, cardID, uuid.NewString(), nil)
 }
 
 func (s *Service) launchDashboardWithID(ctx context.Context, dashboardID, cardID, sessionID string, name *string) (string, error) {

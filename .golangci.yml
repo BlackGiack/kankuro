@@ -19,6 +19,9 @@ issues:
   max-same-issues: 50
 
 formatters:
+  exclusions:
+    paths:
+      - '^internal/architecture/'
   enable:
     - goimports # checks if the code and import statements are formatted according to the 'goimports' command
     - golines # checks if code is formatted, and fixes long lines
@@ -440,6 +443,8 @@ linters:
       #os-temp-dir: true
 
   exclusions:
+    paths:
+      - '^internal/architecture/'
     # Log a warning if an exclusion rule is unused.
     # Default: false
     warn-unused: true

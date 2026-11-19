@@ -62,7 +62,17 @@ func TestSessionCenterKeepsSessionHeaderAboveBody(t *testing.T) {
 	})
 	view := ansi.Strip(p.View())
 	lines := strings.Split(view, "\n")
-	wantLines := []string{"Selected session", "Running", "ID: session-id", "WS: /work/project", "Started: 13:04:05", "Card: Active card", "", strings.Repeat("─", 50), "Directory: /work/project"}
+	wantLines := []string{
+		"Selected session",
+		"Running",
+		"ID: session-id",
+		"WS: /work/project",
+		"Started: 13:04:05",
+		"Card: Active card",
+		"",
+		strings.Repeat("─", 50),
+		"Directory: /work/project",
+	}
 	if len(lines) != len(wantLines) {
 		t.Fatalf("unexpected header and body rows:\n%s", view)
 	}
@@ -83,9 +93,12 @@ func TestSessionCenterKeepsSessionHeaderAboveBody(t *testing.T) {
 		!strings.Contains(view, "other-artwork") || !strings.Contains(view, "Directory: /work/project") {
 		t.Fatalf("same-session refresh lost metadata or body:\n%s", view)
 	}
-	p.SetData(models.SessionCenterData{SessionID: row.ID, Reports: []contracts.SessionReport{{Text: "First authored report", Kind: "progress"}}})
+	p.SetData(
+		models.SessionCenterData{SessionID: row.ID, Reports: []contracts.SessionReport{{Text: "First authored report", Kind: "progress"}}},
+	)
 	view = ansi.Strip(p.View())
-	if !strings.Contains(view, "Renamed session") || !strings.Contains(view, "First authored report") || strings.Contains(view, "Directory:") {
+	if !strings.Contains(view, "Renamed session") || !strings.Contains(view, "First authored report") ||
+		strings.Contains(view, "Directory:") {
 		t.Fatalf("report did not take over the body beneath the header:\n%s", view)
 	}
 	p.SetSession(&models.SessionRow{ID: "next-session", Status: "terminated"})
@@ -221,5 +234,36 @@ func TestSessionCenterReportHeaderKeepsKindWhenItFits(t *testing.T) {
 		if !strings.Contains(got, tc.wantTime) || !strings.Contains(got, "blocked") || !strings.Contains(got, "Need input") {
 			t.Fatalf("width %d lost metadata or content: %q", tc.width, got)
 		}
+	}
+}
+
+func TestSessionCenterOmitsUntimestampedReport(t *testing.T) {
+	p := components.NewSessionCenter()
+	p.SetSession(&models.SessionRow{ID: "session"})
+	p.SetSize(26, 16)
+	p.SetData(models.SessionCenterData{
+		SessionID: "session",
+		Reports: []contracts.SessionReport{
+			{
+				Text:      "Newest\nline two\nline three\nline four\nline five\nline six\nline seven",
+				CreatedAt: time.Date(2026, 1, 1, 15, 4, 0, 0, time.Local),
+			},
+			{Text: "Older", CreatedAt: time.Date(2026, 1, 1, 15, 3, 0, 0, time.Local)},
+		},
+	})
+	view := p.View()
+	if !strings.Contains(view, "15:04") || !strings.Contains(view, "Newest") || strings.Contains(view, "Older") {
+		t.Fatalf("expected only the timestamped newest report: %q", view)
+	}
+	p.SetSize(12, 3)
+	p.SetData(models.SessionCenterData{
+		SessionID: "session",
+		Warnings:  []string{"warning consumes the available space"},
+		Reports: []contracts.SessionReport{{
+			Text: "Newest long report", CreatedAt: time.Date(2026, 1, 1, 15, 4, 0, 0, time.Local),
+		}},
+	})
+	if view = p.View(); !strings.Contains(view, "15:04 New") {
+		t.Fatalf("expected a compact timestamp and clipped body together: %q", view)
 	}
 }

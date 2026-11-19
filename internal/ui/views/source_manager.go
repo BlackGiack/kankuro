@@ -147,53 +147,11 @@ func (m *SourceManager) Reload() tea.Cmd {
 func (m *SourceManager) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	switch value := msg.(type) {
 	case sourceLoaded:
-		if value.kind != m.sourceType || value.visit != m.visit || value.request != m.request {
-			return m, nil
-		}
-		if value.err != nil {
-			return m, func() tea.Msg { return messages.ErrorMsg{Err: value.err} }
-		}
-		items := make([]components.SourceItem, 0, len(value.rows))
-		for _, row := range value.rows {
-			if m.sourceType == SourceTypeWorkspaces {
-				items = append(items, components.WorkspaceSourceItem{Source: row})
-			} else {
-				items = append(items, components.PathSourceItem{Path: row.Path, Identity: row.Identity})
-			}
-		}
-		m.sourceList.SetItems(items)
-		return m, nil
+		return m, m.handleSourceLoaded(value)
 	case sourceMutated:
-		if value.kind != m.sourceType || value.visit != m.visit || value.request != m.request {
-			return m, nil
-		}
-		m.pending = false
-		result := value.result
-		if result.Saved {
-			m.sourceList.Mode = components.SourceListModeList
-		}
-		var load tea.Cmd
-		if result.Saved || result.Reload {
-			load = m.load()
-		}
-		err := result.Err
-		if err == nil {
-			err = result.Warning
-		}
-		if err != nil {
-			return m, tea.Batch(load, func() tea.Msg { return messages.ErrorMsg{Err: err} })
-		}
-		return m, load
+		return m, m.handleSourceMutated(value)
 	case sourceSynced:
-		if value.kind != m.sourceType || value.visit != m.visit || value.request != m.request {
-			return m, nil
-		}
-		m.pending = false
-		if value.result.Err != nil {
-			err := value.result.Err
-			return m, tea.Batch(m.load(), func() tea.Msg { return messages.ErrorMsg{Err: err} })
-		}
-		return m, m.load()
+		return m, m.handleSourceSynced(value)
 	case tea.KeyPressMsg:
 		if value.Code == tea.KeyEsc && m.sourceList.Mode == components.SourceListModeList {
 			return m, func() tea.Msg { return messages.NavigateBackMsg{} }
@@ -208,6 +166,61 @@ func (m *SourceManager) Update(msg tea.Msg) (component.Model, tea.Cmd) {
 	}
 	return m, cmd
 }
+
+func (m *SourceManager) handleSourceLoaded(value sourceLoaded) tea.Cmd {
+	if value.kind != m.sourceType || value.visit != m.visit || value.request != m.request {
+		return nil
+	}
+	if value.err != nil {
+		return func() tea.Msg { return messages.ErrorMsg{Err: value.err} }
+	}
+	items := make([]components.SourceItem, 0, len(value.rows))
+	for _, row := range value.rows {
+		if m.sourceType == SourceTypeWorkspaces {
+			items = append(items, components.WorkspaceSourceItem{Source: row})
+		} else {
+			items = append(items, components.PathSourceItem{Path: row.Path, Identity: row.Identity})
+		}
+	}
+	m.sourceList.SetItems(items)
+	return nil
+}
+
+func (m *SourceManager) handleSourceMutated(value sourceMutated) tea.Cmd {
+	if value.kind != m.sourceType || value.visit != m.visit || value.request != m.request {
+		return nil
+	}
+	m.pending = false
+	result := value.result
+	if result.Saved {
+		m.sourceList.Mode = components.SourceListModeList
+	}
+	var load tea.Cmd
+	if result.Saved || result.Reload {
+		load = m.load()
+	}
+	err := result.Err
+	if err == nil {
+		err = result.Warning
+	}
+	if err != nil {
+		return tea.Batch(load, func() tea.Msg { return messages.ErrorMsg{Err: err} })
+	}
+	return load
+}
+
+func (m *SourceManager) handleSourceSynced(value sourceSynced) tea.Cmd {
+	if value.kind != m.sourceType || value.visit != m.visit || value.request != m.request {
+		return nil
+	}
+	m.pending = false
+	if value.result.Err != nil {
+		err := value.result.Err
+		return tea.Batch(m.load(), func() tea.Msg { return messages.ErrorMsg{Err: err} })
+	}
+	return m.load()
+}
+
 func (m *SourceManager) View() string { return m.sourceList.View() }
 func (m *SourceManager) SetSize(width, height int) {
 	m.Base.SetSize(width, height)

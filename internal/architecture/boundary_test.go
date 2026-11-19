@@ -1909,11 +1909,6 @@ func contractFindings(root string, files []string) ([]finding, error) {
 }
 
 type contractFile struct{ name, path string }
-type contractVariant struct {
-	context build.Context
-	files   []contractFile
-}
-
 type contractImporter struct {
 	root    string
 	cache   map[string]*types.Package
@@ -2014,33 +2009,6 @@ func (i *contractImporter) check(importPath string, files []contractFile) (*type
 	}
 	i.cache[key] = pkg
 	return pkg, nil
-}
-
-func contractVariants(dir string) ([]contractVariant, error) {
-	contexts, err := platformContexts(dir)
-	if err != nil {
-		return nil, err
-	}
-	seen := map[string]bool{}
-	var out []contractVariant
-	for _, ctx := range contexts {
-		files, err := selectContractVariant(dir, ctx)
-		if err != nil {
-			return nil, err
-		}
-		if len(files) == 0 {
-			continue
-		}
-		key := fmt.Sprintf("cgo=%t|%s", ctx.CgoEnabled, contractVariantKey(files))
-		if !seen[key] {
-			seen[key] = true
-			out = append(out, contractVariant{context: ctx, files: files})
-		}
-	}
-	if len(out) == 0 {
-		return nil, fmt.Errorf("no compatible production Go files")
-	}
-	return out, nil
 }
 
 func selectContractVariant(dir string, ctx build.Context) ([]contractFile, error) {

@@ -99,7 +99,7 @@ func newRaceFixture(t *testing.T, killSession bool) raceFixture {
 	card := first
 
 	service := api.New(repo, sm)
-	sessionID, err := service.LaunchInDashboard(context.Background(), "default", card.ID)
+	sessionID, err := launchSessionForTest(context.Background(), service, "default", card.ID)
 	if err != nil {
 		t.Fatalf("launch: %v", err)
 	}

@@ -50,11 +50,11 @@ func TestMultiDashboardDiscardsStaleResultsAndPreservesViews(t *testing.T) {
 	}
 	manager := newTestManager(t, repo.Dir(), repo)
 	service := api.New(repo, manager)
-	idA, err := service.LaunchInDashboard(context.Background(), "a", cardA.ID)
+	idA, err := launchSessionForTest(context.Background(), service, "a", cardA.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	idB, err := service.LaunchInDashboard(context.Background(), "b", cardB.ID)
+	idB, err := launchSessionForTest(context.Background(), service, "b", cardB.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -90,7 +90,7 @@ func sessionStatusBadge(status string) string {
 	switch status {
 	case "running":
 		return centerStatusStyle.Background(styles.HighlightColor).Render("Running")
-	case "waiting":
+	case waitingStatus:
 		return centerStatusStyle.Background(styles.HotPink).Render("Waiting")
 	case "terminated":
 		return centerStatusStyle.Background(styles.Gray).Render("Terminated")

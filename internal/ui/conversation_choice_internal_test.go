@@ -64,7 +64,7 @@ func TestConversationChoiceRefreshesDriverAndRejectsStaleContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := api.New(repo, manager)
-	sessionID, err := service.LaunchInDashboard(context.Background(), "default", card.ID)
+	sessionID, err := launchSessionForTest(context.Background(), service, "default", card.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

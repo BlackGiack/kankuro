@@ -45,7 +45,7 @@ func main() {
 	}
 }
 
-//nolint:funlen // Keep startup and shutdown ordering visible in the composition root.
+//nolint:funlen,gocognit // Keep startup and shutdown ordering visible in the composition root.
 func run(registry driver.Registry) (returnErr error) {
 	var cfgDir string
 	var debug bool

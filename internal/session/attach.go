@@ -102,16 +102,6 @@ func (m *Manager) attachChecked(id, processID string, check func([]Snapshot) err
 	}, nil
 }
 
-// Detach validates that a session exists while leaving it running in background.
-func (m *Manager) Detach(id string) error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if _, ok := m.sessions[id]; !ok {
-		return fmt.Errorf("session not found: %s", id)
-	}
-	return nil
-}
-
 func (m *Manager) removeSubscriber(subscribers map[chan []byte]struct{}, ch chan []byte) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

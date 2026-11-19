@@ -48,7 +48,7 @@ func TestCardDeletionFailureRemainsRetryable(t *testing.T) {
 	if err == nil || result.State != "deleting" {
 		t.Fatalf("failed deletion: %+v, %v", result, err)
 	}
-	if _, errAt51 := service.LaunchInDashboard(context.Background(), "a", card.ID); errAt51 == nil {
+	if _, errAt51 := launchSessionForTest(context.Background(), service, "a", card.ID); errAt51 == nil {
 		t.Fatal("deleting card could launch")
 	}
 	failing.fail = false
@@ -71,7 +71,7 @@ func TestPersistedScopeMCPCreateUsesCallerDashboard(t *testing.T) {
 		DashboardID: "a", Shared: true, UseTmpWorkspace: true, DashboardControl: true, MCPIDs: []string{config.BuiltinMCPKankuro}})
 	ids := make(map[string]string)
 	for _, dashboard := range []string{"a", "b"} {
-		id, err := service.LaunchInDashboard(context.Background(), dashboard, shared.ID)
+		id, err := launchSessionForTest(context.Background(), service, dashboard, shared.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -153,11 +153,11 @@ func TestReadDashboardDataScopesCardsAndSessions(t *testing.T) {
 		t.Fatalf("new exclusive card: %+v, %v", foreign, err)
 	}
 	for _, dashboard := range []string{"a", "b"} {
-		if _, err := service.LaunchInDashboard(context.Background(), dashboard, shared.ID); err != nil {
+		if _, err := launchSessionForTest(context.Background(), service, dashboard, shared.ID); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := service.LaunchInDashboard(context.Background(), "b", exclusive.ID); err == nil {
+	if _, err := launchSessionForTest(context.Background(), service, "b", exclusive.ID); err == nil {
 		t.Fatal("foreign exclusive card accepted")
 	}
 	cards, err := repo.ListIDCards()
@@ -388,7 +388,7 @@ func TestDashboardDeletionManifestClosesAdmissions(t *testing.T) {
 	if err := repo.BeginDashboardDeletion(manifest); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.LaunchInDashboard(context.Background(), "b", shared.ID); err == nil {
+	if _, err := launchSessionForTest(context.Background(), service, "b", shared.ID); err == nil {
 		t.Fatal("foreign use of deleting owner's card accepted")
 	}
 	if _, err := createCardForTest(service, "a", config.IDCard{Name: "new", Driver: "cat", WorkspaceID: workspaceID}); err == nil {
@@ -425,7 +425,7 @@ func TestScopedLaunchRevalidatesChangedCardBeforePublication(t *testing.T) {
 	result := make(chan error, 1)
 	ctx := t.Context()
 	cardID := card.ID
-	go func() { _, err := service.LaunchInDashboard(ctx, "b", cardID); result <- err }()
+	go func() { _, err := launchSessionForTest(ctx, service, "b", cardID); result <- err }()
 	select {
 	case <-entered:
 	case <-time.After(5 * time.Second):
@@ -478,7 +478,7 @@ func TestConfirmedCardDeletionCancelsForeignPendingLaunch(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	launchResult := make(chan error, 1)
-	go func() { _, err := service.LaunchInDashboard(ctx, "b", card.ID); launchResult <- err }()
+	go func() { _, err := launchSessionForTest(ctx, service, "b", card.ID); launchResult <- err }()
 	select {
 	case <-entered:
 	case <-ctx.Done():

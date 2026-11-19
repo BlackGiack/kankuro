@@ -42,14 +42,14 @@ func TestCardDeletionRetriesPendingWorkspaceCleanupAfterRestart(t *testing.T) {
 		config.IDCard{Name: "shared", Driver: "cat", WorkspaceID: workspaceID, DashboardID: "a", Shared: true, UseTmpWorkspace: true},
 	)
 	foreign := saveCard(t, repo.FileRepository, config.IDCard{Name: "foreign", Driver: "cat", WorkspaceID: workspaceID, DashboardID: "b"})
-	survivingID, err := service.LaunchInDashboard(context.Background(), "b", foreign.ID)
+	survivingID, err := launchSessionForTest(context.Background(), service, "b", foreign.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	launch := make(chan error, 1)
-	go func() { _, launchErr := service.LaunchInDashboard(ctx, "b", shared.ID); launch <- launchErr }()
+	go func() { _, launchErr := launchSessionForTest(ctx, service, "b", shared.ID); launch <- launchErr }()
 	var destination string
 	select {
 	case destination = <-entered:

@@ -12,6 +12,7 @@ import (
 
 type startupConfigurationSpy struct {
 	configurationPort
+
 	puppetSyncs int
 }
 

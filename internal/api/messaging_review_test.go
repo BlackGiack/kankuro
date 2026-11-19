@@ -481,11 +481,12 @@ func TestDeleteSessionReportsTrustCleanupWarningAndAllowsRetry(t *testing.T) {
 func TestReportAutomaticallyNotifiesOriginalController(t *testing.T) {
 	h := newMessagingHarness(t)
 	result := h.send(t)
-	out, err := h.manager.SubscribeOutput(h.callerID)
+	outHandle, err := h.manager.AttachChecked(h.callerID, func([]session.Snapshot) error { return nil })
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer h.manager.UnsubscribeOutput(h.callerID, out)
+	defer outHandle.Close()
+	out := outHandle.Output
 	if _, err = h.service.SendMessage(
 		context.Background(),
 		h.recipientToken,
@@ -530,11 +531,12 @@ func TestNotificationRetriesAfterQueueCapacityReturns(t *testing.T) {
 	}
 	h.service.operations = runner
 	defer runner.Shutdown()
-	output, err := h.manager.SubscribeOutput(h.callerID)
+	outputHandle, err := h.manager.AttachChecked(h.callerID, func([]session.Snapshot) error { return nil })
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer h.manager.UnsubscribeOutput(h.callerID, output)
+	defer outputHandle.Close()
+	output := outputHandle.Output
 	reply, err := h.service.ReportReply(h.recipientToken, uuid.NewString(), result.Result.MessageID, "question", "need detail")
 	if err != nil {
 		t.Fatal(err)
@@ -655,11 +657,12 @@ func TestSavedNotificationSurvivesReporterStopping(t *testing.T) {
 	h := newMessagingHarness(t)
 	original := h.send(t)
 	h.service.operations.Shutdown()
-	output, err := h.manager.SubscribeOutput(h.callerID)
+	outputHandle, err := h.manager.AttachChecked(h.callerID, func([]session.Snapshot) error { return nil })
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer h.manager.UnsubscribeOutput(h.callerID, output)
+	defer outputHandle.Close()
+	output := outputHandle.Output
 	if _, err = h.service.ReportReply(h.recipientToken, uuid.NewString(), original.Result.MessageID, "completed", "done"); err != nil {
 		t.Fatal(err)
 	}
@@ -709,11 +712,12 @@ func TestStoppedOriginalActivationMakesNotificationUnavailable(t *testing.T) {
 func TestNotificationRetriesAfterJournalFailure(t *testing.T) {
 	h := newMessagingHarness(t)
 	original := h.send(t)
-	output, err := h.manager.SubscribeOutput(h.callerID)
+	outputHandle, err := h.manager.AttachChecked(h.callerID, func([]session.Snapshot) error { return nil })
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer h.manager.UnsubscribeOutput(h.callerID, output)
+	defer outputHandle.Close()
+	output := outputHandle.Output
 	failed := make(chan struct{}, 1)
 	runner := h.service.operations
 	runner.mu.Lock()

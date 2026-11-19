@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
 	"github.com/BlackGiack/kankuro/internal/configstartup"
 	"github.com/BlackGiack/kankuro/internal/driver"
@@ -120,11 +121,18 @@ func switchCardTest(service *Service, id, cardID string) error {
 }
 
 func removeSessionTest(service *Service, id string) error {
-	return service.RemoveInDashboard(DefaultDashboardID, id)
+	result := service.RemoveDashboardSession(
+		context.Background(),
+		contracts.ScopedSessionRequest{DashboardID: DefaultDashboardID, SessionID: id},
+	)
+	if result.Diagnostic != "" {
+		return errors.New(result.Diagnostic)
+	}
+	return nil
 }
 
 func launchCardTest(service *Service, card config.IDCard) (string, error) {
-	return service.LaunchInDashboard(context.Background(), card.DashboardID, card.ID)
+	return launchSessionForTest(context.Background(), service, card.DashboardID, card.ID)
 }
 
 func saveCard(t *testing.T, repo *config.FileRepository, card config.IDCard) config.IDCard {
@@ -1262,7 +1270,8 @@ func TestResolveCapabilitiesPropagatesEachRegistryFailure(t *testing.T) {
 			case "mcps":
 				repo.mcpsErr = want
 			}
-			_, err := launchCardTest(api, saved) // empty selections still read each registry.
+			// Inspect the wrapped backend error before the frontend projects it to a diagnostic.
+			_, err := api.launchDashboardWithID(t.Context(), saved.DashboardID, saved.ID, uuid.NewString(), nil)
 			if !errors.Is(err, want) || err == nil || !strings.HasPrefix(err.Error(), tc.context) {
 				t.Fatalf("resolve error = %v, want wrapped %q failure", err, tc.context)
 			}
@@ -1573,7 +1582,8 @@ func TestServiceActivationPersistenceFailuresKeepSessionsUsable(t *testing.T) {
 			}
 			var err error
 			if operation == "launch" {
-				sid, err = launchCardTest(api, card)
+				// Exercise the typed persistence error shared by activation paths.
+				sid, err = api.launchDashboardWithID(t.Context(), card.DashboardID, card.ID, uuid.NewString(), nil)
 			}
 			if operation == "relaunch" {
 				err = relaunchCardTest(api, sid)

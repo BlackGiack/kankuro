@@ -43,6 +43,14 @@ func TestCenterReportsSubscriptionAndScope(t *testing.T) {
 	if _, err = store.CreateIntent(message, uuid.NewString(), session.SendFingerprint(h.recipientID, "worker", "task")); err != nil {
 		t.Fatal(err)
 	}
+	if err = store.UpdateDelivery(message.ID, session.MessageSubmitted, ""); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-sub.Changes():
+		t.Fatal("prompt and delivery updates woke the report subscription")
+	case <-time.After(40 * time.Millisecond):
+	}
 	if _, err = store.RecordReply(h.recipientID, "worker", uuid.NewString(), message.ID, "progress", "working"); err != nil {
 		t.Fatal(err)
 	}
@@ -98,8 +106,8 @@ func TestCenterReportsChangeBeforeInitialReadAndStop(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("first report signal lost")
 	}
-	if err = h.service.StopInDashboard(DefaultDashboardID, h.recipientID); err != nil {
-		t.Fatal(err)
+	if result := h.service.StopDashboardSession(t.Context(), scope); result.Diagnostic != "" || !result.ProcessTerminated {
+		t.Fatalf("stop: %+v", result)
 	}
 	got, err = h.service.ReadSessionReports(ctx, contracts.SessionReportsRequest{ScopedSessionRequest: scope, Limit: 1})
 	if err != nil || len(got.Reports) != 1 {
@@ -154,7 +162,7 @@ func TestCenterReportChangeDuringRearm(t *testing.T) {
 		return stable
 	}
 	sub := &reportSubscription{changes: make(chan struct{}, 1), cancel: cancel}
-	go watchReportChanges(ctx, cancel, make(chan struct{}), first, changed, func() error { return nil }, sub)
+	go watchReportChanges(ctx, cancel, make(chan struct{}), first, nil, changed, nil, func() error { return nil }, sub)
 	close(first)
 	<-entered
 	close(second)
@@ -213,5 +221,29 @@ func TestCenterReportsInventoryFailureIsNotEmptyHistory(t *testing.T) {
 	_, err := h.service.ReadSessionReports(t.Context(), req)
 	if err == nil {
 		t.Fatal("failed membership inventory became an empty success")
+	}
+}
+
+func TestCenterReportScopeLossWithoutReportChanges(t *testing.T) {
+	h := newMessagingHarness(t)
+	scope := contracts.ScopedSessionRequest{DashboardID: DefaultDashboardID, SessionID: h.recipientID}
+	sub, err := h.service.SubscribeSessionReports(t.Context(), scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sub.Release()
+	if result := h.service.StopDashboardSession(t.Context(), scope); result.Diagnostic != "" || !result.ProcessTerminated {
+		t.Fatalf("stop: %+v", result)
+	}
+	if result := h.service.RemoveDashboardSession(t.Context(), scope); result.Diagnostic != "" || !result.InMemoryRemoved {
+		t.Fatalf("remove: %+v", result)
+	}
+	select {
+	case _, open := <-sub.Changes():
+		if open || !errors.Is(sub.Err(), contracts.ErrSessionScope) {
+			t.Fatalf("expected scope closure, open=%t err=%v", open, sub.Err())
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("scope loss was not detected")
 	}
 }

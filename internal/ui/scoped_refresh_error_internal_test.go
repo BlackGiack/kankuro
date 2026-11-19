@@ -47,7 +47,7 @@ func TestScopedRefreshPreservesDataOnInventoryFailure(t *testing.T) {
 			}
 			manager := newTestManager(t, repo.Dir(), repo)
 			service := api.New(repo, manager)
-			id, err := service.LaunchInDashboard(context.Background(), "a", card.ID)
+			id, err := launchSessionForTest(context.Background(), service, "a", card.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -86,7 +86,7 @@ func TestScopedRefreshPreservesDataOnInventoryFailure(t *testing.T) {
 				dashboard.Sessions()[0].ID != id {
 				t.Fatalf("failure cleared data: error=%v cards=%v sessions=%v", c.err, dashboard.Cards(), dashboard.Sessions())
 			}
-			if _, err = service.LaunchInDashboard(context.Background(), "a", card.ID); err == nil {
+			if _, err = launchSessionForTest(context.Background(), service, "a", card.ID); err == nil {
 				t.Fatal("corrupt inventory allowed launch")
 			}
 			if err = os.WriteFile(path, raw, 0600); err != nil {

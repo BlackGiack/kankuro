@@ -219,7 +219,7 @@ func (i SessionListItem) Title() string {
 func (i SessionListItem) Description() string {
 	cardName := DisplayText(i.Session.CardName)
 	faceStyle := i.Session.FaceStyle
-	if i.Session.Status == "waiting" || faceStyle == "" {
+	if i.Session.Status == waitingStatus || faceStyle == "" {
 		faceStyle = "neutral"
 	}
 	cardLine := cardName + " " + RenderAgentFace(faceStyle)
@@ -247,7 +247,7 @@ func (i SessionListItem) Description() string {
 	if i.Session.TemporaryWorkspace {
 		detailLine = "ID: " + i.Session.ID
 	}
-	if i.Session.Status == "waiting" {
+	if i.Session.Status == waitingStatus {
 		cardLine = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF69B4")).Bold(true).Render(cardLine)
 		descLine = lipgloss.NewStyle().Foreground(lipgloss.Color("#16A085")).Render(descLine)
 	}
