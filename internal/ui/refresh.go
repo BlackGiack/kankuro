@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"errors"
 	"time"
 
@@ -53,23 +52,6 @@ func startupErrorCommand(err error) tea.Cmd {
 			return messages.ErrorMsg{Err: err}
 		}
 		return nil
-	}
-}
-
-// syncPuppets rescans the puppet sources off the UI goroutine.
-func (r refresher) syncPuppets() tea.Cmd {
-	return func() tea.Msg {
-		if r.configuration == nil {
-			return nil
-		}
-		result := r.configuration.SyncSources(context.Background(), contracts.SourcePuppets)
-		if result.Err != nil {
-			return tea.Batch(
-				func() tea.Msg { return messages.ErrorMsg{Err: result.Err} },
-				func() tea.Msg { return messages.PuppetsSyncedMsg{} },
-			)()
-		}
-		return messages.PuppetsSyncedMsg{}
 	}
 }
 

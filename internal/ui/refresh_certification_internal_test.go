@@ -1,12 +1,48 @@
 package ui
 
 import (
+	"context"
 	"errors"
 	"testing"
 
+	"github.com/BlackGiack/kankuro/internal/api"
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/views"
 )
+
+type startupConfigurationSpy struct {
+	configurationPort
+	puppetSyncs int
+}
+
+func (s *startupConfigurationSpy) SyncSources(ctx context.Context, kind contracts.SourceKind) contracts.SourceSyncResult {
+	if kind == contracts.SourcePuppets {
+		s.puppetSyncs++
+	}
+	return s.configurationPort.SyncSources(ctx, kind)
+}
+
+func TestCoordinatorStartupReadsRegistriesWithoutResyncingPuppets(t *testing.T) {
+	_, _, repo := newCountingCoordinator(t)
+	service := api.New(repo, nil)
+	ports := testCapabilities(service)
+	spy := &startupConfigurationSpy{configurationPort: service}
+	ports.Configuration = spy
+	c := NewCoordinator(ports, nil)
+
+	var refreshed bool
+	for _, msg := range collectMsgs(c.Init()) {
+		if refresh, ok := msg.(configFingerprintMsg); ok {
+			if refresh.data == nil || refresh.data.Err != nil || refresh.token == "" {
+				t.Fatalf("initial registry read failed to establish a baseline: %+v", refresh)
+			}
+			refreshed = true
+		}
+	}
+	if !refreshed || spy.puppetSyncs != 0 {
+		t.Fatalf("initial refresh completed = %t, UI puppet syncs = %d", refreshed, spy.puppetSyncs)
+	}
+}
 
 type certificationReader struct {
 	tokens       []tokenResult

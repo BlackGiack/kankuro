@@ -172,7 +172,6 @@ func (c *Coordinator) Init() tea.Cmd {
 		dashboardListCmd,
 		c.refreshDataSeeded(),
 		tick(),
-		c.refresh.syncPuppets(),
 		c.loadSettings(),
 		startupErrorCommand(c.startupError),
 	)
@@ -357,9 +356,6 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, c.handleConfigFingerprint(m)
 
 	case messages.DataRefreshRequestedMsg:
-		return true, c.refreshDataSeeded()
-
-	case messages.PuppetsSyncedMsg:
 		return true, c.refreshDataSeeded()
 
 	case messages.EditorCancelMsg:

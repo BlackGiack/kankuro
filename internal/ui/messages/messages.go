@@ -188,12 +188,6 @@ type SessionRemovedMsg struct {
 	Result                 contracts.RemoveSessionResult
 }
 
-// PuppetsSyncedMsg signals that a background puppet-source sync has finished.
-// Like DataRefreshRequestedMsg, it defers the actual refreshData() call to
-// Update instead of running it inside the async closure that performed the
-// sync.
-type PuppetsSyncedMsg struct{}
-
 // SessionAttachRequestedMsg signals user wants to attach to session.
 // Warning carries a non-fatal problem to surface during navigation.
 type SessionAttachRequestedMsg struct {

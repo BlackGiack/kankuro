@@ -91,6 +91,11 @@ func run(registry driver.Registry) (returnErr error) {
 	if err = repo.SyncSkillsFromSources(); err != nil {
 		return fmt.Errorf("skill sync error: %w", err)
 	}
+	// Finish writing the puppet registry before the UI starts reading it.
+	var puppetSyncWarning error
+	if syncErr := repo.SyncPuppetsFromSources(); syncErr != nil {
+		puppetSyncWarning = fmt.Errorf("sync puppet sources: %w", syncErr)
+	}
 
 	sm := session.NewManager(
 		repo.Dir(),
@@ -104,7 +109,7 @@ func run(registry driver.Registry) (returnErr error) {
 	application, err := ui.New(ui.Capabilities{
 		Configuration: sharedAPI, Center: sharedAPI, Reads: sharedAPI, Editor: sharedAPI,
 		Actions: sharedAPI, Attachment: sharedAPI, Deletion: sharedAPI,
-	}, sm.LoadErrors())
+	}, errors.Join(sm.LoadErrors(), puppetSyncWarning))
 	if err != nil {
 		operationRunner.Shutdown()
 		sm.Shutdown()
