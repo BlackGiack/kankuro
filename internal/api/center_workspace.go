@@ -48,7 +48,6 @@ func (s *Service) ReadSessionWorkspace(ctx context.Context, req contracts.Scoped
 	return result, inspectErr
 }
 
-//nolint:nestif // Repository probe outcomes determine the explicit fallback classification.
 func inspectWorkspace(ctx context.Context, dir string) (contracts.SessionWorkspaceResult, error) {
 	result := contracts.SessionWorkspaceResult{WorkingDir: dir}
 	info, err := os.Stat(dir)
@@ -58,29 +57,11 @@ func inspectWorkspace(ctx context.Context, dir string) (contracts.SessionWorkspa
 	if !info.IsDir() {
 		return result, errors.New("saved workspace is not a directory")
 	}
-	metadata, err := findGitMetadata(dir)
-	if err != nil {
-		return result, err
-	}
-	root, probeErr := runGit(ctx, dir, "rev-parse", "--show-toplevel")
+	metadata, probeErr := findGitMetadata(dir)
 	if probeErr == nil {
-		repositoryRoot := strings.TrimSuffix(string(root), "\n")
-		if repositoryRoot == "" || !filepath.IsAbs(repositoryRoot) {
-			probeErr = errors.New("git returned an invalid repository root")
-		} else {
-			result.RepositoryRoot = repositoryRoot
-			data, statusErr := runGit(ctx, repositoryRoot, "status", "--porcelain=v2", "-z", "--untracked-files=all")
-			if statusErr == nil {
-				entries, truncated, parseErr := parseGitStatus(data)
-				if parseErr == nil {
-					result.Kind = contracts.WorkspaceGit
-					result.GitEntries = entries
-					result.Truncated = truncated
-					return result, nil
-				}
-				statusErr = parseErr
-			}
-			probeErr = fmt.Errorf("git status: %w", statusErr)
+		probeErr = inspectGitWorkspace(ctx, &result)
+		if probeErr == nil {
+			return result, nil
 		}
 	}
 	if contextErr := ctx.Err(); contextErr != nil {
@@ -144,6 +125,10 @@ func (b *limitedBuffer) Write(p []byte) (int, error) {
 	return b.buffer.Write(p)
 }
 func runGit(ctx context.Context, dir string, args ...string) ([]byte, error) {
+	return runGitWithEnv(ctx, dir, nil, args...)
+}
+
+func runGitWithEnv(ctx context.Context, dir string, env []string, args ...string) ([]byte, error) {
 	cmdCtx, cancel := context.WithTimeout(ctx, gitTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(cmdCtx, "git", args...)
@@ -160,6 +145,7 @@ func runGit(ctx context.Context, dir string, args ...string) ([]byte, error) {
 		}
 	}
 	cmd.Env = append(cmd.Env, "LC_ALL=C", "GIT_OPTIONAL_LOCKS=0", "GIT_DISCOVERY_ACROSS_FILESYSTEM=1")
+	cmd.Env = append(cmd.Env, env...)
 	out := &limitedBuffer{limit: gitOutputLimit}
 	stderr := &limitedBuffer{limit: gitErrorLimit}
 	cmd.Stdout, cmd.Stderr = out, stderr

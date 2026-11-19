@@ -214,3 +214,88 @@ func TestCenterWorkspaceBoundsInheritedPipes(t *testing.T) {
 		})
 	}
 }
+
+func TestCenterWorkspaceIgnoresConfiguredGitHelpers(t *testing.T) {
+	dir := t.TempDir()
+	workspaceGit(t, dir, "init", "-q")
+	if err := os.WriteFile(filepath.Join(dir, "tracked.txt"), []byte("initial\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".gitattributes"), []byte("tracked.txt filter=sentinel\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	workspaceGit(t, dir, "add", ".")
+	workspaceGit(t, dir, "commit", "-qm", "initial")
+	sentinel := filepath.Join(dir, "helper-ran")
+	helper := filepath.Join(t.TempDir(), "sentinel-helper")
+	if err := os.WriteFile(helper, []byte("#!/bin/sh\nprintf called > '"+sentinel+"'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	workspaceGit(t, dir, "config", "core.fsmonitor", helper)
+	if got, err := inspectWorkspace(t.Context(), dir); err != nil || got.Kind != contracts.WorkspaceGit || len(got.GitEntries) != 0 {
+		t.Fatalf("expected clean status with fsmonitor disabled: %+v, %v", got, err)
+	}
+	workspaceGit(t, dir, "-c", "core.fsmonitor=false", "config", "filter.sentinel.clean", helper)
+	if err := os.WriteFile(filepath.Join(dir, "tracked.txt"), []byte("changed"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := inspectWorkspace(t.Context(), dir)
+	if err != nil || got.Kind != contracts.WorkspaceDirectory || !strings.Contains(strings.Join(got.Warnings, " "), "clean filters") {
+		t.Fatalf("expected labelled fallback for configured filters: %+v, %v", got, err)
+	}
+	if _, statErr := os.Stat(sentinel); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("helper ran or sentinel could not be checked: %v", statErr)
+	}
+}
+
+func TestCenterWorkspaceFallsBackAfterMetadataProbeFailure(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Symlink("HEAD", filepath.Join(dir, "HEAD")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "visible.txt"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := inspectWorkspace(t.Context(), dir)
+	if err != nil || got.Kind != contracts.WorkspaceDirectory ||
+		!strings.Contains(strings.Join(got.Warnings, " "), "inspect repository metadata") {
+		t.Fatalf("expected a labelled fallback: %+v, %v", got, err)
+	}
+	for _, item := range got.Entries {
+		if item.Name == "visible.txt" {
+			return
+		}
+	}
+	t.Fatal("directory fallback lost the readable file")
+}
+
+func TestCenterWorkspaceLinkedWorktreeStatus(t *testing.T) {
+	root := t.TempDir()
+	workspaceGit(t, root, "init", "-q")
+	workspaceGit(t, root, "commit", "--allow-empty", "-qm", "initial")
+	worktree := filepath.Join(t.TempDir(), "linked")
+	workspaceGit(t, root, "worktree", "add", "--detach", worktree)
+	if err := os.WriteFile(filepath.Join(worktree, "untracked"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := inspectWorkspace(t.Context(), worktree)
+	if err != nil || got.Kind != contracts.WorkspaceGit || got.RepositoryRoot != worktree ||
+		len(got.GitEntries) != 1 || got.GitEntries[0].Path != "untracked" {
+		t.Fatalf("linked worktree status: %+v, %v", got, err)
+	}
+}
+
+func TestCenterWorkspaceReportsSubmoduleFallback(t *testing.T) {
+	dir := t.TempDir()
+	workspaceGit(t, dir, "init", "-q")
+	workspaceGit(t, dir, "commit", "--allow-empty", "-qm", "initial")
+	head, err := runGit(t.Context(), dir, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	workspaceGit(t, dir, "update-index", "--add", "--cacheinfo", "160000,"+strings.TrimSpace(string(head))+",module")
+	got, err := inspectWorkspace(t.Context(), dir)
+	if err != nil || got.Kind != contracts.WorkspaceDirectory || !strings.Contains(strings.Join(got.Warnings, " "), "submodules") {
+		t.Fatalf("expected labelled fallback for a gitlink: %+v, %v", got, err)
+	}
+}

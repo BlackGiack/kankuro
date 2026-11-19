@@ -28,14 +28,13 @@ func TestCenterWorkspaceCancellationKillsGitHelpers(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = unrelated.Process.Kill(); _ = unrelated.Wait() })
 	dir := t.TempDir()
-	workspaceGit(t, dir, "init", "-q")
 	pidFile := filepath.Join(t.TempDir(), "helper.pid")
-	hook := filepath.Join(t.TempDir(), "fsmonitor")
+	program := filepath.Join(dir, "git")
 	script := fmt.Sprintf("#!/bin/sh\n/bin/sleep 60 &\necho $! > '%s'\nwait\n", pidFile)
-	if err := os.WriteFile(hook, []byte(script), 0700); err != nil {
+	if err := os.WriteFile(program, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
-	workspaceGit(t, dir, "config", "core.fsmonitor", hook)
+	t.Setenv("PATH", dir)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	done := make(chan error, 1)
@@ -55,7 +54,7 @@ func TestCenterWorkspaceCancellationKillsGitHelpers(t *testing.T) {
 	if pid <= 0 {
 		cancel()
 		<-done
-		t.Fatal("Git fsmonitor helper did not start")
+		t.Fatal("test child process did not start")
 	}
 	started := time.Now()
 	cancel()
