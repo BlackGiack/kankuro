@@ -226,6 +226,7 @@ func TestCenterWorkspaceIgnoresConfiguredGitHelpers(t *testing.T) {
 	}
 	workspaceGit(t, dir, "add", ".")
 	workspaceGit(t, dir, "commit", "-qm", "initial")
+	workspaceGit(t, dir, "update-index", "--split-index")
 	sentinel := filepath.Join(dir, "helper-ran")
 	helper := filepath.Join(t.TempDir(), "sentinel-helper")
 	if err := os.WriteFile(helper, []byte("#!/bin/sh\nprintf called > '"+sentinel+"'\n"), 0700); err != nil {
@@ -282,6 +283,33 @@ func TestCenterWorkspaceLinkedWorktreeStatus(t *testing.T) {
 	if err != nil || got.Kind != contracts.WorkspaceGit || got.RepositoryRoot != worktree ||
 		len(got.GitEntries) != 1 || got.GitEntries[0].Path != "untracked" {
 		t.Fatalf("linked worktree status: %+v, %v", got, err)
+	}
+}
+
+func TestCenterWorkspaceSplitIndexStatus(t *testing.T) {
+	root := t.TempDir()
+	workspaceGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "tracked.txt"), []byte("initial\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	workspaceGit(t, root, "add", "tracked.txt")
+	workspaceGit(t, root, "commit", "-qm", "initial")
+	linked := filepath.Join(t.TempDir(), "linked")
+	workspaceGit(t, root, "worktree", "add", "--detach", linked)
+	for _, tc := range []struct{ name, dir string }{{"main", root}, {"linked", linked}} {
+		t.Run(tc.name, func(t *testing.T) {
+			workspaceGit(t, tc.dir, "update-index", "--split-index")
+			if err := os.WriteFile(filepath.Join(tc.dir, "tracked.txt"), []byte("changed\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			got, err := inspectWorkspace(t.Context(), tc.dir)
+			if err != nil || got.Kind != contracts.WorkspaceGit || len(got.Warnings) != 0 || len(got.GitEntries) != 1 {
+				t.Fatalf("expected one Git change with a split index: %+v, %v", got, err)
+			}
+			if entry := got.GitEntries[0]; entry.Path != "tracked.txt" || entry.WorktreeStatus != 'M' {
+				t.Fatalf("unexpected Git change: %+v", entry)
+			}
+		})
 	}
 }
 

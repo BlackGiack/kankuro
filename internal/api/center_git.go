@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -15,22 +16,30 @@ import (
 const (
 	privateGitFileMode = 0600
 	privateGitDirMode  = 0700
+	gitSHA1HexLength   = 40
+	gitSHA256HexLength = 64
 )
 
 func inspectGitWorkspace(ctx context.Context, result *contracts.SessionWorkspaceResult) error {
 	ctx, cancel := context.WithTimeout(ctx, gitTimeout)
 	defer cancel()
 
-	data, err := runGit(ctx, result.WorkingDir, "rev-parse", "--path-format=absolute",
-		"--show-toplevel", "--absolute-git-dir", "--git-common-dir")
+	data, err := runGit(ctx, result.WorkingDir, "-c", "core.fsmonitor=false", "rev-parse", "--path-format=absolute",
+		"--show-toplevel", "--absolute-git-dir", "--git-common-dir", "--shared-index-path")
 	if err != nil {
 		return err
 	}
 	paths := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
-	if len(paths) != 3 || !filepath.IsAbs(paths[0]) || !filepath.IsAbs(paths[1]) || !filepath.IsAbs(paths[2]) {
+	const requiredPaths = 3
+	if len(paths) < requiredPaths || len(paths) > requiredPaths+1 ||
+		!filepath.IsAbs(paths[0]) || !filepath.IsAbs(paths[1]) || !filepath.IsAbs(paths[2]) {
 		return errors.New("git returned invalid workspace metadata paths")
 	}
 	root, gitDir, commonDir := paths[0], paths[1], paths[2]
+	var sharedIndex string
+	if len(paths) > requiredPaths {
+		sharedIndex = paths[requiredPaths]
+	}
 	workspacePath, err := filepath.EvalSymlinks(result.WorkingDir)
 	if err != nil {
 		return err
@@ -50,7 +59,7 @@ func inspectGitWorkspace(ctx context.Context, result *contracts.SessionWorkspace
 	}
 	defer os.RemoveAll(private)
 
-	if linkErr := linkGitStatusMetadata(private, gitDir, commonDir); linkErr != nil {
+	if linkErr := linkGitStatusMetadata(private, gitDir, commonDir, sharedIndex); linkErr != nil {
 		return linkErr
 	}
 	env := []string{"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_NO_LAZY_FETCH=1"}
@@ -109,7 +118,7 @@ func gitStatusSettings(ctx context.Context, root string) ([]string, error) {
 
 // Link individual data paths into a private Git directory. In particular, no
 // config, config.worktree, commondir, hooks or submodule metadata is linked.
-func linkGitStatusMetadata(private, gitDir, commonDir string) error {
+func linkGitStatusMetadata(private, gitDir, commonDir, sharedIndex string) error {
 	headPath := filepath.Join(gitDir, "HEAD")
 	info, err := os.Lstat(headPath)
 	if err != nil {
@@ -147,5 +156,27 @@ func linkGitStatusMetadata(private, gitDir, commonDir string) error {
 			return linkErr
 		}
 	}
-	return nil
+	return linkSharedGitIndex(privateRoot, gitDir, sharedIndex)
+}
+
+func linkSharedGitIndex(private *os.Root, gitDir, path string) error {
+	if path == "" {
+		return nil
+	}
+	name := filepath.Base(path)
+	hash, hasPrefix := strings.CutPrefix(name, "sharedindex.")
+	if !hasPrefix || (len(hash) != gitSHA1HexLength && len(hash) != gitSHA256HexLength) || filepath.Join(gitDir, name) != path {
+		return errors.New("git returned an invalid shared index path")
+	}
+	if _, err := hex.DecodeString(hash); err != nil {
+		return errors.New("git returned an invalid shared index name")
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return fmt.Errorf("inspect Git shared index: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return errors.New("unsupported Git shared index file")
+	}
+	return private.Symlink(path, name)
 }
