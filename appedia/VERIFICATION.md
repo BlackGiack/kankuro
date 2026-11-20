@@ -1,3 +1,27 @@
+# Appedia verification at 5c80ec8
+
+This refresh covers the two frontend boundary follow-up commits and the
+split-index fix. The source model was extracted from a separate checkout
+of `5c80ec8`. The existing dashboard and startup flow URLs remain valid.
+
+- The center flows show retained-report notifications, independent scope
+  checks, timestamp fitting, and isolated Git inspection with split indexes.
+  They describe the labelled directory fallback after metadata or status
+  errors. Source references now use the surviving lifecycle API.
+- `go test -json ./... -count=1` passed on Linux. The Tests page links
+  the named runs and records their limits. The refreshed regressions cover
+  ordinary and linked split-index worktrees, Git helper isolation, metadata
+  fallback, report creation and eviction, scope loss, and timestamp fitting.
+- Prior terminal captures, native-model executions and statement coverage
+  retain their earlier endpoints. This refresh ran the ordinary Go suite
+  and did not rerun native-model or terminal journeys.
+- The validator and full jsdom route check passed during finalization.
+  The impact review is in `.maintenance/last-review.json`.
+  Chrome rendered the map, both center flows and the Tests page in light
+  and dark themes. These captures check the Appedia itself.
+
+---
+
 # Appedia verification at bd03108
 
 This refresh covers the frontend boundary roadmap through the restored

@@ -61,7 +61,7 @@ window.APPEDIA_CONTENT = {
       "comes back through Bubble Tea's Update"
     ]
   },
-  "snapshot": "2026-11-19 · frontend boundary roadmap through bd03108",
+  "snapshot": "2026-11-20 · frontend boundary roadmap through 5c80ec8",
   "pitch": "Organize agent configurations and sessions into independent dashboards. Share selected cards across dashboards while keeping each session, workspace identity and conversation binding in its creation dashboard.",
   "pitch2": "Bubble Tea uses independent application contracts through focused capabilities. The application service owns membership and operations. The center keeps the selected-session header above authored reports or bounded workspace information. Raw terminal output is available through the human attachment.",
   "concepts": [
@@ -488,7 +488,7 @@ window.APPEDIA_CONTENT = {
           "session.Manager.ReserveCardDeletion",
           "session.Manager.ReserveCardReferenceForDashboardWithCancel",
           "session.Manager.ReserveDashboardDeletion",
-          "session.Manager.SetNameChecked",
+          "session.Manager.SetNameDetailedChecked",
           "session.Manager.ShutdownStarted",
           "session.Manager.SubmitMessage",
           "session.Manager.TemporaryWorkspaceRoot",
@@ -893,19 +893,19 @@ window.APPEDIA_CONTENT = {
           "api.Service.GetDashboardDeletion",
           "api.Service.GetMessage",
           "api.Service.GetSession",
-          "api.Service.LaunchInDashboard",
+          "api.Service.LaunchSession",
           "api.Service.ListDashboards",
           "api.Service.ListSessions",
           "api.Service.PreflightCardDeletion",
           "api.Service.PreflightDashboardDeletion",
           "api.Service.ReadDashboardOverview",
           "api.Service.RelaunchInDashboard",
-          "api.Service.RemoveInDashboard",
-          "api.Service.RenameInDashboard",
+          "api.Service.RemoveDashboardSession",
+          "api.Service.RenameDashboardSession",
           "api.Service.ResolveCaller",
           "api.Service.RetryCardDeletion",
           "api.Service.RetryDashboardDeletion",
-          "api.Service.StopInDashboard",
+          "api.Service.StopDashboardSession",
           "api.Service.SwitchInDashboard",
           "api.Service.UpdateEditorCard",
           "api.Service.UpdateDashboardDetails",
@@ -1680,7 +1680,7 @@ window.APPEDIA_CONTENT = {
           "session.Manager.CardReferences",
           "session.Manager.List",
           "session.Manager.ReserveCardReferenceForDashboardWithCancel",
-          "session.Manager.SetNameChecked",
+          "session.Manager.SetNameDetailedChecked",
           "ui.Coordinator.handleDataLoaded",
           "ui.Coordinator.handleSessionMessages",
           "ui.Coordinator.handleSessionsRefreshed",
@@ -2191,16 +2191,16 @@ window.APPEDIA_CONTENT = {
           "svc",
           "store",
           "call",
-          "Capture Changed before returning subscription",
-          "Check membership before and after setup; no agent credential is needed.",
+          "Capture report and scope signals before reading",
+          "Check dashboard membership before and after setup. The application draws identity from the human dashboard selection.",
           "api.Service.SubscribeSessionReports"
         ],
         [
           "sub",
           "store",
           "go",
-          "Watch and rearm Changed before notifying",
-          "One buffered notice coalesces store changes; waits never hold store locks.",
+          "Rearm retained-report changes and revalidate scope",
+          "Committed report additions and removals coalesce into one buffered notice. Lifecycle notices recheck scope separately. Delivery changes wake readers only when they evict retained reports.",
           "api.watchReportChanges"
         ],
         [
@@ -2240,7 +2240,7 @@ window.APPEDIA_CONTENT = {
           "panel",
           "self",
           "Render reports beneath the session header",
-          "Measure the header before wrapping the newest report. Keep the timestamp and kind when they fit and sanitize multiline report text independently.",
+          "Keep timestamps on visible reports. Omit older entries that cannot fit a timestamp and body, and compact the newest report into one row when needed.",
           "components.SessionCenter.View"
         ]
       ],
@@ -2249,13 +2249,18 @@ window.APPEDIA_CONTENT = {
           "internal/api/center.go",
           "internal/session/authored_reports.go",
           "internal/ui/center.go",
-          "internal/ui/components/session_center.go"
+          "internal/ui/components/session_center.go",
+          "internal/session/messaging.go"
         ],
         "refs": [
           "components.SessionCenter.headerRows",
           "components.SessionCenter.ReportLimit",
           "components.RenderPuppetArtwork",
-          "models.CloneSessionRow"
+          "models.CloneSessionRow",
+          "session.MessageStore.ReportsChanged",
+          "session.MessageStore.ReportScopeChanged",
+          "session.MessageStore.signalRecordedReportLocked",
+          "components.centerReportHeader"
         ]
       }
     },
@@ -5315,7 +5320,7 @@ window.APPEDIA_CONTENT = {
           "api.sessionInDashboard",
           "api.sessionUsesCard",
           "session.Manager.List",
-          "session.Manager.SetNameChecked",
+          "session.Manager.SetNameDetailedChecked",
           "session.Manager.ShutdownStarted",
           "session.Manager.listLocked",
           "session.NewManager",
@@ -6691,24 +6696,24 @@ window.APPEDIA_CONTENT = {
           "svc",
           "cmd",
           "renameDashboardSession",
-          "Execute RenameInDashboard using captured values.",
+          "Execute RenameDashboardSession using captured values.",
           "ui.Coordinator.renameDashboardSession"
         ],
         [
           "svc",
           "manager",
           "call",
-          "RenameInDashboard → SetNameChecked",
+          "RenameDashboardSession → SetNameDetailedChecked",
           "Existing membership policy runs under manager admission.",
-          "api.Service.RenameInDashboard"
+          "api.Service.RenameDashboardSession"
         ],
         [
           "manager",
           "disk",
           "io",
-          "SetNameChecked: persist session",
+          "SetNameDetailedChecked: persist session",
           "Reject lifecycle conflicts; update memory before saving, so save failure is not rollback.",
-          "session.Manager.SetNameChecked"
+          "session.Manager.SetNameDetailedChecked"
         ],
         [
           "coord",
@@ -7310,7 +7315,7 @@ window.APPEDIA_CONTENT = {
           "session.Manager.CardReferences",
           "session.Manager.List",
           "session.Manager.ReserveCardReferenceForDashboardWithCancel",
-          "session.Manager.SetNameChecked",
+          "session.Manager.SetNameDetailedChecked",
           "ui.Coordinator.handleDataLoaded",
           "ui.Coordinator.handleSessionMessages",
           "ui.Coordinator.handleSessionsRefreshed",
@@ -7402,16 +7407,16 @@ window.APPEDIA_CONTENT = {
           "svc",
           "svc",
           "io",
-          "Git probe and porcelain-v2 NUL status",
-          "Argv-only, bounded output/time and 250 ms WaitDelay. On Unix, use an exclusive owned process group; cancellation and output overflow kill that group. Non-Unix currently uses direct process termination.",
-          "api.runGit"
+          "Discover Git paths and inspect with isolated configuration",
+          "Build a private Git directory from selected data, including the active split index when present. Disable fsmonitor and hooks. Configured clean filters and repositories with submodules use a labelled directory fallback.",
+          "api.inspectGitWorkspace"
         ],
         [
           "svc",
           "svc",
           "call",
           "Parse Git records, including rename origin",
-          "At most 1,000 entries; malformed output is an error, not clean status.",
+          "Parse NUL-delimited porcelain v2, preserve rename origins, and cap results at 1,000 entries. Git commands use argv, bounded output and a deadline. Unix cancellation and output overflow terminate the owned process group.",
           "api.parseGitStatus"
         ],
         [
@@ -7419,7 +7424,7 @@ window.APPEDIA_CONTENT = {
           "svc",
           "io",
           "Non-Git or labelled Git-error fallback: list immediate children",
-          "At most 1,000 including dot rows; dotfiles, lstat/readlink, optional metadata, no recursion.",
+          "A metadata or status error is visible alongside the fallback when directory access succeeds. Include dotfiles and optional stat metadata without recursion.",
           "api.listWorkspace"
         ],
         [
@@ -7445,11 +7450,15 @@ window.APPEDIA_CONTENT = {
           "internal/api/center_workspace_linux.go",
           "internal/api/center_workspace_other.go",
           "internal/api/center_process_unix.go",
-          "internal/api/center_process_other.go"
+          "internal/api/center_process_other.go",
+          "internal/api/center_git.go"
         ],
         "refs": [
           "api.configureGitProcess",
-          "api.killGitProcess"
+          "api.killGitProcess",
+          "api.runGitWithEnv",
+          "api.gitStatusSettings",
+          "api.linkSharedGitIndex"
         ]
       }
     },
@@ -8073,8 +8082,8 @@ window.APPEDIA_CONTENT = {
       "n": "32",
       "title": "Subscribe before reading; cancel obsolete center work",
       "ref": "api.Service.SubscribeSessionReports",
-      "why": "Capture/rearm the store signal before reads/notices. Global changes do not bypass failed-report recovery or restart workspace inspection. Track initial attempts and due refresh independently of cache; release stale subscriptions and use one 30-second timer.",
-      "check": "Initial/rearm races, late workspace, stale setup and fake-clock tests.",
+      "why": "Capture both signals before the initial read and rearm before forwarding. Retained content changes wake readers, while lifecycle events independently recheck scope. Failed reads and workspace inspection retain their recovery cadence.",
+      "check": "First-read and rearm races, report eviction and failed persistence, scope loss without a report change, and fake-clock recovery tests.",
       "flows": [
         "preview",
         "center-recovery"
@@ -8240,7 +8249,7 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Change center updates or fallback behavior",
-      "a": "Start with the consumer-owned center port, application report/workspace operations and coordinator state machine. Preserve subscribe-before-read, same-session stale content, workspace cancellation and 30-second recovery.",
+      "a": "Start with the consumer-owned center port, application report/workspace operations and coordinator state machine. Preserve subscribe-before-read, same-session stale content, workspace cancellation and 30-second recovery. Report content changes and lifecycle scope checks use separate signals.",
       "refs": [
         "ui.centerPort",
         "api.Service.SubscribeSessionReports",
@@ -8305,14 +8314,14 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Change session names or activation snapshots",
-      "a": "For existing-session e rename, start at Dashboard.handleEdit/updateRename, the captured coordinator callback and its dedicated completion message. Reuse RenameInDashboard and SetNameChecked; refresh on either result and preserve process identity. Launch naming keeps its separate attach flow. For operation snapshots, keep inspectionFromSnapshot as the single conversion. Launch naming retains focus by ID and confirmed name; inline rename invalidates older session refreshes.",
+      "a": "For existing-session e rename, start at Dashboard.handleEdit/updateRename, the captured coordinator callback and its dedicated completion message. Reuse RenameDashboardSession and SetNameDetailedChecked; refresh on either result and preserve process identity. Launch naming keeps its separate attach flow. For operation snapshots, keep inspectionFromSnapshot as the single conversion. Launch naming retains focus by ID and confirmed name; inline rename invalidates older session refreshes.",
       "refs": [
         "views.Dashboard.handleEdit",
         "views.Dashboard.updateRename",
         "ui.Coordinator.renameDashboardSession",
         "messages.DashboardSessionRenamedMsg",
-        "api.Service.RenameInDashboard",
-        "session.Manager.SetNameChecked",
+        "api.Service.RenameDashboardSession",
+        "session.Manager.SetNameDetailedChecked",
         "api.inspectionFromSnapshot"
       ],
       "flow": "rename-save"
@@ -8449,11 +8458,13 @@ window.APPEDIA_CONTENT = {
     },
     {
       "q": "Change workspace inspection limits or classification",
-      "a": "Inspect saved actual workspace through API helpers, including linked worktrees, non-Git proof, timeout/output bounds, optional platform metadata and visible truncation.",
+      "a": "Read the saved workspace through the API. Git inspection assembles a private data directory, adds the referenced split index, and falls back visibly on Git errors or unsupported configurations.",
       "refs": [
         "api.Service.ReadSessionWorkspace",
         "api.inspectWorkspace",
-        "api.listWorkspace"
+        "api.listWorkspace",
+        "api.inspectGitWorkspace",
+        "api.linkSharedGitIndex"
       ],
       "flow": "center-workspace"
     }
@@ -8735,7 +8746,7 @@ window.APPEDIA_CONTENT = {
     ]
   ],
   "tests": {
-    "scope": "Current source and ordinary Go suite at bd03108. Model-free Linux Codex and MCP terminal journeys were rerun. Historical native-model runs and statement coverage retain their original provenance. Live Codex recall and the combined all-failure recovery journey remain open.",
+    "scope": "Current source and ordinary Go suite at 5c80ec8. Earlier Linux terminal captures, native-model runs and statement coverage retain their original provenance. Live Codex recall and combined all-failure recovery remain open.",
     "features": [
       {
         "id": "boundary",
@@ -10334,7 +10345,7 @@ window.APPEDIA_CONTENT = {
                 "api.Service.AttachInDashboard",
                 "session.Manager.AttachChecked",
                 "ui.Coordinator.handleSessionMessages",
-                "api.Service.RenameInDashboard"
+                "api.Service.RenameDashboardSession"
               ]
             },
             "suggestion": "Drive stop/remove through the coordinator and assert removal effects; add a project-owned terminal detach/restoration journey.",
@@ -10725,7 +10736,7 @@ window.APPEDIA_CONTENT = {
             "sources": {
               "refs": [
                 "ui.Coordinator.launchCard",
-                "api.Service.LaunchInDashboard",
+                "api.Service.LaunchSession",
                 "session.Manager.ReserveCardReferenceForDashboardWithCancel",
                 "session.Manager.LaunchInDashboardWithIDContext",
                 "session.Manager.bindPendingWorkspace"
@@ -11880,7 +11891,7 @@ window.APPEDIA_CONTENT = {
             "id": "helper-cancel",
             "title": "Unix cancellation terminates owned Git helpers",
             "dimension": "behavior",
-            "summary": "Real isolated Git fsmonitor starts a sleep helper; cancellation returns promptly, helper exits and an unrelated sleep survives.",
+            "summary": "A controlled Git fixture starts a child process. Cancellation returns promptly, the child exits, and an unrelated process survives.",
             "status": "tested",
             "flows": [
               "center-workspace"
@@ -11957,6 +11968,139 @@ window.APPEDIA_CONTENT = {
               "tui-codex-report-after-relaunch"
             ],
             "limit": "Component assertions and Linux terminal checkpoints at 120×40 and 80×24. No pixel-baseline comparison."
+          },
+          {
+            "id": "split-index",
+            "title": "Read split indexes in ordinary and linked worktrees",
+            "dimension": "behavior",
+            "summary": "Both ordinary and linked worktrees using split indexes return the modified tracked file as Git status.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-split-index"
+            ],
+            "limit": "Real local Git on Linux.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "helper-isolation",
+            "title": "Keep Git helpers out of background inspection",
+            "dimension": "behavior",
+            "summary": "A split-index repository reports clean status with fsmonitor disabled. Configured clean filters trigger the labelled fallback without executing the sentinel helper.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-helper-isolation"
+            ],
+            "limit": "Covers fsmonitor and the configured clean-filter fallback.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "metadata-fallback",
+            "title": "Retain directory entries after a Git metadata error",
+            "dimension": "behavior",
+            "summary": "A failing metadata probe yields a warning and preserves a readable file in the directory listing.",
+            "status": "tested",
+            "flows": [
+              "center-workspace"
+            ],
+            "evidence": [
+              "center-metadata-fallback"
+            ],
+            "limit": "A symlink loop triggers the metadata error.",
+            "sources": {
+              "files": [
+                "internal/api/center_workspace_test.go"
+              ]
+            }
+          },
+          {
+            "id": "report-signal-eviction",
+            "title": "Only delivery changes that evict reports wake the center",
+            "dimension": "behavior",
+            "summary": "An ordinary delivery update wakes general waiters only. Evicting retained replies wakes report readers.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-report-signal-eviction"
+            ],
+            "limit": "Uses a near-capacity message store with legacy replies.",
+            "sources": {
+              "files": [
+                "internal/session/messaging_review_test.go"
+              ]
+            }
+          },
+          {
+            "id": "report-signal-commit",
+            "title": "Ignore report retries and failed writes",
+            "dimension": "behavior",
+            "summary": "A persisted report wakes report readers. Replaying the report or failing a new write leaves the signal unchanged.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-report-signal-commit"
+            ],
+            "limit": "Message-store test with a forced persistence error.",
+            "sources": {
+              "files": [
+                "internal/session/messaging_review_test.go"
+              ]
+            }
+          },
+          {
+            "id": "report-scope-signal",
+            "title": "Recheck scope independently of report updates",
+            "dimension": "behavior",
+            "summary": "The subscription closes on scope loss without requiring a report change.",
+            "status": "tested",
+            "flows": [
+              "center-recovery"
+            ],
+            "evidence": [
+              "center-report-scope-signal"
+            ],
+            "limit": "Application service fixture.",
+            "sources": {
+              "files": [
+                "internal/api/center_test.go"
+              ]
+            }
+          },
+          {
+            "id": "report-timestamp-fit",
+            "title": "Omit reports that cannot keep a timestamp",
+            "dimension": "layout",
+            "summary": "When an older report cannot fit with its timestamp, omit it. A newest report can use a compact one-row timestamp.",
+            "status": "tested",
+            "flows": [
+              "preview"
+            ],
+            "evidence": [
+              "center-report-timestamp-fit"
+            ],
+            "limit": "Component assertions at bounded sizes.",
+            "sources": {
+              "files": [
+                "internal/ui/components/session_center_test.go"
+              ]
+            }
           }
         ]
       }
@@ -11972,14 +12116,14 @@ window.APPEDIA_CONTENT = {
         "endLine": 56,
         "proves": "Checks package direction and reviewed exception sets.",
         "limits": "The checker is static. Runtime behavior has separate evidence.",
-        "reviewedHash": "50c953b1e9ef06231006997893fb8cec5c7b71f51bf04fe9c6b5ee8a4b2af366",
+        "reviewedHash": "7d5b2dae45b6a152df35434f934a406ff8d571c021100a6313a4ba2f34c99c5f",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.551084426Z",
+          "at": "2026-11-20T00:06:56.012769099Z",
           "scope": "TestFrontendBoundary in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -11996,10 +12140,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:52.837655745Z",
+          "at": "2026-11-20T00:06:55.082324791Z",
           "scope": "TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12016,10 +12160,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:52.842042255Z",
+          "at": "2026-11-20T00:06:55.089462961Z",
           "scope": "TestEditorConcurrentSavesOnlyOneSucceeds in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12036,10 +12180,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:56.719034587Z",
+          "at": "2026-11-20T00:07:00.13931537Z",
           "scope": "TestSourceIdentityRejectsReorderAndAddressesDuplicates in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12056,10 +12200,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:56.699559917Z",
+          "at": "2026-11-20T00:07:00.111351672Z",
           "scope": "TestSessionContractsRevalidateScopeAndChoice in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12072,14 +12216,14 @@ window.APPEDIA_CONTENT = {
         "endLine": 72,
         "proves": "Reads a retained report through a reconstructed manager and coordinator.",
         "limits": "Exercises backend/UI seam without rendering a live terminal restart.",
-        "reviewedHash": "0184be93a83e39fa6da810420c5a541a9579518ce030944fba221d14dd2f95c1",
+        "reviewedHash": "6f5ad56984d7167bf861bb7b3ff437e1defad2c43b52799d0007756372ac631a",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.439073558Z",
+          "at": "2026-11-20T00:06:55.765947188Z",
           "scope": "TestCenterReportSurvivesBackendReconstruction in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12096,10 +12240,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.456652478Z",
+          "at": "2026-11-20T00:06:55.795438756Z",
           "scope": "TestCenterSwitchWhileReadInFlight in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12116,10 +12260,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.461804118Z",
+          "at": "2026-11-20T00:06:55.517785348Z",
           "scope": "TestTerminalPTYDetachAndRestoration in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12136,10 +12280,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.25699771Z",
+          "at": "2026-11-20T00:06:55.315513593Z",
           "scope": "TestInputDecoderSplitDetach in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12156,10 +12300,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.26676689Z",
+          "at": "2026-11-20T00:06:55.330566382Z",
           "scope": "TestMissingSessionClosesQueuedAttachment in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12172,14 +12316,14 @@ window.APPEDIA_CONTENT = {
         "endLine": 171,
         "proves": "Exercises dashboard scope through the MCP server transport.",
         "limits": "Local transport and test identities.",
-        "reviewedHash": "9b762f25ed9999928f3bcb4d29513636fb34986351fef01c4e11f5689e31efa4",
+        "reviewedHash": "e3c654827f59c2ffffe968a2862c16726b89fd878aeef26745a364ce9098685c",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.28183623Z",
+          "at": "2026-11-20T00:06:55.245667568Z",
           "scope": "TestDashboardScopeOverHTTP in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12196,10 +12340,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:01.380401348Z",
+          "at": "2026-11-20T00:07:04.132758481Z",
           "scope": "TestDashboardExecutionProgressSurvivesStatusReadFailure in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12321,10 +12465,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.075373992Z",
+          "at": "2026-11-20T00:06:55.063401182Z",
           "scope": "TestFreshInitializationAndPartialRoot in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12341,10 +12485,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.098357572Z",
+          "at": "2026-11-20T00:06:55.077244132Z",
           "scope": "TestValidateLayoutRejectsInvalidRecordsWithoutRewriting in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12361,10 +12505,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.075422512Z",
+          "at": "2026-11-20T00:06:55.063552322Z",
           "scope": "TestExclusiveLock in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12379,10 +12523,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.187331518Z",
+          "at": "2026-11-20T00:07:09.578769989Z",
           "scope": "TestDashboardListCreatesNamedDashboard in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 171,
         "endLine": 190
@@ -12393,16 +12537,16 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/membership_internal_test.go",
-        "reviewedHash": "921ce31bf3503a58e7e0f49e1d3d38eb0814a6b9048fd6438c3c6458913e1355",
+        "reviewedHash": "5c03e0ca7fa22fb2f702ffc7ab2a5ee661a6fb521c75935bdd83dc1719f97f46",
         "proves": "Creates and updates dashboard details, then checks the single returned inventory entry equals the update and retains the created identity.",
         "limits": "Service/repository test; no dashboard-list form key journey.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.603519296Z",
+          "at": "2026-11-20T00:06:56.427411117Z",
           "scope": "TestDashboardDetailsThroughService in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 348,
         "endLine": 369
@@ -12419,10 +12563,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.176577728Z",
+          "at": "2026-11-20T00:07:09.5642564Z",
           "scope": "TestDashboardListShowsDeletionPreparationAndStatusErrors in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 28,
         "endLine": 69
@@ -12439,10 +12583,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.177393008Z",
+          "at": "2026-11-20T00:07:09.56558524Z",
           "scope": "TestDashboardListBoundsLongDeletionErrorWhenListBecomesEmpty in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 82,
         "endLine": 94
@@ -12455,14 +12599,14 @@ window.APPEDIA_CONTENT = {
         "file": "internal/api/membership_internal_test.go",
         "proves": "Checks private/shared visibility, consumer edit denial, dashboard-local sessions, stale/foreign deletion confirmation, surviving foreign sessions and switching away from a deleted card.",
         "limits": "Service/repository/manager fixture with cat processes; no keyboard or MCP transport assertions.",
-        "reviewedHash": "921ce31bf3503a58e7e0f49e1d3d38eb0814a6b9048fd6438c3c6458913e1355",
+        "reviewedHash": "5c03e0ca7fa22fb2f702ffc7ab2a5ee661a6fb521c75935bdd83dc1719f97f46",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.599343286Z",
+          "at": "2026-11-20T00:06:56.415437928Z",
           "scope": "TestReadDashboardDataScopesCardsAndSessions in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 139,
         "endLine": 308
@@ -12475,14 +12619,14 @@ window.APPEDIA_CONTENT = {
         "file": "internal/api/membership_internal_test.go",
         "proves": "Blocks copying, changes sharing, then asserts no publication and release of the pending reservation.",
         "limits": "Injected workspace-copy gate; does not simulate every registry mutation.",
-        "reviewedHash": "921ce31bf3503a58e7e0f49e1d3d38eb0814a6b9048fd6438c3c6458913e1355",
+        "reviewedHash": "5c03e0ca7fa22fb2f702ffc7ab2a5ee661a6fb521c75935bdd83dc1719f97f46",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.613175626Z",
+          "at": "2026-11-20T00:06:56.460837244Z",
           "scope": "TestScopedLaunchRevalidatesChangedCardBeforePublication in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 403,
         "endLine": 458
@@ -12495,16 +12639,16 @@ window.APPEDIA_CONTENT = {
         "file": "internal/mcp/dashboard_scope_test.go",
         "line": 21,
         "endLine": 171,
-        "reviewedHash": "9b762f25ed9999928f3bcb4d29513636fb34986351fef01c4e11f5689e31efa4",
+        "reviewedHash": "e3c654827f59c2ffffe968a2862c16726b89fd878aeef26745a364ce9098685c",
         "proves": "Authenticates two dashboards over the real Streamable HTTP SDK client, checks peer session discovery excludes caller and foreign sessions.",
         "limits": "Only list_sessions transport scope is asserted here; no external AI client.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.28183623Z",
+          "at": "2026-11-20T00:06:55.245667568Z",
           "scope": "TestDashboardScopeOverHTTP in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12513,18 +12657,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/service_test.go",
-        "line": 156,
-        "endLine": 453,
-        "reviewedHash": "4bc83e45efe0f3f738df2cad37508a302d4f8e5660f90165175e57f46bac8ff3",
+        "line": 164,
+        "endLine": 461,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
         "proves": "With real cat sessions, checks deployed controller/registration-only authority, scoped discovery/inspection/create, duplicate concurrent create identity, request conflicts, cross-dashboard denials, lifecycle replay/restart and cancellation.",
         "limits": "In-process service/runner fixture; no TUI or installed native-agent client. Tests the declared finite set of authorization and operation cases.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:56.165777854Z",
+          "at": "2026-11-20T00:06:59.473328871Z",
           "scope": "TestOperationRunnerCreatesOnceAndReplaysRequest in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12533,18 +12677,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/service_test.go",
-        "line": 142,
-        "endLine": 153,
-        "reviewedHash": "4bc83e45efe0f3f738df2cad37508a302d4f8e5660f90165175e57f46bac8ff3",
+        "line": 150,
+        "endLine": 161,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
         "proves": "Checks empty credentials cannot list cards/sessions or inspect a target.",
         "limits": "Service rejection assertions without transport status assertions.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.905616757Z",
+          "at": "2026-11-20T00:06:59.162837516Z",
           "scope": "TestUnauthenticatedDiscoveryIsDenied in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12555,14 +12699,14 @@ window.APPEDIA_CONTENT = {
         "file": "internal/api/membership_internal_test.go",
         "proves": "Asserts foreign pending impact, required confirmation, cancelled launch and no published session.",
         "limits": "Controlled copier and service entry points; no confirmation-modal rendering.",
-        "reviewedHash": "921ce31bf3503a58e7e0f49e1d3d38eb0814a6b9048fd6438c3c6458913e1355",
+        "reviewedHash": "5c03e0ca7fa22fb2f702ffc7ab2a5ee661a6fb521c75935bdd83dc1719f97f46",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.621552186Z",
+          "at": "2026-11-20T00:06:56.474424083Z",
           "scope": "TestConfirmedCardDeletionCancelsForeignPendingLaunch in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 461,
         "endLine": 501
@@ -12577,14 +12721,14 @@ window.APPEDIA_CONTENT = {
         "endLine": 184,
         "proves": "Persists deleting intent, checks admission denial, rebuilds manager/service, removes owned session while preserving the foreign session and permits idempotent retry.",
         "limits": "In-process restart against real files; no OS kill/power-loss simulation.",
-        "reviewedHash": "ba7b77503150f21a09e4c47a8818dc09064dfaf30c0fe1b292e713807c78af6a",
+        "reviewedHash": "abc20c154ff0e19f4923ad649195d14945e477961cb8114cf97ad6bb7736398a",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.468936687Z",
+          "at": "2026-11-20T00:06:56.211417864Z",
           "scope": "TestDashboardCascadeResumesAfterRestart in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12593,16 +12737,16 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/card_cleanup_internal_test.go",
-        "reviewedHash": "4a17369792d629e06175f51c1165e6420a3f5bf8e8fd35e23242e76e1071d87f",
+        "reviewedHash": "d9286cfb104e002db652973ffe28a6085d9b023f762c4ad4a983146bca3157f7",
         "proves": "Blocks a foreign pending copy, edits the card workspace, checks failed cleanup persists the original exact paths/error in a tombstone, then restarts and retries cleanup without removing a foreign session.",
         "limits": "Permission-based non-root filesystem fixture; in-process restart, not hard OS termination.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:52.827130035Z",
+          "at": "2026-11-20T00:06:55.075301782Z",
           "scope": "TestCardDeletionRetriesPendingWorkspaceCleanupAfterRestart in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 16,
         "endLine": 167
@@ -12615,14 +12759,14 @@ window.APPEDIA_CONTENT = {
         "file": "internal/ui/multi_dashboard_internal_test.go",
         "proves": "Checks that foreign sessions cannot take over the center, stale settings navigation, refresh and attach cannot cross dashboard scope, and returning restores the original view.",
         "limits": "Drives coordinator messages directly with real local cat sessions; not an end-to-end terminal journey.",
-        "reviewedHash": "6fc8a0e2dbad62ff1ccdf21a5be3334fd86474ba351a159220095e4463ffb301",
+        "reviewedHash": "7749e986fb4965d6a54c9b4ec20cedf1b4fb4a725b5a8604c85a1c90ac011ccb",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:01.505774557Z",
+          "at": "2026-11-20T00:07:04.40770914Z",
           "scope": "TestMultiDashboardDiscardsStaleResultsAndPreservesViews in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 20,
         "endLine": 111
@@ -12639,10 +12783,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:01.511471077Z",
+          "at": "2026-11-20T00:07:04.415628549Z",
           "scope": "TestMaybeRefreshConfigSkipsUnchangedRegistry in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 67,
         "endLine": 94
@@ -12661,10 +12805,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:05.21943275Z",
+          "at": "2026-11-20T00:07:09.522864064Z",
           "scope": "TestCoordinatorTooSmallScreenIsExact in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12681,10 +12825,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:05.23922334Z",
+          "at": "2026-11-20T00:07:09.57031494Z",
           "scope": "TestCoordinatorDropsKeysWhenTooSmall in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12701,10 +12845,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:03.927350587Z",
+          "at": "2026-11-20T00:07:07.067406993Z",
           "scope": "TestDashboardListRequiresExplicitQuit in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -12719,10 +12863,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:52.837655745Z",
+          "at": "2026-11-20T00:06:55.082324791Z",
           "scope": "TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 13,
         "endLine": 71
@@ -12738,10 +12882,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.419166613Z",
+          "at": "2026-11-20T00:06:58.282823223Z",
           "scope": "TestDashboardControlCardEditorToggleRoundTrip in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 117,
         "endLine": 132
@@ -12758,10 +12902,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.775172611Z",
+          "at": "2026-11-20T00:06:57.408397971Z",
           "scope": "TestCardEditorFocusedFieldAlwaysVisible in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 261,
         "endLine": 284
@@ -12778,10 +12922,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.421773403Z",
+          "at": "2026-11-20T00:06:58.284782873Z",
           "scope": "TestSelectedOnlySkillCursorNormalizesAfterRegistryRefresh in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 134,
         "endLine": 154
@@ -12799,10 +12943,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.451684933Z",
+          "at": "2026-11-20T00:06:58.338328699Z",
           "scope": "TestTemporaryWorkspaceSpaceAndSave in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 577,
         "endLine": 614
@@ -12819,10 +12963,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.423382593Z",
+          "at": "2026-11-20T00:06:58.287758233Z",
           "scope": "TestCtrlXClearsOnlySubWorkspaceSelection in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 156,
         "endLine": 207
@@ -12839,10 +12983,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.983355369Z",
+          "at": "2026-11-20T00:07:10.951246973Z",
           "scope": "TestSubWorkspacePickerMultipleUnresolvedAndMainModes in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 77,
         "endLine": 129
@@ -12859,10 +13003,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.990871988Z",
+          "at": "2026-11-20T00:07:10.971340082Z",
           "scope": "TestSubWorkspaceNewSelectionSurvivesRegistryRefresh in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 131,
         "endLine": 178
@@ -12878,10 +13022,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:05.312879029Z",
+          "at": "2026-11-20T00:07:09.725791758Z",
           "scope": "TestSaveSimpleSourceSurfacesSyncFailure in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 13,
         "endLine": 28
@@ -12897,10 +13041,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:05.309332059Z",
+          "at": "2026-11-20T00:07:09.719932808Z",
           "scope": "TestWorkspaceSourceIDAssignedAndPreservedOnEdit in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 67,
         "endLine": 98
@@ -12917,10 +13061,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:05.305234729Z",
+          "at": "2026-11-20T00:07:09.713677419Z",
           "scope": "TestSourceMutationAbortsOnMalformedRegistry in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 15,
         "endLine": 65
@@ -12937,10 +13081,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:05.305234729Z",
+          "at": "2026-11-20T00:07:09.713677419Z",
           "scope": "TestSourceMutationAbortsOnMalformedRegistry in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 15,
         "endLine": 65
@@ -12957,10 +13101,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.89482038Z",
+          "at": "2026-11-20T00:06:57.750951484Z",
           "scope": "TestSourceListIntegration_CRUD in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 15,
         "endLine": 78
@@ -12978,10 +13122,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.89526007Z",
+          "at": "2026-11-20T00:06:57.751438435Z",
           "scope": "TestSourceList_HandleDelete_CallbackError in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 285,
         "endLine": 307
@@ -12998,10 +13142,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.971996569Z",
+          "at": "2026-11-20T00:07:10.934234675Z",
           "scope": "TestSourceManager_Delete in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 117,
         "endLine": 148
@@ -13018,10 +13162,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:03.989088756Z",
+          "at": "2026-11-20T00:07:07.217300912Z",
           "scope": "TestSourceManagementFlow in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 201,
         "endLine": 241
@@ -13039,10 +13183,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:04.036296585Z",
+          "at": "2026-11-20T00:07:07.304722755Z",
           "scope": "TestCoordinatorDataPropagation in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 487,
         "endLine": 524
@@ -13062,10 +13206,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.132254432Z",
+          "at": "2026-11-20T00:06:55.235127619Z",
           "scope": "TestValidateCardRegistryIntegrity in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13083,10 +13227,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.008241613Z",
+          "at": "2026-11-20T00:06:55.022245516Z",
           "scope": "TestCanvasCreation in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13101,10 +13245,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.967947309Z",
+          "at": "2026-11-20T00:07:10.928570945Z",
           "scope": "TestSettingsView_SaveInEditMode in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 57,
         "endLine": 79
@@ -13121,10 +13265,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.968269339Z",
+          "at": "2026-11-20T00:07:10.929459195Z",
           "scope": "TestSettingsView_TerminalCommandFocusSaveAndCancel in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 137,
         "endLine": 164
@@ -13141,10 +13285,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.968028859Z",
+          "at": "2026-11-20T00:07:10.928615075Z",
           "scope": "TestSettingsView_ToggleRows in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 81,
         "endLine": 102
@@ -13163,10 +13307,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.033110203Z",
+          "at": "2026-11-20T00:06:55.064045382Z",
           "scope": "TestAppSettingsPersistence in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13180,10 +13324,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:05.334899329Z",
+          "at": "2026-11-20T00:07:09.759954665Z",
           "scope": "TestTerminalLaunchThroughDashboard in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 43,
         "endLine": 128
@@ -13203,10 +13347,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:04.378085501Z",
+          "at": "2026-11-20T00:07:07.831886065Z",
           "scope": "TestSettingsSaveFailureRemainsVisible in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13221,10 +13365,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.970801599Z",
+          "at": "2026-11-20T00:07:10.933549744Z",
           "scope": "TestSettingsView_LongCommandsStayWithinSize in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 166,
         "endLine": 176
@@ -13240,10 +13384,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.222169438Z",
+          "at": "2026-11-20T00:07:09.643641114Z",
           "scope": "TestMCPFormRoundTripsEveryField in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 148,
         "endLine": 199
@@ -13259,10 +13403,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.214878848Z",
+          "at": "2026-11-20T00:07:09.629044715Z",
           "scope": "TestDashboard_LaunchTerminalRouting in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 492,
         "endLine": 540
@@ -13281,10 +13425,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:58.236044468Z",
+          "at": "2026-11-20T00:07:05.450434799Z",
           "scope": "TestLaunchWorkspaceCommandExecutesInWorkspace in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13298,10 +13442,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:05.344161149Z",
+          "at": "2026-11-20T00:07:09.777924174Z",
           "scope": "TestTerminalLaunchReportsConfigurationAndLookupErrors in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 164,
         "endLine": 258
@@ -13320,10 +13464,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:58.236416668Z",
+          "at": "2026-11-20T00:07:05.453254779Z",
           "scope": "TestLaunchWorkspaceCommandErrors in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13337,10 +13481,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.452063503Z",
+          "at": "2026-11-20T00:06:58.338356869Z",
           "scope": "TestConversationChoiceRequiresExplicitCompatibleChoice in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 16,
         "endLine": 46
@@ -13359,10 +13503,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:03.072466277Z",
+          "at": "2026-11-20T00:07:10.412072375Z",
           "scope": "TestActivationPublishedBeforeStartupDelay in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13379,10 +13523,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:57.483008147Z",
+          "at": "2026-11-20T00:07:04.213164295Z",
           "scope": "TestStartupAdmissionAndRegistrationAreIndependent in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13399,10 +13543,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.513323647Z",
+          "at": "2026-11-20T00:06:56.285852268Z",
           "scope": "TestInspectionConversionPreservesActivationSnapshot in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13417,10 +13561,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:03.977186146Z",
+          "at": "2026-11-20T00:07:07.184638744Z",
           "scope": "TestFullSessionLaunchFlow in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 23,
         "endLine": 138
@@ -13439,10 +13583,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:14.034336428Z",
+          "at": "2026-11-20T00:07:21.578513021Z",
           "scope": "TestActivationRejectsUnavailableSavedWorkspace in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13459,10 +13603,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:03.086557947Z",
+          "at": "2026-11-20T00:07:10.437627163Z",
           "scope": "TestReadSubWorkspaceDescriptorsDoesNotPrepareWorkspace in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13479,10 +13623,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:59.894549437Z",
+          "at": "2026-11-20T00:07:07.212621762Z",
           "scope": "TestRelaunchRefreshesOnlyKankuroMCPAfterRestart in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13499,10 +13643,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.638005625Z",
+          "at": "2026-11-20T00:06:55.603428821Z",
           "scope": "TestTrustInvalidConfigurationPreserved in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13511,18 +13655,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/service_test.go",
-        "line": 1192,
-        "endLine": 1221,
-        "reviewedHash": "4bc83e45efe0f3f738df2cad37508a302d4f8e5660f90165175e57f46bac8ff3",
+        "line": 1200,
+        "endLine": 1229,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
         "proves": "Checks mcp-cli is absent without Kankuro MCP, both protocol skills appear once with Kankuro selection and explicit mcp-cli selection does not duplicate either.",
         "limits": "Tests capability selection, not instruction following by an AI agent.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:56.49832252Z",
+          "at": "2026-11-20T00:06:59.837046053Z",
           "scope": "TestResolveCapabilitiesAddsMCPAccessSkillOnlyWhenKankuroMCPSelected in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13539,10 +13683,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:52.778189546Z",
+          "at": "2026-11-20T00:06:55.018148696Z",
           "scope": "TestEmbeddedMCPCLISkillDeploysThroughConfig in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13559,10 +13703,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:52.778232986Z",
+          "at": "2026-11-20T00:06:55.018649746Z",
           "scope": "TestEmbeddedKankuroPuppetSkillDeploysThroughConfig in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13579,10 +13723,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:57.645590685Z",
+          "at": "2026-11-20T00:07:04.473538515Z",
           "scope": "TestSessionAttachReplay in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13591,18 +13735,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/service_test.go",
-        "line": 1672,
-        "endLine": 1732,
-        "reviewedHash": "4bc83e45efe0f3f738df2cad37508a302d4f8e5660f90165175e57f46bac8ff3",
+        "line": 1682,
+        "endLine": 1742,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
         "proves": "Rejects removal of a running session, removes a stopped temporary workspace, propagates session-record cleanup failure and closed-manager activation error.",
         "limits": "Service/manager and real filesystem fixture; not the dashboard confirmation key sequence.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:56.649737168Z",
+          "at": "2026-11-20T00:07:00.045148737Z",
           "scope": "TestServiceRemoveSessionDelegatesGuardsCleanupAndManagerErrors in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13616,10 +13760,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.967532069Z",
+          "at": "2026-11-20T00:07:10.927870705Z",
           "scope": "TestSessionLauncherWaitsForNameResultAndAllowsRetry in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 135,
         "endLine": 160
@@ -13638,10 +13782,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:59.431927933Z",
+          "at": "2026-11-20T00:07:06.694291712Z",
           "scope": "TestSetNamePropagatesPersistFailure in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13655,10 +13799,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:03.711585549Z",
+          "at": "2026-11-20T00:07:06.826651502Z",
           "scope": "TestCoordinator_DashboardRenameRefreshesWithoutAttachAndSurvivesRestart in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 127,
         "endLine": 189
@@ -13675,10 +13819,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.210919008Z",
+          "at": "2026-11-20T00:07:09.623982236Z",
           "scope": "TestDashboard_RenameSessionDiscardsDraftWithoutSaving in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 437,
         "endLine": 441
@@ -13689,18 +13833,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/service_test.go",
-        "line": 1782,
-        "endLine": 1899,
-        "reviewedHash": "4bc83e45efe0f3f738df2cad37508a302d4f8e5660f90165175e57f46bac8ff3",
+        "line": 1792,
+        "endLine": 1909,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
         "proves": "Checks target activation inspection, submitted send result, stable replay identity, changed-text conflict, stored text, worker report permission and removal of history on recipient deletion.",
         "limits": "Local service/PTY fixtures; submission is byte evidence, not an agent acknowledgment or processing proof.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:56.690326537Z",
+          "at": "2026-11-20T00:07:00.102323103Z",
           "scope": "TestMessagingOperationsPinActivationsAndPersistExplicitReports in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13709,18 +13853,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/service_test.go",
-        "line": 456,
-        "endLine": 533,
-        "reviewedHash": "4bc83e45efe0f3f738df2cad37508a302d4f8e5660f90165175e57f46bac8ff3",
+        "line": 464,
+        "endLine": 541,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
         "proves": "Injects failure after a successful creation effect, checks usable target/result with warning, in-memory replay without another session, and interrupted recovery without auto-execution.",
         "limits": "Injected journal write seam and in-process runner restart, not OS crash/power-loss.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:56.198979873Z",
+          "at": "2026-11-20T00:06:59.512343908Z",
           "scope": "TestFinalJournalWriteFailureReturnsOutcomeAndRecoversInterrupted in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13729,18 +13873,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/service_test.go",
-        "line": 951,
-        "endLine": 1119,
-        "reviewedHash": "4bc83e45efe0f3f738df2cad37508a302d4f8e5660f90165175e57f46bac8ff3",
+        "line": 959,
+        "endLine": 1127,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
         "proves": "Fills worker/queue gates, checks prompt return on disconnected waits, capacity_exhausted, eventual completed effects and truthful success-with-warning when cancellation arrives after publication.",
         "limits": "Finite controlled worker interleavings and deadlines; not a throughput or starvation proof.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:56.49366684Z",
+          "at": "2026-11-20T00:06:59.828345984Z",
           "scope": "TestOperationQueueBoundAndDisconnectedWaitReturnPromptly in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13749,18 +13893,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/service_test.go",
-        "line": 1121,
-        "endLine": 1152,
-        "reviewedHash": "4bc83e45efe0f3f738df2cad37508a302d4f8e5660f90165175e57f46bac8ff3",
+        "line": 1129,
+        "endLine": 1160,
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
         "proves": "Writes a running record, checks interrupted recovery with warning and verifies a corrupt journal sets loadErr to block mutation admission.",
         "limits": "Constructed journal records and runner state; no actual process crash.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:56.49407689Z",
+          "at": "2026-11-20T00:06:59.828380334Z",
           "scope": "TestOperationJournalRecoversInterruptedAndFailsClosedOnCorruption in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13777,10 +13921,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.556876834Z",
+          "at": "2026-11-20T00:07:09.876460846Z",
           "scope": "TestShutdownDuringSpawnKillsTheNewProcess in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13797,10 +13941,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.762321401Z",
+          "at": "2026-11-20T00:07:10.09260827Z",
           "scope": "TestShutdownWaitsForTemporaryWorkspacePreparation in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13817,10 +13961,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.29806032Z",
+          "at": "2026-11-20T00:06:55.35291536Z",
           "scope": "TestDataRoundTripCopiesEveryField in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13831,16 +13975,16 @@ window.APPEDIA_CONTENT = {
         "file": "internal/api/messaging_shared_delivery_test.go",
         "line": 78,
         "endLine": 119,
-        "reviewedHash": "cbc127688b33201d49f397a3c95256bac975c8ca541718803b12274124b47fd7",
+        "reviewedHash": "54f614934f1d4b4db1ce19564d7c19ffc9f3d917ada59b39e62db979117dad09",
         "proves": "Injects journal admission failure, checks no intent/receipt survives, then retries and replays the same request with the original message identity.",
         "limits": "Controlled write failure; no later partial PTY write claim.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.811816358Z",
+          "at": "2026-11-20T00:06:59.022584256Z",
           "scope": "TestOrdinaryMessageJournalRejectionRollsBackHistoryAndRetries in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13851,16 +13995,16 @@ window.APPEDIA_CONTENT = {
         "file": "internal/api/messaging_shared_delivery_test.go",
         "line": 34,
         "endLine": 76,
-        "reviewedHash": "cbc127688b33201d49f397a3c95256bac975c8ca541718803b12274124b47fd7",
+        "reviewedHash": "54f614934f1d4b4db1ce19564d7c19ffc9f3d917ada59b39e62db979117dad09",
         "proves": "Fills operation queue, checks capacity rejection leaves no message, then retries/replays same message ID and stops recipient without a retained reservation.",
         "limits": "Controlled queue/worker fixture rather than unbounded production load.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.773314619Z",
+          "at": "2026-11-20T00:06:58.97638779Z",
           "scope": "TestOrdinaryMessageQueueRejectionReleasesReservationAndPreservesReplay in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13877,10 +14021,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:59.860521348Z",
+          "at": "2026-11-20T00:07:07.146605327Z",
           "scope": "TestReportNotificationInitialStateIsDurableAndIdempotent in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13897,10 +14041,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:59.864170827Z",
+          "at": "2026-11-20T00:07:07.149028367Z",
           "scope": "TestProgressRepliesPersistBeforeCompletion in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13917,10 +14061,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:59.864799788Z",
+          "at": "2026-11-20T00:07:07.149838987Z",
           "scope": "TestRestartMarksAdmittedNotificationUncertain in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13930,17 +14074,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/api/messaging_review_test.go",
         "line": 481,
-        "endLine": 519,
+        "endLine": 520,
         "proves": "Denies the worker a general send, observes controller PTY output containing message/reply IDs and no-report-reply guidance, and checks sensitive report content is absent.",
         "limits": "Real local PTY harness; receipt of bytes is not proof an AI agent processed or fetched the report.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.278469587Z",
+          "at": "2026-11-20T00:06:57.328946127Z",
           "scope": "TestReportAutomaticallyNotifiesOriginalController in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13949,18 +14093,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/messaging_review_test.go",
-        "line": 654,
-        "endLine": 683,
+        "line": 656,
+        "endLine": 686,
         "proves": "Stops dispatcher, saves report, kills reporter, restarts runner and waits for notification output.",
         "limits": "Same application process and local harness; not an application-wide restart.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.532439864Z",
+          "at": "2026-11-20T00:06:57.664044621Z",
           "scope": "TestSavedNotificationSurvivesReporterStopping in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13969,18 +14113,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/messaging_review_test.go",
-        "line": 685,
-        "endLine": 707,
+        "line": 688,
+        "endLine": 710,
         "proves": "Stops/relaunches the original sender, attempts dispatch and checks unavailable notification state.",
         "limits": "State assertion for one activation replacement; not arbitrary authorization races.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.576345954Z",
+          "at": "2026-11-20T00:06:57.711248038Z",
           "scope": "TestStoppedOriginalActivationMakesNotificationUnavailable in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -13989,18 +14133,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/messaging_review_test.go",
-        "line": 521,
-        "endLine": 575,
+        "line": 522,
+        "endLine": 577,
         "proves": "Fills queue, checks pending obligation and request ID survive rejection, drains queue, starts workers and observes notification with the same request ID.",
         "limits": "Controlled runner/queue; no native agent readiness proof.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.324283147Z",
+          "at": "2026-11-20T00:06:57.388070533Z",
           "scope": "TestNotificationRetriesAfterQueueCapacityReturns in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14009,18 +14153,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/messaging_review_test.go",
-        "line": 578,
-        "endLine": 652,
+        "line": 580,
+        "endLine": 654,
         "proves": "Checks state mapping, advances the attempt only for not-submitted delivery and verifies stale reconciliation does not downgrade or advance it again.",
         "limits": "Constructed persisted delivery states; concrete driver byte-write boundaries need their own tests.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.487644455Z",
+          "at": "2026-11-20T00:06:57.617779535Z",
           "scope": "TestNotificationReconciliationUsesDeliveryEvidence in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14029,18 +14173,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/messaging_review_test.go",
-        "line": 828,
-        "endLine": 857,
+        "line": 832,
+        "endLine": 861,
         "proves": "Runs twelve dispatchers against the same obligation and asserts one matching runner operation.",
         "limits": "One controlled interleaving; this run did not use the race detector.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.69631995Z",
+          "at": "2026-11-20T00:06:58.869197168Z",
           "scope": "TestConcurrentNotificationDispatchAdmitsOneAttempt in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14049,18 +14193,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/messaging_review_test.go",
-        "line": 925,
-        "endLine": 950,
+        "line": 929,
+        "endLine": 954,
         "proves": "Checks one recipient backs off without suppressing another and keeps its accepted predecessor ahead of a later pending report.",
         "limits": "Pure scheduling function with fixed time; no throughput benchmark.",
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.732253499Z",
+          "at": "2026-11-20T00:06:58.927311823Z",
           "scope": "TestNotificationSchedulingPreservesRecipientOrderAndFairness in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14070,17 +14214,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/api/messaging_shared_delivery_test.go",
         "line": 122,
-        "endLine": 229,
-        "reviewedHash": "cbc127688b33201d49f397a3c95256bac975c8ca541718803b12274124b47fd7",
+        "endLine": 230,
+        "reviewedHash": "54f614934f1d4b4db1ce19564d7c19ffc9f3d917ada59b39e62db979117dad09",
         "proves": "For ordinary and notification queues, cancels before execution, starts a worker, checks not-submitted delivery, successful target stop and absence of message markers in captured output.",
         "limits": "Controlled runner/worker plus PTY bytes; ordinary uses public cancellation, notification cancels the captured task authority directly.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.864845638Z",
+          "at": "2026-11-20T00:06:59.10229428Z",
           "scope": "TestQueuedDeliveryCancellationReleasesReservationWithoutSubmitting in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14089,18 +14233,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/messaging_review_test.go",
-        "line": 751,
-        "endLine": 816,
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
+        "line": 755,
+        "endLine": 820,
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
         "proves": "Publishes admitted notification intent, deletes dashboard history, then checks submission rejects and notifications stay absent rather than recreating deleted history.",
         "limits": "Direct manager/store admission sequence; no raw agent prompt-processing claim.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.65629071Z",
+          "at": "2026-11-20T00:06:58.816056242Z",
           "scope": "TestDeletingReportHistoryCancelsAdmittedNotification in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14111,16 +14255,16 @@ window.APPEDIA_CONTENT = {
         "file": "internal/api/messaging_review_test.go",
         "line": 179,
         "endLine": 288,
-        "reviewedHash": "47cb7f6b304ebb0ed39e27062af620dc9b6db936838017137cd4e931b076e6d3",
+        "reviewedHash": "2b7b06d4b5a4145f38f48757741fc9829481eb3fc735a0f393d676016724df42",
         "proves": "Queues delivery reservations alongside stop operations, cancels sends, waits for stop and checks runner Shutdown returns before deadline with all targets terminated.",
         "limits": "Finite controlled worker interleaving for ordinary sends; dispatcher shutdown during a real notification write is not directly asserted.",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.882747772Z",
+          "at": "2026-11-20T00:06:56.813462167Z",
           "scope": "TestQueuedMessageReservationsCannotDeadlockStopWorkersOrShutdown in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14156,10 +14300,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:58.109549999Z",
+          "at": "2026-11-20T00:07:05.229418366Z",
           "scope": "TestMCPCLIRegistersConversationForLiveActivation in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14176,10 +14320,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:57.664961325Z",
+          "at": "2026-11-20T00:07:04.519360721Z",
           "scope": "TestClaudeResumeLifecycleUsesSelectedNativeID in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14193,10 +14337,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.202561258Z",
+          "at": "2026-11-20T00:07:09.614062867Z",
           "scope": "TestDashboard_RenameSession in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 362,
         "endLine": 409
@@ -14212,10 +14356,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.204320998Z",
+          "at": "2026-11-20T00:07:09.615748347Z",
           "scope": "TestDashboard_RenameSessionEmptyUsesIDAndNoSelectionIsNoop in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 411,
         "endLine": 435
@@ -14231,10 +14375,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:03.69280033Z",
+          "at": "2026-11-20T00:07:06.796265085Z",
           "scope": "TestCoordinator_DashboardRenameFailureStaysInDialogAndIgnoresStaleResult in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 59,
         "endLine": 98
@@ -14251,10 +14395,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:55.470858382Z",
+          "at": "2026-11-20T00:06:58.373479516Z",
           "scope": "TestDashboardRenameLayoutAndScopedFooter in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 149,
         "endLine": 174
@@ -14271,10 +14415,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.199419988Z",
+          "at": "2026-11-20T00:07:09.607776067Z",
           "scope": "TestDashboard_Search in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 315,
         "endLine": 347
@@ -14293,10 +14437,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:59.431927933Z",
+          "at": "2026-11-20T00:07:06.694291712Z",
           "scope": "TestSetNamePropagatesPersistFailure in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14310,10 +14454,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.967532069Z",
+          "at": "2026-11-20T00:07:10.927870705Z",
           "scope": "TestSessionLauncherWaitsForNameResultAndAllowsRetry in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 135,
         "endLine": 160
@@ -14330,10 +14474,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:04.139767424Z",
+          "at": "2026-11-20T00:07:07.505161Z",
           "scope": "TestMCPManagerNestedNavigation in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 112,
         "endLine": 137
@@ -14349,10 +14493,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:04.122334334Z",
+          "at": "2026-11-20T00:07:07.473940762Z",
           "scope": "TestMCPManagerEditPreservesMetadataAndNewIsBlank in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 74,
         "endLine": 126
@@ -14368,10 +14512,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.222169438Z",
+          "at": "2026-11-20T00:07:09.643641114Z",
           "scope": "TestMCPFormRoundTripsEveryField in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 148,
         "endLine": 199
@@ -14388,10 +14532,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:04.080611235Z",
+          "at": "2026-11-20T00:07:07.394234128Z",
           "scope": "TestMCPManagerCrossDashboardSaveResults in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 176,
         "endLine": 182
@@ -14408,10 +14552,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:04.111746004Z",
+          "at": "2026-11-20T00:07:07.459333413Z",
           "scope": "TestMCPManagerWriteFailuresRetainDataAndAllowRetry in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 268,
         "endLine": 274
@@ -14448,10 +14592,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:04.116869914Z",
+          "at": "2026-11-20T00:07:07.466708603Z",
           "scope": "TestMCPManagerStaleRequests in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 14,
         "endLine": 72
@@ -14467,10 +14611,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.807480203Z",
+          "at": "2026-11-20T00:06:56.028448498Z",
           "scope": "TestMCPManagerConfirmationKeepsTargetAcrossRefresh in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 15,
         "endLine": 53
@@ -14487,10 +14631,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:04.061170995Z",
+          "at": "2026-11-20T00:07:07.360397551Z",
           "scope": "TestMCPManagerCrossDashboardRequests in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 135,
         "endLine": 141
@@ -14507,10 +14651,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:04.097872425Z",
+          "at": "2026-11-20T00:07:07.428606066Z",
           "scope": "TestMCPManagerCrossDashboardDeleteResults in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 224,
         "endLine": 230
@@ -14526,10 +14670,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:04.128167994Z",
+          "at": "2026-11-20T00:07:07.480588502Z",
           "scope": "TestMCPManagerReferencedDeleteReportsError in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 128,
         "endLine": 180
@@ -14545,10 +14689,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.807749383Z",
+          "at": "2026-11-20T00:06:56.028542928Z",
           "scope": "TestMCPManagerProtectedAndNew in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 55,
         "endLine": 91
@@ -14567,10 +14711,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.045613063Z",
+          "at": "2026-11-20T00:06:55.070560682Z",
           "scope": "TestKankuroMCPIsOfferedOnceAndProtected in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14584,10 +14728,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.841012223Z",
+          "at": "2026-11-20T00:06:56.075495084Z",
           "scope": "TestMCPManagerLongListFits in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 93,
         "endLine": 111
@@ -14604,10 +14748,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.89499351Z",
+          "at": "2026-11-20T00:06:57.751196515Z",
           "scope": "TestSourceList_Navigation in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 106,
         "endLine": 138
@@ -14623,10 +14767,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:01.461720627Z",
+          "at": "2026-11-20T00:07:04.308444787Z",
           "scope": "TestLaunchFocusSnapshotBeforeCompletion in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 95,
         "endLine": 102
@@ -14642,10 +14786,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:02.197316528Z",
+          "at": "2026-11-20T00:07:09.603456457Z",
           "scope": "TestDashboard_FocusSessionWaitsForDataAndClearsOnlySessionSearch in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 232,
         "endLine": 269
@@ -14661,10 +14805,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:01.465433177Z",
+          "at": "2026-11-20T00:07:04.315959627Z",
           "scope": "TestLaunchFocusRejectsRefreshStartedBeforeLaunchAndName in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 104,
         "endLine": 140
@@ -14680,10 +14824,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:01.443166198Z",
+          "at": "2026-11-20T00:07:04.265524491Z",
           "scope": "TestInlineRenameRejectsOlderRefreshSnapshots in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 17,
         "endLine": 76
@@ -14699,10 +14843,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:01.477451677Z",
+          "at": "2026-11-20T00:07:04.338323465Z",
           "scope": "TestLaunchFocusPersistenceWarningStillSelectsSession in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 162,
         "endLine": 174
@@ -14718,10 +14862,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:01.484306077Z",
+          "at": "2026-11-20T00:07:04.364842243Z",
           "scope": "TestLaunchFocusIgnoresStaleResults in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 176,
         "endLine": 202
@@ -14737,10 +14881,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:01.487409127Z",
+          "at": "2026-11-20T00:07:04.370359932Z",
           "scope": "TestLaunchFocusPendingRequestIsCancelledOnDashboardExit in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 204,
         "endLine": 223
@@ -14756,10 +14900,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.89465476Z",
+          "at": "2026-11-20T00:06:57.748437855Z",
           "scope": "TestSessionList_SetSessionsPreservesSelectionByID in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         },
         "line": 284,
         "endLine": 304
@@ -14796,10 +14940,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.29230771Z",
+          "at": "2026-11-20T00:06:55.34838219Z",
           "scope": "TestRecentAuthoredReports in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14816,10 +14960,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.29426452Z",
+          "at": "2026-11-20T00:06:55.34929185Z",
           "scope": "TestRecentAuthoredReportsBoundsAndReload in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14836,10 +14980,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.439862298Z",
+          "at": "2026-11-20T00:06:55.768171718Z",
           "scope": "TestCenterReportTakesOverAndRejectsLateWorkspace in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14856,10 +15000,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.440757768Z",
+          "at": "2026-11-20T00:06:55.770112628Z",
           "scope": "TestCenterCoalescesAndReleasesStaleSetup in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14876,10 +15020,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.441841618Z",
+          "at": "2026-11-20T00:06:55.773279328Z",
           "scope": "TestCenterScopeFailureClearsCachedReports in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14896,10 +15040,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.442974458Z",
+          "at": "2026-11-20T00:06:55.773312617Z",
           "scope": "TestCenterRetryClockIsNonOverlappingAndCanceled in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14916,10 +15060,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.443712598Z",
+          "at": "2026-11-20T00:06:55.776354937Z",
           "scope": "TestCenterFailurePolicyRetainsOnlySameSessionData in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14936,10 +15080,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.445093748Z",
+          "at": "2026-11-20T00:06:55.779775817Z",
           "scope": "TestCenterClosedSubscriptionUsesRetry in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14952,14 +15096,14 @@ window.APPEDIA_CONTENT = {
         "endLine": 48,
         "proves": "ANSI stripped; report text retained within 20×4; changing session clears it; zero size is safe.",
         "limits": "One explicit size plus zero-size boundary; no pixel comparison or complete resize/refetch journey.",
-        "reviewedHash": "1c7a22fb8b4dec0678dd28f1c63c13ebf3923f762ec00e75eae9d7cdc58bdcb3",
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.236576938Z",
+          "at": "2026-11-20T00:06:56.77678563Z",
           "scope": "TestSessionCenterReportsFitAndSanitize in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -14967,119 +15111,119 @@ window.APPEDIA_CONTENT = {
         "name": "TestCenterReportsSubscriptionAndScope",
         "file": "internal/api/center_test.go",
         "line": 18,
-        "endLine": 64,
+        "endLine": 72,
         "method": "automated",
         "integration": "project",
         "proves": "Real service reads authored progress after subscription signal, rejects foreign dashboard and allows idempotent release.",
         "limits": "Messaging harness injects records; no native model execution.",
-        "reviewedHash": "1fc5060811e03c9dc81dfc3ba6cf4f784a54e4be44892d26a09fe1e0fd3cd771",
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:52.959397184Z",
+          "at": "2026-11-20T00:06:55.315938123Z",
           "scope": "TestCenterReportsSubscriptionAndScope in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
         "id": "center-initial-read",
         "name": "TestCenterReportsChangeBeforeInitialReadAndStop",
         "file": "internal/api/center_test.go",
-        "line": 66,
-        "endLine": 121,
+        "line": 74,
+        "endLine": 129,
         "method": "automated",
         "integration": "project",
         "proves": "Report inserted after subscribe is read immediately and signals; stopping session keeps reports readable; cancellation closes changes.",
         "limits": "No full relaunch journey or screenshot.",
-        "reviewedHash": "1fc5060811e03c9dc81dfc3ba6cf4f784a54e4be44892d26a09fe1e0fd3cd771",
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:52.987457153Z",
+          "at": "2026-11-20T00:06:55.348425441Z",
           "scope": "TestCenterReportsChangeBeforeInitialReadAndStop in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
         "id": "center-rearm",
         "name": "TestCenterReportChangeDuringRearm",
         "file": "internal/api/center_test.go",
-        "line": 136,
-        "endLine": 180,
+        "line": 144,
+        "endLine": 188,
         "method": "automated",
         "integration": "project",
         "proves": "Controlled channels close while watch rearming is paused; a notice is retained and cancellation ends stream.",
         "limits": "Direct subscription helper fixture, not a stress/load measurement.",
-        "reviewedHash": "1fc5060811e03c9dc81dfc3ba6cf4f784a54e4be44892d26a09fe1e0fd3cd771",
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.009089373Z",
+          "at": "2026-11-20T00:06:55.389389327Z",
           "scope": "TestCenterReportChangeDuringRearm in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
         "id": "center-saved-path",
         "name": "TestCenterWorkspaceUsesSavedSessionDirectory",
         "file": "internal/api/center_test.go",
-        "line": 123,
-        "endLine": 134,
+        "line": 131,
+        "endLine": 142,
         "method": "automated",
         "integration": "project",
         "proves": "Uses the session saved directory and rejects foreign scope.",
         "limits": "Harness has a normal workspace; temporary identity checked separately.",
-        "reviewedHash": "1fc5060811e03c9dc81dfc3ba6cf4f784a54e4be44892d26a09fe1e0fd3cd771",
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.008841523Z",
+          "at": "2026-11-20T00:06:55.389319507Z",
           "scope": "TestCenterWorkspaceUsesSavedSessionDirectory in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
         "id": "center-temporary-path",
         "name": "TestCenterWorkspaceUsesTemporaryCopy",
         "file": "internal/api/center_test.go",
-        "line": 182,
-        "endLine": 204,
+        "line": 190,
+        "endLine": 212,
         "method": "automated",
         "integration": "project",
         "proves": "Launches a cat session into a temporary copy and reads exactly its saved WorkingDir.",
         "limits": "Does not invoke a model or assert recursive copy contents.",
-        "reviewedHash": "1fc5060811e03c9dc81dfc3ba6cf4f784a54e4be44892d26a09fe1e0fd3cd771",
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.026161653Z",
+          "at": "2026-11-20T00:06:55.407353816Z",
           "scope": "TestCenterWorkspaceUsesTemporaryCopy in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
         "id": "center-inventory-failure",
         "name": "TestCenterReportsInventoryFailureIsNotEmptyHistory",
         "file": "internal/api/center_test.go",
-        "line": 206,
-        "endLine": 217,
+        "line": 214,
+        "endLine": 225,
         "method": "automated",
         "integration": "project",
         "proves": "Corrupt card inventory makes the report read fail explicitly.",
         "limits": "One corrupted registry boundary.",
-        "reviewedHash": "1fc5060811e03c9dc81dfc3ba6cf4f784a54e4be44892d26a09fe1e0fd3cd771",
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.042414213Z",
+          "at": "2026-11-20T00:06:55.439811993Z",
           "scope": "TestCenterReportsInventoryFailureIsNotEmptyHistory in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15092,14 +15236,14 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "proves": "Checks clean Git vs non-Git, staged rename plus unstaged modification and newline untracked path while reading from a subdirectory.",
         "limits": "Temporary real Git fixture; conflict/submodule variants not asserted here.",
-        "reviewedHash": "3bcf54f893434837e37c692b0406de5ad9c4bebd05180793c65b0fb02c4de4bd",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.101261902Z",
+          "at": "2026-11-20T00:06:55.540855456Z",
           "scope": "TestCenterWorkspaceGitAndDirectory in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15112,14 +15256,14 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "proves": "More than 1,000 entries truncates; missing path and canceled inspection error; malformed/partial Git records rejected.",
         "limits": "Metadata access error combinations are not exhaustive.",
-        "reviewedHash": "3bcf54f893434837e37c692b0406de5ad9c4bebd05180793c65b0fb02c4de4bd",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.149581862Z",
+          "at": "2026-11-20T00:06:55.581393123Z",
           "scope": "TestCenterWorkspaceBoundedListingAndErrors in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15132,14 +15276,14 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "proves": "Immediate hidden/symlink rows retain link target; unavailable Git yields warned directory fallback.",
         "limits": "Unix fixture, not cross-platform owner/group verification.",
-        "reviewedHash": "3bcf54f893434837e37c692b0406de5ad9c4bebd05180793c65b0fb02c4de4bd",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.150337742Z",
+          "at": "2026-11-20T00:06:55.583544412Z",
           "scope": "TestCenterWorkspaceSymlinkAndMissingGit in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15152,14 +15296,14 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "proves": "Real linked worktree is classified as Git and reports its modified tracked file.",
         "limits": "Single worktree and tracked-path example.",
-        "reviewedHash": "3bcf54f893434837e37c692b0406de5ad9c4bebd05180793c65b0fb02c4de4bd",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.193696891Z",
+          "at": "2026-11-20T00:06:55.662919756Z",
           "scope": "TestCenterWorkspaceLinkedWorktree in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15172,14 +15316,14 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "proves": "Status entries cap at 1,000; a busy fake Git is canceled by an explicit short deadline.",
         "limits": "Does not wait out the production ten-second timeout.",
-        "reviewedHash": "3bcf54f893434837e37c692b0406de5ad9c4bebd05180793c65b0fb02c4de4bd",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.24516366Z",
+          "at": "2026-11-20T00:06:55.715558772Z",
           "scope": "TestCenterWorkspaceGitTimeoutAndTruncation in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15192,14 +15336,14 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "proves": "Unbounded fake Git output fails on output budget before outer context expires.",
         "limits": "Checks stdout budget, not every stderr variant.",
-        "reviewedHash": "3bcf54f893434837e37c692b0406de5ad9c4bebd05180793c65b0fb02c4de4bd",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.29106285Z",
+          "at": "2026-11-20T00:06:55.763620438Z",
           "scope": "TestCenterWorkspaceKillsGitOnOutputLimit in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15216,10 +15360,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.447007748Z",
+          "at": "2026-11-20T00:06:55.783345877Z",
           "scope": "TestCenterFailedReadCoalescesChangesUntilRetry in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15236,10 +15380,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.448608628Z",
+          "at": "2026-11-20T00:06:55.785393067Z",
           "scope": "TestCenterChangesDoNotRestartWorkspace in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15256,10 +15400,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.450054958Z",
+          "at": "2026-11-20T00:06:55.788011396Z",
           "scope": "TestCenterFailedWorkspaceWithoutCacheWaitsForTimer in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15276,10 +15420,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.450688158Z",
+          "at": "2026-11-20T00:06:55.789513446Z",
           "scope": "TestCenterWorkspaceStaleUntilSuccessfulWorkspaceOrReport in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15292,14 +15436,14 @@ window.APPEDIA_CONTENT = {
         "limits": "Unix shell/helper fixture with elapsed-time tolerance; not a process-tree termination guarantee.",
         "line": 184,
         "endLine": 216,
-        "reviewedHash": "3bcf54f893434837e37c692b0406de5ad9c4bebd05180793c65b0fb02c4de4bd",
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.428305798Z",
+          "at": "2026-11-20T00:06:55.927339996Z",
           "scope": "TestCenterWorkspaceBoundsInheritedPipes in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15310,16 +15454,16 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "proves": "Git current/original paths, directory names and symlink targets flatten control whitespace; assertions reject forged status/warning rows and check display width.",
         "limits": "200-column renderer fixture; not pixel comparison.",
-        "line": 137,
-        "endLine": 190,
-        "reviewedHash": "1c7a22fb8b4dec0678dd28f1c63c13ebf3923f762ec00e75eae9d7cdc58bdcb3",
+        "line": 150,
+        "endLine": 203,
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.236671768Z",
+          "at": "2026-11-20T00:06:56.78001102Z",
           "scope": "TestSessionCenterWorkspaceNamesCannotForgeRows in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15330,16 +15474,16 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "proves": "Report first/second lines retain their newline after introducing path-specific sanitization.",
         "limits": "Component render at 80×8, no native terminal.",
-        "line": 192,
-        "endLine": 202,
-        "reviewedHash": "1c7a22fb8b4dec0678dd28f1c63c13ebf3923f762ec00e75eae9d7cdc58bdcb3",
+        "line": 205,
+        "endLine": 215,
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.236691688Z",
+          "at": "2026-11-20T00:06:56.78017745Z",
           "scope": "TestSessionCenterPreservesMultilineReport in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15356,10 +15500,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.452148118Z",
+          "at": "2026-11-20T00:06:55.791010466Z",
           "scope": "TestCenterNavigationRestoresSameSessionAndClearsOnEmpty in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15376,10 +15520,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.453301108Z",
+          "at": "2026-11-20T00:06:55.792232236Z",
           "scope": "TestCenterNavigationCacheNeverMovesToAnotherSelection in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15396,10 +15540,10 @@ window.APPEDIA_CONTENT = {
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:53.455263348Z",
+          "at": "2026-11-20T00:06:55.794419676Z",
           "scope": "TestCenterNavigationRestoresWorkspaceAndClearsOnScopeLoss in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15408,18 +15552,18 @@ window.APPEDIA_CONTENT = {
         "file": "internal/api/center_process_unix_test.go",
         "method": "automated",
         "integration": "project",
-        "proves": "Real isolated Git fsmonitor starts a sleep helper; cancellation returns promptly, helper exits and an unrelated sleep survives.",
+        "proves": "A controlled Git fixture starts a child process. Cancellation returns promptly, the child exits, and an unrelated process survives.",
         "limits": "Unix process-group fixture; no equivalent process-tree guarantee is established for non-Unix fallback or helpers that escape the group.",
         "line": 21,
-        "endLine": 78,
-        "reviewedHash": "25811e22e4125e61a611bed135c0d1796eccfc91cb08185fd67eb0f70f8285af",
+        "endLine": 77,
+        "reviewedHash": "1c2284cc957f4bc6934a88255e19f0d179da9ad024804115d46152e912c2be04",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:52.877769105Z",
+          "at": "2026-11-20T00:06:55.154761785Z",
           "scope": "TestCenterWorkspaceCancellationKillsGitHelpers in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15430,16 +15574,16 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "proves": "Fake Git with a sleep child exceeds output budget; command errors and helper is no longer running.",
         "limits": "Unix helper fixture; zombie state counts as terminated pending OS parent reaping.",
-        "line": 80,
-        "endLine": 110,
-        "reviewedHash": "25811e22e4125e61a611bed135c0d1796eccfc91cb08185fd67eb0f70f8285af",
+        "line": 79,
+        "endLine": 109,
+        "reviewedHash": "1c2284cc957f4bc6934a88255e19f0d179da9ad024804115d46152e912c2be04",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:52.936074514Z",
+          "at": "2026-11-20T00:06:55.253318758Z",
           "scope": "TestCenterWorkspaceOutputLimitKillsGitHelpers in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15450,16 +15594,16 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "proves": "80×2 keeps full date/time, blocked kind and body; 20×2 uses compact time while retaining kind and body.",
         "limits": "Two explicit widths; does not assert every kind/width combination or screenshot comparison.",
-        "line": 204,
-        "endLine": 225,
-        "reviewedHash": "1c7a22fb8b4dec0678dd28f1c63c13ebf3923f762ec00e75eae9d7cdc58bdcb3",
+        "line": 217,
+        "endLine": 238,
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.236712688Z",
+          "at": "2026-11-20T00:06:56.78022512Z",
           "scope": "TestSessionCenterReportHeaderKeepsKindWhenItFits in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15470,16 +15614,16 @@ window.APPEDIA_CONTENT = {
         "file": "internal/ui/components/session_center_test.go",
         "proves": "Verifies the legacy metadata order and artwork, live refresh of the same row, workspace-to-report takeover beneath the header, and rejection of old-session data.",
         "limits": "Component output and selection assertions. No pixel baseline comparison.",
-        "reviewedHash": "3e24e3ae1d5cfde56d1be129369a91649fa6ffdc7c44854d16fefefb39e92a96",
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
         "line": 50,
-        "endLine": 98,
+        "endLine": 111,
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.236594568Z",
+          "at": "2026-11-20T00:06:56.77776365Z",
           "scope": "TestSessionCenterKeepsSessionHeaderAboveBody in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15490,16 +15634,16 @@ window.APPEDIA_CONTENT = {
         "file": "internal/ui/components/session_center_test.go",
         "proves": "Checks bounded rows and columns, workspace-tail truncation, optional art and the body-derived report limit across sizes.",
         "limits": "Component dimensions. The separate E2E screenshot shows the 80×24 dashboard.",
-        "reviewedHash": "3e24e3ae1d5cfde56d1be129369a91649fa6ffdc7c44854d16fefefb39e92a96",
-        "line": 100,
-        "endLine": 134,
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
+        "line": 113,
+        "endLine": 147,
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:25:54.236612038Z",
+          "at": "2026-11-20T00:06:56.7787781Z",
           "scope": "TestSessionCenterReservesSpaceForBody in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15510,16 +15654,16 @@ window.APPEDIA_CONTENT = {
         "file": "internal/ui/refresh_certification_internal_test.go",
         "proves": "Executes the UI startup batch, confirms a valid initial registry baseline and checks that the UI never starts a puppet sync.",
         "limits": "Coordinator commands and repository fixture. The separate terminal smoke drives the real executable.",
-        "reviewedHash": "90fd28e923fca7ead927717a216b4ecf0206ac57a87a2e319ee3dc5cb97c3eab",
-        "line": 25,
-        "endLine": 45,
+        "reviewedHash": "ca5a5ef3c5ca93bc015991dc5147bba3254699f00e93d5de28c58f7debc7f46f",
+        "line": 26,
+        "endLine": 46,
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:03.558320741Z",
+          "at": "2026-11-20T00:07:06.495955848Z",
           "scope": "TestCoordinatorStartupReadsRegistriesWithoutResyncingPuppets in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15530,16 +15674,16 @@ window.APPEDIA_CONTENT = {
         "file": "internal/ui/refresh_certification_internal_test.go",
         "proves": "For before/after token errors and mismatches, verifies usable inventory remains visible and a later refresh retries and establishes a stable token.",
         "limits": "Controlled token sequence. Filesystem startup ordering is covered separately.",
-        "reviewedHash": "90fd28e923fca7ead927717a216b4ecf0206ac57a87a2e319ee3dc5cb97c3eab",
-        "line": 76,
-        "endLine": 111,
+        "reviewedHash": "ca5a5ef3c5ca93bc015991dc5147bba3254699f00e93d5de28c58f7debc7f46f",
+        "line": 77,
+        "endLine": 112,
         "result": {
           "status": "passed",
           "command": "go test -json ./... -count=1",
-          "at": "2026-11-19T21:26:03.572994901Z",
+          "at": "2026-11-20T00:07:06.535172185Z",
           "scope": "TestRefreshTokenCertificationFailuresRetryAndKeepInventory in the ordinary Go suite",
-          "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       },
       {
@@ -15562,6 +15706,146 @@ window.APPEDIA_CONTENT = {
           "scope": "TestPuppetStartupSmoke",
           "revision": "WORKTREE",
           "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+        }
+      },
+      {
+        "id": "center-split-index",
+        "name": "TestCenterWorkspaceSplitIndexStatus",
+        "file": "internal/api/center_workspace_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "Both ordinary and linked worktrees using split indexes return the modified tracked file as Git status.",
+        "limits": "Real local Git on Linux.",
+        "line": 289,
+        "endLine": 314,
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.108573592Z",
+          "scope": "TestCenterWorkspaceSplitIndexStatus in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-helper-isolation",
+        "name": "TestCenterWorkspaceIgnoresConfiguredGitHelpers",
+        "file": "internal/api/center_workspace_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "A split-index repository reports clean status with fsmonitor disabled. Configured clean filters trigger the labelled fallback without executing the sentinel helper.",
+        "limits": "Covers fsmonitor and the configured clean-filter fallback.",
+        "line": 218,
+        "endLine": 250,
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.00230673Z",
+          "scope": "TestCenterWorkspaceIgnoresConfiguredGitHelpers in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-metadata-fallback",
+        "name": "TestCenterWorkspaceFallsBackAfterMetadataProbeFailure",
+        "file": "internal/api/center_workspace_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "A failing metadata probe yields a warning and preserves a readable file in the directory listing.",
+        "limits": "A symlink loop triggers the metadata error.",
+        "line": 252,
+        "endLine": 271,
+        "reviewedHash": "e40352e1edec3c9bd82223668bf76eed046bc407c10d343fe0bb862e700ab60f",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.00312919Z",
+          "scope": "TestCenterWorkspaceFallsBackAfterMetadataProbeFailure in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-report-signal-eviction",
+        "name": "TestReportSignalTracksDeliveryEvictionOfLegacyReplies",
+        "file": "internal/session/messaging_review_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "An ordinary delivery update wakes general waiters only. Evicting retained replies wakes report readers.",
+        "limits": "Uses a near-capacity message store with legacy replies.",
+        "line": 598,
+        "endLine": 628,
+        "reviewedHash": "db2f9231e1ba49bda149ca04d6fa940b16b9cb1ab02f671f7701fc476e62c8d8",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.201030896Z",
+          "scope": "TestReportSignalTracksDeliveryEvictionOfLegacyReplies in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-report-signal-commit",
+        "name": "TestReportSignalSkipsReplayAndFailedWrite",
+        "file": "internal/session/messaging_review_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "A persisted report wakes report readers. Replaying the report or failing a new write leaves the signal unchanged.",
+        "limits": "Message-store test with a forced persistence error.",
+        "line": 630,
+        "endLine": 664,
+        "reviewedHash": "db2f9231e1ba49bda149ca04d6fa940b16b9cb1ab02f671f7701fc476e62c8d8",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:07:04.202174476Z",
+          "scope": "TestReportSignalSkipsReplayAndFailedWrite in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-report-scope-signal",
+        "name": "TestCenterReportScopeLossWithoutReportChanges",
+        "file": "internal/api/center_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "The subscription closes on scope loss without requiring a report change.",
+        "limits": "Application service fixture.",
+        "line": 227,
+        "endLine": 249,
+        "reviewedHash": "02587d33e3c40f27ea04b389dbf5bd33c173e2bb5461c8a4af449282e4fe40ca",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:55.467178521Z",
+          "scope": "TestCenterReportScopeLossWithoutReportChanges in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+        }
+      },
+      {
+        "id": "center-report-timestamp-fit",
+        "name": "TestSessionCenterOmitsUntimestampedReport",
+        "file": "internal/ui/components/session_center_test.go",
+        "method": "automated",
+        "integration": "project",
+        "proves": "When an older report cannot fit with its timestamp, omit it. A newest report can use a compact one-row timestamp.",
+        "limits": "Component assertions at bounded sizes.",
+        "line": 240,
+        "endLine": 269,
+        "reviewedHash": "12aa0d07db33ff7d1122a48372e2d09222ba950c4a3fa4d12c8927ae466c86b6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json ./... -count=1",
+          "at": "2026-11-20T00:06:56.78134072Z",
+          "scope": "TestSessionCenterOmitsUntimestampedReport in the ordinary Go suite",
+          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
+          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
       }
     ],

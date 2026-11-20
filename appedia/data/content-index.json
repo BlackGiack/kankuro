@@ -258,7 +258,7 @@
         "session.Manager",
         "session.Manager.List",
         "session.Manager.ResolveDashboardCaller",
-        "session.Manager.SetNameChecked",
+        "session.Manager.SetNameDetailedChecked",
         "session.Manager.ShutdownStarted",
         "session.Manager.listLocked",
         "session.NewManager",
@@ -310,7 +310,7 @@
         "api.sessionUsesCard",
         "contracts.DashboardInventory",
         "session.Manager.List",
-        "session.Manager.SetNameChecked",
+        "session.Manager.SetNameDetailedChecked",
         "session.Manager.ShutdownStarted",
         "session.Manager.listLocked",
         "session.NewManager",
@@ -326,7 +326,7 @@
         "internal/session/conversation.go",
         "internal/session/manager.go"
       ],
-      "digest": "d78ae8c024be9c62888e7790ac1b4a3e7a44e39f010f59d43b3608c8caf41745"
+      "digest": "c4893068880834769abe8c6094b781869bae262ec800c9fa057b6ad3a424bf1d"
     },
     {
       "kind": "flow",
@@ -623,11 +623,14 @@
         "api.Service",
         "api.Service.ReadSessionWorkspace",
         "api.configureGitProcess",
+        "api.gitStatusSettings",
+        "api.inspectGitWorkspace",
         "api.inspectWorkspace",
         "api.killGitProcess",
+        "api.linkSharedGitIndex",
         "api.listWorkspace",
         "api.parseGitStatus",
-        "api.runGit",
+        "api.runGitWithEnv",
         "components.SessionCenter",
         "components.SessionCenter.renderWorkspace",
         "ui.Coordinator",
@@ -636,10 +639,10 @@
       ],
       "directRefs": [
         "api.Service.ReadSessionWorkspace",
+        "api.inspectGitWorkspace",
         "api.inspectWorkspace",
         "api.listWorkspace",
         "api.parseGitStatus",
-        "api.runGit",
         "components.SessionCenter.renderWorkspace",
         "ui.Coordinator.centerWorkspace",
         "ui.Coordinator.handleCenter"
@@ -651,9 +654,13 @@
       ],
       "supportingRefs": [
         "api.configureGitProcess",
-        "api.killGitProcess"
+        "api.gitStatusSettings",
+        "api.killGitProcess",
+        "api.linkSharedGitIndex",
+        "api.runGitWithEnv"
       ],
       "files": [
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -664,7 +671,7 @@
         "internal/ui/components/session_center.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "a735fc4c6011b14a9944ac15278f77e911069ce3167341963187b48630552746"
+      "digest": "bc25c654ae31c63144bf2e852ee8814582d4be945e05fb9836cd0d988107dade"
     },
     {
       "kind": "flow",
@@ -1084,7 +1091,7 @@
         "session.Manager.LaunchInDashboardWithIDContext",
         "session.Manager.List",
         "session.Manager.ReserveCardReferenceForDashboardWithCancel",
-        "session.Manager.SetNameChecked",
+        "session.Manager.SetNameDetailedChecked",
         "session.Manager.ShutdownStarted",
         "session.Manager.TemporaryWorkspaceRoot",
         "session.Manager.WaitCardReferences",
@@ -1141,7 +1148,7 @@
         "session.Manager.CardReferences",
         "session.Manager.List",
         "session.Manager.ReserveCardReferenceForDashboardWithCancel",
-        "session.Manager.SetNameChecked",
+        "session.Manager.SetNameDetailedChecked",
         "session.Manager.ShutdownStarted",
         "session.Manager.TemporaryWorkspaceRoot",
         "session.Manager.WaitCardReferences",
@@ -1189,7 +1196,7 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "0b24e86a70aa7b2bdd15082e98f2de6e1cd956c764a4c3ff1e3f0fcb7df28b1a"
+      "digest": "71fc881c21e2e849969773f16329e3daae147f01c7f33235630e8220bdb42c1d"
     },
     {
       "kind": "flow",
@@ -1207,7 +1214,7 @@
         "session.Manager.CardReferences",
         "session.Manager.List",
         "session.Manager.ReserveCardReferenceForDashboardWithCancel",
-        "session.Manager.SetNameChecked",
+        "session.Manager.SetNameDetailedChecked",
         "session.Manager.ShutdownStarted",
         "session.Manager.TemporaryWorkspaceRoot",
         "session.Manager.WaitCardReferences",
@@ -1267,7 +1274,7 @@
         "session.Manager.CardReferences",
         "session.Manager.List",
         "session.Manager.ReserveCardReferenceForDashboardWithCancel",
-        "session.Manager.SetNameChecked",
+        "session.Manager.SetNameDetailedChecked",
         "session.Manager.ShutdownStarted",
         "session.Manager.TemporaryWorkspaceRoot",
         "session.Manager.WaitCardReferences",
@@ -1312,7 +1319,7 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "a3688a8e890af0c5436322448b5320ad5791e7a3e7579c71a0975bf472270cdd"
+      "digest": "149c68ef5101d8187a3d564a1d347f04b487f5e8923e2143d7fb72df8d1a32b9"
     },
     {
       "kind": "flow",
@@ -2302,9 +2309,13 @@
         "components.SessionCenter.SetSession",
         "components.SessionCenter.View",
         "components.SessionCenter.headerRows",
+        "components.centerReportHeader",
         "models.CloneSessionRow",
         "session.MessageStore",
         "session.MessageStore.RecentAuthoredReports",
+        "session.MessageStore.ReportScopeChanged",
+        "session.MessageStore.ReportsChanged",
+        "session.MessageStore.signalRecordedReportLocked",
         "ui.Coordinator",
         "ui.Coordinator.centerRead",
         "ui.Coordinator.centerSubscribe",
@@ -2339,7 +2350,11 @@
         "components.RenderPuppetArtwork",
         "components.SessionCenter.ReportLimit",
         "components.SessionCenter.headerRows",
-        "models.CloneSessionRow"
+        "components.centerReportHeader",
+        "models.CloneSessionRow",
+        "session.MessageStore.ReportScopeChanged",
+        "session.MessageStore.ReportsChanged",
+        "session.MessageStore.signalRecordedReportLocked"
       ],
       "files": [
         "internal/api/center.go",
@@ -2354,7 +2369,7 @@
         "internal/ui/models/inventory.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "51a8ce708a44df05b7efcaa36c0a1b543d6476f5711efbfe0984417ad4abc0e9"
+      "digest": "2329f9d0b73814f4c861c9d121432e0eff9fb8c61a6ed2d2c5b1d6677a04bcaf"
     },
     {
       "kind": "flow",
@@ -2587,10 +2602,10 @@
       "id": "rename-save",
       "refs": [
         "api.Service",
-        "api.Service.RenameInDashboard",
+        "api.Service.RenameDashboardSession",
         "messages.DashboardSessionRenamedMsg",
         "session.Manager",
-        "session.Manager.SetNameChecked",
+        "session.Manager.SetNameDetailedChecked",
         "ui.Coordinator",
         "ui.Coordinator.dashboardCallbacks",
         "ui.Coordinator.handleSessionMessages",
@@ -2601,8 +2616,8 @@
         "views.Dashboard.updateRename"
       ],
       "directRefs": [
-        "api.Service.RenameInDashboard",
-        "session.Manager.SetNameChecked",
+        "api.Service.RenameDashboardSession",
+        "session.Manager.SetNameDetailedChecked",
         "ui.Coordinator.dashboardCallbacks",
         "ui.Coordinator.handleSessionMessages",
         "ui.Coordinator.refreshDataSeeded",
@@ -2620,8 +2635,8 @@
         "messages.DashboardSessionRenamedMsg"
       ],
       "files": [
-        "internal/api/membership.go",
         "internal/api/service.go",
+        "internal/api/session_actions.go",
         "internal/session/manager.go",
         "internal/ui/callbacks.go",
         "internal/ui/coordinator.go",
@@ -2631,7 +2646,7 @@
         "internal/ui/views/dashboard.go",
         "internal/ui/views/dashboard_test.go"
       ],
-      "digest": "741cb1e8d8e8584eda0ff2917bb1d54706736718173de69c35aba640890d555f"
+      "digest": "887e5892edd5556605d7f72345c4a0e6479c17525bbe0784115905b9c9793e68"
     },
     {
       "kind": "flow",
@@ -3816,19 +3831,19 @@
         "api.Service.GetDashboardDeletion",
         "api.Service.GetMessage",
         "api.Service.GetSession",
-        "api.Service.LaunchInDashboard",
+        "api.Service.LaunchSession",
         "api.Service.ListDashboards",
         "api.Service.ListSessions",
         "api.Service.PreflightCardDeletion",
         "api.Service.PreflightDashboardDeletion",
         "api.Service.ReadDashboardOverview",
         "api.Service.RelaunchInDashboard",
-        "api.Service.RemoveInDashboard",
-        "api.Service.RenameInDashboard",
+        "api.Service.RemoveDashboardSession",
+        "api.Service.RenameDashboardSession",
         "api.Service.ResolveCaller",
         "api.Service.RetryCardDeletion",
         "api.Service.RetryDashboardDeletion",
-        "api.Service.StopInDashboard",
+        "api.Service.StopDashboardSession",
         "api.Service.SwitchInDashboard",
         "api.Service.UpdateDashboardDetails",
         "api.Service.UpdateEditorCard",
@@ -3893,19 +3908,19 @@
         "api.Service.GetDashboardDeletion",
         "api.Service.GetMessage",
         "api.Service.GetSession",
-        "api.Service.LaunchInDashboard",
+        "api.Service.LaunchSession",
         "api.Service.ListDashboards",
         "api.Service.ListSessions",
         "api.Service.PreflightCardDeletion",
         "api.Service.PreflightDashboardDeletion",
         "api.Service.ReadDashboardOverview",
         "api.Service.RelaunchInDashboard",
-        "api.Service.RemoveInDashboard",
-        "api.Service.RenameInDashboard",
+        "api.Service.RemoveDashboardSession",
+        "api.Service.RenameDashboardSession",
         "api.Service.ResolveCaller",
         "api.Service.RetryCardDeletion",
         "api.Service.RetryDashboardDeletion",
-        "api.Service.StopInDashboard",
+        "api.Service.StopDashboardSession",
         "api.Service.SwitchInDashboard",
         "api.Service.UpdateDashboardDetails",
         "api.Service.UpdateEditorCard",
@@ -3953,6 +3968,7 @@
         "internal/api/card_editor.go",
         "internal/api/card_revision.go",
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -3974,7 +3990,7 @@
         "internal/api/service.go",
         "internal/api/session_actions.go"
       ],
-      "digest": "2e3e658bcaee0c9f7e65fa70602dbca654a9026dcdfc0dc7653d8b7e7ea20842"
+      "digest": "1a1667dc0636d732d040f3e08696e96863bca16a7ac7c80ff7400a55cfe385f0"
     },
     {
       "kind": "package",
@@ -4463,7 +4479,7 @@
         "session.Manager.ReserveCardDeletion",
         "session.Manager.ReserveCardReferenceForDashboardWithCancel",
         "session.Manager.ReserveDashboardDeletion",
-        "session.Manager.SetNameChecked",
+        "session.Manager.SetNameDetailedChecked",
         "session.Manager.ShutdownStarted",
         "session.Manager.SubmitMessage",
         "session.Manager.TemporaryWorkspaceRoot",
@@ -4524,7 +4540,7 @@
         "session.Manager.ReserveCardDeletion",
         "session.Manager.ReserveCardReferenceForDashboardWithCancel",
         "session.Manager.ReserveDashboardDeletion",
-        "session.Manager.SetNameChecked",
+        "session.Manager.SetNameDetailedChecked",
         "session.Manager.ShutdownStarted",
         "session.Manager.SubmitMessage",
         "session.Manager.TemporaryWorkspaceRoot",
@@ -4579,7 +4595,7 @@
         "internal/session/workspace.go",
         "internal/session/workspace_launcher.go"
       ],
-      "digest": "715258668bb139e95234f9a258faf931854cd0f4bdff19d71a9647eeb8969e53"
+      "digest": "e1db18ada25cd2860817d1d57ed851ab84feac095bc50c3b6525fbdff94fc2f5"
     },
     {
       "kind": "package",
@@ -5420,7 +5436,7 @@
       "files": [
         "internal/api/center.go"
       ],
-      "digest": "519e22da70ec4af38fa9f893eb8592ba763c9aded3b050d082496de95503a8c9"
+      "digest": "3f8dabe2adee67c80e47e8c7162690ece4aa20fd2229f0ecc118f001866508d6"
     },
     {
       "kind": "rule",
@@ -5748,7 +5764,7 @@
         "internal/ui/center.go",
         "internal/ui/center_ports.go"
       ],
-      "digest": "9821eb16d1e80938bde9c61c3dd80ce9bba7624cff5465523707d933026587b0"
+      "digest": "38765db328067fb75934316c381b37ffea82a7b5ff03a577c79d86d5747b5986"
     },
     {
       "kind": "task",
@@ -6078,19 +6094,19 @@
       "kind": "task",
       "id": "Change session names or activation snapshots",
       "refs": [
-        "api.Service.RenameInDashboard",
+        "api.Service.RenameDashboardSession",
         "api.inspectionFromSnapshot",
         "messages.DashboardSessionRenamedMsg",
-        "session.Manager.SetNameChecked",
+        "session.Manager.SetNameDetailedChecked",
         "ui.Coordinator.renameDashboardSession",
         "views.Dashboard.handleEdit",
         "views.Dashboard.updateRename"
       ],
       "directRefs": [
-        "api.Service.RenameInDashboard",
+        "api.Service.RenameDashboardSession",
         "api.inspectionFromSnapshot",
         "messages.DashboardSessionRenamedMsg",
-        "session.Manager.SetNameChecked",
+        "session.Manager.SetNameDetailedChecked",
         "ui.Coordinator.renameDashboardSession",
         "views.Dashboard.handleEdit",
         "views.Dashboard.updateRename"
@@ -6098,14 +6114,14 @@
       "participants": [],
       "supportingRefs": [],
       "files": [
-        "internal/api/membership.go",
         "internal/api/service.go",
+        "internal/api/session_actions.go",
         "internal/session/manager.go",
         "internal/ui/callbacks.go",
         "internal/ui/messages/messages.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "b69f4bcab08f48d92769c9d3c8f32c7d2e3ab8697e64e94941f4541d877acc92"
+      "digest": "c32fa179d1cf65495d7164c0a3e70db5a0b5dc7c2b97939326a69fe27686e608"
     },
     {
       "kind": "task",
@@ -6235,20 +6251,25 @@
       "id": "Change workspace inspection limits or classification",
       "refs": [
         "api.Service.ReadSessionWorkspace",
+        "api.inspectGitWorkspace",
         "api.inspectWorkspace",
+        "api.linkSharedGitIndex",
         "api.listWorkspace"
       ],
       "directRefs": [
         "api.Service.ReadSessionWorkspace",
+        "api.inspectGitWorkspace",
         "api.inspectWorkspace",
+        "api.linkSharedGitIndex",
         "api.listWorkspace"
       ],
       "participants": [],
       "supportingRefs": [],
       "files": [
+        "internal/api/center_git.go",
         "internal/api/center_workspace.go"
       ],
-      "digest": "ecb4d5f335efa38560b7d27dd83dd89aaa282a9668a3c81671db1dcf60773db1"
+      "digest": "e8ceb5652cba18309b7539b326a54d074d476b2a33663ce417ae28a0795553cc"
     },
     {
       "kind": "task",
@@ -6538,6 +6559,7 @@
         "appedia/evidence/current/codex/git/workspace-initial.png",
         "appedia/evidence/current/codex/git/workspace-updated.png",
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -6585,7 +6607,7 @@
         "tests/e2e/codex_offline_test.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "bb394310a59450f15154667a6993f1f1b8d86389e98d391b1397612bda5d170b"
+      "digest": "1c5542a1a04720200caba0b263e7c75e8856f66e709f9dbbcd373b3a6f78fa5e"
     },
     {
       "kind": "test-feature",
@@ -7315,7 +7337,7 @@
         "internal/ui/views/session_launcher.go",
         "internal/ui/views/session_launcher_test.go"
       ],
-      "digest": "59798b236877c9f253e3b02b52a866e921a6311a2480911775e9e2ae8542b510"
+      "digest": "da07ff094499110cb4189b7323d3db549241e3c5ac22ad519f0f456733d93c87"
     },
     {
       "kind": "test-feature",
@@ -7337,6 +7359,7 @@
         "appedia/evidence/current/codex/directory/report-after-relaunch.png",
         "appedia/evidence/current/codex/directory/supported-minimum.png",
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_process_unix_test.go",
@@ -7351,6 +7374,7 @@
         "internal/session/card_references.go",
         "internal/session/manager.go",
         "internal/session/messaging.go",
+        "internal/session/messaging_review_test.go",
         "internal/session/workspace.go",
         "internal/ui/center.go",
         "internal/ui/center_internal_test.go",
@@ -7378,7 +7402,7 @@
         "tests/e2e/codex_offline_test.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "c373b3e3782534f1dcdac08e2fb89f00f3b721ef76d9a4a3121247d899151d33"
+      "digest": "3bab0f09db60ec37959d05979146a2a1ea68aa2dfc65be35a1cf3b171d702682"
     },
     {
       "kind": "test-feature",
@@ -7413,7 +7437,6 @@
         "views.Dashboard.handleEdit"
       ],
       "files": [
-        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/api/session_actions.go",
         "internal/driver/driver.go",
@@ -7439,7 +7462,7 @@
         "internal/ui/views/session_launcher_test.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "7d8ef07c4fd08298b9b63d3ca8bde164f6831e500c65dc090b3674d38a7575d1"
+      "digest": "e3b99efe3b523bcfc931403da3d1325f2af8ed30857299dea64d754323ffbf67"
     },
     {
       "kind": "test-feature",
@@ -7546,7 +7569,7 @@
         "tests/e2e/opencode_test.go",
         "tests/e2e/provenance_test.go"
       ],
-      "digest": "0453d6e6f04eedaca5fca6f647246230e3a071e83d996ea9d1839f21f95ba5d5"
+      "digest": "816c96b612fb2ff3c9c05bff03154370539d340fecea0cba3a391b09d8885dfe"
     },
     {
       "kind": "test-feature",
@@ -8081,6 +8104,7 @@
       "files": [
         "appedia/evidence/current/codex/git/workspace-initial.png",
         "appedia/evidence/current/codex/git/workspace-updated.png",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -8092,7 +8116,7 @@
         "internal/ui/coordinator.go",
         "tests/e2e/codex_offline_test.go"
       ],
-      "digest": "fb6b80012641b8632b01ae5717445b223377615d7bd6e9ba7b59cdaca4443a4e"
+      "digest": "733cf55c60aa59e2f733344d84f442f4383998bb5576ee5c52e80ed06dcffb41"
     },
     {
       "kind": "test-scenario",
@@ -8244,6 +8268,7 @@
       "files": [
         "appedia/evidence/current/codex/directory/workspace-initial.png",
         "appedia/evidence/current/codex/directory/workspace-updated.png",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -8255,7 +8280,7 @@
         "internal/ui/coordinator.go",
         "tests/e2e/codex_offline_test.go"
       ],
-      "digest": "9bfe2822147222838a4cf3e6266ab14125bcb8547ad2dd1335d95adb1a5967a0"
+      "digest": "9b92da3b561ac17264761e0296444c1911eefac0690834d83dd395d9024b6e58"
     },
     {
       "kind": "test-scenario",
@@ -9838,7 +9863,7 @@
       "id": "session-actions/manual-session",
       "refs": [
         "api.Service.AttachInDashboard",
-        "api.Service.RenameInDashboard",
+        "api.Service.RenameDashboardSession",
         "session.Manager.AttachChecked",
         "ui.Coordinator.handleSessionMessages",
         "ui.Coordinator.requestAttach"
@@ -9847,7 +9872,7 @@
       "participants": [],
       "supportingRefs": [
         "api.Service.AttachInDashboard",
-        "api.Service.RenameInDashboard",
+        "api.Service.RenameDashboardSession",
         "session.Manager.AttachChecked",
         "ui.Coordinator.handleSessionMessages",
         "ui.Coordinator.requestAttach"
@@ -9869,7 +9894,7 @@
         "internal/ui/views/session_launcher.go",
         "internal/ui/views/session_launcher_test.go"
       ],
-      "digest": "47748a989fb1df83a0b9332be93fb16c0962b04056351a7b47dc5384dbb6756d"
+      "digest": "230475c4b7691b83f90206d62bff91e22730b634f0e295a0704c659a0811dd53"
     },
     {
       "kind": "test-scenario",
@@ -9950,6 +9975,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -9961,7 +9987,7 @@
         "internal/ui/components/session_center.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "2a788d40c0c93d9e166114c74528eb3276bb3c898b681bd7fc8193f2f796a84f"
+      "digest": "97ed808eb9d8037932b53df3610c42290ea41669559b32ae66fbacfb9ddab37b"
     },
     {
       "kind": "test-scenario",
@@ -10067,6 +10093,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10081,7 +10108,7 @@
         "internal/ui/ui.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "dd71bf0d12fa73ac0ab0b52c05c26f0ad5abc14c3c1b0a1e9d2c94ca9e1538e7"
+      "digest": "8498080d8068832b8f4dae54353af57d4253222a6549d18acff21eda93900f98"
     },
     {
       "kind": "test-scenario",
@@ -10100,6 +10127,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10119,7 +10147,7 @@
         "internal/ui/ui.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "590f68ef49bcfe47579ce2e0ac5f2c2a4e78169cf3b637790d829a47e3f46ae1"
+      "digest": "1f070e41a3537b211c3949594f7a5c8f87b4d272f70f5787f4654f5d7a83f676"
     },
     {
       "kind": "test-scenario",
@@ -10169,6 +10197,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10180,7 +10209,7 @@
         "internal/ui/components/session_center.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "63b2dbf3dff83a0f6e5fc258b705c2e775514e76789cb1800d5dc72e61e49e63"
+      "digest": "e80d50015d921cc246259b41b49897e0d6777a949b52ab823af00779daff4cc9"
     },
     {
       "kind": "test-scenario",
@@ -10199,6 +10228,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10210,7 +10240,7 @@
         "internal/ui/components/session_center.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "f4705cba660726c436fccc5ea05a18912e36f3939f2f12c6c6c386563dfafab7"
+      "digest": "ee34868928e4be33634764ed2025c8a4dbdc9195ca6638f5a91c756015d34ea6"
     },
     {
       "kind": "test-scenario",
@@ -10229,6 +10259,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10240,7 +10271,7 @@
         "internal/ui/components/session_center.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "ad784979a3db386e8ce29475f40409135e7ca9c2f5cef0b0553b4bdcfd7adfd8"
+      "digest": "7be5c29d5902da57a922f16f94c45c9ef17ae5be79f255a382994058e765f041"
     },
     {
       "kind": "test-scenario",
@@ -10290,6 +10321,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_process_unix_test.go",
@@ -10301,7 +10333,38 @@
         "internal/ui/components/session_center.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "e0bfe19869d333346a9e647df8fe4c6f0aca6dbac570c8d6a7f17d5307076281"
+      "digest": "1f733e315a47f0cd9f4f93e9bb36528086aac06c806fc587ff5dfb9ea6ba17bb"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-center/helper-isolation",
+      "refs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "files": [
+        "internal/api/center.go",
+        "internal/api/center_git.go",
+        "internal/api/center_process_other.go",
+        "internal/api/center_process_unix.go",
+        "internal/api/center_workspace.go",
+        "internal/api/center_workspace_linux.go",
+        "internal/api/center_workspace_other.go",
+        "internal/api/center_workspace_test.go",
+        "internal/api/service.go",
+        "internal/ui/center.go",
+        "internal/ui/components/session_center.go",
+        "internal/ui/coordinator.go"
+      ],
+      "digest": "e4b853475d8cd03a4d046b6d7bf6ff7adc656bb7b3525b4ef05f2492ac0f578e"
     },
     {
       "kind": "test-scenario",
@@ -10320,6 +10383,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_process_unix_test.go",
@@ -10331,7 +10395,7 @@
         "internal/ui/components/session_center.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "5fb6697da01614458e57569e4873eb7fb4b404a597486c81facdc6a8f1e958a9"
+      "digest": "7f010aa58d80b2d077677c3942f53a246d56932b450d9b6d9aa7ef7926b7fce2"
     },
     {
       "kind": "test-scenario",
@@ -10350,6 +10414,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10361,7 +10426,7 @@
         "internal/ui/components/session_center.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "597369656691da24b4b8b820993f58fa6c90ab6b9e8e91a6882aa2d0612794b4"
+      "digest": "a1b9047676794353f3e43bcf451a2a49aed59600a370c3b92cd804698c5df945"
     },
     {
       "kind": "test-scenario",
@@ -10444,6 +10509,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10455,7 +10521,7 @@
         "internal/ui/components/session_center.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "83129cdc70d1d4e6b918a1e4e55d670dffe60a37308418e90e30e445b9789cc8"
+      "digest": "c24ec65212984d8f92b05de08e85d3c656635357a8e18092fe9ccd9e20b562fa"
     },
     {
       "kind": "test-scenario",
@@ -10474,6 +10540,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10492,7 +10559,38 @@
         "internal/ui/ui.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "a32464ba30495927fe79cbfc309696155c74e45c860dd88cdad9d428c7a5fdbe"
+      "digest": "75326273f63591f504be73aec1c2a24bf7bacb93afcd9164fe233563a6b647b0"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-center/metadata-fallback",
+      "refs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "files": [
+        "internal/api/center.go",
+        "internal/api/center_git.go",
+        "internal/api/center_process_other.go",
+        "internal/api/center_process_unix.go",
+        "internal/api/center_workspace.go",
+        "internal/api/center_workspace_linux.go",
+        "internal/api/center_workspace_other.go",
+        "internal/api/center_workspace_test.go",
+        "internal/api/service.go",
+        "internal/ui/center.go",
+        "internal/ui/components/session_center.go",
+        "internal/ui/coordinator.go"
+      ],
+      "digest": "668e4ce3a325ff33536a58cff7a02a17a2ab878db0392fa4d767c236f96d9873"
     },
     {
       "kind": "test-scenario",
@@ -10602,6 +10700,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10616,7 +10715,7 @@
         "internal/ui/ui.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "9efc831d938bd832e222a31ea6f626ffb3a1186dd766258076a490a5dc499eb7"
+      "digest": "d0a7b0a7c913754a4818e04548407bd17a85258097f3e724dc8051132b8a1a0f"
     },
     {
       "kind": "test-scenario",
@@ -10635,6 +10734,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10646,7 +10746,7 @@
         "internal/ui/components/session_center_test.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "f222858a74e787f27cc7bfc985402b598134645d067e3dd7d7f0306a772da8d3"
+      "digest": "071435fc6184099f0f969b3becc9a0a1330588af09e10982e0a1c9980066113d"
     },
     {
       "kind": "test-scenario",
@@ -10712,6 +10812,126 @@
     },
     {
       "kind": "test-scenario",
+      "id": "session-center/report-scope-signal",
+      "refs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "files": [
+        "internal/api/center.go",
+        "internal/api/center_test.go",
+        "internal/ui/center.go",
+        "internal/ui/components/session_center.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/navigation.go",
+        "internal/ui/ui.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "4bc8c1c18d163fce2ae6abd5b3256b7a388e8d5ff216813d1ec02ead06828fe4"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-center/report-signal-commit",
+      "refs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "files": [
+        "internal/api/center.go",
+        "internal/api/service.go",
+        "internal/session/authored_reports.go",
+        "internal/session/messaging.go",
+        "internal/session/messaging_review_test.go",
+        "internal/ui/center.go",
+        "internal/ui/components/renderer.go",
+        "internal/ui/components/session_center.go",
+        "internal/ui/components/session_center_header.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/models/inventory.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "afd348c2b1a3f3bc13b858df81611cf7aa88c8f5164439523206bf7d89c2b48f"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-center/report-signal-eviction",
+      "refs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "files": [
+        "internal/api/center.go",
+        "internal/api/service.go",
+        "internal/session/authored_reports.go",
+        "internal/session/messaging.go",
+        "internal/session/messaging_review_test.go",
+        "internal/ui/center.go",
+        "internal/ui/components/renderer.go",
+        "internal/ui/components/session_center.go",
+        "internal/ui/components/session_center_header.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/models/inventory.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "8345082c1ef5e15271f781d48552f6ad110ad5471ee23142a6659edd0e9adb5f"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "session-center/report-timestamp-fit",
+      "refs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "files": [
+        "internal/api/center.go",
+        "internal/api/service.go",
+        "internal/session/authored_reports.go",
+        "internal/session/messaging.go",
+        "internal/ui/center.go",
+        "internal/ui/components/renderer.go",
+        "internal/ui/components/session_center.go",
+        "internal/ui/components/session_center_header.go",
+        "internal/ui/components/session_center_test.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/models/inventory.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "8d8ca7e6539717bad1a6420c922c3a1edf91251de35538f59821f51d23f7c102"
+    },
+    {
+      "kind": "test-scenario",
       "id": "session-center/retry",
       "refs": [
         "api.Service.ReadSessionReports",
@@ -10754,6 +10974,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_test.go",
@@ -10765,7 +10986,7 @@
         "internal/ui/components/session_center.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "3143ff2482232ed93fa99f618586839d3bf57a391c2b698066023cd53f0c4300"
+      "digest": "5eeda7cd1642d694e0ce0d8ac19778f23dbe523c2c4c7c3067a6141cd3a572e4"
     },
     {
       "kind": "test-scenario",
@@ -10814,6 +11035,7 @@
         "appedia/evidence/current/codex/directory/report-after-relaunch.png",
         "appedia/evidence/current/codex/directory/supported-minimum.png",
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10849,7 +11071,7 @@
         "tests/e2e/codex_offline_test.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "8fd4f71f4fead2a248ea480b5d6cdc87ece10904c90b414c001722dd3ac404e2"
+      "digest": "a062ae4e6919fca9013e48658abf4ea493bf9cd21f77742181e30c3e546c7209"
     },
     {
       "kind": "test-scenario",
@@ -10884,6 +11106,37 @@
     },
     {
       "kind": "test-scenario",
+      "id": "session-center/split-index",
+      "refs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.Service.ReadSessionReports",
+        "components.SessionCenter.View",
+        "ui.Coordinator.handleCenter"
+      ],
+      "files": [
+        "internal/api/center.go",
+        "internal/api/center_git.go",
+        "internal/api/center_process_other.go",
+        "internal/api/center_process_unix.go",
+        "internal/api/center_workspace.go",
+        "internal/api/center_workspace_linux.go",
+        "internal/api/center_workspace_other.go",
+        "internal/api/center_workspace_test.go",
+        "internal/api/service.go",
+        "internal/ui/center.go",
+        "internal/ui/components/session_center.go",
+        "internal/ui/coordinator.go"
+      ],
+      "digest": "2e71e1e5df499ac7a4ed5ff40a8dbea8a009dacf03c1f7bad2e8e249195a620c"
+    },
+    {
+      "kind": "test-scenario",
       "id": "session-center/symlink-fallback",
       "refs": [
         "api.Service.ReadSessionReports",
@@ -10899,6 +11152,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10910,7 +11164,7 @@
         "internal/ui/components/session_center.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "b70dee707a1bb0ec456ef7a3e349aba365f256c686c7aca778e4277c2abc8cba"
+      "digest": "9c44465e6d77eb5863287dc484944d34eb30e67b720bcc64eeff4e08f23ad131"
     },
     {
       "kind": "test-scenario",
@@ -10929,6 +11183,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -10946,7 +11201,7 @@
         "internal/ui/models/inventory.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "94ba4f6f0d81504baab500bb099f8c1111dadedf73406b5b1b3b7d9867de680f"
+      "digest": "2bf38d9b37f4af92808bfae921d3868b46426a69a435f15c4f60655af2f21ce1"
     },
     {
       "kind": "test-scenario",
@@ -10965,6 +11220,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_test.go",
@@ -10976,7 +11232,7 @@
         "internal/ui/components/session_center.go",
         "internal/ui/coordinator.go"
       ],
-      "digest": "30c16e713c1a5189028b3126a246e3a0e9e3e30bb49e42cdeb5e5f3a1cdfc590"
+      "digest": "376acf1f78afb6c27b5c3d9d56204ab2466c6e096b275f30d83ca2d2181d7074"
     },
     {
       "kind": "test-scenario",
@@ -10995,6 +11251,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -11009,7 +11266,7 @@
         "internal/ui/ui.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "5b9ee6d0ad30a21678534d36cdf18983b312f9bbd0936cc404726e97058417a4"
+      "digest": "f5b6ada00664193dcdd17cf25e2816d25e0ce000964241613d3ed5940d4ded35"
     },
     {
       "kind": "test-scenario",
@@ -11028,6 +11285,7 @@
       ],
       "files": [
         "internal/api/center.go",
+        "internal/api/center_git.go",
         "internal/api/center_process_other.go",
         "internal/api/center_process_unix.go",
         "internal/api/center_workspace.go",
@@ -11042,7 +11300,7 @@
         "internal/ui/ui.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "11dc7f9ab9b7e5b7b9bcf64b5158cb0112be29bb4d7557ceb1befffe86478eed"
+      "digest": "afe67c6324d5d80edbcb8889ed6b16a07b88eb57f2cc5619faa430344ad941d5"
     },
     {
       "kind": "test-scenario",
@@ -11077,8 +11335,8 @@
         "views.Dashboard.handleEdit"
       ],
       "files": [
-        "internal/api/membership.go",
         "internal/api/service.go",
+        "internal/api/session_actions.go",
         "internal/session/manager.go",
         "internal/ui/callbacks.go",
         "internal/ui/coordinator.go",
@@ -11088,7 +11346,7 @@
         "internal/ui/views/dashboard.go",
         "internal/ui/views/dashboard_test.go"
       ],
-      "digest": "9dc577af9acdb630eeb58c4f4d8b8b16bbfd7e808be357daf4f2d2ffafe08b87"
+      "digest": "0968b72715c613a5f84cfa58460adc348a9f4e650852234fb9b5683958323162"
     },
     {
       "kind": "test-scenario",
@@ -11204,8 +11462,8 @@
         "views.Dashboard.handleEdit"
       ],
       "files": [
-        "internal/api/membership.go",
         "internal/api/service.go",
+        "internal/api/session_actions.go",
         "internal/session/lifecycle_test.go",
         "internal/session/manager.go",
         "internal/ui/callbacks.go",
@@ -11216,7 +11474,7 @@
         "internal/ui/views/dashboard.go",
         "internal/ui/views/dashboard_test.go"
       ],
-      "digest": "445bd953dbaa4ee0fade73f0d42780b52317890f254f785d79d7bb1e3c0f70df"
+      "digest": "54bccfa229cf8f361a0776e5efb15d35c3c5c9976df821ea1df27eac94e3eac2"
     },
     {
       "kind": "test-scenario",
@@ -11253,8 +11511,8 @@
         "views.Dashboard.handleEdit"
       ],
       "files": [
-        "internal/api/membership.go",
         "internal/api/service.go",
+        "internal/api/session_actions.go",
         "internal/session/manager.go",
         "internal/ui/callbacks.go",
         "internal/ui/coordinator.go",
@@ -11264,7 +11522,7 @@
         "internal/ui/views/dashboard.go",
         "internal/ui/views/dashboard_test.go"
       ],
-      "digest": "2b954005cdb79aaa8b0c369cadcb0db3bbc621cf716dc73783cd568df2c5cde8"
+      "digest": "c87701d5ea0a2a0b8ca89213d079beef9f377a32db88f2fce23f88a9281bf7df"
     },
     {
       "kind": "test-scenario",
@@ -11280,8 +11538,8 @@
         "views.Dashboard.handleEdit"
       ],
       "files": [
-        "internal/api/membership.go",
         "internal/api/service.go",
+        "internal/api/session_actions.go",
         "internal/session/manager.go",
         "internal/ui/callbacks.go",
         "internal/ui/coordinator.go",
@@ -11291,7 +11549,7 @@
         "internal/ui/views/dashboard.go",
         "internal/ui/views/dashboard_test.go"
       ],
-      "digest": "a575bf899e35fcbcc06beacd0628a053e3c937cfcb65d983418e24d10fab0461"
+      "digest": "505f3a87dace317ebe9c738e6372d91266baaa83e97768bddeeb994055f8b204"
     },
     {
       "kind": "test-scenario",
@@ -11414,7 +11672,7 @@
       "kind": "test-scenario",
       "id": "terminal-journeys/native-agent",
       "refs": [
-        "api.Service.LaunchInDashboard",
+        "api.Service.LaunchSession",
         "session.Manager.LaunchInDashboardWithIDContext",
         "session.Manager.ReserveCardReferenceForDashboardWithCancel",
         "session.Manager.bindPendingWorkspace",
@@ -11423,7 +11681,7 @@
       "directRefs": [],
       "participants": [],
       "supportingRefs": [
-        "api.Service.LaunchInDashboard",
+        "api.Service.LaunchSession",
         "session.Manager.LaunchInDashboardWithIDContext",
         "session.Manager.ReserveCardReferenceForDashboardWithCancel",
         "session.Manager.bindPendingWorkspace",
@@ -11471,7 +11729,7 @@
         "tests/e2e/opencode_test.go",
         "tests/e2e/provenance_test.go"
       ],
-      "digest": "1aeb4312f1848c9cfe07c3c81d986f02e750c1d07570d6755f1c154829e62f50"
+      "digest": "7e5998e7abfc5b8fd08d2fba0e2fa33b1040297278999ddde5ae0b43c2afec2b"
     },
     {
       "kind": "test-scenario",
@@ -11767,5 +12025,5 @@
       "digest": "9b604ee1f64e13182417327ca84f286cf8e9ea59aabcba4777c111a27287e9ff"
     }
   ],
-  "digest": "46dcc943c653684187035742798613778eac286c5278137b0ae9b7662548a2d9"
+  "digest": "0175ffbb572b01f8d722df686a005b80121d0c00a545f050b343a21db8a7b101"
 }

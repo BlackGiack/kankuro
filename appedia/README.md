@@ -1,12 +1,14 @@
 # KANKURO Appedia
 
 Open [index.html](index.html) directly in a browser. This snapshot describes
-the frontend boundary roadmap through commit `bd03108`.
+the frontend boundary roadmap through commit `5c80ec8`.
 
 The selected-session center keeps its session details and puppet above reports
 or workspace information. The `flow-preview` URL opens the current report-center
 flow. The startup flow shows puppet sync completing before the UI reads registry
-data and explains how a missing source becomes a startup warning.
+data and explains how a missing source becomes a startup warning. The center flows
+cover report-only notifications, timestamp fitting and isolated Git status,
+including repositories with split indexes.
 
 The Tests tab links inspected assertions and recorded runs. Historical coverage
 and terminal captures keep their original provenance. Live model recall, the
