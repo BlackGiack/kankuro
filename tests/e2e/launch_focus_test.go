@@ -22,21 +22,42 @@ import (
 	"github.com/BlackGiack/kankuro/internal/session"
 )
 
-// TestNativeLaunchFocusReturn starts an interactive agent but never submits a
-// prompt. Enter after detach must attach to the created session, not launch a
-// second session from the card or relaunch the older session.
+// TestNativeLaunchFocusReturn edits the launch card and starts an interactive
+// agent without submitting a prompt. Enter after detach must reattach to the
+// created session.
 func TestNativeLaunchFocusReturn(t *testing.T) {
 	j := newLaunchFocusJourney(t, "")
+	editAndReopenReasoningEffort(j)
 	runLaunchFocus(j)
 	j.finish()
+}
+
+func editAndReopenReasoningEffort(j *nativeJourney) {
+	j.t.Helper()
+	j.run.Stage = "edit and reopen launch card"
+	j.press("e")
+	j.expect("Edit ID Card")
+	j.press("Tab") // Driver
+	j.press("Tab") // Model
+	j.press("Tab") // Reasoning effort
+	must(j.t, j.terminal.Type("high"))
+	j.press("Enter")
+	j.expect("Active Sessions")
+
+	j.press("e")
+	j.expect("Edit ID Card")
+	const effortRow = `Reasoning effort:[ >]*high\b`
+	timeout := 10 * time.Second
+	must(j.t, j.terminal.GetByText(effortRow, tuitest.TextSelectorOptions{Regex: true}).
+		Expect(tuitest.LocatorExpectOptions{Timeout: &timeout}))
+	j.capture("card-effort-reopened", "Reopening the saved card shows high on the Reasoning effort row.")
+	j.press("Escape")
+	j.expect("Active Sessions")
 }
 
 func runLaunchFocus(j *nativeJourney) session.Data {
 	t := j.t
 	j.run.Stage = "launch"
-	j.expect("Dashboards")
-	j.press("Enter")
-	j.expect("Focus E2E")
 	j.press("Enter")
 	j.expect("Session launched successfully!")
 	created := waitSession(t, j.configDir, 30*time.Second, func(data session.Data) bool {
@@ -99,7 +120,11 @@ func newLaunchFocusJourney(t *testing.T, workspaceMode string) *nativeJourney {
 		artifacts = filepath.Join(artifacts, workspaceMode)
 	}
 	must(t, os.MkdirAll(artifacts, 0o700))
-	for _, name := range []string{"attached.png", "dashboard.png", "reattached.png", "failure.png", "result.json", "workspace-initial.png", "workspace-updated.png", "supported-minimum.png", "minimum-size.png", "stopped.png", "relaunched.png", "report-after-relaunch.png", "restart-report.png"} {
+	for _, name := range []string{
+		"card-effort-reopened.png", "attached.png", "dashboard.png", "reattached.png", "failure.png", "result.json",
+		"workspace-initial.png", "workspace-updated.png", "supported-minimum.png", "minimum-size.png",
+		"stopped.png", "relaunched.png", "report-after-relaunch.png", "restart-report.png",
+	} {
 		if removeErr := os.Remove(filepath.Join(artifacts, name)); removeErr != nil && !os.IsNotExist(removeErr) {
 			t.Fatal(removeErr)
 		}
@@ -190,8 +215,12 @@ func newLaunchFocusJourney(t *testing.T, workspaceMode string) *nativeJourney {
 		},
 	})
 	registerTerminalCleanup(t, terminal, run, artifacts)
-	return &nativeJourney{t: t, root: root, agent: nativeAgent{name: "codex"},
+	j := &nativeJourney{t: t, root: root, agent: nativeAgent{name: "codex"},
 		artifacts: artifacts, configDir: configDir, card: card, terminal: terminal, run: run}
+	j.expect("Dashboards")
+	j.press("Enter")
+	j.expect("Focus E2E")
+	return j
 }
 
 // The daemon stop command leaves its updater running in some Codex versions.

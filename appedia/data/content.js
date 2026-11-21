@@ -61,7 +61,7 @@ window.APPEDIA_CONTENT = {
       "comes back through Bubble Tea's Update"
     ]
   },
-  "snapshot": "2026-11-20 · frontend boundary roadmap through 5c80ec8",
+  "snapshot": "2026-11-21 · reasoning effort on the frontend boundary roadmap",
   "pitch": "Organize agent configurations and sessions into independent dashboards. Share selected cards across dashboards while keeping each session, workspace identity and conversation binding in its creation dashboard.",
   "pitch2": "Bubble Tea uses independent application contracts through focused capabilities. The application service owns membership and operations. The center keeps the selected-session header above authored reports or bounded workspace information. Raw terminal output is available through the human attachment.",
   "concepts": [
@@ -72,7 +72,7 @@ window.APPEDIA_CONTENT = {
     ],
     [
       "ID card",
-      "Owned agent template; shared cards are available across dashboards.",
+      "Saved agent template for the CLI, model, optional reasoning effort, workspace and capabilities.",
       "config.IDCard"
     ],
     [
@@ -520,7 +520,8 @@ window.APPEDIA_CONTENT = {
           "session.saveSession",
           "session.syncActivationMCPConfig",
           "session.updateSessionOutputState",
-          "session.validateConversationChoice"
+          "session.validateConversationChoice",
+          "session.activationArgs"
         ]
       }
     },
@@ -636,7 +637,10 @@ window.APPEDIA_CONTENT = {
           "driver.updateClaudeTrust",
           "driver.updateCodexTrust",
           "driver.writeInstructionFile",
-          "driver.writePromptPhases"
+          "driver.writePromptPhases",
+          "driver.AgentDriver",
+          "driver.AntigravityCLIDriver",
+          "driver.NewAntigravityCLIDriver"
         ]
       }
     },
@@ -746,7 +750,8 @@ window.APPEDIA_CONTENT = {
           "config.validateCardMembershipFormat",
           "config.validateDashboard",
           "config.validateDashboardDeletion",
-          "config.validateNewCardPending"
+          "config.validateNewCardPending",
+          "config.IDCard"
         ]
       }
     },
@@ -945,7 +950,9 @@ window.APPEDIA_CONTENT = {
           "api.persistedDashboardScope.inventory",
           "api.persistedDashboardScope.validateScopeInventory",
           "api.sessionInDashboard",
-          "api.sessionUsesCard"
+          "api.sessionUsesCard",
+          "api.cardValues",
+          "api.applyCardChanges"
         ]
       }
     },
@@ -1007,7 +1014,13 @@ window.APPEDIA_CONTENT = {
         "ReportSubscription",
         "SessionWorkspaceResult",
         "DashboardInventory"
-      ]
+      ],
+      "sources": {
+        "refs": [
+          "contracts.CardValues",
+          "contracts.CardChanges"
+        ]
+      }
     },
     "models": {
       "label": "ui/models",
@@ -1184,7 +1197,8 @@ window.APPEDIA_CONTENT = {
     {
       "name": "Start & stop",
       "flows": [
-        "resize"
+        "resize",
+        "reasoning-effort-activation"
       ]
     },
     {
@@ -1651,7 +1665,7 @@ window.APPEDIA_CONTENT = {
           "driver",
           "call",
           "startSession: prepare workspace and spawn",
-          "",
+          "The shared argument builder adds model, optional reasoning effort and native conversation arguments before spawning.",
           "session.Manager.startSession"
         ],
         [
@@ -1708,7 +1722,8 @@ window.APPEDIA_CONTENT = {
           "views.matchesSessionQuery",
           "components.SessionList.refreshItems",
           "ui.Coordinator.hasStaleSessionSnapshot",
-          "messages.SessionsRefreshedMsg"
+          "messages.SessionsRefreshedMsg",
+          "session.activationArgs"
         ],
         "files": [
           "internal/ui/launch_focus_internal_test.go",
@@ -2413,7 +2428,7 @@ window.APPEDIA_CONTENT = {
           "ed",
           "call",
           "LoadEditor(data) and choices",
-          "No complete storage record enters the editor.",
+          "The editable draft loads saved reasoning effort into the row immediately after Model.",
           "views.CardEditor.LoadEditor"
         ],
         [
@@ -2426,7 +2441,12 @@ window.APPEDIA_CONTENT = {
         ]
       ],
       "sources": {
-        "files": []
+        "files": [],
+        "refs": [
+          "api.cardValues",
+          "views.focusTargetTable",
+          "views.CardEditor.fieldBlocks"
+        ]
       }
     },
     "savecard": {
@@ -2456,7 +2476,7 @@ window.APPEDIA_CONTENT = {
           "ed",
           "call",
           "Build editable draft and changes",
-          "",
+          "Trim the effort value and record presence even when clearing it.",
           "views.CardEditor.Draft"
         ],
         [
@@ -2488,7 +2508,7 @@ window.APPEDIA_CONTENT = {
           "svc",
           "call",
           "Apply only explicit changes",
-          "Preserve fields not exposed/edited by this form.",
+          "Apply the effort field only when present. A changed saved effort also invalidates stale revisions.",
           "api.applyCardChanges"
         ],
         [
@@ -2501,7 +2521,12 @@ window.APPEDIA_CONTENT = {
         ]
       ],
       "sources": {
-        "files": []
+        "files": [],
+        "refs": [
+          "contracts.CardChanges",
+          "contracts.CardValues",
+          "config.IDCard"
+        ]
       }
     },
     "source": {
@@ -3801,7 +3826,7 @@ window.APPEDIA_CONTENT = {
     },
     "resume": {
       "title": "Choose native conversation on relaunch/switch",
-      "summary": "A session retains its workspace while a human or orchestrator chooses a saved native conversation for the selected card, or starts a new one.",
+      "summary": "A session retains its workspace while a human or orchestrator chooses a saved native conversation for the selected card, or starts a new one. The saved card’s driver supplies any effort arguments before the conversation arguments.",
       "participants": [
         [
           "user",
@@ -3932,7 +3957,8 @@ window.APPEDIA_CONTENT = {
           "views.AgentSwitchView.handleKey",
           "views.ConversationChoiceView.RefreshContext",
           "views.ConversationChoiceView.SelectedOption",
-          "views.ConversationChoiceView.Update"
+          "views.ConversationChoiceView.Update",
+          "session.activationArgs"
         ]
       }
     },
@@ -7684,6 +7710,92 @@ window.APPEDIA_CONTENT = {
           "views.DashboardList.ShowDeletionResult"
         ]
       ]
+    },
+    "reasoning-effort-activation": {
+      "title": "Apply reasoning effort when starting a process",
+      "summary": "Launch, relaunch and card switch build argv from the resolved card. The driver handles CLI-specific effort options.",
+      "participants": [
+        [
+          "manager",
+          "session.Manager"
+        ],
+        [
+          "registry",
+          "driver.MapRegistry"
+        ],
+        [
+          "driver",
+          "driver.AgentDriver"
+        ]
+      ],
+      "steps": [
+        [
+          "manager",
+          "registry",
+          "call",
+          "Get(card.Driver)",
+          "The built-in registry registers Antigravity for agy. OpenCode uses the generic adapter.",
+          "driver.MapRegistry.Get"
+        ],
+        [
+          "manager",
+          "manager",
+          "call",
+          "activationArgs",
+          "Both spawn paths use this builder. A switch uses the destination card.",
+          "session.activationArgs"
+        ],
+        [
+          "manager",
+          "driver",
+          "call",
+          "SetModel(model)",
+          "Append model arguments first.",
+          "driver.GenericCLIDriver.SetModel"
+        ],
+        [
+          "manager",
+          "driver",
+          "call",
+          "SetReasoningEffort(effort)",
+          "Claude and Antigravity use --effort. Codex uses -c model_reasoning_effort=value. Generic drivers emit no effort arguments.",
+          "driver.AgentDriver"
+        ],
+        [
+          "manager",
+          "driver",
+          "call",
+          "SetSession(conversationID)",
+          "For Codex, resume follows the configuration override.",
+          "driver.CodexCLIDriver.SetSession"
+        ],
+        [
+          "manager",
+          "driver",
+          "io",
+          "Spawn with argv",
+          "The PTY process receives discrete argv elements.",
+          "driver.GenericCLIDriver.Spawn"
+        ]
+      ],
+      "sources": {
+        "refs": [
+          "session.Manager.startSessionCore",
+          "session.Manager.switchAgentWithChoiceCore",
+          "driver.NewBuiltinRegistry",
+          "driver.NewAntigravityCLIDriver",
+          "driver.AntigravityCLIDriver.SetReasoningEffort",
+          "driver.ClaudeCodeDriver.SetReasoningEffort",
+          "driver.CodexCLIDriver.SetReasoningEffort",
+          "driver.GenericCLIDriver.SetReasoningEffort",
+          "driver.effortFlagArgs"
+        ],
+        "files": [
+          "internal/driver/driver_test.go",
+          "internal/session/reasoning_effort_test.go",
+          "tests/e2e/launch_focus_test.go"
+        ]
+      }
     }
   },
   "rules": [
@@ -8104,11 +8216,12 @@ window.APPEDIA_CONTENT = {
   "tasks": [
     {
       "q": "Add a new agent CLI",
-      "a": "Embed GenericCLIDriver and override workspace trust preparation, native resume arguments or coordinated prompt submission where the CLI differs. Register a constructor; each activation gets a new driver.",
+      "a": "Embed GenericCLIDriver and override workspace trust preparation, native resume arguments or coordinated prompt submission where the CLI differs. Register a constructor; each activation gets a new driver. Antigravity is an example of embedding the generic driver and overriding reasoning effort.",
       "refs": [
         "driver.AgentDriver",
         "driver.GenericCLIDriver",
-        "driver.NewBuiltinRegistry"
+        "driver.NewBuiltinRegistry",
+        "driver.AntigravityCLIDriver"
       ],
       "flow": "trust"
     },
@@ -8746,7 +8859,7 @@ window.APPEDIA_CONTENT = {
     ]
   ],
   "tests": {
-    "scope": "Current source and ordinary Go suite at 5c80ec8. Earlier Linux terminal captures, native-model runs and statement coverage retain their original provenance. Live Codex recall and combined all-failure recovery remain open.",
+    "scope": "Reasoning-effort worktree based on 110865d. The ordinary Go suite and model-free terminal journeys ran on Linux. Earlier captures, native-model runs and statement coverage retain their original provenance. Live Codex recall and combined all-failure recovery remain open.",
     "features": [
       {
         "id": "boundary",
@@ -11253,7 +11366,9 @@ window.APPEDIA_CONTENT = {
             "captures": [
               "launch-focus-attached",
               "launch-focus-dashboard",
-              "launch-focus-reattached"
+              "launch-focus-reattached",
+              "e2e-codex-attached",
+              "e2e-codex-reattached"
             ]
           }
         ]
@@ -12103,6 +12218,172 @@ window.APPEDIA_CONTENT = {
             }
           }
         ]
+      },
+      {
+        "id": "edit-effort",
+        "title": "Configure reasoning effort",
+        "area": "Agent cards",
+        "summary": "Edit, save and clear effort using the card editor and existing repository.",
+        "sources": {
+          "refs": [
+            "views.CardEditor.Draft",
+            "config.IDCard",
+            "api.applyCardChanges"
+          ]
+        },
+        "scenarios": [
+          {
+            "id": "draft",
+            "title": "Enter a value and navigate the field",
+            "dimension": "layout",
+            "summary": "The draft trims surrounding whitespace and the focused row stays visible at the supported minimum.",
+            "status": "tested",
+            "flows": [
+              "editcard"
+            ],
+            "evidence": [
+              "effort-draft",
+              "effort-layout"
+            ],
+            "limit": "Go component assertions. No recorded terminal editor journey for this field."
+          },
+          {
+            "id": "save",
+            "title": "Create, preserve and clear effort",
+            "dimension": "behavior",
+            "summary": "The card value round-trips through the repository. Name-only edits preserve it and an explicit empty edit clears it.",
+            "status": "tested",
+            "flows": [
+              "savecard"
+            ],
+            "evidence": [
+              "effort-create",
+              "effort-preserve",
+              "effort-clear"
+            ],
+            "limit": "Service and repository coverage. The terminal form submission is outside these cases."
+          },
+          {
+            "id": "guard",
+            "title": "Respect revisions and read-only access",
+            "dimension": "interaction",
+            "summary": "A concurrent effort edit invalidates a stale save. The shared card consumer retains the read-only editor guard.",
+            "status": "tested",
+            "flows": [
+              "editcard",
+              "savecard"
+            ],
+            "evidence": [
+              "effort-clear",
+              "editor-read-only"
+            ],
+            "limit": "Separate service and view-level tests. No effort-specific consumer typing assertion."
+          },
+          {
+            "id": "terminal",
+            "title": "Edit and reopen a card in a real terminal",
+            "dimension": "interaction",
+            "summary": "The existing launch-focus E2E journey sets high, saves the card and verifies high on the Reasoning effort row after reopening.",
+            "status": "tested",
+            "flows": [
+              "editcard",
+              "savecard"
+            ],
+            "limit": "Tests the real terminal at 120×40. Clearing remains covered by the Go service fixture.",
+            "evidence": [
+              "e2e-card-effort"
+            ],
+            "captures": [
+              "e2e-card-effort-reopened"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "apply-effort",
+        "title": "Apply reasoning effort on activation",
+        "area": "Sessions",
+        "summary": "Argument construction adds the saved effort before conversation arguments at both spawn sites.",
+        "sources": {
+          "refs": [
+            "session.activationArgs",
+            "driver.AgentDriver"
+          ]
+        },
+        "scenarios": [
+          {
+            "id": "dispatch",
+            "title": "Dispatch supported mappings and generic no-op",
+            "dimension": "behavior",
+            "summary": "Claude and Agy return --effort, Codex emits a configuration override, and OpenCode appends no effort arguments.",
+            "status": "tested",
+            "flows": [
+              "reasoning-effort-activation"
+            ],
+            "evidence": [
+              "effort-registry"
+            ],
+            "limit": "Exact argv at the driver boundary. No native Agy invocation."
+          },
+          {
+            "id": "launch-resume-switch",
+            "title": "Capture activation arguments",
+            "dimension": "behavior",
+            "summary": "Capture arguments on launch, relaunch with a changed effort, and switch to and from a card with empty effort.",
+            "status": "tested",
+            "flows": [
+              "launch",
+              "resume",
+              "reasoning-effort-activation"
+            ],
+            "evidence": [
+              "effort-claude",
+              "effort-codex"
+            ],
+            "limit": "Fixture process boundary. The Codex ordering test uses a saved-conversation fixture."
+          },
+          {
+            "id": "saved-source",
+            "title": "Resolve a saved card through the shared service",
+            "dimension": "behavior",
+            "summary": "Retained tests check latest saved card identity and deployment behavior while manager fixtures cover effort argv.",
+            "status": "partial",
+            "flows": [
+              "launch",
+              "resume",
+              "reasoning-effort-activation"
+            ],
+            "evidence": [
+              "latest-launch",
+              "latest-switch",
+              "effort-claude"
+            ],
+            "limit": "The tests do not combine a persisted effort edit, shared service resolution and captured argv in one case.",
+            "suggestion": "Extend a service fixture to capture argv after changing the persisted effort and relaunching.",
+            "priority": "Later",
+            "reason": "Joins the independently verified storage and activation boundaries."
+          },
+          {
+            "id": "native",
+            "title": "Native CLI acceptance",
+            "dimension": "behavior",
+            "summary": "The launch-focus journey opens idle Codex after saving high. Its screenshot shows GPT-6-Sol high. Fixtures check the exact effort argv.",
+            "status": "partial",
+            "flows": [
+              "reasoning-effort-activation",
+              "resume"
+            ],
+            "evidence": [
+              "effort-registry",
+              "effort-codex",
+              "e2e-launch-focus"
+            ],
+            "limit": "The footer is a visual observation. Native Claude, Agy and Codex saved-conversation resume remain outside this run.",
+            "captures": [
+              "e2e-codex-attached"
+            ]
+          }
+        ]
       }
     ],
     "evidence": [
@@ -12133,17 +12414,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/api/card_editor_test.go",
         "line": 13,
-        "endLine": 71,
+        "endLine": 72,
         "proves": "Checks retained fields and rejection of a stale revision.",
         "limits": "API and repository seam.",
-        "reviewedHash": "2e3bf5470ef576551b7c48d70456e1c000b9b5d0e0701895df1fd2be0cf2736a",
+        "reviewedHash": "c10ea2d898eac2df31e809c0a1c13fa0074b198315d96daaa04c3bc9c9162374",
         "result": {
           "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-20T00:06:55.082324791Z",
-          "scope": "TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision in the ordinary Go suite",
-          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
-          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+          "command": "go test -json -count=1 ./...",
+          "at": "2026-11-21T21:47:16.346390935Z",
+          "scope": "TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         }
       },
       {
@@ -12152,18 +12433,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/api/card_editor_test.go",
-        "line": 73,
-        "endLine": 108,
+        "line": 74,
+        "endLine": 109,
         "proves": "Only one of two saves with the same revision succeeds.",
         "limits": "Concurrent service updates in a controlled fixture.",
-        "reviewedHash": "2e3bf5470ef576551b7c48d70456e1c000b9b5d0e0701895df1fd2be0cf2736a",
+        "reviewedHash": "c10ea2d898eac2df31e809c0a1c13fa0074b198315d96daaa04c3bc9c9162374",
         "result": {
           "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-20T00:06:55.089462961Z",
-          "scope": "TestEditorConcurrentSavesOnlyOneSucceeds in the ordinary Go suite",
-          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
-          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+          "command": "go test -json -count=1 ./...",
+          "at": "2026-11-21T21:47:16.353339783Z",
+          "scope": "TestEditorConcurrentSavesOnlyOneSucceeds",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         }
       },
       {
@@ -12376,17 +12657,17 @@ window.APPEDIA_CONTENT = {
         "file": "tests/e2e/launch_focus_test.go",
         "proves": "Checks dashboard focus after detach and reattaches to the same Codex PID.",
         "limits": "Codex starts with a dummy credential and receives no prompt.",
-        "reviewedHash": "184d18511e5b57237f13f3aa354262969079275e5d6cecf4c920c974ac416c3e",
+        "reviewedHash": "524aa298e4744a4af87c46fd833f35e54d0b8d77ab45b6d9f0178e7a84f7d4b4",
         "result": {
           "status": "passed",
-          "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeLaunchFocusReturn$' -count=1 -timeout=3m -v",
-          "at": "2026-11-19T21:27:15.182353193Z",
-          "scope": "Checks dashboard focus after detach and reattaches to the same Codex PID.",
+          "command": "go test -tags=e2e -count=1 -timeout=8m -json ./tests/e2e",
+          "at": "2026-11-21T21:33:33.71233779Z",
+          "scope": "TestNativeLaunchFocusReturn",
           "revision": "WORKTREE",
-          "fingerprint": "1594c215e9ef7de8ae058411320bd1b0ffc6420de9a370d636424f33cb67a9ce"
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         },
         "line": 28,
-        "endLine": 32
+        "endLine": 33
       },
       {
         "id": "tui-codex-git",
@@ -12859,17 +13140,17 @@ window.APPEDIA_CONTENT = {
         "file": "internal/api/card_editor_test.go",
         "proves": "Saves a name-only draft through the editor service, compares every other persisted field apart from UpdatedAt, and rejects a stale revision.",
         "limits": "Service and repository assertions. The UI draft is covered separately.",
-        "reviewedHash": "2e3bf5470ef576551b7c48d70456e1c000b9b5d0e0701895df1fd2be0cf2736a",
+        "reviewedHash": "c10ea2d898eac2df31e809c0a1c13fa0074b198315d96daaa04c3bc9c9162374",
         "result": {
           "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-20T00:06:55.082324791Z",
-          "scope": "TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision in the ordinary Go suite",
-          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
-          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+          "command": "go test -json -count=1 ./...",
+          "at": "2026-11-21T21:47:16.346390935Z",
+          "scope": "TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         },
         "line": 13,
-        "endLine": 71
+        "endLine": 72
       },
       {
         "id": "dashboard-control-card-editor-toggle-round-trip",
@@ -12898,17 +13179,17 @@ window.APPEDIA_CONTENT = {
         "file": "internal/ui/views/card_editor_layout_test.go",
         "proves": "Checks every expected focus target remains visible with optional sections on/off, empty/large lists and minimum-sized form heights.",
         "limits": "Rendered text and model focus; no screenshot, native terminal or image baseline.",
-        "reviewedHash": "7141769f13e792759d3829b8f3e932c7c000347e7299804e123f4086ad001580",
+        "reviewedHash": "5d0e2dc83803768c7b520d21f5cb4ff06b25a5743664836064aaea4c05cf88c6",
         "result": {
           "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-20T00:06:57.408397971Z",
-          "scope": "TestCardEditorFocusedFieldAlwaysVisible in the ordinary Go suite",
-          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
-          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+          "command": "go test -json -count=1 ./...",
+          "at": "2026-11-21T21:47:19.200096895Z",
+          "scope": "TestCardEditorFocusedFieldAlwaysVisible",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         },
-        "line": 261,
-        "endLine": 284
+        "line": 263,
+        "endLine": 286
       },
       {
         "id": "selected-only-skill-cursor-normalizes-after-registry-refresh",
@@ -12916,19 +13197,19 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/ui/views/card_editor_test.go",
-        "reviewedHash": "44c7108f0140a1b65fd0be99095f06eed0aed3dde214bfa852762592b9b33c62",
+        "reviewedHash": "ea3731dd18253155280647a4c78b98ef9b808b9de498ca3f60f679aa78fdc0e2",
         "proves": "Enables selected-only directly, removes a selected skill during registry refresh, checks cursor normalization to A and that Space toggles A.",
         "limits": "Does not send Ctrl+S or assert header indicator, search intersection or re-enabling all items.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-20T00:06:58.284782873Z",
-          "scope": "TestSelectedOnlySkillCursorNormalizesAfterRegistryRefresh in the ordinary Go suite",
-          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
-          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+          "command": "go test -json -count=1 ./...",
+          "at": "2026-11-21T21:47:19.880783948Z",
+          "scope": "TestSelectedOnlySkillCursorNormalizesAfterRegistryRefresh",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         },
-        "line": 134,
-        "endLine": 154
+        "line": 138,
+        "endLine": 158
       },
       {
         "id": "temporary-workspace-space-save",
@@ -12939,17 +13220,17 @@ window.APPEDIA_CONTENT = {
         "file": "internal/ui/views/card_editor_test.go",
         "proves": "Starts with each temporary-workspace setting, toggles it with Space, and checks the saved draft materializes to the expected card.",
         "limits": "Card editor model/key/callback boundary; no terminal screenshot or repository write.",
-        "reviewedHash": "44c7108f0140a1b65fd0be99095f06eed0aed3dde214bfa852762592b9b33c62",
+        "reviewedHash": "ea3731dd18253155280647a4c78b98ef9b808b9de498ca3f60f679aa78fdc0e2",
         "result": {
           "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-20T00:06:58.338328699Z",
-          "scope": "TestTemporaryWorkspaceSpaceAndSave in the ordinary Go suite",
-          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
-          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+          "command": "go test -json -count=1 ./...",
+          "at": "2026-11-21T21:47:19.915031553Z",
+          "scope": "TestTemporaryWorkspaceSpaceAndSave",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         },
-        "line": 577,
-        "endLine": 614
+        "line": 581,
+        "endLine": 618
       },
       {
         "id": "ctrl-x-clears-only-sub-workspace-selection",
@@ -12959,17 +13240,17 @@ window.APPEDIA_CONTENT = {
         "file": "internal/ui/views/card_editor_test.go",
         "proves": "Checks Ctrl+X clears selected/missing IDs, preserves all other card fields and focus, invokes no save/cancel, shows the hint and ignores plain x.",
         "limits": "In-memory editor; filesystem copies and registry writes are outside this test.",
-        "reviewedHash": "44c7108f0140a1b65fd0be99095f06eed0aed3dde214bfa852762592b9b33c62",
+        "reviewedHash": "ea3731dd18253155280647a4c78b98ef9b808b9de498ca3f60f679aa78fdc0e2",
         "result": {
           "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-20T00:06:58.287758233Z",
-          "scope": "TestCtrlXClearsOnlySubWorkspaceSelection in the ordinary Go suite",
-          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
-          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+          "command": "go test -json -count=1 ./...",
+          "at": "2026-11-21T21:47:19.882619498Z",
+          "scope": "TestCtrlXClearsOnlySubWorkspaceSelection",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         },
-        "line": 156,
-        "endLine": 207
+        "line": 160,
+        "endLine": 211
       },
       {
         "id": "sub-workspace-picker-multiple-unresolved-and-main-modes",
@@ -12977,16 +13258,16 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/ui/views/workspace_picker_test.go",
-        "reviewedHash": "acb43ccbe9c0f371f3a284acd766b098320b4d10251568a5662d6de843d89d2f",
+        "reviewedHash": "2b3e2e4efc955282f3e19101aa8d0a0576dd8a48c9488d80067e56e1cab7c9b2",
         "proves": "Drives the sub-picker through missing selection repair, search, provisional toggles, cancel, confirmation of two IDs, main-picker mode reset and saving both sub IDs.",
         "limits": "In-memory form/view sequence; does not copy sub-workspace files or persist the card repository.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-20T00:07:10.951246973Z",
-          "scope": "TestSubWorkspacePickerMultipleUnresolvedAndMainModes in the ordinary Go suite",
-          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
-          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+          "command": "go test -json -count=1 ./...",
+          "at": "2026-11-21T21:47:27.221062022Z",
+          "scope": "TestSubWorkspacePickerMultipleUnresolvedAndMainModes",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         },
         "line": 77,
         "endLine": 129
@@ -12997,16 +13278,16 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/ui/views/workspace_picker_test.go",
-        "reviewedHash": "acb43ccbe9c0f371f3a284acd766b098320b4d10251568a5662d6de843d89d2f",
+        "reviewedHash": "2b3e2e4efc955282f3e19101aa8d0a0576dd8a48c9488d80067e56e1cab7c9b2",
         "proves": "Checks a newly selected workspace remains visible as missing after refresh, cancel does not commit, explicit missing-row deselection works, and confirming a missing checked ID retains it.",
         "limits": "View/registry-message fixture, not concurrent disk registry scanning.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-20T00:07:10.971340082Z",
-          "scope": "TestSubWorkspaceNewSelectionSurvivesRegistryRefresh in the ordinary Go suite",
-          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
-          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+          "command": "go test -json -count=1 ./...",
+          "at": "2026-11-21T21:47:27.228210411Z",
+          "scope": "TestSubWorkspaceNewSelectionSurvivesRegistryRefresh",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         },
         "line": 131,
         "endLine": 178
@@ -13774,18 +14055,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/session/lifecycle_test.go",
-        "line": 412,
-        "endLine": 450,
-        "reviewedHash": "20a260206ef6895110aafb86e5bd2811799a452e27066a795d75135ee00cff4b",
+        "line": 413,
+        "endLine": 451,
+        "reviewedHash": "8c7059d4e1eccf3c2b67008f3a76171f4d7022ce691d3ddee93a06c0eedc23d8",
         "proves": "Makes the session-record directory unwritable and asserts the checked name operation propagates its persistence error.",
         "limits": "Permission-based test skips as root; manager fixture is not the complete UI rename path.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-20T00:07:06.694291712Z",
-          "scope": "TestSetNamePropagatesPersistFailure in the ordinary Go suite",
-          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
-          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+          "command": "go test -json -count=1 ./...",
+          "at": "2026-11-21T21:47:25.293694226Z",
+          "scope": "TestSetNamePropagatesPersistFailure",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         }
       },
       {
@@ -14313,17 +14594,17 @@ window.APPEDIA_CONTENT = {
         "integration": "project",
         "file": "internal/session/claude_resume_test.go",
         "line": 70,
-        "endLine": 181,
-        "reviewedHash": "7f6768bfaccb7c57e03c66b33d35eb4165bbced868a119c602240ac4500aa144",
+        "endLine": 186,
+        "reviewedHash": "1bc77dd8da8a6f189300421e5801adc407c37c2dfe40d5ccc7818e3df9d316dc",
         "proves": "Captures fresh/saved/new and A→B→A Claude arguments, checks original workspace marker survives and conversation IDs stay card-local.",
         "limits": "Overrides Spawn and PrepareWorkspace with a capture driver; never starts the installed Claude CLI.",
         "result": {
           "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-20T00:07:04.519360721Z",
-          "scope": "TestClaudeResumeLifecycleUsesSelectedNativeID in the ordinary Go suite",
-          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
-          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+          "command": "go test -json -count=1 ./...",
+          "at": "2026-11-21T21:47:23.507794977Z",
+          "scope": "TestClaudeResumeLifecycleUsesSelectedNativeID",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         }
       },
       {
@@ -14429,18 +14710,18 @@ window.APPEDIA_CONTENT = {
         "method": "automated",
         "integration": "project",
         "file": "internal/session/lifecycle_test.go",
-        "line": 412,
-        "endLine": 450,
+        "line": 413,
+        "endLine": 451,
         "proves": "Existing checked rename surfaces a record-write failure.",
         "limits": "Manager boundary only; no complete dashboard rename/restart journey.",
-        "reviewedHash": "20a260206ef6895110aafb86e5bd2811799a452e27066a795d75135ee00cff4b",
+        "reviewedHash": "8c7059d4e1eccf3c2b67008f3a76171f4d7022ce691d3ddee93a06c0eedc23d8",
         "result": {
           "status": "passed",
-          "command": "go test -json ./... -count=1",
-          "at": "2026-11-20T00:07:06.694291712Z",
-          "scope": "TestSetNamePropagatesPersistFailure in the ordinary Go suite",
-          "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
-          "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
+          "command": "go test -json -count=1 ./...",
+          "at": "2026-11-21T21:47:25.293694226Z",
+          "scope": "TestSetNamePropagatesPersistFailure",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
         }
       },
       {
@@ -14919,12 +15200,15 @@ window.APPEDIA_CONTENT = {
         "limits": "Startup-only; no agent prompt/provider inference or pixel-baseline comparison. Requires Codex installed. Historical observation retained in Appedia.",
         "result": {
           "status": "passed",
-          "command": "go test -tags=e2e ./tests/e2e -run '^TestNativeLaunchFocusReturn$' -count=1 -timeout=3m -v",
-          "at": "2026-11-11T22:34:13.965777217Z",
-          "scope": "Actual executable launch/name/detach/reattach with isolated native CLI state",
+          "command": "go test -tags=e2e -count=1 -timeout=8m -json ./tests/e2e",
+          "at": "2026-11-21T21:33:33.71233779Z",
+          "scope": "TestNativeLaunchFocusReturn",
           "revision": "WORKTREE",
-          "fingerprint": "8995dacba1c91320604c55e44cb8736879e336aac4d1920c2bb31617e27fd09c"
-        }
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        },
+        "line": 28,
+        "endLine": 33,
+        "reviewedHash": "524aa298e4744a4af87c46fd833f35e54d0b8d77ab45b6d9f0178e7a84f7d4b4"
       },
       {
         "id": "center-author-order",
@@ -15847,6 +16131,279 @@ window.APPEDIA_CONTENT = {
           "revision": "5c80ec87119819563ad7b2253ed9f58cbedbd257",
           "fingerprint": "8083453596feae03e5a7fd245afac917c73bab578245d127b786000ba2b31a66"
         }
+      },
+      {
+        "id": "effort-draft",
+        "name": "TestCardEditor_Card",
+        "file": "internal/ui/views/card_editor_test.go",
+        "kind": "unit",
+        "method": "automated",
+        "integration": "project",
+        "line": 83,
+        "endLine": 119,
+        "proves": "The draft trims a padded effort string to high.",
+        "limits": "Sets the input directly in the view fixture.",
+        "reviewedHash": "ea3731dd18253155280647a4c78b98ef9b808b9de498ca3f60f679aa78fdc0e2",
+        "result": {
+          "status": "passed",
+          "command": "go test -json -count=1 ./internal/driver ./internal/session ./internal/api ./internal/ui/views -run '^(TestReasoningEffortRegistry|TestCodexResumeEffortOrdering|TestClaudeResumeLifecycleUsesSelectedNativeID|TestEditor(SavePreservesUneditableFieldsAndRejectsStaleRevision|ExplicitClearAndHiddenFieldConflict|SaveResultRevisionMatchesPersistedCard)|TestCardEditor(_Card|FocusedFieldAlwaysVisible|SharedAndConsumerReadOnly)|TestService(LaunchResolvesCurrentSavedCard|RelaunchAndSwitchResolveLatestSavedCards))$'",
+          "at": "2026-11-21T21:32:36.971590408Z",
+          "scope": "TestCardEditor_Card",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
+      },
+      {
+        "id": "effort-layout",
+        "name": "TestCardEditorFocusedFieldAlwaysVisible",
+        "file": "internal/ui/views/card_editor_layout_test.go",
+        "kind": "unit",
+        "method": "automated",
+        "integration": "project",
+        "line": 263,
+        "endLine": 286,
+        "proves": "Cycles all focus targets and asserts that the focused row stays visible and within the view at 80×24 and the smaller component fixture.",
+        "limits": "Measures rendered text in the component.",
+        "reviewedHash": "5d0e2dc83803768c7b520d21f5cb4ff06b25a5743664836064aaea4c05cf88c6",
+        "result": {
+          "status": "passed",
+          "command": "go test -json -count=1 ./internal/driver ./internal/session ./internal/api ./internal/ui/views -run '^(TestReasoningEffortRegistry|TestCodexResumeEffortOrdering|TestClaudeResumeLifecycleUsesSelectedNativeID|TestEditor(SavePreservesUneditableFieldsAndRejectsStaleRevision|ExplicitClearAndHiddenFieldConflict|SaveResultRevisionMatchesPersistedCard)|TestCardEditor(_Card|FocusedFieldAlwaysVisible|SharedAndConsumerReadOnly)|TestService(LaunchResolvesCurrentSavedCard|RelaunchAndSwitchResolveLatestSavedCards))$'",
+          "at": "2026-11-21T21:32:36.971344847Z",
+          "scope": "TestCardEditorFocusedFieldAlwaysVisible",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
+      },
+      {
+        "id": "effort-create",
+        "name": "TestEditorSaveResultRevisionMatchesPersistedCard",
+        "file": "internal/api/card_editor_test.go",
+        "kind": "integration",
+        "method": "automated",
+        "integration": "project",
+        "line": 176,
+        "endLine": 229,
+        "proves": "Creates a card with high, reloads the saved value and checks its revision.",
+        "limits": "Exercises the service and repository without a terminal.",
+        "reviewedHash": "c10ea2d898eac2df31e809c0a1c13fa0074b198315d96daaa04c3bc9c9162374",
+        "result": {
+          "status": "passed",
+          "command": "go test -json -count=1 ./internal/driver ./internal/session ./internal/api ./internal/ui/views -run '^(TestReasoningEffortRegistry|TestCodexResumeEffortOrdering|TestClaudeResumeLifecycleUsesSelectedNativeID|TestEditor(SavePreservesUneditableFieldsAndRejectsStaleRevision|ExplicitClearAndHiddenFieldConflict|SaveResultRevisionMatchesPersistedCard)|TestCardEditor(_Card|FocusedFieldAlwaysVisible|SharedAndConsumerReadOnly)|TestService(LaunchResolvesCurrentSavedCard|RelaunchAndSwitchResolveLatestSavedCards))$'",
+          "at": "2026-11-21T21:32:36.902736219Z",
+          "scope": "TestEditorSaveResultRevisionMatchesPersistedCard",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
+      },
+      {
+        "id": "effort-preserve",
+        "name": "TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision",
+        "file": "internal/api/card_editor_test.go",
+        "kind": "integration",
+        "method": "automated",
+        "integration": "project",
+        "line": 13,
+        "endLine": 72,
+        "proves": "A name-only save compares all other stored fields, including effort.",
+        "limits": "Uses the service directly.",
+        "reviewedHash": "c10ea2d898eac2df31e809c0a1c13fa0074b198315d96daaa04c3bc9c9162374",
+        "result": {
+          "status": "passed",
+          "command": "go test -json -count=1 ./internal/driver ./internal/session ./internal/api ./internal/ui/views -run '^(TestReasoningEffortRegistry|TestCodexResumeEffortOrdering|TestClaudeResumeLifecycleUsesSelectedNativeID|TestEditor(SavePreservesUneditableFieldsAndRejectsStaleRevision|ExplicitClearAndHiddenFieldConflict|SaveResultRevisionMatchesPersistedCard)|TestCardEditor(_Card|FocusedFieldAlwaysVisible|SharedAndConsumerReadOnly)|TestService(LaunchResolvesCurrentSavedCard|RelaunchAndSwitchResolveLatestSavedCards))$'",
+          "at": "2026-11-21T21:32:36.891130291Z",
+          "scope": "TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
+      },
+      {
+        "id": "effort-clear",
+        "name": "TestEditorExplicitClearAndHiddenFieldConflict",
+        "file": "internal/api/card_editor_test.go",
+        "kind": "integration",
+        "method": "automated",
+        "integration": "project",
+        "line": 111,
+        "endLine": 174,
+        "proves": "Clears a present effort and rejects the next edit after another writer changes effort.",
+        "limits": "Uses the service directly.",
+        "reviewedHash": "c10ea2d898eac2df31e809c0a1c13fa0074b198315d96daaa04c3bc9c9162374",
+        "result": {
+          "status": "passed",
+          "command": "go test -json -count=1 ./internal/driver ./internal/session ./internal/api ./internal/ui/views -run '^(TestReasoningEffortRegistry|TestCodexResumeEffortOrdering|TestClaudeResumeLifecycleUsesSelectedNativeID|TestEditor(SavePreservesUneditableFieldsAndRejectsStaleRevision|ExplicitClearAndHiddenFieldConflict|SaveResultRevisionMatchesPersistedCard)|TestCardEditor(_Card|FocusedFieldAlwaysVisible|SharedAndConsumerReadOnly)|TestService(LaunchResolvesCurrentSavedCard|RelaunchAndSwitchResolveLatestSavedCards))$'",
+          "at": "2026-11-21T21:32:36.89831121Z",
+          "scope": "TestEditorExplicitClearAndHiddenFieldConflict",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
+      },
+      {
+        "id": "editor-read-only",
+        "name": "TestCardEditorSharedAndConsumerReadOnly",
+        "file": "internal/ui/views/card_editor_test.go",
+        "kind": "unit",
+        "method": "automated",
+        "integration": "project",
+        "line": 326,
+        "endLine": 355,
+        "proves": "Checks the consumer form is read-only and the save shortcut does not save.",
+        "limits": "Retained test of the shared guard. It does not attempt to type in the new input.",
+        "reviewedHash": "ea3731dd18253155280647a4c78b98ef9b808b9de498ca3f60f679aa78fdc0e2",
+        "result": {
+          "status": "passed",
+          "command": "go test -json -count=1 ./internal/driver ./internal/session ./internal/api ./internal/ui/views -run '^(TestReasoningEffortRegistry|TestCodexResumeEffortOrdering|TestClaudeResumeLifecycleUsesSelectedNativeID|TestEditor(SavePreservesUneditableFieldsAndRejectsStaleRevision|ExplicitClearAndHiddenFieldConflict|SaveResultRevisionMatchesPersistedCard)|TestCardEditor(_Card|FocusedFieldAlwaysVisible|SharedAndConsumerReadOnly)|TestService(LaunchResolvesCurrentSavedCard|RelaunchAndSwitchResolveLatestSavedCards))$'",
+          "at": "2026-11-21T21:32:36.975188927Z",
+          "scope": "TestCardEditorSharedAndConsumerReadOnly",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
+      },
+      {
+        "id": "e2e-card-effort",
+        "name": "editAndReopenReasoningEffort",
+        "file": "tests/e2e/launch_focus_test.go",
+        "kind": "E2E",
+        "method": "automated",
+        "integration": "project",
+        "line": 35,
+        "endLine": 56,
+        "reviewedHash": "524aa298e4744a4af87c46fd833f35e54d0b8d77ab45b6d9f0178e7a84f7d4b4",
+        "proves": "Saves high with the terminal editor, reopens the saved card and matches high on the Reasoning effort row.",
+        "limits": "Covers an existing card at 120×40. Clearing and stale saves are exercised by Go service tests.",
+        "result": {
+          "status": "passed",
+          "command": "go test -tags=e2e -count=1 -timeout=8m -json ./tests/e2e",
+          "at": "2026-11-21T21:33:33.71233779Z",
+          "scope": "TestNativeLaunchFocusReturn",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
+      },
+      {
+        "id": "effort-registry",
+        "name": "TestReasoningEffortRegistry",
+        "file": "internal/driver/driver_test.go",
+        "kind": "unit",
+        "method": "automated",
+        "integration": "project",
+        "line": 479,
+        "endLine": 498,
+        "proves": "Checks exact argument slices for the named drivers, OpenCode, another generic driver and empty effort.",
+        "limits": "Calls driver methods. It does not execute native CLIs.",
+        "reviewedHash": "2dd48a6061f3cb2c74e770edb92439288b14d703a7e982544523b48abfd2f540",
+        "result": {
+          "status": "passed",
+          "command": "go test -json -count=1 ./internal/driver ./internal/session ./internal/api ./internal/ui/views -run '^(TestReasoningEffortRegistry|TestCodexResumeEffortOrdering|TestClaudeResumeLifecycleUsesSelectedNativeID|TestEditor(SavePreservesUneditableFieldsAndRejectsStaleRevision|ExplicitClearAndHiddenFieldConflict|SaveResultRevisionMatchesPersistedCard)|TestCardEditor(_Card|FocusedFieldAlwaysVisible|SharedAndConsumerReadOnly)|TestService(LaunchResolvesCurrentSavedCard|RelaunchAndSwitchResolveLatestSavedCards))$'",
+          "at": "2026-11-21T21:32:36.592144072Z",
+          "scope": "TestReasoningEffortRegistry",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
+      },
+      {
+        "id": "effort-claude",
+        "name": "TestClaudeResumeLifecycleUsesSelectedNativeID",
+        "file": "internal/session/claude_resume_test.go",
+        "kind": "integration",
+        "method": "automated",
+        "integration": "project",
+        "line": 70,
+        "endLine": 186,
+        "proves": "Captures model, changed effort and conversation arguments on launch, resume, switch and switch back.",
+        "limits": "Uses a process fixture in place of native Claude.",
+        "reviewedHash": "1bc77dd8da8a6f189300421e5801adc407c37c2dfe40d5ccc7818e3df9d316dc",
+        "result": {
+          "status": "passed",
+          "command": "go test -json -count=1 ./internal/driver ./internal/session ./internal/api ./internal/ui/views -run '^(TestReasoningEffortRegistry|TestCodexResumeEffortOrdering|TestClaudeResumeLifecycleUsesSelectedNativeID|TestEditor(SavePreservesUneditableFieldsAndRejectsStaleRevision|ExplicitClearAndHiddenFieldConflict|SaveResultRevisionMatchesPersistedCard)|TestCardEditor(_Card|FocusedFieldAlwaysVisible|SharedAndConsumerReadOnly)|TestService(LaunchResolvesCurrentSavedCard|RelaunchAndSwitchResolveLatestSavedCards))$'",
+          "at": "2026-11-21T21:32:36.908850248Z",
+          "scope": "TestClaudeResumeLifecycleUsesSelectedNativeID",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
+      },
+      {
+        "id": "effort-codex",
+        "name": "TestCodexResumeEffortOrdering",
+        "file": "internal/session/reasoning_effort_test.go",
+        "kind": "integration",
+        "method": "automated",
+        "integration": "project",
+        "line": 28,
+        "endLine": 78,
+        "proves": "Checks the complete argument slice at Spawn for a saved Codex conversation.",
+        "limits": "Uses a capture driver and does not exercise Codex’s parser.",
+        "reviewedHash": "c9908e303ff40235c98eb6221d33a7775d5a4aa906f22d830cde63373d484939",
+        "result": {
+          "status": "passed",
+          "command": "go test -json -count=1 ./internal/driver ./internal/session ./internal/api ./internal/ui/views -run '^(TestReasoningEffortRegistry|TestCodexResumeEffortOrdering|TestClaudeResumeLifecycleUsesSelectedNativeID|TestEditor(SavePreservesUneditableFieldsAndRejectsStaleRevision|ExplicitClearAndHiddenFieldConflict|SaveResultRevisionMatchesPersistedCard)|TestCardEditor(_Card|FocusedFieldAlwaysVisible|SharedAndConsumerReadOnly)|TestService(LaunchResolvesCurrentSavedCard|RelaunchAndSwitchResolveLatestSavedCards))$'",
+          "at": "2026-11-21T21:32:36.932873804Z",
+          "scope": "TestCodexResumeEffortOrdering",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
+      },
+      {
+        "id": "latest-launch",
+        "name": "TestServiceLaunchResolvesCurrentSavedCard",
+        "file": "internal/api/service_test.go",
+        "kind": "integration",
+        "method": "automated",
+        "integration": "project",
+        "line": 1313,
+        "endLine": 1335,
+        "proves": "Launch uses the current saved card name and preserves card identity, dashboard and workspace.",
+        "limits": "Retained service regression. It does not inspect effort arguments.",
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
+        "result": {
+          "status": "passed",
+          "command": "go test -json -count=1 ./internal/driver ./internal/session ./internal/api ./internal/ui/views -run '^(TestReasoningEffortRegistry|TestCodexResumeEffortOrdering|TestClaudeResumeLifecycleUsesSelectedNativeID|TestEditor(SavePreservesUneditableFieldsAndRejectsStaleRevision|ExplicitClearAndHiddenFieldConflict|SaveResultRevisionMatchesPersistedCard)|TestCardEditor(_Card|FocusedFieldAlwaysVisible|SharedAndConsumerReadOnly)|TestService(LaunchResolvesCurrentSavedCard|RelaunchAndSwitchResolveLatestSavedCards))$'",
+          "at": "2026-11-21T21:32:36.912117818Z",
+          "scope": "TestServiceLaunchResolvesCurrentSavedCard",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
+      },
+      {
+        "id": "latest-switch",
+        "name": "TestServiceRelaunchAndSwitchResolveLatestSavedCards",
+        "file": "internal/api/service_test.go",
+        "kind": "integration",
+        "method": "automated",
+        "integration": "project",
+        "line": 1338,
+        "endLine": 1380,
+        "proves": "A relaunch retains deployed instructions and a switch syncs the latest destination instructions in the existing workspace.",
+        "limits": "Retained service regression. It does not inspect effort arguments.",
+        "reviewedHash": "abe20992720526c373f987bb7af3b69c2945638141b5b18aa7b8815f65d2ba50",
+        "result": {
+          "status": "passed",
+          "command": "go test -json -count=1 ./internal/driver ./internal/session ./internal/api ./internal/ui/views -run '^(TestReasoningEffortRegistry|TestCodexResumeEffortOrdering|TestClaudeResumeLifecycleUsesSelectedNativeID|TestEditor(SavePreservesUneditableFieldsAndRejectsStaleRevision|ExplicitClearAndHiddenFieldConflict|SaveResultRevisionMatchesPersistedCard)|TestCardEditor(_Card|FocusedFieldAlwaysVisible|SharedAndConsumerReadOnly)|TestService(LaunchResolvesCurrentSavedCard|RelaunchAndSwitchResolveLatestSavedCards))$'",
+          "at": "2026-11-21T21:32:36.943922972Z",
+          "scope": "TestServiceRelaunchAndSwitchResolveLatestSavedCards",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
+      },
+      {
+        "id": "e2e-launch-focus",
+        "name": "TestNativeLaunchFocusReturn",
+        "file": "tests/e2e/launch_focus_test.go",
+        "kind": "E2E",
+        "method": "automated",
+        "integration": "project",
+        "line": 28,
+        "endLine": 33,
+        "reviewedHash": "524aa298e4744a4af87c46fd833f35e54d0b8d77ab45b6d9f0178e7a84f7d4b4",
+        "proves": "Opens the card editor, saves high and reopens the card before launching offline Codex. Detach and reattach preserve the same live process.",
+        "limits": "Uses idle Codex and submits no prompt. The automated assertions check the editor value and launch behavior.",
+        "result": {
+          "status": "passed",
+          "command": "go test -tags=e2e -count=1 -timeout=8m -json ./tests/e2e",
+          "at": "2026-11-21T21:33:33.71233779Z",
+          "scope": "TestNativeLaunchFocusReturn",
+          "revision": "WORKTREE",
+          "fingerprint": "7a82c552124894775cf130a3a7bf0a9ca46f46b8cb29ba57ba60130da4aa129f"
+        }
       }
     ],
     "captures": [
@@ -16747,6 +17304,72 @@ window.APPEDIA_CONTENT = {
         "evidence": [
           "launch-focus-terminal"
         ]
+      },
+      {
+        "id": "e2e-codex-attached",
+        "title": "Codex after card launch",
+        "file": "tmp/appediff/runs/codex/attached.png",
+        "state": "Idle Codex after naming and attaching to a fresh session.",
+        "observation": "The Codex screen shows an empty input prompt and GPT-6-Sol high in the footer.",
+        "limits": "The footer value is a visual observation. The test asserts the saved card value and the CLI reaching its idle prompt.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Project tui-test Go harness and Codex CLI 0.171.0 with an unreachable loopback provider",
+        "command": "go test -tags=e2e -count=1 -timeout=8m -json ./tests/e2e",
+        "assertions": [
+          "The real Codex input screen is visible after card launch and name confirmation; no agent prompt was entered."
+        ],
+        "evidence": [
+          "e2e-launch-focus"
+        ],
+        "at": "2026-11-21T21:33:33.089Z"
+      },
+      {
+        "id": "e2e-codex-reattached",
+        "title": "Codex after reattaching",
+        "file": "tmp/appediff/runs/codex/reattached.png",
+        "state": "The original agent process is active after detach and reattach.",
+        "observation": "The same workspace path and GPT-6-Sol high appear after reattaching.",
+        "limits": "The fixture verifies session identity. The screenshot does not establish the effort flag.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Project tui-test Go harness and Codex CLI 0.171.0 with an unreachable loopback provider",
+        "command": "go test -tags=e2e -count=1 -timeout=8m -json ./tests/e2e",
+        "assertions": [
+          "Enter without pane navigation reattaches to the same live process; exactly two persisted sessions remain and the older session stays terminated."
+        ],
+        "evidence": [
+          "e2e-launch-focus"
+        ],
+        "at": "2026-11-21T21:33:33.375Z"
+      },
+      {
+        "id": "e2e-card-effort-reopened",
+        "title": "Saved reasoning effort after reopening",
+        "file": "tmp/appediff/runs/codex/card-effort-reopened.png",
+        "state": "Edit ID Card after saving and reopening the launch card.",
+        "observation": "The Reasoning effort row reads high, directly below the Model row.",
+        "limits": "The checkpoint covers saving and reopening an existing card at 120×40.",
+        "size": [
+          120,
+          40
+        ],
+        "unit": "cells",
+        "environment": "Kankuro terminal driven by the project tui-test Go harness",
+        "command": "go test -tags=e2e -count=1 -timeout=8m -json ./tests/e2e",
+        "assertions": [
+          "Reopening the saved card shows high on the Reasoning effort row."
+        ],
+        "evidence": [
+          "e2e-card-effort"
+        ],
+        "at": "2026-11-21T21:33:32.383Z"
       }
     ]
   }

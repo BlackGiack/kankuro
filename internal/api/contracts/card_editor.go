@@ -9,23 +9,23 @@ type Change[T any] struct {
 // CardValues contains only fields that can be edited. Slice values are owned by
 // the recipient and must be copied before retaining them across boundaries.
 type CardValues struct {
-	Name, Driver, Model, WorkspaceID          string
-	SubWorkspaceIDs                           []string
-	FaceStyle, Puppet                         string
-	UseTmpWorkspace, DashboardControl, Shared bool
-	AgentsMD, AgentsMDPath                    string
-	AgentsMDPreferPath                        bool
-	SkillIDs, PersonaIDs, MCPIDs              []string
+	Name, Driver, Model, ReasoningEffort, WorkspaceID string
+	SubWorkspaceIDs                                   []string
+	FaceStyle, Puppet                                 string
+	UseTmpWorkspace, DashboardControl, Shared         bool
+	AgentsMD, AgentsMDPath                            string
+	AgentsMDPreferPath                                bool
+	SkillIDs, PersonaIDs, MCPIDs                      []string
 }
 
 type CardChanges struct {
-	Name, Driver, Model, WorkspaceID          Change[string]
-	SubWorkspaceIDs                           Change[[]string]
-	FaceStyle, Puppet                         Change[string]
-	UseTmpWorkspace, DashboardControl, Shared Change[bool]
-	AgentsMD, AgentsMDPath                    Change[string]
-	AgentsMDPreferPath                        Change[bool]
-	SkillIDs, PersonaIDs, MCPIDs              Change[[]string]
+	Name, Driver, Model, ReasoningEffort, WorkspaceID Change[string]
+	SubWorkspaceIDs                                   Change[[]string]
+	FaceStyle, Puppet                                 Change[string]
+	UseTmpWorkspace, DashboardControl, Shared         Change[bool]
+	AgentsMD, AgentsMDPath                            Change[string]
+	AgentsMDPreferPath                                Change[bool]
+	SkillIDs, PersonaIDs, MCPIDs                      Change[[]string]
 }
 
 type CardEditorData struct {

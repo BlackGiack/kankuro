@@ -14,6 +14,7 @@ type IDCard struct {
 	Name               string            `yaml:"name"`
 	Driver             string            `yaml:"driver"`
 	Model              string            `yaml:"model"`
+	ReasoningEffort    string            `yaml:"reasoning_effort,omitempty"`
 	WorkspaceID        string            `yaml:"workspace_id"`
 	UseTmpWorkspace    bool              `yaml:"use_tmp_workspace"`
 	DashboardControl   bool              `yaml:"dashboard_control,omitempty"`

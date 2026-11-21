@@ -86,6 +86,7 @@ func TestCardEditor_Card(t *testing.T) {
 	e.Inputs()[0].SetValue("My Card")
 	e.Inputs()[1].SetValue("claude")
 	e.Inputs()[2].SetValue("claude-3-opus")
+	e.Inputs()[3].SetValue("  high  ")
 	e.SetWorkspaceID("ws-1")
 	e.SetPuppet("darth")
 
@@ -102,6 +103,9 @@ func TestCardEditor_Card(t *testing.T) {
 
 	if card.Name != "My Card" {
 		t.Errorf("Expected name 'My Card', got '%s'", card.Name)
+	}
+	if card.ReasoningEffort != "high" {
+		t.Errorf("effort = %q", card.ReasoningEffort)
 	}
 	if card.Driver != "claude" {
 		t.Errorf("Expected driver 'claude', got '%s'", card.Driver)

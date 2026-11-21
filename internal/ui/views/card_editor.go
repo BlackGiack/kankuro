@@ -23,6 +23,7 @@ const (
 	FocusName = iota
 	FocusDriver
 	FocusModel
+	FocusReasoningEffort
 	FocusWorkspace
 	FocusSubWorkspaces
 	FocusFaceStyle
@@ -52,6 +53,7 @@ const (
 	nameInputIdx = iota
 	driverInputIdx
 	modelInputIdx
+	reasoningEffortInputIdx
 	faceStyleInputIdx
 )
 
@@ -78,6 +80,7 @@ func focusTargetTable() []focusTarget {
 		{focus: FocusName, inputIdx: nameInputIdx, placeholder: "Card name..."},
 		{focus: FocusDriver, inputIdx: driverInputIdx, placeholder: "Driver (e.g., claude, gemini)..."},
 		{focus: FocusModel, inputIdx: modelInputIdx, placeholder: "Model (e.g., claude-3-opus)..."},
+		{focus: FocusReasoningEffort, inputIdx: reasoningEffortInputIdx, placeholder: "Reasoning effort (CLI-specific)..."},
 		{focus: FocusWorkspace, inputIdx: notAnInput},
 		{focus: FocusSubWorkspaces, inputIdx: notAnInput},
 		{focus: FocusFaceStyle, inputIdx: faceStyleInputIdx, placeholder: "Face style..."},
@@ -266,6 +269,7 @@ func (e *CardEditor) LoadEditor(data contracts.CardEditorData) {
 	e.inputs[nameInputIdx].SetValue(card.Name)
 	e.inputs[driverInputIdx].SetValue(card.Driver)
 	e.inputs[modelInputIdx].SetValue(card.Model)
+	e.inputs[reasoningEffortInputIdx].SetValue(card.ReasoningEffort)
 	e.workspaceID = card.WorkspaceID
 	e.inputs[faceStyleInputIdx].SetValue(card.FaceStyle)
 	e.puppet = card.Puppet
@@ -394,6 +398,7 @@ func (e *CardEditor) Draft() models.CardEditorDraft {
 		Name:               strings.TrimSpace(e.inputs[nameInputIdx].Value()),
 		Driver:             strings.TrimSpace(e.inputs[driverInputIdx].Value()),
 		Model:              strings.TrimSpace(e.inputs[modelInputIdx].Value()),
+		ReasoningEffort:    strings.TrimSpace(e.inputs[reasoningEffortInputIdx].Value()),
 		WorkspaceID:        e.workspaceID,
 		SubWorkspaceIDs:    slices.Clone(e.subWorkspaceIDs),
 		FaceStyle:          strings.TrimSpace(e.inputs[faceStyleInputIdx].Value()),
@@ -422,6 +427,10 @@ func (e *CardEditor) Draft() models.CardEditorDraft {
 	changes.Name = contracts.Change[string]{Present: values.Name != old.Name, Value: values.Name}
 	changes.Driver = contracts.Change[string]{Present: values.Driver != old.Driver, Value: values.Driver}
 	changes.Model = contracts.Change[string]{Present: values.Model != old.Model, Value: values.Model}
+	changes.ReasoningEffort = contracts.Change[string]{
+		Present: values.ReasoningEffort != old.ReasoningEffort,
+		Value:   values.ReasoningEffort,
+	}
 	changes.WorkspaceID = contracts.Change[string]{Present: values.WorkspaceID != old.WorkspaceID, Value: values.WorkspaceID}
 	changes.SubWorkspaceIDs = contracts.Change[[]string]{
 		Present: e.subWorkspaceEdited || !slices.Equal(values.SubWorkspaceIDs, old.SubWorkspaceIDs),
@@ -1096,6 +1105,7 @@ func (e *CardEditor) fieldBlocks() []formBlock {
 		blockOf(FocusName, styles.TitleStyle.Render(title)+"\n\n"+"Name: "+e.inputs[nameInputIdx].View()+"\n"),
 		blockOf(FocusDriver, "Driver: "+e.inputs[driverInputIdx].View()+"\n"),
 		blockOf(FocusModel, "Model: "+e.inputs[modelInputIdx].View()+"\n"),
+		blockOf(FocusReasoningEffort, "Reasoning effort: "+e.inputs[reasoningEffortInputIdx].View()+"\n"),
 		blockOf(FocusWorkspace, e.renderWorkspaceLine()+"\n"),
 		blockOf(FocusSubWorkspaces, e.renderSubWorkspacesLine()+"\n"),
 		blockOf(FocusFaceStyle, "Face Style: "+e.inputs[faceStyleInputIdx].View()+"\n"),

@@ -989,6 +989,7 @@
       "refs": [
         "api.Service",
         "api.Service.LoadCardEditor",
+        "api.cardValues",
         "ui.Coordinator",
         "ui.Coordinator.handleSpecialMessages",
         "ui.Coordinator.navigateTo",
@@ -996,7 +997,9 @@
         "ui.cardEditorLoadCommand",
         "views.CardEditor",
         "views.CardEditor.LoadEditor",
-        "views.Dashboard"
+        "views.CardEditor.fieldBlocks",
+        "views.Dashboard",
+        "views.focusTargetTable"
       ],
       "directRefs": [
         "api.Service.LoadCardEditor",
@@ -1012,7 +1015,11 @@
         "views.CardEditor",
         "views.Dashboard"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "api.cardValues",
+        "views.CardEditor.fieldBlocks",
+        "views.focusTargetTable"
+      ],
       "files": [
         "internal/api/card_editor.go",
         "internal/api/service.go",
@@ -1022,7 +1029,7 @@
         "internal/ui/views/card_editor.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "283b0b5306c14216b3f6b2f13c2cdc76c6254b052d695995d88eccb19f7f27fe"
+      "digest": "a5da369886f78537f6960bedf2fa556ddea085fa6ac6788d85ed05fe8276c290"
     },
     {
       "kind": "flow",
@@ -1105,6 +1112,7 @@
         "session.NewManager",
         "session.Session.data",
         "session.Session.snapshot",
+        "session.activationArgs",
         "session.cardReservation",
         "ui.Coordinator",
         "ui.Coordinator.handleDataLoaded",
@@ -1161,6 +1169,7 @@
         "session.NewManager",
         "session.Session.data",
         "session.Session.snapshot",
+        "session.activationArgs",
         "session.cardReservation",
         "ui.Coordinator.handleDataLoaded",
         "ui.Coordinator.handleSessionMessages",
@@ -1196,7 +1205,7 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "71fc881c21e2e849969773f16329e3daae147f01c7f33235630e8220bdb42c1d"
+      "digest": "f37be2a8ef6379c2c122ddb74eac8d54a478114c03703fe6abc7efcad181132b"
     },
     {
       "kind": "flow",
@@ -2452,6 +2461,63 @@
     },
     {
       "kind": "flow",
+      "id": "reasoning-effort-activation",
+      "refs": [
+        "driver.AgentDriver",
+        "driver.AntigravityCLIDriver.SetReasoningEffort",
+        "driver.ClaudeCodeDriver.SetReasoningEffort",
+        "driver.CodexCLIDriver.SetReasoningEffort",
+        "driver.CodexCLIDriver.SetSession",
+        "driver.GenericCLIDriver.SetModel",
+        "driver.GenericCLIDriver.SetReasoningEffort",
+        "driver.GenericCLIDriver.Spawn",
+        "driver.MapRegistry",
+        "driver.MapRegistry.Get",
+        "driver.NewAntigravityCLIDriver",
+        "driver.NewBuiltinRegistry",
+        "driver.effortFlagArgs",
+        "session.Manager",
+        "session.Manager.startSessionCore",
+        "session.Manager.switchAgentWithChoiceCore",
+        "session.activationArgs"
+      ],
+      "directRefs": [
+        "driver.AgentDriver",
+        "driver.CodexCLIDriver.SetSession",
+        "driver.GenericCLIDriver.SetModel",
+        "driver.GenericCLIDriver.Spawn",
+        "driver.MapRegistry.Get",
+        "session.activationArgs"
+      ],
+      "participants": [
+        "driver.AgentDriver",
+        "driver.MapRegistry",
+        "session.Manager"
+      ],
+      "supportingRefs": [
+        "driver.AntigravityCLIDriver.SetReasoningEffort",
+        "driver.ClaudeCodeDriver.SetReasoningEffort",
+        "driver.CodexCLIDriver.SetReasoningEffort",
+        "driver.GenericCLIDriver.SetReasoningEffort",
+        "driver.NewAntigravityCLIDriver",
+        "driver.NewBuiltinRegistry",
+        "driver.effortFlagArgs",
+        "session.Manager.startSessionCore",
+        "session.Manager.switchAgentWithChoiceCore"
+      ],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/driver/driver_test.go",
+        "internal/driver/registry.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/reasoning_effort_test.go",
+        "tests/e2e/launch_focus_test.go"
+      ],
+      "digest": "ed6155913566704e31ca1de2037dd1d0780e8ea0d0e8bf8272dacf1df8f0aaee"
+    },
+    {
+      "kind": "flow",
       "id": "recovery",
       "refs": [
         "api.OperationRunner",
@@ -2830,6 +2896,7 @@
         "session.Manager",
         "session.Manager.SwitchAgentWithChoiceCheckedContext",
         "session.Manager.reserveForActivation",
+        "session.activationArgs",
         "session.savedTemporaryRoot",
         "session.validateConversationChoice",
         "session.validateSessionWorkspace",
@@ -2867,6 +2934,7 @@
         "views.ConversationChoiceView"
       ],
       "supportingRefs": [
+        "session.activationArgs",
         "session.savedTemporaryRoot",
         "session.validateConversationChoice",
         "ui.Coordinator.prepareConversation",
@@ -2888,7 +2956,7 @@
         "internal/ui/views/agent_switch.go",
         "internal/ui/views/conversation_choice.go"
       ],
-      "digest": "0a678ecbceded36fb5c07d8252f696ba3949592935af965fbbc4f4c20072275e"
+      "digest": "f95ec3d8433e73b2eba44bae5667edfe32aca5e113ad8493a3e530b161188ecf"
     },
     {
       "kind": "flow",
@@ -2900,6 +2968,9 @@
         "api.applyCardChanges",
         "config.FileRepository",
         "config.FileRepository.UpdateIDCard",
+        "config.IDCard",
+        "contracts.CardChanges",
+        "contracts.CardValues",
         "ui.Coordinator",
         "ui.Coordinator.cardEditorCallbacks",
         "views.CardEditor",
@@ -2919,17 +2990,23 @@
         "ui.Coordinator",
         "views.CardEditor"
       ],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "config.IDCard",
+        "contracts.CardChanges",
+        "contracts.CardValues"
+      ],
       "files": [
         "internal/api/card_editor.go",
+        "internal/api/contracts/card_editor.go",
         "internal/api/service.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
+        "internal/config/types.go",
         "internal/ui/callbacks.go",
         "internal/ui/coordinator.go",
         "internal/ui/views/card_editor.go"
       ],
-      "digest": "a536c453e1a4b1fee2db0928706d7968d0f3fba52d7b680d8533c14956389b37"
+      "digest": "49657a0ce0f0072f1061e81003d26bad18ca19a031281c7935bfecb76bf7fabe"
     },
     {
       "kind": "flow",
@@ -3866,8 +3943,10 @@
         "api.Service.validateCardConfirmationLocked",
         "api.Service.validateDeletionInventory",
         "api.Service.validateDeletionOwner",
+        "api.applyCardChanges",
         "api.cardImpactDigest",
         "api.cardPendingCleanup",
+        "api.cardValues",
         "api.dashboardImpactDigest",
         "api.hasForeignCardReferences",
         "api.inspectionFromSnapshot",
@@ -3943,8 +4022,10 @@
         "api.Service.validateCardConfirmationLocked",
         "api.Service.validateDeletionInventory",
         "api.Service.validateDeletionOwner",
+        "api.applyCardChanges",
         "api.cardImpactDigest",
         "api.cardPendingCleanup",
+        "api.cardValues",
         "api.dashboardImpactDigest",
         "api.hasForeignCardReferences",
         "api.inspectionFromSnapshot",
@@ -3990,7 +4071,7 @@
         "internal/api/service.go",
         "internal/api/session_actions.go"
       ],
-      "digest": "1a1667dc0636d732d040f3e08696e96863bca16a7ac7c80ff7400a55cfe385f0"
+      "digest": "361d8013affe648f50a6e7ff37324e7a9d9761c79a29a898ff11fed292708c27"
     },
     {
       "kind": "package",
@@ -4189,6 +4270,7 @@
         "config.FileRepository.retainDashboardTombstoneLocked",
         "config.FileRepository.writeDashboardDeletionLocked",
         "config.GetBuiltinSkillContent",
+        "config.IDCard",
         "config.NewFileRepository",
         "config.OpenExistingFileRepository",
         "config.ResolveDirectory",
@@ -4222,7 +4304,7 @@
         "internal/config/validation_helpers.go",
         "internal/config/workspaces.go"
       ],
-      "digest": "b041b7198ad02bf51421420ad76a884835b80dd185983c9fc45fc75c0305cd15"
+      "digest": "f7768ffd137c098e424432bf7799e7b2293c94ac3a66968febe2964cf540a910"
     },
     {
       "kind": "package",
@@ -4267,6 +4349,8 @@
       "id": "contracts",
       "refs": [
         "contracts",
+        "contracts.CardChanges",
+        "contracts.CardValues",
         "contracts.DashboardInventory",
         "contracts.ReportSubscription",
         "contracts.SessionReport",
@@ -4280,7 +4364,10 @@
         "contracts.SessionWorkspaceResult"
       ],
       "participants": [],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "contracts.CardChanges",
+        "contracts.CardValues"
+      ],
       "files": [
         "internal/api/contracts/attachment.go",
         "internal/api/contracts/card_editor.go",
@@ -4293,7 +4380,7 @@
         "internal/api/contracts/inventory.go",
         "internal/api/contracts/session_actions.go"
       ],
-      "digest": "bd636737e4c9d8bb9b166f646111f0b9f5f3e8b1a38cc5eb496b7386ef69dae0"
+      "digest": "d3cd4327b71953f5a8e9505eb4c89b4b6c5e481d9c33de01f7f408f9bdfff201"
     },
     {
       "kind": "package",
@@ -4310,11 +4397,14 @@
       "id": "driver",
       "refs": [
         "driver",
+        "driver.AgentDriver",
+        "driver.AntigravityCLIDriver",
         "driver.ClaudeCodeDriver.SubmitPrompt",
         "driver.CodexCLIDriver.SubmitPrompt",
         "driver.GenericCLIDriver.PrepareWorkspace",
         "driver.GenericCLIDriver.submitPromptBytes",
         "driver.MCPConfigPath",
+        "driver.NewAntigravityCLIDriver",
         "driver.PromptEnvelope",
         "driver.ValidatePrompt",
         "driver.classifySubmission",
@@ -4330,11 +4420,14 @@
       ],
       "participants": [],
       "supportingRefs": [
+        "driver.AgentDriver",
+        "driver.AntigravityCLIDriver",
         "driver.ClaudeCodeDriver.SubmitPrompt",
         "driver.CodexCLIDriver.SubmitPrompt",
         "driver.GenericCLIDriver.PrepareWorkspace",
         "driver.GenericCLIDriver.submitPromptBytes",
         "driver.MCPConfigPath",
+        "driver.NewAntigravityCLIDriver",
         "driver.ValidatePrompt",
         "driver.classifySubmission",
         "driver.trustJSONObject",
@@ -4349,7 +4442,7 @@
         "internal/driver/registry.go",
         "internal/driver/trust.go"
       ],
-      "digest": "d1e35cfb7b56d6359c7809cf4113bc3c70676b581a1ca5bb32086cb164248c16"
+      "digest": "3b28fb691b32e30fbe718ffef7172d02250ba5f03ba1155e606e52d1d09e442b"
     },
     {
       "kind": "package",
@@ -4507,6 +4600,7 @@
         "session.Session.data",
         "session.Session.snapshot",
         "session.SplitCommand",
+        "session.activationArgs",
         "session.activationEnv",
         "session.addConversationBinding",
         "session.loadSessions",
@@ -4565,6 +4659,7 @@
         "session.Session.data",
         "session.Session.snapshot",
         "session.SplitCommand",
+        "session.activationArgs",
         "session.activationEnv",
         "session.addConversationBinding",
         "session.loadSessions",
@@ -4595,7 +4690,7 @@
         "internal/session/workspace.go",
         "internal/session/workspace_launcher.go"
       ],
-      "digest": "e1db18ada25cd2860817d1d57ed851ab84feac095bc50c3b6525fbdff94fc2f5"
+      "digest": "feced8472433924fbc17de40f121d4ec2a75b1e2b07a177a9a44e51a8ebefb51"
     },
     {
       "kind": "package",
@@ -5621,11 +5716,13 @@
       "id": "Add a new agent CLI",
       "refs": [
         "driver.AgentDriver",
+        "driver.AntigravityCLIDriver",
         "driver.GenericCLIDriver",
         "driver.NewBuiltinRegistry"
       ],
       "directRefs": [
         "driver.AgentDriver",
+        "driver.AntigravityCLIDriver",
         "driver.GenericCLIDriver",
         "driver.NewBuiltinRegistry"
       ],
@@ -5635,7 +5732,7 @@
         "internal/driver/driver.go",
         "internal/driver/registry.go"
       ],
-      "digest": "b81d882944aad87e43f9e9568d675e8d17e81fcebf6bddc4d5378430022a2e1a"
+      "digest": "2f13cb849b9e5af2d8d7e1607435a61971c73a4b6bd0810fd46e586919fbc986"
     },
     {
       "kind": "task",
@@ -6381,6 +6478,50 @@
     },
     {
       "kind": "test-feature",
+      "id": "apply-effort",
+      "refs": [
+        "driver.AgentDriver",
+        "session.activationArgs"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "driver.AgentDriver",
+        "session.activationArgs"
+      ],
+      "files": [
+        "internal/api/conversation_actions.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/api/session_actions.go",
+        "internal/driver/driver.go",
+        "internal/driver/driver_test.go",
+        "internal/driver/registry.go",
+        "internal/session/card_references.go",
+        "internal/session/claude_resume_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/reasoning_effort_test.go",
+        "internal/session/workspace.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/handlers.go",
+        "internal/ui/inline_rename_refresh_internal_test.go",
+        "internal/ui/launch_focus_internal_test.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go",
+        "tmp/appediff/runs/codex/attached.png"
+      ],
+      "digest": "07ecd3ea9e33682c8d64838c64d70b94c7344bae2de6e7e206577f532702c842"
+    },
+    {
+      "kind": "test-feature",
       "id": "automatic-wakeups",
       "refs": [],
       "directRefs": [],
@@ -6443,9 +6584,11 @@
       "files": [
         "internal/api/card_editor.go",
         "internal/api/card_editor_test.go",
+        "internal/api/contracts/card_editor.go",
         "internal/api/service.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
+        "internal/config/types.go",
         "internal/ui/callbacks.go",
         "internal/ui/components/capability_list.go",
         "internal/ui/coordinator.go",
@@ -6455,7 +6598,7 @@
         "internal/ui/views/card_editor_test.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "5b00370428d9d6b95acaa0f13720cf1d6edbf9c2d44610ab3aa3c213931d8695"
+      "digest": "124844e928e2119f5913f4e9ae6585da06860e5f156d887cec4a6e1bbc9b3b21"
     },
     {
       "kind": "test-feature",
@@ -6467,14 +6610,16 @@
       "files": [
         "internal/api/card_editor.go",
         "internal/api/card_editor_test.go",
+        "internal/api/contracts/card_editor.go",
         "internal/api/service.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
+        "internal/config/types.go",
         "internal/ui/callbacks.go",
         "internal/ui/coordinator.go",
         "internal/ui/views/card_editor.go"
       ],
-      "digest": "6d221c4bd725907a6838327fc419cf91f62810ea53c467e3a6409c7cb4a6c3cc"
+      "digest": "21262f1883a59fc195a46aee7bc6545fa4b39dc31a1060dbc8a00639b898ee2b"
     },
     {
       "kind": "test-feature",
@@ -6486,14 +6631,16 @@
       "files": [
         "internal/api/card_editor.go",
         "internal/api/card_editor_test.go",
+        "internal/api/contracts/card_editor.go",
         "internal/api/service.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
+        "internal/config/types.go",
         "internal/ui/callbacks.go",
         "internal/ui/coordinator.go",
         "internal/ui/views/card_editor.go"
       ],
-      "digest": "e1e4bf7a64e6f9497b6d1e7599217502d07df71f1f1d5af6980a6a4a468661d3"
+      "digest": "9a6192bd7caf879c70c5f33ab7cf44691f514de4da143e022820f79570365720"
     },
     {
       "kind": "test-feature",
@@ -6774,6 +6921,7 @@
       "files": [
         "internal/api/card_confirmation.go",
         "internal/api/card_editor.go",
+        "internal/api/contracts/card_editor.go",
         "internal/api/contracts/inventory.go",
         "internal/api/deletion_frontend.go",
         "internal/api/inventory_reads.go",
@@ -6785,6 +6933,7 @@
         "internal/config/card_tombstones.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
+        "internal/config/types.go",
         "internal/driver/driver.go",
         "internal/mcp/server.go",
         "internal/session/card_references.go",
@@ -6807,7 +6956,7 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "bbac9e487e1f04ff4e64598a84d2dcd58de244fc69282eda46e52ea0101085b6"
+      "digest": "ddab329eb896f9f6346e8d7d8ab5d24da2bd4bf876f954c5df60a194a4b36558"
     },
     {
       "kind": "test-feature",
@@ -6878,6 +7027,41 @@
     },
     {
       "kind": "test-feature",
+      "id": "edit-effort",
+      "refs": [
+        "api.applyCardChanges",
+        "config.IDCard",
+        "views.CardEditor.Draft"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.applyCardChanges",
+        "config.IDCard",
+        "views.CardEditor.Draft"
+      ],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/card_editor_test.go",
+        "internal/api/contracts/card_editor.go",
+        "internal/api/service.go",
+        "internal/config/id_cards.go",
+        "internal/config/repository.go",
+        "internal/config/types.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/navigation.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/dashboard.go",
+        "tests/e2e/launch_focus_test.go",
+        "tmp/appediff/runs/codex/card-effort-reopened.png"
+      ],
+      "digest": "d03c6e756f3c141986c43832469420dd44034e432a768a4aa033cb66ddcb8bdd"
+    },
+    {
+      "kind": "test-feature",
       "id": "launch-focus",
       "refs": [
         "ui.Coordinator.hasStaleSessionSnapshot",
@@ -6910,9 +7094,11 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/artifacts/launch-focus/attached.png",
         "tests/e2e/artifacts/launch-focus/reattached.png",
-        "tests/e2e/launch_focus_test.go"
+        "tests/e2e/launch_focus_test.go",
+        "tmp/appediff/runs/codex/attached.png",
+        "tmp/appediff/runs/codex/reattached.png"
       ],
-      "digest": "4dee468edcc4758ba74a934a84bdc3b71bdedd2ac984758bc5c8b52c6e3b1498"
+      "digest": "55d18e5934b1cf7101044d94c929f27f300eb378f6a681355f977268957019b2"
     },
     {
       "kind": "test-feature",
@@ -7206,12 +7392,14 @@
         "internal/api/card_editor.go",
         "internal/api/center.go",
         "internal/api/configuration_sources.go",
+        "internal/api/contracts/card_editor.go",
         "internal/api/service.go",
         "internal/ascii/canvas_test.go",
         "internal/config/id_cards.go",
         "internal/config/refactor_test.go",
         "internal/config/repository.go",
         "internal/config/skill_sources.go",
+        "internal/config/types.go",
         "internal/session/authored_reports.go",
         "internal/session/messaging.go",
         "internal/ui/callbacks.go",
@@ -7236,7 +7424,7 @@
         "internal/ui/views/source_manager.go",
         "internal/ui/views/source_manager_test.go"
       ],
-      "digest": "3f3b6e3c6cc1b410f40b033433dafa38d667daa3c386ab98b35b296e90e43515"
+      "digest": "8373cf426dc91ef548b8e762ff95ac50b151020c9c6a019f7df2b65ec27d351c"
     },
     {
       "kind": "test-feature",
@@ -7818,6 +8006,146 @@
     },
     {
       "kind": "test-scenario",
+      "id": "apply-effort/dispatch",
+      "refs": [
+        "driver.AgentDriver",
+        "session.activationArgs"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "driver.AgentDriver",
+        "session.activationArgs"
+      ],
+      "files": [
+        "internal/driver/driver.go",
+        "internal/driver/driver_test.go",
+        "internal/driver/registry.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/reasoning_effort_test.go",
+        "tests/e2e/launch_focus_test.go"
+      ],
+      "digest": "0eeed79b262ed22a30e72fb8d3792e09f22a3a89994033a9c3c90346bf392caa"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "apply-effort/launch-resume-switch",
+      "refs": [
+        "driver.AgentDriver",
+        "session.activationArgs"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "driver.AgentDriver",
+        "session.activationArgs"
+      ],
+      "files": [
+        "internal/api/conversation_actions.go",
+        "internal/api/service.go",
+        "internal/api/session_actions.go",
+        "internal/driver/driver.go",
+        "internal/driver/driver_test.go",
+        "internal/driver/registry.go",
+        "internal/session/card_references.go",
+        "internal/session/claude_resume_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/reasoning_effort_test.go",
+        "internal/session/workspace.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/handlers.go",
+        "internal/ui/inline_rename_refresh_internal_test.go",
+        "internal/ui/launch_focus_internal_test.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go"
+      ],
+      "digest": "b40ea057f576110092511dac51a79dd418effc0feb2a2f02541d7480aee79ae8"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "apply-effort/native",
+      "refs": [
+        "driver.AgentDriver",
+        "session.activationArgs"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "driver.AgentDriver",
+        "session.activationArgs"
+      ],
+      "files": [
+        "internal/api/conversation_actions.go",
+        "internal/api/service.go",
+        "internal/driver/driver.go",
+        "internal/driver/driver_test.go",
+        "internal/driver/registry.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/reasoning_effort_test.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go",
+        "tests/e2e/launch_focus_test.go",
+        "tmp/appediff/runs/codex/attached.png"
+      ],
+      "digest": "1a00b2f8ba2b46bb9735ed5c68008bc42f375543cda7a3e795dcd97189dfaf21"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "apply-effort/saved-source",
+      "refs": [
+        "driver.AgentDriver",
+        "session.activationArgs"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "driver.AgentDriver",
+        "session.activationArgs"
+      ],
+      "files": [
+        "internal/api/conversation_actions.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/api/session_actions.go",
+        "internal/driver/driver.go",
+        "internal/driver/driver_test.go",
+        "internal/driver/registry.go",
+        "internal/session/card_references.go",
+        "internal/session/claude_resume_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/reasoning_effort_test.go",
+        "internal/session/workspace.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/components/session_list.go",
+        "internal/ui/components/session_list_test.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/handlers.go",
+        "internal/ui/inline_rename_refresh_internal_test.go",
+        "internal/ui/launch_focus_internal_test.go",
+        "internal/ui/messages/messages.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go",
+        "internal/ui/views/dashboard.go",
+        "internal/ui/views/session_launcher.go",
+        "tests/e2e/launch_focus_test.go"
+      ],
+      "digest": "29091c99797832d2283e6f25d04ee5e8b876f8f52796e95257c5af13f0625f40"
+    },
+    {
+      "kind": "test-scenario",
       "id": "automatic-wakeups/controller-notified",
       "refs": [],
       "directRefs": [],
@@ -7915,15 +8243,17 @@
       "supportingRefs": [],
       "files": [
         "internal/api/card_editor.go",
+        "internal/api/contracts/card_editor.go",
         "internal/api/service.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
+        "internal/config/types.go",
         "internal/ui/callbacks.go",
         "internal/ui/coordinator.go",
         "internal/ui/views/card_editor.go",
         "internal/ui/views/card_editor_test.go"
       ],
-      "digest": "7665d3fc2fdac3a5607d00fceff5c3a746706637dbf018b2ec6369188a0a579a"
+      "digest": "5cfa89568495df2a1761092328b3f03447bc62a15ffcd787307fe317856d7b97"
     },
     {
       "kind": "test-scenario",
@@ -7954,16 +8284,18 @@
       "files": [
         "internal/api/card_editor.go",
         "internal/api/card_editor_test.go",
+        "internal/api/contracts/card_editor.go",
         "internal/api/service.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
+        "internal/config/types.go",
         "internal/ui/callbacks.go",
         "internal/ui/coordinator.go",
         "internal/ui/navigation.go",
         "internal/ui/views/card_editor.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "d94c38d5242a55772d88b4ea825f2e5d0d4a9f9f9cda5b740ed074f926d353f1"
+      "digest": "1aa607bcb931cf6eeac0f34d2fee3534a2b538490da4ca89476f0be3912d744f"
     },
     {
       "kind": "test-scenario",
@@ -8025,14 +8357,16 @@
       "files": [
         "internal/api/card_editor.go",
         "internal/api/card_editor_test.go",
+        "internal/api/contracts/card_editor.go",
         "internal/api/service.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
+        "internal/config/types.go",
         "internal/ui/callbacks.go",
         "internal/ui/coordinator.go",
         "internal/ui/views/card_editor.go"
       ],
-      "digest": "818607b12bf8d4dde3d13c7f918d24837008e2ad376a3226b41c8e976a06338b"
+      "digest": "1d882188f8de47ad678203c52fc0b534e60c039ba895cbf91b42baa01051990f"
     },
     {
       "kind": "test-scenario",
@@ -8044,14 +8378,16 @@
       "files": [
         "internal/api/card_editor.go",
         "internal/api/card_editor_test.go",
+        "internal/api/contracts/card_editor.go",
         "internal/api/service.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
+        "internal/config/types.go",
         "internal/ui/callbacks.go",
         "internal/ui/coordinator.go",
         "internal/ui/views/card_editor.go"
       ],
-      "digest": "ad249b3593ee3e3dc8885dc55c5fe8bcd6b67da72946a7622778d44eb578ee86"
+      "digest": "ac394e270efe02c94040011bba3279c656b974d14ba7a38ab246a1328c56be06"
     },
     {
       "kind": "test-scenario",
@@ -8628,6 +8964,7 @@
       "files": [
         "internal/api/card_confirmation.go",
         "internal/api/card_editor.go",
+        "internal/api/contracts/card_editor.go",
         "internal/api/contracts/inventory.go",
         "internal/api/deletion_frontend.go",
         "internal/api/inventory_reads.go",
@@ -8638,6 +8975,7 @@
         "internal/config/card_tombstones.go",
         "internal/config/id_cards.go",
         "internal/config/repository.go",
+        "internal/config/types.go",
         "internal/mcp/server.go",
         "internal/session/card_references.go",
         "internal/session/conversation.go",
@@ -8651,7 +8989,7 @@
         "internal/ui/views/card_editor.go",
         "internal/ui/views/dashboard.go"
       ],
-      "digest": "e5de5f13de11caa5f4f7956b5a28a8225b2122f08a9fa77252ae93ea566d503f"
+      "digest": "8fa5b8fdd77866facf51217fc2dcfed0be5f8c490c2bd322366a6fb4476d73d9"
     },
     {
       "kind": "test-scenario",
@@ -8776,6 +9114,128 @@
         "internal/session/manager.go"
       ],
       "digest": "7de68974a9d13c11af9e791dbac33f69edb08273adb1fc96de3ced6659618788"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "edit-effort/draft",
+      "refs": [
+        "api.applyCardChanges",
+        "config.IDCard",
+        "views.CardEditor.Draft"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.applyCardChanges",
+        "config.IDCard",
+        "views.CardEditor.Draft"
+      ],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/service.go",
+        "internal/config/types.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/navigation.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "de428eff0a13488c3f3f205fcba828a2a6541d1b3846358099a17570ede227e5"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "edit-effort/guard",
+      "refs": [
+        "api.applyCardChanges",
+        "config.IDCard",
+        "views.CardEditor.Draft"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.applyCardChanges",
+        "config.IDCard",
+        "views.CardEditor.Draft"
+      ],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/card_editor_test.go",
+        "internal/api/contracts/card_editor.go",
+        "internal/api/service.go",
+        "internal/config/id_cards.go",
+        "internal/config/repository.go",
+        "internal/config/types.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/navigation.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/dashboard.go"
+      ],
+      "digest": "18949bd051d2a889b8944016fb58cea1aff128f80f0eea53d489569d5a566d05"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "edit-effort/save",
+      "refs": [
+        "api.applyCardChanges",
+        "config.IDCard",
+        "views.CardEditor.Draft"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.applyCardChanges",
+        "config.IDCard",
+        "views.CardEditor.Draft"
+      ],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/card_editor_test.go",
+        "internal/api/contracts/card_editor.go",
+        "internal/api/service.go",
+        "internal/config/id_cards.go",
+        "internal/config/repository.go",
+        "internal/config/types.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/views/card_editor.go"
+      ],
+      "digest": "eaa5896a1ede68f69027cab26c43e93a86f79b31b5030d14a85f68b1d5a60a05"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "edit-effort/terminal",
+      "refs": [
+        "api.applyCardChanges",
+        "config.IDCard",
+        "views.CardEditor.Draft"
+      ],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [
+        "api.applyCardChanges",
+        "config.IDCard",
+        "views.CardEditor.Draft"
+      ],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/contracts/card_editor.go",
+        "internal/api/service.go",
+        "internal/config/id_cards.go",
+        "internal/config/repository.go",
+        "internal/config/types.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/navigation.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/dashboard.go",
+        "tests/e2e/launch_focus_test.go",
+        "tmp/appediff/runs/codex/card-effort-reopened.png"
+      ],
+      "digest": "dd25a4cbbb07a37e404ff6c97c7c2521df75c95d012385aeeb9c89c238fbd928"
     },
     {
       "kind": "test-scenario",
@@ -8947,9 +9407,11 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/artifacts/launch-focus/attached.png",
         "tests/e2e/artifacts/launch-focus/reattached.png",
-        "tests/e2e/launch_focus_test.go"
+        "tests/e2e/launch_focus_test.go",
+        "tmp/appediff/runs/codex/attached.png",
+        "tmp/appediff/runs/codex/reattached.png"
       ],
-      "digest": "5477f9f0e16ea4f955fa46dd1122a692dbca55df4a40f10227ea6e11519e02e7"
+      "digest": "90c61401c0512bd5bfdf479652523fe288e132653cdc6f289880c105cbea5517"
     },
     {
       "kind": "test-scenario",
@@ -9640,15 +10102,17 @@
       "supportingRefs": [],
       "files": [
         "internal/api/card_editor.go",
+        "internal/api/contracts/card_editor.go",
         "internal/api/service.go",
         "internal/config/id_cards.go",
         "internal/config/refactor_test.go",
         "internal/config/repository.go",
+        "internal/config/types.go",
         "internal/ui/callbacks.go",
         "internal/ui/coordinator.go",
         "internal/ui/views/card_editor.go"
       ],
-      "digest": "7008e17305b489ff49ae09fde66d9241f169350abe855df0444a9d7a4a536424"
+      "digest": "f9cdeb9eb8e07ffac6f6dfd551ee6c9c6e809eb042704dce13781dfead429c9d"
     },
     {
       "kind": "test-scenario",
@@ -12025,5 +12489,5 @@
       "digest": "9b604ee1f64e13182417327ca84f286cf8e9ea59aabcba4777c111a27287e9ff"
     }
   ],
-  "digest": "0175ffbb572b01f8d722df686a005b80121d0c00a545f050b343a21db8a7b101"
+  "digest": "4e710a9a8fcb7437396a0c4c3e6b07a464dc4148829569634d37ba557fdb7ecb"
 }
