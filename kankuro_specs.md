@@ -30,13 +30,17 @@ Installation is documented in [README.md](README.md).
 
 An ID card is a saved agent template containing:
 
-- CLI tool and model selection.
+- CLI tool, model selection and optional CLI-specific reasoning effort.
 - Workspace selected from the workspace registry.
 - Instructions and optional process environment overrides.
 - Whether to create a temporary workspace.
 - Optional sub workspaces, selected skills, personas and MCP servers.
 - Puppet/face appearance.
 - Shared-card availability and Dashboard Control permission.
+
+Reasoning effort is passed as `--effort` for Claude and Agy, and as
+`-c model_reasoning_effort=value` for Codex. OpenCode and other generic drivers
+retain the saved value but do not pass an effort argument.
 
 A shared card cannot be made exclusive while another dashboard references it
 through sessions, saved conversation bindings or pending activations. The error
@@ -325,7 +329,7 @@ details must remain inspectable without hiding activation controls or the footer
 
 ### 4.5 Card editor
 
-- Tab cycles through Name, Driver, Model, Workspace, Sub Workspaces, Face, Tmp,
+- Tab cycles through Name, Driver, Model, Reasoning effort, Workspace, Sub Workspaces, Face, Tmp,
   Shared, Dashboard Control, AgentsMD and capability lists. Hidden optional
   sections are removed from focus order.
 - Space on Workspace opens its searchable picker; on toggles it changes their

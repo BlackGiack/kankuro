@@ -1,3 +1,22 @@
+# Appedia verification for reasoning effort
+
+The source model and assessments cover the feature worktree based on `110865d`.
+The card editor flows show how the optional effort field is saved and reopened.
+The activation flow shows argument ordering for launch, relaunch and switch.
+
+- The ordinary Go suite and changed-line lint passed. The model-free E2E
+  suite passed with the `e2e` tag. The existing launch-focus journey saves
+  `high`, reopens the card and checks the effort row before launching Codex.
+  The reopened card screenshot is embedded in the Tests tab.
+- Driver fixtures check the Claude, Codex and Antigravity argument mappings
+  and the generic fallback, including OpenCode. Native Antigravity behavior
+  remains outside this verification.
+- Appedia finalization passed its full jsdom route check. Chrome rendered
+  the activation flow and terminal evidence in both themes. Historical
+  captures, model runs and coverage retain their original provenance.
+
+---
+
 # Appedia verification at 5c80ec8
 
 This refresh covers the two frontend boundary follow-up commits and the

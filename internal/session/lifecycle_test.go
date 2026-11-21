@@ -63,6 +63,7 @@ func (d *stubKillDriver) SetSkills(_ []config.Skill, _ ...string) error      { r
 func (d *stubKillDriver) SetPersonas(_ []config.Persona, _ ...string) error  { return nil }
 func (d *stubKillDriver) SelectMCPs(_ []config.MCPServer, _ ...string) error { return nil }
 func (d *stubKillDriver) SetModel(_ string) []string                         { return nil }
+func (d *stubKillDriver) SetReasoningEffort(_ string) []string               { return nil }
 func (d *stubKillDriver) SetSession(id string) []string {
 	return (&driver.GenericCLIDriver{}).SetSession(id)
 }
@@ -606,6 +607,7 @@ func (d *gateDriver) SetSkills(_ []config.Skill, _ ...string) error      { retur
 func (d *gateDriver) SetPersonas(_ []config.Persona, _ ...string) error  { return nil }
 func (d *gateDriver) SelectMCPs(_ []config.MCPServer, _ ...string) error { return nil }
 func (d *gateDriver) SetModel(_ string) []string                         { return nil }
+func (d *gateDriver) SetReasoningEffort(_ string) []string               { return nil }
 func (d *gateDriver) SetSession(id string) []string {
 	return (&driver.GenericCLIDriver{}).SetSession(id)
 }

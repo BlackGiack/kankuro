@@ -38,7 +38,8 @@ func (s *stubDriver) SelectMCPs(_ []config.MCPServer, _ ...string) error {
 	return nil
 }
 
-func (s *stubDriver) SetModel(_ string) []string { return nil }
+func (s *stubDriver) SetModel(_ string) []string           { return nil }
+func (s *stubDriver) SetReasoningEffort(_ string) []string { return nil }
 func (s *stubDriver) SetSession(id string) []string {
 	return (&driver.GenericCLIDriver{}).SetSession(id)
 }

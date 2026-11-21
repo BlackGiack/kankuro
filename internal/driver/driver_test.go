@@ -475,3 +475,24 @@ func TestEmptyInstructionSyncPreservesExistingContent(t *testing.T) {
 		}
 	}
 }
+
+func TestReasoningEffortRegistry(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		want []string
+	}{
+		{"claude", []string{"--effort", "high"}}, {"agy", []string{"--effort", "high"}},
+		{"codex", []string{"-c", "model_reasoning_effort=high"}}, {"opencode", nil},
+		{"other", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := driver.NewBuiltinRegistry().Get(tc.name)
+			if got := d.SetReasoningEffort("high"); !slices.Equal(got, tc.want) {
+				t.Fatalf("got %v, want %v", got, tc.want)
+			}
+			if got := d.SetReasoningEffort(""); len(got) != 0 {
+				t.Fatalf("empty effort: %v", got)
+			}
+		})
+	}
+}

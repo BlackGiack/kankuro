@@ -34,6 +34,9 @@ func NewBuiltinRegistry() *MapRegistry {
 	r.Register("codex", func() AgentDriver {
 		return NewCodexCLIDriver()
 	})
+	r.Register("agy", func() AgentDriver {
+		return NewAntigravityCLIDriver()
+	})
 	return r
 }
 

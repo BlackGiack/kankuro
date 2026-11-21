@@ -1,7 +1,12 @@
 # KANKURO Appedia
 
 Open [index.html](index.html) directly in a browser. This snapshot describes
-the frontend boundary roadmap through commit `5c80ec8`.
+the reasoning-effort feature on frontend boundary roadmap commit `110865d`.
+
+The card editor loads and persists an optional effort beside Model. Follow
+[the activation flow](index.html#flow-reasoning-effort-activation) to see how the
+saved value becomes CLI arguments on launch, relaunch and switch. The Tests
+tab includes the model-free terminal journey that saves and reopens a card.
 
 The selected-session center keeps its session details and puppet above reports
 or workspace information. The `flow-preview` URL opens the current report-center

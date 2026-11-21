@@ -21,6 +21,7 @@ func TestEditorSavePreservesUneditableFieldsAndRejectsStaleRevision(t *testing.T
 			Driver:            "cat",
 			WorkspaceID:       workspaceID,
 			SystemInstruction: "secret",
+			ReasoningEffort:   "high",
 			Env:               map[string]string{"a": "b"},
 		},
 	)
@@ -117,6 +118,7 @@ func TestEditorExplicitClearAndHiddenFieldConflict(t *testing.T) {
 			Name:              "before",
 			Driver:            "cat",
 			Model:             "model",
+			ReasoningEffort:   "high",
 			WorkspaceID:       workspaceID,
 			UseTmpWorkspace:   true,
 			DashboardControl:  true,
@@ -131,6 +133,7 @@ func TestEditorExplicitClearAndHiddenFieldConflict(t *testing.T) {
 	}
 	changes := contracts.CardChanges{
 		Model:           contracts.Change[string]{Present: true, Value: ""},
+		ReasoningEffort: contracts.Change[string]{Present: true, Value: ""},
 		UseTmpWorkspace: contracts.Change[bool]{Present: true, Value: false},
 		SkillIDs:        contracts.Change[[]string]{Present: true, Value: []string{}},
 	}
@@ -145,14 +148,15 @@ func TestEditorExplicitClearAndHiddenFieldConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := cards[0]
-	if got.Model != "" || got.UseTmpWorkspace || len(got.SkillIDs) != 0 || !got.DashboardControl || got.AgentsMD != "instructions" {
+	if got.Model != "" || got.ReasoningEffort != "" || got.UseTmpWorkspace || len(got.SkillIDs) != 0 ||
+		!got.DashboardControl || got.AgentsMD != "instructions" {
 		t.Fatalf("presence behavior: %+v", got)
 	}
 	loaded, err := service.LoadCardEditor("default", card.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got.SystemInstruction = "changed elsewhere"
+	got.ReasoningEffort = "changed elsewhere"
 	if _, updateErr := repo.UpdateIDCard(got); updateErr != nil {
 		t.Fatal(updateErr)
 	}
@@ -174,7 +178,10 @@ func TestEditorSaveResultRevisionMatchesPersistedCard(t *testing.T) {
 	created, err := service.CreateEditorCard(
 		contracts.CreateCardInput{
 			DashboardID: "default",
-			Values:      contracts.CardValues{Name: "card", Driver: "cat", WorkspaceID: workspaceID, SubWorkspaceIDs: []string{}},
+			Values: contracts.CardValues{
+				Name: "card", Driver: "cat", ReasoningEffort: "high",
+				WorkspaceID: workspaceID, SubWorkspaceIDs: []string{},
+			},
 		},
 	)
 	if err != nil {
@@ -183,6 +190,9 @@ func TestEditorSaveResultRevisionMatchesPersistedCard(t *testing.T) {
 	loaded, err := service.LoadCardEditor("default", created.CardID)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if loaded.Values.ReasoningEffort != "high" {
+		t.Fatalf("created effort = %q", loaded.Values.ReasoningEffort)
 	}
 	if loaded.Revision != created.Revision {
 		t.Fatalf("create revision differs from persisted value: %s != %s", created.Revision, loaded.Revision)

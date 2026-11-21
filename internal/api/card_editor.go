@@ -51,6 +51,7 @@ func cardValues(card config.IDCard) contracts.CardValues {
 		Name:               card.Name,
 		Driver:             card.Driver,
 		Model:              card.Model,
+		ReasoningEffort:    card.ReasoningEffort,
 		WorkspaceID:        card.WorkspaceID,
 		SubWorkspaceIDs:    slices.Clone(card.SubWorkspaceIDs),
 		FaceStyle:          card.FaceStyle,
@@ -83,6 +84,7 @@ func (s *Service) CreateEditorCard(input contracts.CreateCardInput) (contracts.C
 	card.Name = input.Values.Name
 	card.Driver = input.Values.Driver
 	card.Model = input.Values.Model
+	card.ReasoningEffort = input.Values.ReasoningEffort
 	card.WorkspaceID = input.Values.WorkspaceID
 	card.SubWorkspaceIDs = slices.Clone(input.Values.SubWorkspaceIDs)
 	card.FaceStyle = input.Values.FaceStyle
@@ -245,6 +247,9 @@ func applyCardChanges(current config.IDCard, changes contracts.CardChanges) conf
 	}
 	if changes.Driver.Present {
 		updated.Driver = changes.Driver.Value
+	}
+	if changes.ReasoningEffort.Present {
+		updated.ReasoningEffort = changes.ReasoningEffort.Value
 	}
 	if changes.Model.Present {
 		updated.Model = changes.Model.Value

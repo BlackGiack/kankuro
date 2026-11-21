@@ -109,6 +109,7 @@ type AgentDriver interface {
 	SetPersonas(personas []config.Persona, workspaceRoot ...string) error
 	SelectMCPs(mcps []config.MCPServer, workspaceRoot ...string) error
 	SetModel(model string) []string
+	SetReasoningEffort(effort string) []string
 	SetSession(conversationID string) []string
 	SubmitPrompt(ctx context.Context, prompt PromptEnvelope) (SubmissionEvidence, error)
 
@@ -189,6 +190,10 @@ func NewClaudeCodeDriver() *ClaudeCodeDriver {
 func (d *ClaudeCodeDriver) GetAgentFolder() string         { return ".claude" }
 func (d *ClaudeCodeDriver) GetInstructionFileName() string { return "CLAUDE.md" }
 
+func (d *ClaudeCodeDriver) SetReasoningEffort(effort string) []string {
+	return effortFlagArgs(effort)
+}
+
 // SetSession passes a saved conversation ID to Claude Code's session-id option.
 func (d *ClaudeCodeDriver) SetSession(conversationID string) []string {
 	if conversationID == "" {
@@ -234,6 +239,13 @@ func NewCodexCLIDriver() *CodexCLIDriver {
 	return &CodexCLIDriver{GenericCLIDriver: NewGenericCLIDriver()}
 }
 
+func (d *CodexCLIDriver) SetReasoningEffort(effort string) []string {
+	if effort == "" {
+		return nil
+	}
+	return []string{"-c", "model_reasoning_effort=" + effort}
+}
+
 // SetSession returns Codex CLI's native resume subcommand and session ID.
 func (d *CodexCLIDriver) SetSession(conversationID string) []string {
 	if conversationID == "" {
@@ -250,6 +262,20 @@ func (d *CodexCLIDriver) SubmitPrompt(
 	prompt PromptEnvelope,
 ) (SubmissionEvidence, error) {
 	return d.GenericCLIDriver.submitPrompt(ctx, prompt, promptEnterPause)
+}
+
+// AntigravityCLIDriver specializes reasoning effort arguments for the agy CLI.
+type AntigravityCLIDriver struct {
+	*GenericCLIDriver
+}
+
+// NewAntigravityCLIDriver returns the Antigravity CLI driver with generic workspace behavior.
+func NewAntigravityCLIDriver() *AntigravityCLIDriver {
+	return &AntigravityCLIDriver{GenericCLIDriver: NewGenericCLIDriver()}
+}
+
+func (d *AntigravityCLIDriver) SetReasoningEffort(effort string) []string {
+	return effortFlagArgs(effort)
 }
 
 func syncInstructionFile(
@@ -651,6 +677,15 @@ func (d *GenericCLIDriver) SetModel(model string) []string {
 		return nil
 	}
 	return []string{"--model", model}
+}
+
+func (d *GenericCLIDriver) SetReasoningEffort(string) []string { return nil }
+
+func effortFlagArgs(effort string) []string {
+	if effort == "" {
+		return nil
+	}
+	return []string{"--effort", effort}
 }
 
 // SetSession returns the generic CLI's native conversation resume arguments.

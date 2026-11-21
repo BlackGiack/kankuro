@@ -89,12 +89,12 @@ func TestClaudeResumeLifecycleUsesSelectedNativeID(t *testing.T) {
 	}()
 	manager.SetMCPEndpoint(runtime.Endpoint())
 
-	card := config.IDCard{ID: "claude-card", Name: "Claude", Driver: "claude", Model: "sonnet", WorkspaceID: workspaceID}
+	card := config.IDCard{ID: "claude-card", Name: "Claude", Driver: "claude", Model: "sonnet", ReasoningEffort: "high", WorkspaceID: workspaceID}
 	sessionID, err := testLaunch(manager, card, nil, nil, config.BuiltinMCPs())
 	if err != nil {
 		t.Fatalf("fresh launch: %v", err)
 	}
-	wantNew := []string{"--model", "sonnet"}
+	wantNew := []string{"--model", "sonnet", "--effort", "high"}
 	if got := capture.capturedArgs(0); !slices.Equal(got, wantNew) {
 		t.Fatalf("fresh Claude args = %#v, want %#v", got, wantNew)
 	}
@@ -128,10 +128,11 @@ func TestClaudeResumeLifecycleUsesSelectedNativeID(t *testing.T) {
 	if err := manager.Kill(sessionID); err != nil {
 		t.Fatalf("stop fresh activation: %v", err)
 	}
+	card.ReasoningEffort = "medium"
 	if err := testRelaunchWithChoice(manager, sessionID, card, session.ConversationChoice{ID: "6cbf35c6-7e9d-4cb5-aefc-0ad55096ed8d"}); err != nil {
 		t.Fatalf("resume saved Claude conversation: %v", err)
 	}
-	wantResume := []string{"--model", "sonnet", "--resume", "6cbf35c6-7e9d-4cb5-aefc-0ad55096ed8d"}
+	wantResume := []string{"--model", "sonnet", "--effort", "medium", "--resume", "6cbf35c6-7e9d-4cb5-aefc-0ad55096ed8d"}
 	if got := capture.capturedArgs(1); !slices.Equal(got, wantResume) {
 		t.Fatalf("resumed Claude args = %#v, want %#v", got, wantResume)
 	}
@@ -142,6 +143,7 @@ func TestClaudeResumeLifecycleUsesSelectedNativeID(t *testing.T) {
 	if err := testRelaunchWithChoice(manager, sessionID, card, session.ConversationChoice{New: true}); err != nil {
 		t.Fatalf("start new Claude conversation: %v", err)
 	}
+	wantNew = []string{"--model", "sonnet", "--effort", "medium"}
 	if got := capture.capturedArgs(2); !slices.Equal(got, wantNew) {
 		t.Fatalf("new Claude args = %#v, want %#v", got, wantNew)
 	}
@@ -152,6 +154,9 @@ func TestClaudeResumeLifecycleUsesSelectedNativeID(t *testing.T) {
 	cardB := config.IDCard{ID: "claude-card-b", Name: "Claude B", Driver: "claude", Model: "sonnet", WorkspaceID: workspaceID}
 	if err := testSwitchAgentWithChoice(manager, sessionID, cardB, nil, nil, config.BuiltinMCPs(), session.ConversationChoice{New: true}); err != nil {
 		t.Fatalf("switch to second Claude card: %v", err)
+	}
+	if got := capture.capturedArgs(3); !slices.Equal(got, []string{"--model", "sonnet"}) {
+		t.Fatalf("second card args = %#v", got)
 	}
 	snapshot, found = manager.GetSession(sessionID)
 	if !found {

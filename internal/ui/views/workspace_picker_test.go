@@ -21,7 +21,7 @@ func TestWorkspacePicker_SearchAndFilter(t *testing.T) {
 	setEditorData(e, editorTestData{Workspaces: workspaces})
 
 	// Open picker (simulated by focusing workspace and pressing space)
-	e.CycleFocus(3) // FocusWorkspace is 3
+	e.CycleFocus(views.FocusWorkspace)
 	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	view := e.View()
@@ -182,7 +182,7 @@ func TestWorkspacePicker_EscapeBehavior(t *testing.T) {
 	setEditorData(e, editorTestData{Workspaces: []config.Workspace{{ID: "1", Name: "Alpha"}}})
 
 	// Open picker
-	e.CycleFocus(3)
+	e.CycleFocus(views.FocusWorkspace)
 	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// Type 'a'
@@ -212,7 +212,7 @@ func TestWorkspacePicker_QNonQuit(t *testing.T) {
 	setEditorData(e, editorTestData{Workspaces: []config.Workspace{{ID: "1", Name: "Alpha"}}})
 
 	// Open picker
-	e.CycleFocus(3)
+	e.CycleFocus(views.FocusWorkspace)
 	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// Press 'q'
@@ -230,7 +230,7 @@ func TestWorkspacePicker_DedicatedRendering(t *testing.T) {
 	e.SetSize(100, 50)
 
 	// Open picker
-	e.CycleFocus(3)
+	e.CycleFocus(views.FocusWorkspace)
 	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	view := e.View()
@@ -260,7 +260,7 @@ func TestWorkspacePicker_ReopenAfterSearch(t *testing.T) {
 	setEditorData(e, editorTestData{Workspaces: workspaces})
 
 	// First open
-	e.CycleFocus(3) // FocusWorkspace
+	e.CycleFocus(views.FocusWorkspace)
 	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// Search for 'a' to filter results
@@ -310,7 +310,7 @@ func TestWorkspacePicker_SizeRestoration(t *testing.T) {
 	setEditorData(e, editorTestData{Workspaces: workspaces})
 
 	// Open picker
-	e.CycleFocus(3)
+	e.CycleFocus(views.FocusWorkspace)
 	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// Get the view from the first open
@@ -349,7 +349,7 @@ func TestWorkspacePicker_SmallTerminal(t *testing.T) {
 	setEditorData(e, editorTestData{Workspaces: workspaces})
 
 	// Open picker on small terminal
-	e.CycleFocus(3)
+	e.CycleFocus(views.FocusWorkspace)
 	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// This should not panic even with tiny dimensions
@@ -380,7 +380,7 @@ func TestWorkspacePicker_SelectionRestoration(t *testing.T) {
 	}
 
 	// Open picker
-	e.CycleFocus(3)
+	e.CycleFocus(views.FocusWorkspace)
 	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// Navigate to Gamma and select it
@@ -414,7 +414,7 @@ func TestWorkspacePicker_Filtering(t *testing.T) {
 	setEditorData(e, editorTestData{Workspaces: workspaces})
 
 	// Open picker
-	e.CycleFocus(3)
+	e.CycleFocus(views.FocusWorkspace)
 	e.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 
 	// All workspaces should be visible initially

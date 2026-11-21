@@ -514,7 +514,7 @@ func (m *Manager) switchAgentWithChoiceCore(
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return ctxErr
 	}
-	args := append(d.SetModel(card.Model), d.SetSession(conversationID)...)
+	args := activationArgs(d, card, conversationID)
 	h, errSpawn := d.Spawn(driver.AgentConfig{
 		Driver:            card.Driver,
 		Model:             card.Model,
@@ -783,7 +783,7 @@ func (m *Manager) startSessionCore(
 			}
 		}()
 	}
-	args := append(d.SetModel(card.Model), d.SetSession(conversationID)...)
+	args := activationArgs(d, card, conversationID)
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return m.cleanupNewTemporaryWorkspace(sid, card, isNew, ctxErr)
 	}
@@ -1378,4 +1378,10 @@ func (m *Manager) Shutdown() int {
 	close(m.shutdownDone)
 	m.mu.Unlock()
 	return len(live)
+}
+
+func activationArgs(d driver.AgentDriver, card config.IDCard, conversationID string) []string {
+	args := d.SetModel(card.Model)
+	args = append(args, d.SetReasoningEffort(card.ReasoningEffort)...)
+	return append(args, d.SetSession(conversationID)...)
 }
