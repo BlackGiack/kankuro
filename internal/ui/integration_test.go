@@ -70,6 +70,19 @@ func TestFullSessionLaunchFlow(t *testing.T) {
 			pending = append(pending, collectMsgs(t, followup)...)
 		}
 	}
+	_, cmd = coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	pending = collectMsgs(t, cmd)
+	for len(pending) > 0 {
+		msg := pending[0]
+		pending = pending[1:]
+		if result, ok := msg.(messages.SessionLaunchCompletedMsg); ok {
+			launch = result
+		}
+		_, followup := coord.Update(msg)
+		if followup != nil {
+			pending = append(pending, collectMsgs(t, followup)...)
+		}
+	}
 	if launch.Result.Effect != contracts.UsableActivation || launch.Result.SessionID == "" {
 		t.Fatalf("launch did not succeed: %+v", launch)
 	}

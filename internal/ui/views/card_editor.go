@@ -120,6 +120,7 @@ type CardEditorCallbacks struct {
 // CardEditor is the form for creating/editing ID cards.
 type CardEditor struct {
 	component.Base
+	*workspaceFields
 
 	// Text inputs
 	inputs []textinput.Model
@@ -130,26 +131,23 @@ type CardEditor struct {
 	mcpList     *components.CapabilityList
 
 	// Modals
-	workspacePicker *WorkspacePickerModal
-	puppetSelector  *PuppetSelectorModal
-	agentsMDEditor  *AgentsMDEditorModal
+	puppetSelector *PuppetSelectorModal
+	agentsMDEditor *AgentsMDEditorModal
 
 	// State
-	loaded                                                    contracts.CardEditorData
-	focusIndex                                                int
-	puppet                                                    string
-	workspaceID                                               string
-	subWorkspaceIDs                                           []string
-	subWorkspaceEdited, skillEdited, personaEdited, mcpEdited bool
-	useTmpWorkspace                                           bool
-	dashboardControl                                          bool
-	sharingEnabled                                            bool
-	readOnly                                                  bool
-	saveCompleted                                             bool
-	saving                                                    bool
-	shared                                                    bool
-	dashboardID                                               string
-	agentsMD                                                  AgentsMDState
+	loaded                                contracts.CardEditorData
+	focusIndex                            int
+	puppet                                string
+	skillEdited, personaEdited, mcpEdited bool
+	useTmpWorkspace                       bool
+	dashboardControl                      bool
+	sharingEnabled                        bool
+	readOnly                              bool
+	saveCompleted                         bool
+	saving                                bool
+	shared                                bool
+	dashboardID                           string
+	agentsMD                              AgentsMDState
 
 	// scrollOffset is the first form line shown when the form is taller than
 	// the editor. It is derived state: layout() keeps the focused block inside
@@ -157,12 +155,11 @@ type CardEditor struct {
 	scrollOffset int
 
 	// Data
-	workspaces []models.WorkspaceOption
-	skills     []models.EditorOption
-	personas   []models.EditorOption
-	mcps       []models.EditorOption
-	puppets    []models.PuppetOption
-	settings   models.EditorSettings
+	skills   []models.EditorOption
+	personas []models.EditorOption
+	mcps     []models.EditorOption
+	puppets  []models.PuppetOption
+	settings models.EditorSettings
 
 	callbacks CardEditorCallbacks
 }
@@ -216,7 +213,7 @@ func NewCardEditor(callbacks CardEditorCallbacks) *CardEditor {
 		skillList:       skillList,
 		personaList:     personaList,
 		mcpList:         mcpList,
-		workspacePicker: NewWorkspacePickerModal(),
+		workspaceFields: newWorkspaceFields(),
 		puppetSelector:  NewPuppetSelectorModal(),
 		agentsMDEditor:  NewAgentsMDEditorModal(),
 		puppet:          "kankuro",
@@ -344,13 +341,7 @@ func (e *CardEditor) MarkSaveCompleted() {
 
 // SetChoices applies independently successful option reads; failures retain the previous options.
 func (e *CardEditor) SetChoices(choices contracts.CardEditorChoices) {
-	if choices.Workspaces.Attempted && choices.Workspaces.Err == nil {
-		e.workspaces = make([]models.WorkspaceOption, 0, len(choices.Workspaces.Value))
-		for _, v := range choices.Workspaces.Value {
-			e.workspaces = append(e.workspaces, models.WorkspaceOption{ID: v.ID, Name: v.Name, Path: v.Path})
-		}
-		e.workspacePicker.SetWorkspaces(e.workspaces)
-	}
+	e.workspaceFields.setChoices(choices.Workspaces)
 	if choices.Skills.Attempted && choices.Skills.Err == nil {
 		e.skills = editorOptions(choices.Skills.Value)
 		e.skillList.SetItems(capabilityItems(e.skills))
@@ -667,15 +658,8 @@ func (e *CardEditor) handleEscape() {
 // handleSpace handles space key based on focus.
 func (e *CardEditor) handleSpace() bool {
 	switch e.focusIndex {
-	case FocusWorkspace:
-		e.workspacePicker.SetSelectedID(e.workspaceID)
-		e.workspacePicker.Open()
-		return true
-	case FocusSubWorkspaces:
-		e.workspacePicker.SetMultiple(true)
-		e.workspacePicker.SetExcludedID(e.workspaceID)
-		e.workspacePicker.SetSelectedIDs(e.subWorkspaceIDs)
-		e.workspacePicker.Open()
+	case FocusWorkspace, FocusSubWorkspaces:
+		e.workspaceFields.open(e.focusIndex == FocusSubWorkspaces)
 		return true
 	case FocusUseTmp:
 		e.useTmpWorkspace = !e.useTmpWorkspace
@@ -968,25 +952,7 @@ func (e *CardEditor) updateInputs(msg tea.Msg) tea.Cmd {
 
 // updateWorkspacePicker handles workspace picker modal.
 func (e *CardEditor) updateWorkspacePicker(msg tea.Msg) (component.Model, tea.Cmd) {
-	model, cmd := e.workspacePicker.Update(msg)
-	e.workspacePicker, _ = model.(*WorkspacePickerModal)
-
-	if e.workspacePicker.Confirmed() {
-		if e.focusIndex == FocusSubWorkspaces {
-			e.subWorkspaceIDs = e.workspacePicker.SelectedIDs()
-			e.subWorkspaceEdited = true
-			e.workspacePicker.SetMultiple(false)
-		} else {
-			e.workspaceID = e.workspacePicker.SelectedID()
-		}
-		e.workspacePicker.Close()
-	}
-
-	if e.workspacePicker.Cancelled() {
-		e.workspacePicker.Close()
-	}
-
-	return e, cmd
+	return e, e.workspaceFields.updatePicker(msg, e.focusIndex == FocusSubWorkspaces)
 }
 
 // updatePuppetSelector handles puppet selector modal.
@@ -1303,15 +1269,7 @@ const (
 
 // renderWorkspaceLine renders the workspace picker line.
 func (e *CardEditor) renderWorkspaceLine() string {
-	// Budget for the focused prefix in both states, so the line keeps its
-	// width when focus moves onto it.
-	line := workspaceLabel + e.fitField(e.WorkspaceSummary()+" (ctrl+e=sources)", len(focusMarker)+len(workspaceLabel))
-
-	if e.focusIndex == FocusWorkspace {
-		line = focusMarker + line
-		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(line)
-	}
-	return line
+	return e.workspaceFields.renderWorkspaceLine(e.Width, e.focusIndex == FocusWorkspace)
 }
 
 func (e *CardEditor) renderTmpWorkspaceLine() string {
@@ -1341,51 +1299,11 @@ func (e *CardEditor) renderDashboardControlLine() string {
 }
 
 func (e *CardEditor) renderSubWorkspacesLine() string {
-	names := make([]string, 0, len(e.subWorkspaceIDs))
-	for _, id := range e.subWorkspaceIDs {
-		name := id
-		for _, ws := range e.workspaces {
-			if ws.ID == id {
-				name = ws.Name
-				break
-			}
-		}
-		names = append(names, components.DisplayText(name))
-	}
-	value := "none"
-	if len(names) > 0 {
-		value = strings.Join(names, ", ")
-	}
-	label := "Sub Workspaces: "
-	hint := " (ctrl+e=sources)"
-	focused := e.focusIndex == FocusSubWorkspaces
-	if focused {
-		hint = " (ctrl+e=sources ctrl+x=clear)"
-	}
-	if e.Width > 0 {
-		value = components.TruncateHead(components.DisplayText(value),
-			e.Width-len(focusMarker)-len(label)-lipgloss.Width(hint))
-	}
-	line := label + value + hint
-	if focused {
-		line = focusMarker + line
-		return lipgloss.NewStyle().Foreground(styles.HighlightColor).Bold(true).Render(line)
-	}
-	return line
+	return e.workspaceFields.renderSubWorkspacesLine(e.Width, e.focusIndex == FocusSubWorkspaces)
 }
 
-// WorkspaceSummary returns a summary of the selected workspace.
-func (e *CardEditor) WorkspaceSummary() string {
-	if e.workspaceID == "" {
-		return "(none selected)"
-	}
-	for _, ws := range e.workspaces {
-		if ws.ID == e.workspaceID {
-			return ws.Name
-		}
-	}
-	return e.workspaceID
-}
+// WorkspaceSummary returns the selected workspace name or ID.
+func (e *CardEditor) WorkspaceSummary() string { return e.workspaceFields.summary() }
 
 // renderPuppetLine renders the puppet selector line.
 func (e *CardEditor) renderPuppetLine() string {

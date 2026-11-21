@@ -3,6 +3,7 @@
 package api
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,13 @@ type Repository interface {
 
 type workspaceLister interface {
 	ListWorkspaces() ([]config.Workspace, error)
+}
+
+// WorkspaceDiscovery is a registered workspace usable in an initial launch override.
+type WorkspaceDiscovery struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Path string `json:"path"`
 }
 
 // CardDiscovery contains only configuration fields useful for choosing a card.
@@ -200,6 +208,29 @@ func (s *Service) authorizeExistingOperation(caller CallerContext, operation Ope
 		}
 	}
 	return nil
+}
+
+// ListWorkspaces returns the global workspace registry to an authorized caller.
+func (s *Service) ListWorkspaces(token string) (CallerContext, []WorkspaceDiscovery, error) {
+	caller, err := s.ResolveCaller(token)
+	if err != nil {
+		return CallerContext{}, nil, err
+	}
+	choices := s.ReadWorkspaceChoices()
+	if choices.Err != nil {
+		return CallerContext{}, nil, fmt.Errorf("list workspaces: %w", choices.Err)
+	}
+	items := make([]WorkspaceDiscovery, 0, len(choices.Value))
+	for _, item := range choices.Value {
+		items = append(items, WorkspaceDiscovery{ID: item.ID, Name: item.Name, Path: item.Path})
+	}
+	slices.SortFunc(items, func(a, b WorkspaceDiscovery) int {
+		if order := cmp.Compare(a.Name, b.Name); order != 0 {
+			return order
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
+	return caller, items, nil
 }
 
 // ListCards authenticates and restricts destination cards in the shared service.

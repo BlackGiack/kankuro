@@ -229,3 +229,65 @@ func TestScopedStopCancellationWhileWaitingForAdmissionHasNoEffect(t *testing.T)
 		t.Fatalf("cancelled stop affected process: %+v", snapshot)
 	}
 }
+
+func TestLaunchWorkspaceOverridesDoNotChangeCard(t *testing.T) {
+	service, repo, manager, original, originalID := newServiceFixture(t)
+	other := t.TempDir()
+	if err := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: original}, {Path: other}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, err := repo.ListWorkspaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var otherID string
+	for _, ws := range workspaces {
+		if ws.Path == other {
+			otherID = ws.ID
+		}
+	}
+	card := saveCard(
+		t,
+		repo.FileRepository,
+		config.IDCard{Name: "override", Driver: "cat", WorkspaceID: originalID, DashboardID: DefaultDashboardID},
+	)
+	for _, ids := range [][]string{{}, {""}, {"unknown"}, {otherID, otherID}} {
+		result := service.LaunchSession(
+			context.Background(),
+			contracts.LaunchSessionRequest{DashboardID: DefaultDashboardID, CardID: card.ID, WorkspaceIDs: ids},
+		)
+		if result.Effect != contracts.NoEffect {
+			t.Fatalf("invalid IDs %v: %+v", ids, result)
+		}
+	}
+	result := service.LaunchSession(
+		context.Background(),
+		contracts.LaunchSessionRequest{DashboardID: DefaultDashboardID, CardID: card.ID, WorkspaceIDs: []string{otherID}},
+	)
+	if result.Effect != contracts.UsableActivation {
+		t.Fatalf("override launch: %+v", result)
+	}
+	snapshot, ok := manager.GetSession(result.SessionID)
+	if !ok || snapshot.WorkingDir != other || snapshot.OriginalDir != other {
+		t.Fatalf("override workspace: %+v", snapshot)
+	}
+	if killErr := manager.Kill(result.SessionID); killErr != nil {
+		t.Fatal(killErr)
+	}
+	if relaunchErr := service.RelaunchInDashboard(
+		context.Background(),
+		DefaultDashboardID,
+		result.SessionID,
+		session.ConversationChoice{New: true},
+	); relaunchErr != nil {
+		t.Fatal(relaunchErr)
+	}
+	relaunched, ok := manager.GetSession(result.SessionID)
+	if !ok || relaunched.WorkingDir != other || relaunched.OriginalDir != other {
+		t.Fatalf("relaunch changed workspace: %+v", relaunched)
+	}
+	saved, err := service.loadCard(card.ID)
+	if err != nil || saved.WorkspaceID != originalID {
+		t.Fatalf("card mutated: %+v %v", saved, err)
+	}
+}

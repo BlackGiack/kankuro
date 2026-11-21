@@ -70,7 +70,7 @@ func (c *Coordinator) invalidateSessionRequestsOnNavigation(vt ViewType) {
 	case c.currentView == ViewAgentSwitch && vt != ViewAgentSwitch && vt != ViewConversationChoice:
 		c.cancelConversationRead()
 	}
-	if c.currentView == ViewSessionLauncher && vt != ViewSessionLauncher {
+	if c.currentView == ViewSessionLauncher && vt != ViewSessionLauncher && vt != ViewSourceManagerWorkspaces {
 		c.renameRequest++
 		c.launchRequest++
 	}

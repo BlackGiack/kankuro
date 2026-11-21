@@ -59,6 +59,8 @@ func runLaunchFocus(j *nativeJourney) session.Data {
 	t := j.t
 	j.run.Stage = "launch"
 	j.press("Enter")
+	j.expect("Sub Workspaces:")
+	j.press("Enter")
 	j.expect("Session launched successfully!")
 	created := waitSession(t, j.configDir, 30*time.Second, func(data session.Data) bool {
 		return data.ID != "older-session" && data.CardID == j.card.ID && data.PID > 0

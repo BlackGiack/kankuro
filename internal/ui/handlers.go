@@ -110,9 +110,7 @@ func (c *Coordinator) handleDataLoaded(m messages.DataLoadedMsg) tea.Cmd {
 		c.configFingerprint = ""
 	}
 	c.applyDisplayChoices(m.Choices)
-	if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
-		editor.SetChoices(m.EditorChoices)
-	}
+	c.applyEditorChoices(m.EditorChoices)
 	if c.activeDashboard == "" {
 		for viewType, view := range c.views {
 			if viewType == ViewDashboard || viewType == ViewAgentSwitch || viewType == ViewConversationChoice ||
@@ -195,5 +193,14 @@ func (c *Coordinator) applyDisplayChoices(results contracts.DisplayChoicesResult
 		for i := range c.displayChoices.Puppets {
 			c.displayChoices.Puppets[i].Lines = append([]string(nil), results.Puppets.Value[i].Lines...)
 		}
+	}
+}
+
+func (c *Coordinator) applyEditorChoices(choices contracts.CardEditorChoices) {
+	if editor, ok := c.views[ViewCardEditor].(*views.CardEditor); ok {
+		editor.SetChoices(choices)
+	}
+	if launcher, ok := c.views[ViewSessionLauncher].(*views.SessionLauncher); ok {
+		launcher.SetWorkspaceChoices(choices)
 	}
 }

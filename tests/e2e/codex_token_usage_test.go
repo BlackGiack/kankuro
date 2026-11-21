@@ -191,6 +191,8 @@ func (j *nativeJourney) launchFixtureSender(card config.IDCard) session.Data {
 	j.press("Tab")
 	j.press("Down")
 	j.press("Enter")
+	j.expect("Sub Workspaces:")
+	j.press("Enter")
 	j.expect("Session launched successfully!")
 	sender := waitSession(j.t, j.configDir, 30*time.Second, func(d session.Data) bool { return d.CardID == card.ID && d.PID > 0 })
 	j.press("Enter")

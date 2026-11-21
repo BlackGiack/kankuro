@@ -2,6 +2,7 @@ package views_test
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -174,5 +175,101 @@ func TestSessionLauncherRejectsInvalidAndUncertainOutcomes(t *testing.T) {
 		if called || !strings.Contains(launcher.View(), "uncertain") {
 			t.Fatalf("unsafe result enabled naming: %+v", result)
 		}
+	}
+}
+
+func TestSessionLauncherWorkspaceDraft(t *testing.T) {
+	var calls int
+	var selection []string
+	launcher := views.NewSessionLauncher(
+		views.SessionLauncherCallbacks{OnLaunch: func(ids []string) tea.Cmd { calls++; selection = ids; return nil }},
+	)
+	launcher.SetSize(80, 21)
+	draft := contracts.LaunchPreparation{
+		Card:            contracts.CardSummary{ID: "c", Name: "Card"},
+		WorkspaceID:     "main",
+		SubWorkspaceIDs: []string{"sub"},
+		Workspaces: contracts.ReadResult[[]contracts.WorkspaceOption]{
+			Attempted: true,
+			Value:     []contracts.WorkspaceOption{{ID: "main", Name: "Main"}, {ID: "sub", Name: "Sub"}},
+		},
+	}
+	launcher.SetCard(draft.Card)
+	launcher.SetWorkspaceDraft(draft)
+	if view := launcher.View(); !strings.Contains(view, "Workspace: Main") || !strings.Contains(view, "Sub Workspaces: Sub") {
+		t.Fatalf("missing defaults: %s", view)
+	}
+	launcher.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	launcher.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if calls != 0 {
+		t.Fatal("picker confirmation launched session")
+	}
+	launcher.Update(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
+	launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if calls != 1 || len(selection) != 1 || selection[0] != "main" {
+		t.Fatalf("launch selection: %v calls %d", selection, calls)
+	}
+	launcher.Reset()
+	launcher.SetCard(draft.Card)
+	launcher.SetWorkspaceDraft(draft)
+	launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if calls != 2 || !reflect.DeepEqual(selection, []string{"main", "sub"}) {
+		t.Fatalf("untouched draft must submit displayed workspace IDs: %v", selection)
+	}
+}
+
+func TestSessionLauncherPromotesSubWorkspace(t *testing.T) {
+	var selected []string
+	launcher := views.NewSessionLauncher(
+		views.SessionLauncherCallbacks{OnLaunch: func(ids []string) tea.Cmd { selected = ids; return nil }},
+	)
+	launcher.SetSize(80, 21)
+	launcher.SetWorkspaceDraft(contracts.LaunchPreparation{
+		WorkspaceID:     "a",
+		SubWorkspaceIDs: []string{"b"},
+		Workspaces: contracts.ReadResult[[]contracts.WorkspaceOption]{
+			Attempted: true,
+			Value:     []contracts.WorkspaceOption{{ID: "a", Name: "A"}, {ID: "b", Name: "B"}},
+		},
+	})
+	launcher.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	launcher.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	launcher.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if len(selected) != 1 || selected[0] != "b" {
+		t.Fatalf("promoted selection = %v", selected)
+	}
+}
+
+func TestWorkspacePickerCtrlCMatchesEditor(t *testing.T) {
+	choices := contracts.ReadResult[[]contracts.WorkspaceOption]{Attempted: true, Value: []contracts.WorkspaceOption{{ID: "a", Name: "A"}}}
+	launcher := views.NewSessionLauncher(views.SessionLauncherCallbacks{})
+	launcher.SetSize(80, 21)
+	launcher.SetWorkspaceDraft(contracts.LaunchPreparation{WorkspaceID: "a", Workspaces: choices})
+	editor := views.NewCardEditor(views.CardEditorCallbacks{})
+	editor.SetSize(80, 21)
+	editor.SetChoices(contracts.CardEditorChoices{Workspaces: choices})
+	editor.LoadEditor(contracts.CardEditorData{CanEdit: true, Values: contracts.CardValues{WorkspaceID: "a"}})
+	for editor.FocusIndex() != views.FocusWorkspace {
+		editor.CycleFocus(1)
+	}
+	launcher.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	editor.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	if !strings.Contains(launcher.View(), "Select Workspace") || !strings.Contains(editor.View(), "Select Workspace") {
+		t.Fatal("workspace pickers did not open")
+	}
+	key := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
+	_, launcherCmd := launcher.Update(key)
+	_, editorCmd := editor.Update(key)
+	var launcherMsg, editorMsg tea.Msg
+	if launcherCmd != nil {
+		launcherMsg = launcherCmd()
+	}
+	if editorCmd != nil {
+		editorMsg = editorCmd()
+	}
+	if reflect.TypeOf(launcherMsg) != reflect.TypeOf(editorMsg) {
+		t.Fatalf("picker Ctrl+C: launcher %T, editor %T", launcherMsg, editorMsg)
 	}
 }

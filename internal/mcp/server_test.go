@@ -3,6 +3,7 @@ package mcp_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -31,6 +32,7 @@ type discoveryRegistrar struct {
 
 	mutationCalls int
 	lastRequestID string
+	workspaceErr  error
 }
 
 func (r *discoveryRegistrar) SendMessage(context.Context, string, string, string, string, string) (api.OperationResult, error) {
@@ -49,6 +51,13 @@ func (r *discoveryRegistrar) GetReplies(context.Context, string, string, string,
 func (r *discoveryRegistrar) ResolveCaller(string) (api.CallerContext, error) {
 	return api.CallerContext{SessionID: "caller", DashboardID: api.DefaultDashboardID, DashboardControl: true}, nil
 }
+func (r *discoveryRegistrar) ListWorkspaces(string) (api.CallerContext, []api.WorkspaceDiscovery, error) {
+	return api.CallerContext{
+		SessionID:        "caller",
+		DashboardID:      api.DefaultDashboardID,
+		DashboardControl: true,
+	}, []api.WorkspaceDiscovery{}, r.workspaceErr
+}
 func (*discoveryRegistrar) ListCards(string) ([]api.CardDiscovery, error) {
 	return nil, nil
 }
@@ -56,7 +65,13 @@ func (*discoveryRegistrar) ListSessions(string) ([]api.SessionDiscovery, error) 
 func (*discoveryRegistrar) GetSession(string, string) (api.SessionInspection, error) {
 	return api.SessionInspection{}, nil
 }
-func (r *discoveryRegistrar) CreateSession(_ context.Context, _ string, requestID, _ string, _ ...*string) (api.OperationResult, error) {
+
+func (r *discoveryRegistrar) CreateSessionWithOptions(
+	_ context.Context,
+	_ string,
+	requestID, _ string,
+	_ api.CreateSessionOptions,
+) (api.OperationResult, error) {
 	r.mutationCalls++
 	r.lastRequestID = requestID
 	if requestID == "bad-request" {
@@ -242,9 +257,20 @@ func TestMCPRegistersLifecycleAndDiscoveryTools(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]bool{"register_conversation": false, "list_cards": false, "list_sessions": false, "get_session": false,
-		"create_session": false, "stop_session": false, "relaunch_session": false, "switch_session_card": false,
-		"delete_session": false, "get_operation": false, "cancel_operation": false}
+	want := map[string]bool{
+		"register_conversation": false,
+		"list_cards":            false,
+		"list_workspaces":       false,
+		"list_sessions":         false,
+		"get_session":           false,
+		"create_session":        false,
+		"stop_session":          false,
+		"relaunch_session":      false,
+		"switch_session_card":   false,
+		"delete_session":        false,
+		"get_operation":         false,
+		"cancel_operation":      false,
+	}
 	want["send_message"], want["get_message"], want["report_reply"], want["get_replies"] = false, false, false, false
 	for _, tool := range listed.Tools {
 		if _, ok := want[tool.Name]; ok {
@@ -255,6 +281,14 @@ func TestMCPRegistersLifecycleAndDiscoveryTools(t *testing.T) {
 		if !found {
 			t.Errorf("MCP tool %q was not registered", name)
 		}
+	}
+	empty, emptyErr := clientSession.CallTool(ctx, &sdk.CallToolParams{Name: "list_workspaces", Arguments: map[string]any{}})
+	if emptyErr != nil || empty == nil || empty.IsError {
+		t.Fatalf("empty workspaces: %#v %v", empty, emptyErr)
+	}
+	emptyJSON, emptyEncodeErr := json.Marshal(empty.StructuredContent)
+	if emptyEncodeErr != nil || !strings.Contains(string(emptyJSON), `"items":[]`) {
+		t.Fatalf("empty workspace envelope: %s %v", emptyJSON, emptyEncodeErr)
 	}
 	requestID := uuid.NewString()
 	called, err := clientSession.CallTool(ctx, &sdk.CallToolParams{
@@ -348,13 +382,31 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	if writeErr := os.WriteFile(filepath.Join(subWorkspace, "subproject.txt"), []byte("subproject source"), 0o600); writeErr != nil {
 		t.Fatal(writeErr)
 	}
-	if saveWorkspaceErr := repository.SaveWorkspaceSources([]config.WorkspaceSource{
+	workspaceSources := []config.WorkspaceSource{
 		{Path: callerWorkspace}, {Path: projectWorkspace}, {Path: subWorkspace},
-	}); saveWorkspaceErr != nil {
+	}
+	overrideRoot, resolveOverrideRootErr := filepath.EvalSymlinks(t.TempDir())
+	if resolveOverrideRootErr != nil {
+		t.Fatal(resolveOverrideRootErr)
+	}
+	overrideMain := filepath.Join(overrideRoot, "override-main")
+	overrideSubA := filepath.Join(overrideRoot, "override-sub-a")
+	overrideSubB := filepath.Join(overrideRoot, "override-sub-b")
+	const markerFile = "workspace-source.txt"
+	for _, path := range []string{overrideMain, overrideSubA, overrideSubB} {
+		if mkdirErr := os.Mkdir(path, 0o700); mkdirErr != nil {
+			t.Fatal(mkdirErr)
+		}
+		if writeErr := os.WriteFile(filepath.Join(path, markerFile), []byte(filepath.Base(path)), 0o600); writeErr != nil {
+			t.Fatal(writeErr)
+		}
+		workspaceSources = append(workspaceSources, config.WorkspaceSource{Path: path})
+	}
+	if saveWorkspaceErr := repository.SaveWorkspaceSources(workspaceSources); saveWorkspaceErr != nil {
 		t.Fatal(saveWorkspaceErr)
 	}
 	workspaces, listWorkspacesErr := repository.ListWorkspaces()
-	if listWorkspacesErr != nil || len(workspaces) != 3 {
+	if listWorkspacesErr != nil || len(workspaces) != len(workspaceSources) {
 		t.Fatalf("list fixture workspace: %v (%d workspaces)", listWorkspacesErr, len(workspaces))
 	}
 	workspaceID := func(path string) string {
@@ -468,11 +520,13 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 				InMemoryRemoved           bool   `json:"in_memory_removed"`
 				Inspection                struct {
 					WorkingDir           string `json:"working_dir"`
+					OriginalDir          string `json:"original_dir"`
 					ActiveConversationID string `json:"active_conversation_id"`
 					Conversations        map[string][]struct {
 						ID string `json:"id"`
 					} `json:"conversations"`
 					SubWorkspaces []struct {
+						WorkspaceID     string `json:"workspace_id"`
 						SourcePath      string `json:"source_path"`
 						DestinationPath string `json:"destination_path"`
 					} `json:"sub_workspaces"`
@@ -515,6 +569,143 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 		t.Cleanup(func() { closeTestClientSession(t, agentSession, agentHTTPTransport) })
 		return agentSession
 	}
+	for _, value := range []any{nil, []string{}} {
+		result, callErr := clientSession.CallTool(
+			ctx,
+			&sdk.CallToolParams{
+				Name:      "create_session",
+				Arguments: map[string]any{"request_id": uuid.NewString(), "card_id": firstCard.ID, "workspace_ids": value},
+			},
+		)
+		if callErr == nil && (result == nil || !result.IsError) {
+			t.Fatalf("invalid workspace_ids %#v accepted: %#v", value, result)
+		}
+	}
+	overrideRequest := uuid.NewString()
+	overrideArgs := map[string]any{
+		"request_id":    overrideRequest,
+		"card_id":       firstCard.ID,
+		"workspace_ids": []string{workspaceID(projectWorkspace)},
+	}
+	overridden := call("create_session", overrideArgs)
+	if overridden.Operation.State != "succeeded" || len(overridden.Operation.Result.Inspection.SubWorkspaces) != 0 ||
+		overridden.Operation.Result.Inspection.WorkingDir == projectWorkspace {
+		t.Fatalf("temporary main-only override: %+v", overridden.Operation)
+	}
+	replayOverride := call("create_session", overrideArgs)
+	if replayOverride.Operation.ID != overridden.Operation.ID {
+		t.Fatalf("override retry produced another operation: %+v", replayOverride.Operation)
+	}
+	changed, changedErr := clientSession.CallTool(
+		ctx,
+		&sdk.CallToolParams{
+			Name: "create_session",
+			Arguments: map[string]any{
+				"request_id":    overrideRequest,
+				"card_id":       firstCard.ID,
+				"workspace_ids": []string{workspaceID(projectWorkspace), workspaceID(subWorkspace)},
+			},
+		},
+	)
+	if changedErr == nil && (changed == nil || !changed.IsError) {
+		t.Fatalf("changed override retry accepted: %#v", changed)
+	}
+	if err := manager.Kill(overridden.Operation.TargetSession); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Remove(overridden.Operation.TargetSession); err != nil {
+		t.Fatal(err)
+	}
+
+	workspaceResult, workspaceErr := clientSession.CallTool(ctx, &sdk.CallToolParams{Name: "list_workspaces", Arguments: map[string]any{}})
+	if workspaceErr != nil || workspaceResult == nil || workspaceResult.IsError {
+		t.Fatalf("list_workspaces: %#v %v", workspaceResult, workspaceErr)
+	}
+	encodedWorkspaces, encodeErr := json.Marshal(workspaceResult.StructuredContent)
+	if encodeErr != nil {
+		t.Fatal(encodeErr)
+	}
+	var discovered struct {
+		Items []api.WorkspaceDiscovery `json:"items"`
+	}
+	if decodeErr := json.Unmarshal(encodedWorkspaces, &discovered); decodeErr != nil {
+		t.Fatal(decodeErr)
+	}
+	discoveredID := func(path string) string {
+		t.Helper()
+		for _, item := range discovered.Items {
+			if item.Path == path {
+				return item.ID
+			}
+		}
+		t.Fatalf("unreferenced workspace %s missing from %s", path, encodedWorkspaces)
+		return ""
+	}
+	multipleRequest := uuid.NewString()
+	multipleArgs := map[string]any{
+		"request_id":    multipleRequest,
+		"card_id":       firstCard.ID,
+		"workspace_ids": []string{discoveredID(overrideMain), discoveredID(overrideSubA), discoveredID(overrideSubB)},
+	}
+	multiple := call("create_session", multipleArgs).Operation
+	inspection := multiple.Result.Inspection
+	if multiple.State != "succeeded" || multiple.TargetSession == "" || multiple.Result.SessionID != multiple.TargetSession {
+		t.Fatalf("create with multiple explicit workspace IDs: %+v", multiple)
+	}
+	if inspection.OriginalDir != overrideMain || inspection.WorkingDir == overrideMain || inspection.WorkingDir == "" {
+		t.Fatalf("multiple overrides used unexpected workspace paths: %+v", inspection)
+	}
+	assertWorkspaceCopy := func(source, destination string) {
+		t.Helper()
+		marker, readErr := os.ReadFile(filepath.Join(destination, markerFile))
+		if want := filepath.Base(source); readErr != nil || string(marker) != want {
+			t.Fatalf("workspace copy at %q: marker %q, want %q (read error: %v)", destination, marker, want, readErr)
+		}
+	}
+	assertWorkspaceCopy(overrideMain, inspection.WorkingDir)
+	canonicalWorkingDir, resolveWorkingDirErr := filepath.EvalSymlinks(inspection.WorkingDir)
+	if resolveWorkingDirErr != nil {
+		t.Fatal(resolveWorkingDirErr)
+	}
+	wantSubWorkspaces := []string{overrideSubA, overrideSubB}
+	if len(inspection.SubWorkspaces) != len(wantSubWorkspaces) {
+		t.Fatalf("reported sub-workspaces = %+v, want only %q", inspection.SubWorkspaces, wantSubWorkspaces)
+	}
+	for i, source := range wantSubWorkspaces {
+		copyPath := filepath.Join(canonicalWorkingDir, "tmp", filepath.Base(source))
+		got := inspection.SubWorkspaces[i]
+		if got.WorkspaceID != discoveredID(source) || got.SourcePath != source || got.DestinationPath != copyPath {
+			t.Fatalf("reported sub-workspace %d = %+v, want source %q copied to %q", i, got, source, copyPath)
+		}
+		assertWorkspaceCopy(source, copyPath)
+	}
+	defaultSubCopy := filepath.Join(canonicalWorkingDir, "tmp", filepath.Base(subWorkspace))
+	if _, statErr := os.Stat(defaultSubCopy); !os.IsNotExist(statErr) {
+		t.Fatalf("expected default sub-workspace copy %q to be absent, stat error: %v", defaultSubCopy, statErr)
+	}
+	replayedMultiple := call("create_session", multipleArgs).Operation
+	if replayedMultiple.ID != multiple.ID || replayedMultiple.TargetSession != multiple.TargetSession {
+		t.Fatalf("multiple-workspace retry did not replay the original operation: %+v", replayedMultiple)
+	}
+	reordered, reorderedErr := clientSession.CallTool(ctx, &sdk.CallToolParams{
+		Name: "create_session",
+		Arguments: map[string]any{
+			"request_id":    multipleRequest,
+			"card_id":       firstCard.ID,
+			"workspace_ids": []string{discoveredID(overrideMain), discoveredID(overrideSubB), discoveredID(overrideSubA)},
+		},
+	})
+	if reorderedErr != nil {
+		t.Fatal(reorderedErr)
+	}
+	assertMCPErrorCode(t, reordered, "request_id_conflict")
+	if killErr := manager.Kill(multiple.TargetSession); killErr != nil {
+		t.Fatal(killErr)
+	}
+	if removeErr := manager.Remove(multiple.TargetSession); removeErr != nil {
+		t.Fatal(removeErr)
+	}
+
 	requestID := uuid.NewString()
 	created := call("create_session", map[string]any{"request_id": requestID, "card_id": firstCard.ID})
 	targetID := created.Operation.TargetSession
@@ -610,6 +801,13 @@ func TestRealServiceLifecycleResultsOverMCP(t *testing.T) {
 	page, pageErr := manager.Messages().GetReplies(api.DefaultDashboardID, messageID, "", 0)
 	if pageErr != nil || len(page.Items) != 2 || page.Items[0].Kind != "progress" || page.Items[1].Kind != "completed" {
 		t.Fatalf("correlated reports = %#v, %v", page, pageErr)
+	}
+	deniedWorkspaces, deniedWorkspacesErr := targetClientSession.CallTool(
+		ctx,
+		&sdk.CallToolParams{Name: "list_workspaces", Arguments: map[string]any{}},
+	)
+	if deniedWorkspacesErr != nil || deniedWorkspaces == nil || !deniedWorkspaces.IsError {
+		t.Fatalf("registration-only workspace discovery was not rejected: result=%#v err=%v", deniedWorkspaces, deniedWorkspacesErr)
 	}
 	deniedLifecycle, deniedLifecycleErr := targetClientSession.CallTool(ctx, &sdk.CallToolParams{
 		Name: "create_session", Arguments: map[string]any{"request_id": uuid.NewString(), "card_id": secondCard.ID},
@@ -848,5 +1046,40 @@ func TestRejectsInvalidHostAndOrigin(t *testing.T) {
 				t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusForbidden)
 			}
 		})
+	}
+}
+
+func TestMCPWorkspaceDiscoveryReadFailure(t *testing.T) {
+	registrar := &discoveryRegistrar{workspaceErr: errors.New("registry unavailable")}
+	runtime, err := mcp.Start(registrar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), testShutdownTimeout)
+		defer cancel()
+		if shutdownErr := runtime.Shutdown(ctx); shutdownErr != nil {
+			t.Error(shutdownErr)
+		}
+	})
+	client := sdk.NewClient(&sdk.Implementation{Name: "workspace-read-error-test", Version: "test"}, nil)
+	httpTransport := &http.Transport{DisableKeepAlives: true}
+	ctx, cancel := context.WithTimeout(context.Background(), testShutdownTimeout)
+	defer cancel()
+	connection, err := client.Connect(
+		ctx,
+		&sdk.StreamableClientTransport{
+			Endpoint:   runtime.Endpoint(),
+			HTTPClient: &http.Client{Transport: authRoundTripper{next: httpTransport}},
+		},
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeTestClientSession(t, connection, httpTransport)
+	result, callErr := connection.CallTool(ctx, &sdk.CallToolParams{Name: "list_workspaces", Arguments: map[string]any{}})
+	if callErr != nil || result == nil || !result.IsError {
+		t.Fatalf("workspace read failure: %#v %v", result, callErr)
 	}
 }

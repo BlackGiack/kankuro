@@ -166,3 +166,23 @@ func TestCardEditorWorkspaceSearchRefreshKeepsVisibleChoice(t *testing.T) {
 		t.Fatalf("visible choice not submitted: %+v", draft.Changes.WorkspaceID)
 	}
 }
+
+func TestCardEditorPromotesSubWorkspace(t *testing.T) {
+	editor := views.NewCardEditor(views.CardEditorCallbacks{})
+	editor.SetChoices(contracts.CardEditorChoices{Workspaces: contracts.ReadResult[[]contracts.WorkspaceOption]{
+		Attempted: true, Value: []contracts.WorkspaceOption{{ID: "a", Name: "A"}, {ID: "b", Name: "B"}},
+	}})
+	editor.LoadEditor(
+		contracts.CardEditorData{CanEdit: true, Values: contracts.CardValues{WorkspaceID: "a", SubWorkspaceIDs: []string{"b"}}},
+	)
+	for editor.FocusIndex() != views.FocusWorkspace {
+		editor.CycleFocus(1)
+	}
+	editor.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	editor.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	editor.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	draft := editor.Draft()
+	if draft.Values.WorkspaceID != "b" || len(draft.Values.SubWorkspaceIDs) != 0 || !draft.Changes.SubWorkspaceIDs.Present {
+		t.Fatalf("promotion draft: %+v", draft)
+	}
+}

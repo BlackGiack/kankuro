@@ -1,7 +1,14 @@
 # KANKURO Appedia
 
-Open [index.html](index.html) directly in a browser. This snapshot describes
-the reasoning-effort feature on frontend boundary roadmap commit `110865d`.
+Open [index.html](index.html) directly in a browser. This snapshot covers the
+workspace feature source at `e741572` on the rebased frontend boundary roadmap.
+
+Follow [workspace selection](index.html#flow-launch-workspace-selection) for the
+dashboard launch form. [MCP workspace discovery](index.html#flow-mcp-workspace-discovery)
+shows which callers can list the global registry, and
+[MCP workspace creation](index.html#flow-mcp-workspace-create) shows how ordered
+IDs enter the initial launch. The Tests tab links the real MCP HTTP test that
+discovers IDs unused by any card and launches with them.
 
 The card editor loads and persists an optional effort beside Model. Follow
 [the activation flow](index.html#flow-reasoning-effort-activation) to see how the

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -47,19 +48,28 @@ func TestDashboardScopeOverHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	workspace := t.TempDir()
-	if errAt50 := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: workspace}}); errAt50 != nil {
+	workspace, unreferenced := t.TempDir(), t.TempDir()
+	if errAt50 := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: workspace}, {Path: unreferenced}}); errAt50 != nil {
 		t.Fatal(errAt50)
 	}
 	sources, err := repo.ListWorkspaces()
-	if err != nil || len(sources) != 1 {
+	if err != nil || len(sources) != 2 {
 		t.Fatalf("workspace: %v %v", sources, err)
+	}
+	var primaryID string
+	for _, source := range sources {
+		if source.Path == workspace {
+			primaryID = source.ID
+		}
+	}
+	if primaryID == "" {
+		t.Fatal("primary workspace not found")
 	}
 	card, err := repo.CreateIDCard(
 		config.IDCard{
 			Name:             "shared",
 			Driver:           "cat",
-			WorkspaceID:      sources[0].ID,
+			WorkspaceID:      primaryID,
 			DashboardID:      "default",
 			Shared:           true,
 			UseTmpWorkspace:  true,
@@ -69,6 +79,14 @@ func TestDashboardScopeOverHTTP(t *testing.T) {
 	)
 	if err != nil {
 		t.Fatal(err)
+	}
+	ownedCards := map[string]string{}
+	for _, dashboard := range []string{"default", second.ID} {
+		owned, createErr := repo.CreateIDCard(config.IDCard{Name: "private", Driver: "cat", WorkspaceID: primaryID, DashboardID: dashboard})
+		if createErr != nil {
+			t.Fatal(createErr)
+		}
+		ownedCards[dashboard] = owned.ID
 	}
 	manager := session.NewManager(root, repo, session.WithStartupDelay(0))
 	t.Cleanup(func() { manager.Shutdown() })
@@ -95,6 +113,7 @@ func TestDashboardScopeOverHTTP(t *testing.T) {
 			ids[dashboard] = append(ids[dashboard], id)
 		}
 	}
+	var globalWorkspaces []api.WorkspaceDiscovery
 	for dashboard, sessionIDs := range ids {
 		item, ok := manager.GetSession(sessionIDs[0])
 		if !ok {
@@ -130,6 +149,44 @@ func TestDashboardScopeOverHTTP(t *testing.T) {
 		if errAt104 != nil {
 			cancel()
 			t.Fatal(errAt104)
+		}
+		workspaceResult, workspaceErr := connection.CallTool(ctx, &sdk.CallToolParams{Name: "list_workspaces", Arguments: map[string]any{}})
+		if workspaceErr != nil || workspaceResult == nil || workspaceResult.IsError {
+			t.Fatalf("list_workspaces: %v %#v", workspaceErr, workspaceResult)
+		}
+		workspaceJSON, marshalErr := json.Marshal(workspaceResult.StructuredContent)
+		if marshalErr != nil {
+			t.Fatal(marshalErr)
+		}
+		var workspaceResponse struct {
+			Items []api.WorkspaceDiscovery `json:"items"`
+		}
+		if decodeErr := json.Unmarshal(workspaceJSON, &workspaceResponse); decodeErr != nil {
+			t.Fatal(decodeErr)
+		}
+		if len(workspaceResponse.Items) != 2 {
+			t.Fatalf("global workspaces: %s", workspaceJSON)
+		}
+		if globalWorkspaces == nil {
+			globalWorkspaces = workspaceResponse.Items
+		} else if !reflect.DeepEqual(globalWorkspaces, workspaceResponse.Items) {
+			t.Fatalf("global registry differs: %+v vs %+v", globalWorkspaces, workspaceResponse.Items)
+		}
+		cardResult, cardErr := connection.CallTool(ctx, &sdk.CallToolParams{Name: "list_cards", Arguments: map[string]any{}})
+		if cardErr != nil || cardResult == nil || cardResult.IsError {
+			t.Fatalf("list_cards: %v %#v", cardErr, cardResult)
+		}
+		cardJSON, marshalErr := json.Marshal(cardResult.StructuredContent)
+		if marshalErr != nil {
+			t.Fatal(marshalErr)
+		}
+		if !strings.Contains(string(cardJSON), ownedCards[dashboard]) {
+			t.Fatalf("own card missing: %s", cardJSON)
+		}
+		for other, cardID := range ownedCards {
+			if other != dashboard && strings.Contains(string(cardJSON), cardID) {
+				t.Fatalf("foreign card exposed: %s", cardJSON)
+			}
 		}
 		result, errAt104 := connection.CallTool(ctx, &sdk.CallToolParams{Name: "list_sessions", Arguments: map[string]any{}})
 		if errAt104 != nil || result.IsError {

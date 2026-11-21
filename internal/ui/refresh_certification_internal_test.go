@@ -223,3 +223,7 @@ func emptySuccessfulChoices() contracts.DisplayChoicesResult {
 		Puppets:  contracts.ReadResult[[]contracts.PuppetChoice]{Attempted: true, Value: []contracts.PuppetChoice{}},
 	}
 }
+
+func (*certificationReader) ReadLaunchPreparation(string, string) (contracts.LaunchPreparation, error) {
+	return contracts.LaunchPreparation{}, nil
+}

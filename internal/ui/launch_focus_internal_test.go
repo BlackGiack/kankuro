@@ -2,6 +2,8 @@ package ui
 
 import (
 	"errors"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -309,5 +311,181 @@ func TestLaunchTransitionCannotNavigateAfterLeavingOrNewerLaunch(t *testing.T) {
 	coordinator.Update(newMessages[0])
 	if !launcher.LaunchDone() {
 		t.Fatal("new launch completion was not accepted")
+	}
+}
+
+func startWorkspaceLaunchDraft(t *testing.T, c *Coordinator, cardID string) {
+	t.Helper()
+	c.launchRequest++
+	c.launchCardID = cardID
+	card := contracts.CardSummary{ID: cardID, Name: cardID}
+	preparation := contracts.LaunchPreparation{Card: card, WorkspaceID: "main"}
+	c.Update(messages.DashboardCardLoadedMsg{
+		DashboardID: c.activeDashboard, Generation: c.viewGeneration, Request: c.launchRequest,
+		CardID: cardID, Card: card, Preparation: &preparation, Action: messages.DashboardCardLaunch,
+	})
+	if c.currentView != ViewSessionLauncher {
+		t.Fatal("workspace draft did not open")
+	}
+}
+
+func TestWorkspaceDraftCancelBlocksQueuedEnter(t *testing.T) {
+	c, _ := newLaunchFocusCoordinator(t)
+	port := &fakeSessionPort{}
+	c.actions.port = port
+	startWorkspaceLaunchDraft(t, c, "card")
+	_, cancel := c.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	_, launch := c.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if launch != nil {
+		for _, msg := range collectMsgs(launch) {
+			c.Update(msg)
+		}
+	}
+	if port.launchCalls != 0 {
+		t.Fatal("Enter launched after cancellation")
+	}
+	if cancel == nil {
+		t.Fatal("cancellation did not produce navigation")
+	}
+	c.Update(cancel())
+	if c.currentView != ViewDashboard {
+		t.Fatalf("cancel returned to %v", c.currentView)
+	}
+}
+
+func TestWorkspaceSourcesNavigationIsScopedToDraft(t *testing.T) {
+	c, _, _, _ := newLaunchFocusCoordinatorWithRepo(t)
+	startWorkspaceLaunchDraft(t, c, "first")
+	_, staleSource := c.Update(tea.KeyPressMsg{Code: 'e', Mod: tea.ModCtrl})
+	_, cancel := c.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	c.Update(cancel())
+	c.Update(staleSource())
+	if c.currentView != ViewDashboard {
+		t.Fatalf("stale source navigation opened %v", c.currentView)
+	}
+	startWorkspaceLaunchDraft(t, c, "second")
+	c.Update(staleSource())
+	if c.currentView != ViewSessionLauncher {
+		t.Fatal("stale source navigation interrupted later draft")
+	}
+	_, validSource := c.Update(tea.KeyPressMsg{Code: 'e', Mod: tea.ModCtrl})
+	c.Update(validSource())
+	if c.currentView != ViewSourceManagerWorkspaces {
+		t.Fatalf("source navigation opened %v", c.currentView)
+	}
+	c.Update(messages.NavigateBackMsg{})
+	if c.currentView != ViewSessionLauncher {
+		t.Fatalf("source return opened %v", c.currentView)
+	}
+	launcher := c.views[ViewSessionLauncher].(*views.SessionLauncher)
+	if !launcher.WorkspaceDraftActive() || launcher.Card().ID != "second" {
+		t.Fatal("source visit lost the draft")
+	}
+	_, cancel = c.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+	c.Update(cancel())
+	if c.currentView != ViewDashboard {
+		t.Fatalf("cancel after source return opened %v", c.currentView)
+	}
+}
+
+func TestWorkspaceSourcesNavigationRejectedAfterSubmission(t *testing.T) {
+	c, _ := newLaunchFocusCoordinator(t)
+	startWorkspaceLaunchDraft(t, c, "card")
+	_, source := c.Update(tea.KeyPressMsg{Code: 'e', Mod: tea.ModCtrl})
+	c.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	c.Update(source())
+	if c.currentView != ViewSessionLauncher {
+		t.Fatal("stale source navigation interrupted launch")
+	}
+}
+
+func TestWorkspaceDraftCtrlCQuits(t *testing.T) {
+	coordinator, _ := newLaunchFocusCoordinator(t)
+	startWorkspaceLaunchDraft(t, coordinator, "card")
+	_, cmd := coordinator.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	messages := collectMsgs(cmd)
+	if len(messages) != 1 {
+		t.Fatalf("Ctrl+C commands: %v", messages)
+	}
+	if _, ok := messages[0].(tea.QuitMsg); !ok {
+		t.Fatalf("Ctrl+C returned %T, want tea.QuitMsg", messages[0])
+	}
+}
+
+func TestLaunchUsesDisplayedWorkspaceAfterCardEdit(t *testing.T) {
+	coordinator, _, repo, manager := newLaunchFocusCoordinatorWithRepo(t)
+	mainDir, changedDir := t.TempDir(), t.TempDir()
+	if err := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: mainDir}, {Path: changedDir}}); err != nil {
+		t.Fatal(err)
+	}
+	workspaces, err := repo.ListWorkspaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mainID, changedID string
+	for _, ws := range workspaces {
+		if ws.Path == mainDir {
+			mainID = ws.ID
+		}
+		if ws.Path == changedDir {
+			changedID = ws.ID
+		}
+	}
+	card, err := repo.CreateIDCard(config.IDCard{Name: "launch", Driver: "cat", WorkspaceID: mainID, DashboardID: "default"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	load := coordinator.dashboardCallbacks().OnLaunchCard(card.ID)
+	coordinator.Update(load())
+	launcher := coordinator.views[ViewSessionLauncher].(*views.SessionLauncher)
+	if !strings.Contains(launcher.View(), filepath.Base(mainDir)) {
+		t.Fatalf("main workspace absent from form: %s", launcher.View())
+	}
+	card.WorkspaceID = changedID
+	if _, err = repo.UpdateIDCard(card); err != nil {
+		t.Fatal(err)
+	}
+	_, launch := coordinator.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	result, ok := launch().(messages.SessionLaunchCompletedMsg)
+	if !ok || result.Result.Effect != contracts.UsableActivation {
+		t.Fatalf("launch result: %+v", result)
+	}
+	snapshot, ok := manager.GetSession(result.Result.SessionID)
+	if !ok || snapshot.WorkingDir != mainDir {
+		t.Fatalf("launched workspace: %+v", snapshot)
+	}
+}
+
+func TestLaunchPreparationWorkspaceErrorKeepsCachedChoices(t *testing.T) {
+	coordinator, _ := newLaunchFocusCoordinator(t)
+	launcher := coordinator.views[ViewSessionLauncher].(*views.SessionLauncher)
+	launcher.SetWorkspaceChoices(contracts.CardEditorChoices{Workspaces: contracts.ReadResult[[]contracts.WorkspaceOption]{
+		Attempted: true, Value: []contracts.WorkspaceOption{{ID: "main", Name: "Cached workspace", Path: "/cached"}},
+	}})
+	coordinator.launchRequest, coordinator.launchCardID = 1, "card"
+	card := contracts.CardSummary{ID: "card", Name: "Card"}
+	failure := errors.New("workspace registry unavailable")
+	preparation := contracts.LaunchPreparation{
+		Card:        card,
+		WorkspaceID: "main",
+		Workspaces:  contracts.ReadResult[[]contracts.WorkspaceOption]{Attempted: true, Err: failure},
+	}
+	stale := messages.DashboardCardLoadedMsg{DashboardID: coordinator.activeDashboard, Generation: coordinator.viewGeneration,
+		Request: 0, CardID: card.ID, Card: card, Action: messages.DashboardCardLaunch, Preparation: &preparation}
+	coordinator.Update(stale)
+	if coordinator.err != nil || coordinator.currentView != ViewDashboard {
+		t.Fatal("stale registry failure changed the current view")
+	}
+	stale.Request = 1
+	coordinator.Update(stale)
+	if !errors.Is(coordinator.err, failure) || !strings.Contains(coordinator.View(), failure.Error()) {
+		t.Fatalf("missing registry error: %v", coordinator.err)
+	}
+	if !strings.Contains(launcher.View(), "Cached workspace") {
+		t.Fatalf("cached workspace missing from draft: %s", launcher.View())
+	}
+	coordinator.Update(tea.KeyPressMsg{Code: tea.KeySpace})
+	if !strings.Contains(launcher.View(), "Cached workspace") {
+		t.Fatalf("cached workspace missing from picker: %s", launcher.View())
 	}
 }

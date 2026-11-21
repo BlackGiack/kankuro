@@ -31,9 +31,10 @@ type registrar interface {
 type discoveryService interface {
 	ResolveCaller(string) (api.CallerContext, error)
 	ListCards(string) ([]api.CardDiscovery, error)
+	ListWorkspaces(string) (api.CallerContext, []api.WorkspaceDiscovery, error)
 	ListSessions(string) ([]api.SessionDiscovery, error)
 	GetSession(string, string) (api.SessionInspection, error)
-	CreateSession(context.Context, string, string, string, ...*string) (api.OperationResult, error)
+	CreateSessionWithOptions(context.Context, string, string, string, api.CreateSessionOptions) (api.OperationResult, error)
 	StopSession(context.Context, string, string, string) (api.OperationResult, error)
 	RelaunchSession(context.Context, string, string, string, *api.ConversationRequest) (api.OperationResult, error)
 	SwitchSessionCard(context.Context, string, string, string, string, *api.ConversationRequest) (api.OperationResult, error)
@@ -61,9 +62,24 @@ type sessionInput struct {
 }
 
 type createSessionInput struct {
-	RequestID string  `json:"request_id"     jsonschema:"caller-generated UUID, stable across retries"`
-	CardID    string  `json:"card_id"`
-	Name      *string `json:"name,omitempty"`
+	RequestID    string       `json:"request_id"              jsonschema:"caller-generated UUID, stable across retries"`
+	CardID       string       `json:"card_id"`
+	Name         *string      `json:"name,omitempty"`
+	WorkspaceIDs workspaceIDs `json:"workspace_ids,omitempty" jsonschema:"ordered workspace IDs: main first, followed by sub-workspaces"`
+}
+
+type workspaceIDs []string
+
+func (ids *workspaceIDs) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return errors.New("workspace_ids must be an array")
+	}
+	var values []string
+	if err := json.Unmarshal(data, &values); err != nil {
+		return err
+	}
+	*ids = values
+	return nil
 }
 
 type targetSessionInput struct {
@@ -212,6 +228,13 @@ func addDiscoveryTools(server *sdk.Server, service discoveryService) {
 			return nil, discoveryResult[[]api.CardDiscovery]{Caller: caller, Items: items}, err
 		})
 	sdk.AddTool(server, &sdk.Tool{
+		Name:        "list_workspaces",
+		Description: "List the global registered workspace IDs, names and paths. Requires Dashboard Control and Kankuro MCP. Use IDs with create_session.workspace_ids.",
+	}, func(ctx context.Context, _ *sdk.CallToolRequest, _ struct{}) (*sdk.CallToolResult, discoveryResult[[]api.WorkspaceDiscovery], error) {
+		caller, items, err := service.ListWorkspaces(callerToken(ctx))
+		return nil, discoveryResult[[]api.WorkspaceDiscovery]{Caller: caller, Items: items}, err
+	})
+	sdk.AddTool(server, &sdk.Tool{
 		Name: "list_sessions",
 		Description: "List other sessions in the linked dashboard. Waiting sessions are running; " +
 			"stop before relaunching or switching cards.",
@@ -253,11 +276,17 @@ func addLifecycleTools(server *sdk.Server, service discoveryService) {
 	sdk.AddTool(server, &sdk.Tool{
 		Name: "create_session",
 		Description: "Create a session from an existing card. Returns after completion or ten seconds " +
-			"with an operation ID to poll. The optional name is part of retry identity. The result is a historical snapshot; get_session returns current delivery availability.",
+			"with an operation ID to poll. The optional name and ordered workspace_ids are part of retry identity. workspace_ids must contain a main workspace followed by any sub-workspaces; use list_workspaces to discover IDs. The result is a historical snapshot; get_session returns current delivery availability.",
 	}, func(
 		ctx context.Context, _ *sdk.CallToolRequest, input createSessionInput,
 	) (*sdk.CallToolResult, lifecycleToolResponse, error) {
-		result, err := service.CreateSession(ctx, callerToken(ctx), input.RequestID, input.CardID, input.Name)
+		result, err := service.CreateSessionWithOptions(
+			ctx,
+			callerToken(ctx),
+			input.RequestID,
+			input.CardID,
+			api.CreateSessionOptions{Name: input.Name, WorkspaceIDs: input.WorkspaceIDs},
+		)
 		return lifecycleResponse(result, err)
 	})
 	sdk.AddTool(server, &sdk.Tool{

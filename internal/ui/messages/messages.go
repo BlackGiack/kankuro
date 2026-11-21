@@ -101,7 +101,15 @@ type DashboardCardLoadedMsg struct {
 	CardID      string
 	Action      DashboardCardAction
 	Card        contracts.CardSummary
+	Preparation *contracts.LaunchPreparation
 	Err         error
+}
+
+// LaunchWorkspaceNavigationMsg scopes source navigation and cancellation to a launch draft.
+type LaunchWorkspaceNavigationMsg struct {
+	DashboardID, CardID string
+	Generation, Request uint64
+	Cancel              bool
 }
 
 // DashboardListRequestedMsg returns to the dashboard list without stopping sessions.

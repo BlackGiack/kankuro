@@ -1047,3 +1047,55 @@ func workspaceIDForPath(t *testing.T, workspaces []config.Workspace, path string
 	t.Fatalf("workspace not found for %s", path)
 	return ""
 }
+
+func TestSharedWorkspaceLaunchMetadataTracksSelection(t *testing.T) {
+	repo, err := config.NewFileRepository(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	mainDir, subDir := t.TempDir(), t.TempDir()
+	if saveErr := repo.SaveWorkspaceSources([]config.WorkspaceSource{{Path: mainDir}, {Path: subDir}}); saveErr != nil {
+		t.Fatal(saveErr)
+	}
+	workspaces, err := repo.ListWorkspaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mainID, subID string
+	for _, workspace := range workspaces {
+		if workspace.Path == mainDir {
+			mainID = workspace.ID
+		}
+		if workspace.Path == subDir {
+			subID = workspace.ID
+		}
+	}
+	manager := newTestManager(t, repo.Dir(), repo)
+	first, err := testLaunch(
+		manager,
+		config.IDCard{ID: "first", Name: "first", Driver: "cat", WorkspaceID: mainID, SubWorkspaceIDs: []string{subID}},
+		nil,
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := testLaunch(manager, config.IDCard{ID: "second", Name: "second", Driver: "cat", WorkspaceID: mainID}, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstSnapshot, _ := manager.GetSession(first)
+	secondSnapshot, _ := manager.GetSession(second)
+	if !firstSnapshot.SubWorkspaceMetadataAvailable || len(firstSnapshot.SubWorkspaces) != 1 ||
+		firstSnapshot.SubWorkspaces[0].WorkspaceID != subID {
+		t.Fatalf("first metadata: %+v", firstSnapshot.SubWorkspaces)
+	}
+	if !secondSnapshot.SubWorkspaceMetadataAvailable || len(secondSnapshot.SubWorkspaces) != 0 {
+		t.Fatalf("second metadata: %+v, available %v", secondSnapshot.SubWorkspaces, secondSnapshot.SubWorkspaceMetadataAvailable)
+	}
+	descriptors, available := session.ReadSubWorkspaceDescriptors(mainDir)
+	if !available || len(descriptors) != 1 || descriptors[0].WorkspaceID != subID {
+		t.Fatalf("shared manifest: %+v available %v", descriptors, available)
+	}
+}

@@ -177,23 +177,9 @@ func (s *Service) UpdateEditorCard(input contracts.UpdateCardInput) (contracts.C
 
 // ReadCardEditorChoices reads registries independently so one failure does not
 // discard the last successful value of another registry.
-//
-//nolint:gocognit // Each registry read has independent failure and value semantics.
 func (s *Service) ReadCardEditorChoices() contracts.CardEditorChoices {
 	var result contracts.CardEditorChoices
-	result.Workspaces.Attempted = true
-	if repo, ok := s.repo.(workspaceLister); ok {
-		values, err := repo.ListWorkspaces()
-		result.Workspaces.Err = err
-		if err == nil {
-			result.Workspaces.Value = make([]contracts.WorkspaceOption, 0, len(values))
-			for _, v := range values {
-				result.Workspaces.Value = append(result.Workspaces.Value, contracts.WorkspaceOption{ID: v.ID, Name: v.Name, Path: v.Path})
-			}
-		}
-	} else {
-		result.Workspaces.Err = errors.New("workspace inventory unavailable")
-	}
+	result.Workspaces = s.ReadWorkspaceChoices()
 	result.Skills.Attempted = true
 	skills, err := s.repo.ListSkills()
 	result.Skills.Err = err
@@ -295,4 +281,23 @@ func applyCardChanges(current config.IDCard, changes contracts.CardChanges) conf
 	}
 
 	return updated
+}
+
+// ReadWorkspaceChoices reads the workspace registry independently of other editor choices.
+func (s *Service) ReadWorkspaceChoices() contracts.ReadResult[[]contracts.WorkspaceOption] {
+	var result contracts.ReadResult[[]contracts.WorkspaceOption]
+	result.Attempted = true
+	if repo, ok := s.repo.(workspaceLister); ok {
+		values, err := repo.ListWorkspaces()
+		result.Err = err
+		if err == nil {
+			result.Value = make([]contracts.WorkspaceOption, 0, len(values))
+			for _, v := range values {
+				result.Value = append(result.Value, contracts.WorkspaceOption{ID: v.ID, Name: v.Name, Path: v.Path})
+			}
+		}
+	} else {
+		result.Err = errors.New("workspace inventory unavailable")
+	}
+	return result
 }

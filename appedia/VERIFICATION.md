@@ -1,3 +1,29 @@
+# Appedia verification for workspace discovery and launch overrides
+
+The source model was refreshed from a clean checkout of `e741572` on the
+rebased feature branch. The Appedia update changes documentation and generated
+site data. The extracted source snapshot predates the documentation squash.
+
+- The dashboard flows show workspace confirmation before launch, shared picker
+  behavior, and draft-scoped cancellation and source visits. The MCP flows show
+  Dashboard Control gating global workspace discovery and passing ordered IDs
+  into initial launch. The session flow documents saved workspace reuse on
+  relaunch and ownership of shared sub-workspace copies.
+- `go test -count=1 -json ./...` and
+  `go test -count=1 -tags=e2e -run '^TestNativeCaptureGlyphs$' ./tests/e2e`
+  passed. The MCP HTTP test discovers unreferenced IDs and verifies multiple
+  workspace copies, identical request replay, and conflict on reordered IDs.
+- Appedia finalization passed the full jsdom route check. Chrome rendered the
+  map, launch and discovery flows, source view, and multi-ID assessment in
+  light and dark themes. Impact dispositions are in
+  [.maintenance/last-review.json](.maintenance/last-review.json).
+- Historical terminal captures and statement coverage retain their original
+  provenance. This refresh adds Go test evidence and a model-free capture
+  smoke result. A native workspace picker capture, model-driven E2E run, and
+  new statement profile were outside its verification.
+
+---
+
 # Appedia verification for reasoning effort
 
 The source model and assessments cover the feature worktree based on `110865d`.

@@ -61,7 +61,10 @@ func (r LifecycleResult) Validate() error {
 	return errors.New("invalid lifecycle result")
 }
 
-type LaunchSessionRequest struct{ DashboardID, CardID string }
+type LaunchSessionRequest struct {
+	DashboardID, CardID string
+	WorkspaceIDs        []string
+}
 
 type WorkspaceCommandKind string
 
@@ -98,4 +101,12 @@ type OpenSessionWorkspaceResult struct {
 	Started        bool
 	Diagnostic     string
 	DiagnosticCode DiagnosticCode
+}
+
+// LaunchPreparation is a detached workspace draft for a scoped card.
+type LaunchPreparation struct {
+	Card            CardSummary
+	WorkspaceID     string
+	SubWorkspaceIDs []string
+	Workspaces      ReadResult[[]WorkspaceOption]
 }

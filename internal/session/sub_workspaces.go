@@ -98,16 +98,38 @@ type subWorkspaceTransaction struct {
 
 // prepareSubWorkspaces serializes manifest decisions and copy publication for a working directory.
 func (m *Manager) prepareSubWorkspaces(ctx context.Context, card config.IDCard, workingDir string) error {
-	if len(card.SubWorkspaceIDs) == 0 {
-		return nil
-	}
+	_, _, err := m.prepareSubWorkspacesSnapshot(ctx, card, workingDir)
+	return err
+}
+
+// prepareSubWorkspacesSnapshot captures this launch's copies under the preparation gate.
+func (m *Manager) prepareSubWorkspacesSnapshot(
+	ctx context.Context,
+	card config.IDCard,
+	workingDir string,
+) ([]SubWorkspaceDescriptor, bool, error) {
 	select {
 	case m.subWorkspaceGate <- struct{}{}:
 		defer func() { <-m.subWorkspaceGate }()
 	case <-ctx.Done():
-		return ctx.Err()
+		return nil, false, ctx.Err()
 	}
+	if len(card.SubWorkspaceIDs) == 0 {
+		return nil, true, nil
+	}
+	var descriptors []SubWorkspaceDescriptor
+	if err := m.prepareSubWorkspacesLocked(ctx, card, workingDir, &descriptors); err != nil {
+		return nil, false, err
+	}
+	return descriptors, true, nil
+}
 
+func (m *Manager) prepareSubWorkspacesLocked(
+	ctx context.Context,
+	card config.IDCard,
+	workingDir string,
+	descriptors *[]SubWorkspaceDescriptor,
+) error {
 	canonicalDir, canonicalErr := canonicalDirectory(workingDir)
 	if canonicalErr != nil {
 		return fmt.Errorf("resolve session workspace: %w", canonicalErr)
@@ -143,6 +165,17 @@ func (m *Manager) prepareSubWorkspaces(ctx context.Context, card config.IDCard, 
 	}
 	if persistErr := persistSubWorkspaceManifest(manifestPath, updated); persistErr != nil {
 		return tx.rollback(persistErr)
+	}
+	*descriptors = make([]SubWorkspaceDescriptor, 0, len(sources))
+	for _, source := range sources {
+		*descriptors = append(
+			*descriptors,
+			SubWorkspaceDescriptor{
+				WorkspaceID:     source.id,
+				SourcePath:      source.path,
+				DestinationPath: filepath.Join(canonicalDir, "tmp", source.name),
+			},
+		)
 	}
 	return nil
 }

@@ -21,13 +21,15 @@ func (*fakeAttachment) Resize(int, int) error                { return nil }
 func (f *fakeAttachment) Close() error                       { *f.closed = true; return nil }
 
 type fakeSessionPort struct {
-	launch   contracts.LaunchSessionRequest
-	relaunch contracts.RelaunchSessionRequest
-	open     contracts.OpenSessionWorkspaceRequest
+	launch      contracts.LaunchSessionRequest
+	launchCalls int
+	relaunch    contracts.RelaunchSessionRequest
+	open        contracts.OpenSessionWorkspaceRequest
 }
 
 func (f *fakeSessionPort) LaunchSession(_ context.Context, r contracts.LaunchSessionRequest) contracts.LifecycleResult {
 	f.launch = r
+	f.launchCalls++
 	return contracts.LifecycleResult{Effect: contracts.UsableActivation, SessionID: "s", ProcessActivationID: "p"}
 }
 func (f *fakeSessionPort) RelaunchDashboardSession(_ context.Context, r contracts.RelaunchSessionRequest) contracts.LifecycleResult {

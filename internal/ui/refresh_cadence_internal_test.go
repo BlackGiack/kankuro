@@ -333,7 +333,8 @@ func TestLaunchCardAbortsOnRegistryReadError(t *testing.T) {
 	if !loadSucceeded {
 		t.Fatalf("expected card-load result, got %T", loaded)
 	}
-	_, cmd := c.Update(loaded)
+	c.Update(loaded)
+	_, cmd := c.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	var launchMsg *messages.SessionLaunchCompletedMsg
 	for _, m := range collectMsgs(cmd) {
