@@ -162,7 +162,7 @@ explicit card switch applies the destination card's setting.
 The local MCP exposes:
 
 - Registration: `register_conversation`.
-- Discovery: `list_cards`, `list_sessions`, `get_session`.
+- Discovery: `list_cards`, `list_workspaces`, `list_sessions`, `get_session`.
 - Lifecycle: `create_session`, `stop_session`, `relaunch_session`,
   `switch_session_card`, `delete_session`.
 - Operation inspection/cancellation: `get_operation`, `cancel_operation`.
@@ -285,7 +285,7 @@ running, waiting and terminated processes.
 |---|---|
 | `Tab` | Move focus between cards and sessions. |
 | `/` | Search the focused list. |
-| `Enter` on a card | Launch a new session; after launch, focus and select it in the sessions pane. |
+| `Enter` on a card | Choose workspace and sub-workspaces, then press Enter to launch; after launch, focus and select the session in the sessions pane. |
 | `Enter` on a session | Attach if live; relaunch if terminated, with conversation selection when needed. |
 | `a` | Attach to the selected live session. |
 | `n` / `e` | Create / edit a card, subject to ownership. |
@@ -378,3 +378,11 @@ Installation and local development commands are in [README.md](README.md).
 Isolated manual runs, test cleanup and verification practices are in
 [project.md](project.md#7-build-test-lint-run). Product specifications do not serve
 as acceptance logs or a source of task-specific development instructions.
+
+### Workspace selection at launch
+
+A dashboard launch begins with the card's Workspace and Sub Workspaces selections. Tab and Shift+Tab switch rows; Space opens the same picker used by the card editor. Enter confirms a picker, or launches from the two-row form; Escape cancels or clears picker search, and Escape from the form returns to the dashboard. Ctrl+E opens workspace sources, and Ctrl+X clears sub-workspaces. The form submits the workspace selections it displays, even if the card changes before confirmation; edits apply only to that session. The card's temporary-workspace setting still controls copying. Overrides apply only to initial session creation; relaunch uses the session's saved workspace and deployed state.
+
+The MCP `create_session` tool accepts optional `workspace_ids`: the first registry ID is the main workspace and remaining IDs are sub-workspaces in order. IDs must be nonblank, unique, and registered; an empty array or null is invalid. Omitting the field uses the card defaults. The ordered selection is part of the request's retry identity.
+
+Agents with Dashboard Control can call `list_cards` to choose an available card and `list_workspaces` to discover the global registered workspace IDs, names, and paths, including entries not referenced by any card. Authorized callers in any dashboard can see the same registered paths. Use a new request UUID with `create_session`, passing the main workspace ID followed by any sub-workspace IDs. The workspace list is configuration only: discovery does not check paths or copy files.

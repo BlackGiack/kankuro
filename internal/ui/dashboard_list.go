@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -188,36 +187,16 @@ func dashboardCardCommand(
 	action messages.DashboardCardAction,
 ) tea.Cmd {
 	return func() tea.Msg {
-		inventory, err := service.ReadDashboardOverview(dashboardID)
-		if err != nil {
-			return messages.DashboardCardLoadedMsg{
-				Request:     request,
-				DashboardID: dashboardID,
-				Generation:  generation,
-				CardID:      cardID,
-				Action:      action,
-				Err:         err,
-			}
-		}
-		for _, card := range inventory.Cards {
-			if card.ID == cardID {
-				return messages.DashboardCardLoadedMsg{
-					Request:     request,
-					DashboardID: dashboardID,
-					Generation:  generation,
-					CardID:      cardID,
-					Action:      action,
-					Card:        card,
-				}
-			}
-		}
+		preparation, err := service.ReadLaunchPreparation(dashboardID, cardID)
 		return messages.DashboardCardLoadedMsg{
 			Request:     request,
 			DashboardID: dashboardID,
 			Generation:  generation,
 			CardID:      cardID,
 			Action:      action,
-			Err:         errors.New("card unavailable"),
+			Card:        preparation.Card,
+			Preparation: &preparation,
+			Err:         err,
 		}
 	}
 }

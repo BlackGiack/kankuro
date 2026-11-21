@@ -9,9 +9,16 @@ import (
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 )
 
-func (a sessionActions) launch(dashboardID string, generation uint64, cardID string, request uint64) tea.Cmd {
+func (a sessionActions) launch(dashboardID string, generation uint64, cardID string, request uint64, selections ...[]string) tea.Cmd {
+	var ids []string
+	if len(selections) > 0 && selections[0] != nil {
+		ids = append([]string{}, selections[0]...)
+	}
 	return func() tea.Msg {
-		result := a.port.LaunchSession(context.Background(), contracts.LaunchSessionRequest{DashboardID: dashboardID, CardID: cardID})
+		result := a.port.LaunchSession(
+			context.Background(),
+			contracts.LaunchSessionRequest{DashboardID: dashboardID, CardID: cardID, WorkspaceIDs: ids},
+		)
 		return messages.SessionLaunchCompletedMsg{
 			Request:     request,
 			CardID:      cardID,

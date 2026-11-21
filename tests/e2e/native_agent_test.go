@@ -114,6 +114,8 @@ func (j *nativeJourney) launch() session.Data {
 	j.press("Enter")
 	j.expect("Native E2E")
 	j.press("Enter")
+	j.expect("Sub Workspaces:")
+	j.press("Enter")
 	j.expect("Session launched successfully!")
 	first := waitSession(t, j.configDir, 30*time.Second, func(data session.Data) bool { return data.CardID == j.card.ID && data.PID > 0 })
 	j.press("Enter")

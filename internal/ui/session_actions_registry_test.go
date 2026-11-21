@@ -141,7 +141,8 @@ func TestCardAndCapabilityLookupFailuresRemainVisible(t *testing.T) {
 	if !ok || loadMsg.Err != nil {
 		t.Fatalf("card lookup failed before launch capability check: %+v", loadMsg)
 	}
-	_, launchCmd := coord.Update(loadMsg)
+	coord.Update(loadMsg)
+	_, launchCmd := coord.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	launchMsgs := collectMsgs(t, launchCmd)
 	if !containsCapabilityError(launchMsgs) || failingRepo.capabilityReads == 0 {
 		t.Fatalf("launch did not propagate capability failure: %v", launchMsgs)

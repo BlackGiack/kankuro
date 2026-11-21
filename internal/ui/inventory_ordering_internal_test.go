@@ -92,3 +92,7 @@ func inventorySnapshot(name, status string) contracts.ReadResult[contracts.Dashb
 		Value:     contracts.DashboardInventory{Sessions: []contracts.SessionSummary{session}},
 	}
 }
+
+func (*orderedInventoryReader) ReadLaunchPreparation(string, string) (contracts.LaunchPreparation, error) {
+	return contracts.LaunchPreparation{}, nil
+}

@@ -2,20 +2,26 @@ package views
 
 import (
 	"errors"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/ui/component"
+	"github.com/BlackGiack/kankuro/internal/ui/components"
 	"github.com/BlackGiack/kankuro/internal/ui/messages"
 	"github.com/BlackGiack/kankuro/internal/ui/styles"
 )
 
 // SessionLauncherCallbacks defines callbacks for session launcher actions.
 type SessionLauncherCallbacks struct {
-	OnSetNameAsync func(sessionID, name, processID string) tea.Cmd
+	OnCancelWorkspace func() tea.Cmd
+	OnLaunch          func([]string) tea.Cmd
+	OnOpenWorkspaces  func() tea.Cmd
+	OnSetNameAsync    func(sessionID, name, processID string) tea.Cmd
 }
 
 // SessionLauncher is a simple form for launching a new session.
@@ -27,13 +33,17 @@ type SessionLauncher struct {
 
 	callbacks SessionLauncherCallbacks
 
-	launchDone bool
-	launchErr  error
-	processID  string
-	effect     contracts.LifecycleEffect
-	sessionID  string
-	err        error
-	naming     bool
+	launchDone          bool
+	launchErr           error
+	processID           string
+	effect              contracts.LifecycleEffect
+	sessionID           string
+	err                 error
+	naming              bool
+	workspaceForm       bool
+	workspaceCancelling bool
+	workspaceEditor     *workspaceFields
+	workspaceFocus      int
 }
 
 // NewSessionLauncher creates a new session launcher.
@@ -44,8 +54,9 @@ func NewSessionLauncher(callbacks SessionLauncherCallbacks) *SessionLauncher {
 	input.Focus()
 
 	return &SessionLauncher{
-		input:     input,
-		callbacks: callbacks,
+		input:           input,
+		workspaceEditor: newWorkspaceFields(),
+		callbacks:       callbacks,
 	}
 }
 
@@ -71,6 +82,86 @@ func (l *SessionLauncher) Reset() {
 	l.effect = ""
 	l.err = nil
 	l.naming = false
+	l.workspaceForm = false
+	l.workspaceCancelling = false
+	l.workspaceEditor.workspacePicker.Close()
+	l.workspaceEditor.workspaceID = ""
+	l.workspaceEditor.subWorkspaceIDs = nil
+	l.workspaceEditor.subWorkspaceEdited = false
+}
+
+// SetWorkspaceDraft starts a detached launch selection using the editor's workspace controls.
+func (l *SessionLauncher) SetWorkspaceDraft(p contracts.LaunchPreparation) {
+	l.workspaceEditor.workspaceID = p.WorkspaceID
+	l.workspaceEditor.subWorkspaceIDs = slices.Clone(p.SubWorkspaceIDs)
+	l.workspaceFocus = FocusWorkspace
+	l.workspaceEditor.setChoices(p.Workspaces)
+	l.workspaceForm = true
+	l.workspaceCancelling = false
+}
+
+// WorkspaceDraftActive identifies a draft that can still accept actions.
+func (l *SessionLauncher) WorkspaceDraftActive() bool {
+	return l.workspaceForm && !l.workspaceCancelling
+}
+
+// WorkspaceDraftCancelling identifies a draft awaiting its scoped cancellation.
+func (l *SessionLauncher) WorkspaceDraftCancelling() bool {
+	return l.workspaceForm && l.workspaceCancelling
+}
+
+func (l *SessionLauncher) SetWorkspaceChoices(choices contracts.CardEditorChoices) {
+	l.workspaceEditor.setChoices(choices.Workspaces)
+}
+
+func (l *SessionLauncher) SetSize(width, height int) {
+	l.Base.SetSize(width, height)
+	l.workspaceEditor.workspacePicker.SetSize(width, height)
+}
+
+func (l *SessionLauncher) updateWorkspaceForm(msg tea.Msg) tea.Cmd {
+	e := l.workspaceEditor
+	if e.workspacePicker.IsOpen() {
+		return e.updatePicker(msg, l.workspaceFocus == FocusSubWorkspaces)
+	}
+	key, ok := msg.(tea.KeyPressMsg)
+	if !ok {
+		return nil
+	}
+	switch {
+	case key.String() == keyCtrlC:
+		return tea.Quit
+	case key.Code == tea.KeyTab || key.String() == keyShiftTab:
+		if l.workspaceFocus == FocusWorkspace {
+			l.workspaceFocus = FocusSubWorkspaces
+		} else {
+			l.workspaceFocus = FocusWorkspace
+		}
+	case key.Code == tea.KeySpace:
+		e.open(l.workspaceFocus == FocusSubWorkspaces)
+	case key.String() == keyCtrlX:
+		if l.workspaceFocus == FocusSubWorkspaces {
+			e.subWorkspaceIDs = []string{}
+			e.subWorkspaceEdited = true
+		}
+	case key.String() == keyCtrlE:
+		if l.callbacks.OnOpenWorkspaces != nil {
+			return l.callbacks.OnOpenWorkspaces()
+		}
+	case key.Code == tea.KeyEsc:
+		l.workspaceCancelling = true
+		if l.callbacks.OnCancelWorkspace != nil {
+			return l.callbacks.OnCancelWorkspace()
+		}
+		return func() tea.Msg { return messages.NavigateBackMsg{} }
+	case key.Code == tea.KeyEnter:
+		ids := append([]string{e.workspaceID}, e.subWorkspaceIDs...)
+		l.workspaceForm = false
+		if l.callbacks.OnLaunch != nil {
+			return l.callbacks.OnLaunch(ids)
+		}
+	}
+	return nil
 }
 
 // Init initializes the component.
@@ -80,6 +171,12 @@ func (l *SessionLauncher) Init() tea.Cmd {
 
 // Update handles messages.
 func (l *SessionLauncher) Update(msg tea.Msg) (component.Model, tea.Cmd) {
+	if l.workspaceForm {
+		if l.workspaceCancelling {
+			return l, nil
+		}
+		return l, l.updateWorkspaceForm(msg)
+	}
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if cmd, handled := l.handleKey(keyMsg); handled {
 			return l, cmd
@@ -127,6 +224,29 @@ func (l *SessionLauncher) launchFatal() bool { return l.effect != contracts.Usab
 //nolint:nestif // The launcher renders each activation outcome and its naming state.
 func (l *SessionLauncher) View() string {
 	var content strings.Builder
+	if l.workspaceForm {
+		e := l.workspaceEditor
+		if e.workspacePicker.IsOpen() {
+			return lipgloss.Place(l.Width, l.Height, lipgloss.Center, lipgloss.Center, e.workspacePicker.View())
+		}
+		name := components.DisplayText(l.card.Name)
+		if l.Width > 0 {
+			name = components.TruncateHead(name, max(0, l.Width-len("Card: ")))
+		}
+		return styles.TitleStyle.Render(
+			"Launch Session",
+		) + "\n\n" + styles.LabelStyle.Render(
+			"Card: ",
+		) + name + "\n\n" + e.renderWorkspaceLine(
+			l.Width,
+			l.workspaceFocus == FocusWorkspace,
+		) + "\n" + e.renderSubWorkspacesLine(
+			l.Width,
+			l.workspaceFocus == FocusSubWorkspaces,
+		) + "\n\n" + styles.HelpStyle.Render(
+			"Tab: switch | Space: select | Enter: launch | Esc: cancel",
+		)
+	}
 
 	if l.err != nil {
 		content.WriteString(styles.ErrorStyle.Render(l.err.Error()) + "\n\n")

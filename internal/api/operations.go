@@ -168,8 +168,9 @@ type ConversationRequest struct {
 }
 
 type createArguments struct {
-	CardID string  `json:"card_id"`
-	Name   *string `json:"name,omitempty"`
+	CardID       string   `json:"card_id"`
+	Name         *string  `json:"name,omitempty"`
+	WorkspaceIDs []string `json:"workspace_ids,omitempty"`
 }
 type conversationArguments struct {
 	Conversation *ConversationRequest `json:"conversation,omitempty"`
@@ -185,6 +186,29 @@ type operationWarningError struct{ message string }
 func (e operationWarningError) Error() string { return e.message }
 
 func (s *Service) CreateSession(ctx context.Context, token, requestID, cardID string, name ...*string) (OperationResult, error) {
+	return s.CreateSessionWithOptions(ctx, token, requestID, cardID, CreateSessionOptions{Name: firstName(name)})
+}
+
+type CreateSessionOptions struct {
+	Name         *string
+	WorkspaceIDs []string
+}
+
+func firstName(names []*string) *string {
+	if len(names) > 0 {
+		return names[0]
+	}
+	return nil
+}
+
+func (s *Service) CreateSessionWithOptions(
+	ctx context.Context,
+	token, requestID, cardID string,
+	options CreateSessionOptions,
+) (OperationResult, error) {
+	if options.WorkspaceIDs != nil && len(options.WorkspaceIDs) == 0 {
+		return OperationResult{}, reject("invalid_request", "workspace_ids must contain a main workspace")
+	}
 	if s.operations == nil {
 		return OperationResult{}, errors.New("operation runner unavailable")
 	}
@@ -196,9 +220,12 @@ func (s *Service) CreateSession(ctx context.Context, token, requestID, cardID st
 		return OperationResult{}, reject("invalid_request", "card_id is required")
 	}
 	args := createArguments{CardID: cardID}
-	if len(name) > 0 && name[0] != nil {
-		suppliedName := *name[0]
+	if options.Name != nil {
+		suppliedName := *options.Name
 		args.Name = &suppliedName
+	}
+	if options.WorkspaceIDs != nil {
+		args.WorkspaceIDs = append([]string{}, options.WorkspaceIDs...)
 	}
 	if replay, found, replayErr := s.replayMutation(ctx, token, requestID, createSessionOperation, "", args); replayErr != nil {
 		return OperationResult{}, replayErr
@@ -212,7 +239,15 @@ func (s *Service) CreateSession(ctx context.Context, token, requestID, cardID st
 		return OperationResult{}, classifyCardLoadError(loadErr)
 	}
 	apply := func(operationCtx context.Context, operation Operation) (json.RawMessage, error) {
-		sid, launchErr := s.launchDashboardWithID(operationCtx, operation.DashboardID, cardID, operation.TargetSession, args.Name)
+		sid, launchErr := s.launchDashboardWithIDEvidence(
+			operationCtx,
+			operation.DashboardID,
+			cardID,
+			operation.TargetSession,
+			args.Name,
+			args.WorkspaceIDs,
+			nil,
+		)
 		if launchErr != nil && !errors.Is(launchErr, session.ErrPersistFailed) {
 			return nil, launchErr
 		}

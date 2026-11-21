@@ -335,7 +335,10 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		}
 		switch m.Action {
 		case messages.DashboardCardLaunch:
-			return true, c.launchCard(m.Card, m.Request)
+			if m.Preparation != nil && m.Preparation.Workspaces.Err != nil {
+				c.err = m.Preparation.Workspaces.Err
+			}
+			return true, c.launchCard(m.Card, m.Request, m.Preparation)
 		default:
 			return true, nil
 		}
@@ -377,6 +380,9 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		}
 		return true, c.navigateTo(convertViewType(m.View))
 
+	case messages.LaunchWorkspaceNavigationMsg:
+		return true, c.handleLaunchWorkspaceNavigation(m)
+
 	case messages.ScopedNavigateMsg:
 		if c.currentView == ViewCardEditor && c.editorSaving {
 			return true, nil
@@ -387,6 +393,9 @@ func (c *Coordinator) handleSpecialMessages(msg tea.Msg) (bool, tea.Cmd) {
 		return true, c.navigateTo(convertViewType(m.View))
 
 	case messages.NavigateBackMsg:
+		if c.currentView == ViewSessionLauncher {
+			return true, c.navigateTo(ViewDashboard)
+		}
 		if c.currentView == ViewMCPForm {
 			c.mcpRequest++
 			return true, c.navigateTo(c.mcpReturn)
@@ -1016,4 +1025,26 @@ func (c *Coordinator) View() string {
 func (c *Coordinator) matchesMCPManagerScope(scope messages.MCPManagerScope) bool {
 	return c.currentView == ViewMCPManager && scope.DashboardID == c.activeDashboard &&
 		scope.Generation == c.viewGeneration && scope.Visit == c.mcpManagerVisit
+}
+
+func (c *Coordinator) handleLaunchWorkspaceNavigation(m messages.LaunchWorkspaceNavigationMsg) tea.Cmd {
+	if m.DashboardID != c.activeDashboard || m.Generation != c.viewGeneration || m.Request != c.launchRequest ||
+		m.CardID != c.launchCardID ||
+		c.currentView != ViewSessionLauncher {
+		return nil
+	}
+	launcher, ok := c.views[ViewSessionLauncher].(*views.SessionLauncher)
+	if !ok || launcher.Card().ID != m.CardID {
+		return nil
+	}
+	if m.Cancel {
+		if !launcher.WorkspaceDraftCancelling() {
+			return nil
+		}
+		return c.navigateTo(ViewDashboard)
+	}
+	if !launcher.WorkspaceDraftActive() {
+		return nil
+	}
+	return c.navigateTo(ViewSourceManagerWorkspaces)
 }

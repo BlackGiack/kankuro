@@ -680,24 +680,24 @@
         "api.CardDiscovery",
         "api.Repository",
         "api.Service",
-        "api.Service.CreateSession",
+        "api.Service.CreateSessionWithOptions",
         "api.Service.GetSession",
+        "api.Service.ListWorkspaces",
         "api.Service.ResolveCaller",
-        "api.Service.launchDashboardWithID",
+        "api.Service.launchDashboardWithIDEvidence",
         "api.SessionDiscovery",
         "mcp.Runtime",
         "mcp.addDiscoveryTools",
-        "mcp.addLifecycleTools",
         "session.Manager",
         "session.Manager.ResolveDashboardCaller"
       ],
       "directRefs": [
-        "api.Service.CreateSession",
+        "api.Service.CreateSessionWithOptions",
         "api.Service.GetSession",
+        "api.Service.ListWorkspaces",
         "api.Service.ResolveCaller",
-        "api.Service.launchDashboardWithID",
+        "api.Service.launchDashboardWithIDEvidence",
         "mcp.addDiscoveryTools",
-        "mcp.addLifecycleTools",
         "session.Manager.ResolveDashboardCaller"
       ],
       "participants": [
@@ -718,7 +718,7 @@
         "internal/session/conversation.go",
         "internal/session/manager.go"
       ],
-      "digest": "83d965860cb8dacb451fe40d86d672c18c2e402f783e039ba30cd7d227b2cecc"
+      "digest": "5f66df80b2f6e67c8be37fc36c37327792ff2896b6cd80e2fd0482f129528b8c"
     },
     {
       "kind": "flow",
@@ -1086,6 +1086,7 @@
       "refs": [
         "api.Service",
         "api.Service.LaunchSession",
+        "api.Service.cardWithWorkspaceOverrides",
         "components.SessionList.refreshItems",
         "driver.GenericCLIDriver",
         "messages.SessionsRefreshedMsg",
@@ -1095,7 +1096,7 @@
         "session.Manager",
         "session.Manager.CancelPendingCardReferences",
         "session.Manager.CardReferences",
-        "session.Manager.LaunchInDashboardWithIDContext",
+        "session.Manager.LaunchInDashboardWithIDResult",
         "session.Manager.List",
         "session.Manager.ReserveCardReferenceForDashboardWithCancel",
         "session.Manager.SetNameDetailedChecked",
@@ -1119,7 +1120,6 @@
         "ui.Coordinator.handleSessionMessages",
         "ui.Coordinator.handleSessionsRefreshed",
         "ui.Coordinator.hasStaleSessionSnapshot",
-        "ui.Coordinator.launchCard",
         "views.Dashboard.FocusSession",
         "views.Dashboard.FocusSessionAfterRename",
         "views.Dashboard.applyPendingSessionFocus",
@@ -1127,18 +1127,20 @@
         "views.SessionLauncher.Reset",
         "views.SessionLauncher.SetNameResult",
         "views.SessionLauncher.handleNameSubmit",
+        "views.SessionLauncher.updateWorkspaceForm",
         "views.SessionLauncherCallbacks",
         "views.matchesSessionQuery"
       ],
       "directRefs": [
         "api.Service.LaunchSession",
-        "session.Manager.LaunchInDashboardWithIDContext",
+        "api.Service.cardWithWorkspaceOverrides",
+        "session.Manager.LaunchInDashboardWithIDResult",
         "session.Manager.ReserveCardReferenceForDashboardWithCancel",
         "session.Manager.bindPendingWorkspace",
         "session.Manager.startSession",
         "session.Session.data",
         "ui.Coordinator.handleSessionMessages",
-        "ui.Coordinator.launchCard"
+        "views.SessionLauncher.updateWorkspaceForm"
       ],
       "participants": [
         "api.Service",
@@ -1186,14 +1188,15 @@
         "views.matchesSessionQuery"
       ],
       "files": [
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/api/session_actions.go",
         "internal/driver/driver.go",
+        "internal/session/activation_result.go",
         "internal/session/card_references.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
         "internal/session/workspace.go",
-        "internal/ui/callbacks.go",
         "internal/ui/components/session_list.go",
         "internal/ui/components/session_list_test.go",
         "internal/ui/coordinator.go",
@@ -1205,7 +1208,7 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "f37be2a8ef6379c2c122ddb74eac8d54a478114c03703fe6abc7efcad181132b"
+      "digest": "9dfe536aba9ef8d6ba9f081b0ad4a878052bb5eb7dfdd78b1ec8fbc0ea57ad29"
     },
     {
       "kind": "flow",
@@ -1328,7 +1331,106 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "149c68ef5101d8187a3d564a1d347f04b487f5e8923e2143d7fb72df8d1a32b9"
+      "digest": "5f5881944bfe547500a4d273a50318179021e999858c8a66c7d568fbf4b5d44d"
+    },
+    {
+      "kind": "flow",
+      "id": "launch-workspace-navigation",
+      "refs": [
+        "ui.Coordinator",
+        "ui.Coordinator.handleLaunchWorkspaceNavigation",
+        "ui.Coordinator.invalidateSessionRequestsOnNavigation",
+        "ui.Coordinator.launchWorkspaceNavigation",
+        "views.SessionLauncher",
+        "views.SessionLauncher.Update",
+        "views.SessionLauncher.WorkspaceDraftActive",
+        "views.SessionLauncher.WorkspaceDraftCancelling",
+        "views.SessionLauncher.updateWorkspaceForm",
+        "views.SourceManager",
+        "views.SourceManager.Update"
+      ],
+      "directRefs": [
+        "ui.Coordinator.handleLaunchWorkspaceNavigation",
+        "ui.Coordinator.invalidateSessionRequestsOnNavigation",
+        "ui.Coordinator.launchWorkspaceNavigation",
+        "views.SessionLauncher.Update",
+        "views.SessionLauncher.updateWorkspaceForm",
+        "views.SourceManager.Update"
+      ],
+      "participants": [
+        "ui.Coordinator",
+        "views.SessionLauncher",
+        "views.SourceManager"
+      ],
+      "supportingRefs": [
+        "views.SessionLauncher.WorkspaceDraftActive",
+        "views.SessionLauncher.WorkspaceDraftCancelling"
+      ],
+      "files": [
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/navigation.go",
+        "internal/ui/views/session_launcher.go",
+        "internal/ui/views/source_manager.go"
+      ],
+      "digest": "48b1c7120713285ade24ab88737b7efd8e880bf8a1bb40b0aab0f40964d14d35"
+    },
+    {
+      "kind": "flow",
+      "id": "launch-workspace-selection",
+      "refs": [
+        "api.Service",
+        "api.Service.LaunchSession",
+        "api.Service.ReadLaunchPreparation",
+        "session.Manager",
+        "ui.Coordinator",
+        "ui.Coordinator.dashboardCallbacks",
+        "ui.Coordinator.handleSessionMessages",
+        "ui.Coordinator.launchCard",
+        "ui.Coordinator.sessionLauncherCallbacks",
+        "views.NewSessionLauncher",
+        "views.SessionLauncher",
+        "views.SessionLauncher.Reset",
+        "views.SessionLauncher.SetSize",
+        "views.SessionLauncher.SetWorkspaceDraft",
+        "views.SessionLauncher.View",
+        "views.SessionLauncher.updateWorkspaceForm",
+        "views.workspaceFields.open"
+      ],
+      "directRefs": [
+        "api.Service.LaunchSession",
+        "api.Service.ReadLaunchPreparation",
+        "ui.Coordinator.dashboardCallbacks",
+        "ui.Coordinator.handleSessionMessages",
+        "ui.Coordinator.launchCard",
+        "views.SessionLauncher.updateWorkspaceForm",
+        "views.workspaceFields.open"
+      ],
+      "participants": [
+        "api.Service",
+        "session.Manager",
+        "ui.Coordinator",
+        "views.SessionLauncher"
+      ],
+      "supportingRefs": [
+        "ui.Coordinator.sessionLauncherCallbacks",
+        "views.NewSessionLauncher",
+        "views.SessionLauncher.Reset",
+        "views.SessionLauncher.SetSize",
+        "views.SessionLauncher.SetWorkspaceDraft",
+        "views.SessionLauncher.View"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/api/session_actions.go",
+        "internal/session/manager.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/views/session_launcher.go",
+        "internal/ui/views/workspace_fields.go"
+      ],
+      "digest": "7890493b2073203bf602a00337bf0bbb8b0da5fd02940ceab1862532c941b152"
     },
     {
       "kind": "flow",
@@ -1800,6 +1902,86 @@
     },
     {
       "kind": "flow",
+      "id": "mcp-workspace-create",
+      "refs": [
+        "api.OperationRunner",
+        "api.OperationRunner.Submit",
+        "api.Service",
+        "api.Service.CreateSessionWithOptions",
+        "api.Service.cardWithWorkspaceOverrides",
+        "api.Service.launchDashboardWithID",
+        "api.Service.launchDashboardWithIDEvidence",
+        "api.firstName",
+        "mcp.Runtime",
+        "mcp.addLifecycleTools",
+        "mcp.workspaceIDs.UnmarshalJSON",
+        "session.Manager"
+      ],
+      "directRefs": [
+        "api.OperationRunner.Submit",
+        "api.Service.CreateSessionWithOptions",
+        "api.Service.cardWithWorkspaceOverrides",
+        "api.Service.launchDashboardWithIDEvidence",
+        "mcp.addLifecycleTools",
+        "mcp.workspaceIDs.UnmarshalJSON"
+      ],
+      "participants": [
+        "api.OperationRunner",
+        "api.Service",
+        "mcp.Runtime",
+        "session.Manager"
+      ],
+      "supportingRefs": [
+        "api.Service.launchDashboardWithID",
+        "api.firstName"
+      ],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/mcp/server.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "1984ba993d3fde915b92987ca3d26a7da31e919c454f1056b18d268d64de1401"
+    },
+    {
+      "kind": "flow",
+      "id": "mcp-workspace-discovery",
+      "refs": [
+        "api.Service",
+        "api.Service.ListCards",
+        "api.Service.ListWorkspaces",
+        "api.Service.ReadWorkspaceChoices",
+        "api.Service.ResolveCaller",
+        "api.WorkspaceDiscovery",
+        "mcp.Runtime",
+        "mcp.addDiscoveryTools",
+        "mcp.discoveryService"
+      ],
+      "directRefs": [
+        "api.Service.ListCards",
+        "api.Service.ListWorkspaces",
+        "api.Service.ReadWorkspaceChoices",
+        "api.Service.ResolveCaller",
+        "mcp.addDiscoveryTools"
+      ],
+      "participants": [
+        "api.Service",
+        "mcp.Runtime"
+      ],
+      "supportingRefs": [
+        "api.WorkspaceDiscovery",
+        "mcp.discoveryService"
+      ],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/service.go",
+        "internal/mcp/server.go"
+      ],
+      "digest": "eb7b5bf73b49f03bf86c1bce9d5fef17cc4c1a21ff124739389426986d3b66dc"
+    },
+    {
+      "kind": "flow",
       "id": "mutation",
       "refs": [
         "ui.Coordinator",
@@ -2228,7 +2410,7 @@
         "api.OperationRunner.finishLocked",
         "api.OperationRunner.loadRecord",
         "api.Service",
-        "api.Service.CreateSession",
+        "api.Service.CreateSessionWithOptions",
         "api.controllerAuthority",
         "api.controllerAuthority.monitor",
         "api.controllerAuthority.validate",
@@ -2243,7 +2425,7 @@
         "api.OperationRunner.execute",
         "api.OperationRunner.finishLocked",
         "api.OperationRunner.loadRecord",
-        "api.Service.CreateSession",
+        "api.Service.CreateSessionWithOptions",
         "api.controllerAuthority.validate"
       ],
       "participants": [
@@ -2263,7 +2445,7 @@
         "internal/api/service.go",
         "internal/session/manager.go"
       ],
-      "digest": "63e6b7bf1dfa04f5e97737ff2a98eb2aae654d65e37edeb79fb0b8b487bd4e11"
+      "digest": "b7a7e3fc538101da4178dc0bd69c83cdb945c39abd473cc37f8dac1c6486e775"
     },
     {
       "kind": "flow",
@@ -2302,7 +2484,7 @@
         "internal/ui/views/card_editor.go",
         "internal/ui/views/workspace_picker_modal.go"
       ],
-      "digest": "bdd343e6d37348c2fd77e9d88e8e162924eed5f6cf02c90540031bc58a58a7f6"
+      "digest": "f92ddb66ba45dd097526e9fa0fbf17bdee067f2ac1e6b5c3c0a421de68b9e490"
     },
     {
       "kind": "flow",
@@ -3487,7 +3669,7 @@
         "kankuro_specs.md",
         "project.md"
       ],
-      "digest": "f783a10e6f08bf0dd76de27ea2f9a3cc912a3acc1314db8d8dce4ae74e97a7e3"
+      "digest": "60956e84bc8681e1ad32ab007d4a4b3a1609789dce53e0b1638aa67d41307cb6"
     },
     {
       "kind": "flow",
@@ -3496,11 +3678,9 @@
         "views.CardEditor",
         "views.CardEditor.handleSpace",
         "views.CardEditor.renderSubWorkspacesLine",
-        "views.CardEditor.updateWorkspacePicker",
         "views.WorkspacePickerModal",
         "views.WorkspacePickerModal.SelectedIDs",
         "views.WorkspacePickerModal.SetExcludedID",
-        "views.WorkspacePickerModal.SetMultiple",
         "views.WorkspacePickerModal.SetSelectedID",
         "views.WorkspacePickerModal.SetSelectedIDs",
         "views.WorkspacePickerModal.Update",
@@ -3509,22 +3689,26 @@
         "views.WorkspacePickerModal.restoreSingleSelection",
         "views.WorkspacePickerModal.title",
         "views.WorkspacePickerModal.toggleChecked",
+        "views.workspaceFields",
+        "views.workspaceFields.open",
+        "views.workspaceFields.updatePicker",
         "views.workspaceItem.Title"
       ],
       "directRefs": [
         "views.CardEditor.handleSpace",
         "views.CardEditor.renderSubWorkspacesLine",
-        "views.CardEditor.updateWorkspacePicker",
         "views.WorkspacePickerModal.SelectedIDs",
-        "views.WorkspacePickerModal.SetMultiple",
         "views.WorkspacePickerModal.SetSelectedIDs",
         "views.WorkspacePickerModal.Update",
         "views.WorkspacePickerModal.rebuildList",
-        "views.WorkspacePickerModal.toggleChecked"
+        "views.WorkspacePickerModal.toggleChecked",
+        "views.workspaceFields.open",
+        "views.workspaceFields.updatePicker"
       ],
       "participants": [
         "views.CardEditor",
-        "views.WorkspacePickerModal"
+        "views.WorkspacePickerModal",
+        "views.workspaceFields"
       ],
       "supportingRefs": [
         "views.WorkspacePickerModal.SetExcludedID",
@@ -3538,10 +3722,11 @@
         "internal/ui/views/card_editor.go",
         "internal/ui/views/card_editor_layout_test.go",
         "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/workspace_fields.go",
         "internal/ui/views/workspace_picker_modal.go",
         "internal/ui/views/workspace_picker_test.go"
       ],
-      "digest": "417c697b0f1511ae37e85d11f7b850bc6493bf4dfa9c7d52239f3ffff6f25c86"
+      "digest": "d0d503d9ad99d043273f1ad3da566b94e6ccb98926dd6ccd301515d8ac13fbc7"
     },
     {
       "kind": "flow",
@@ -3767,23 +3952,25 @@
       "refs": [
         "api.Service",
         "api.Service.GetSession",
-        "api.Service.resolveCard",
+        "api.Service.launchDashboardWithIDEvidence",
         "session.Manager",
         "session.Manager.RelaunchWithChoiceCheckedContext",
         "session.Manager.cleanupNewTemporaryWorkspace",
-        "session.Manager.copyWorkspace",
-        "session.Manager.prepareSubWorkspaces",
+        "session.Manager.prepareSubWorkspacesSnapshot",
+        "session.Manager.prepareWorkspace",
+        "session.Manager.relaunchWithChoiceContext",
         "session.Manager.resolveWorkspacePath",
-        "session.ReadSubWorkspaceDescriptors",
+        "session.Manager.startSessionCore",
         "session.copyAndPublishSubWorkspace",
         "session.preparedSubWorkspaceDescriptors"
       ],
       "directRefs": [
         "api.Service.GetSession",
-        "api.Service.resolveCard",
-        "session.Manager.copyWorkspace",
-        "session.Manager.prepareSubWorkspaces",
-        "session.ReadSubWorkspaceDescriptors",
+        "api.Service.launchDashboardWithIDEvidence",
+        "session.Manager.prepareSubWorkspacesSnapshot",
+        "session.Manager.prepareWorkspace",
+        "session.Manager.relaunchWithChoiceContext",
+        "session.Manager.startSessionCore",
         "session.copyAndPublishSubWorkspace"
       ],
       "participants": [
@@ -3797,13 +3984,59 @@
         "session.preparedSubWorkspaceDescriptors"
       ],
       "files": [
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
         "internal/session/sub_workspaces.go",
         "internal/session/workspace.go"
       ],
-      "digest": "3b72d5da245777332fff2c3db1e6440b1db0073ec79d78848bef782c2f5c7448"
+      "digest": "c38eae39f9df633ca84bce87c4f3ddde63badceb1431b9fb01cdbc7870912a7b"
+    },
+    {
+      "kind": "flow",
+      "id": "workspace-choices-refresh",
+      "refs": [
+        "api.Service",
+        "api.Service.ReadLaunchPreparation",
+        "api.Service.ReadWorkspaceChoices",
+        "ui.Coordinator",
+        "ui.Coordinator.applyEditorChoices",
+        "ui.Coordinator.handleDataLoaded",
+        "views.CardEditor",
+        "views.CardEditor.SetChoices",
+        "views.SessionLauncher",
+        "views.SessionLauncher.SetWorkspaceChoices",
+        "views.workspaceFields.setChoices"
+      ],
+      "directRefs": [
+        "api.Service.ReadLaunchPreparation",
+        "api.Service.ReadWorkspaceChoices",
+        "ui.Coordinator.applyEditorChoices",
+        "views.SessionLauncher.SetWorkspaceChoices",
+        "views.workspaceFields.setChoices"
+      ],
+      "participants": [
+        "api.Service",
+        "ui.Coordinator",
+        "views.CardEditor",
+        "views.SessionLauncher"
+      ],
+      "supportingRefs": [
+        "ui.Coordinator.handleDataLoaded",
+        "views.CardEditor.SetChoices"
+      ],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/handlers.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/session_launcher.go",
+        "internal/ui/views/workspace_fields.go"
+      ],
+      "digest": "865551cf96eafcb7da81e323c78ca45744e3bb7033e7211cfb24045ca4947678"
     },
     {
       "kind": "flow",
@@ -3905,15 +4138,18 @@
         "api.Service.ConfirmDashboardDeletion",
         "api.Service.CreateDashboard",
         "api.Service.CreateEditorCard",
+        "api.Service.CreateSessionWithOptions",
         "api.Service.GetDashboardDeletion",
         "api.Service.GetMessage",
         "api.Service.GetSession",
         "api.Service.LaunchSession",
         "api.Service.ListDashboards",
         "api.Service.ListSessions",
+        "api.Service.ListWorkspaces",
         "api.Service.PreflightCardDeletion",
         "api.Service.PreflightDashboardDeletion",
         "api.Service.ReadDashboardOverview",
+        "api.Service.ReadLaunchPreparation",
         "api.Service.RelaunchInDashboard",
         "api.Service.RemoveDashboardSession",
         "api.Service.RenameDashboardSession",
@@ -3984,15 +4220,18 @@
         "api.Service.ConfirmDashboardDeletion",
         "api.Service.CreateDashboard",
         "api.Service.CreateEditorCard",
+        "api.Service.CreateSessionWithOptions",
         "api.Service.GetDashboardDeletion",
         "api.Service.GetMessage",
         "api.Service.GetSession",
         "api.Service.LaunchSession",
         "api.Service.ListDashboards",
         "api.Service.ListSessions",
+        "api.Service.ListWorkspaces",
         "api.Service.PreflightCardDeletion",
         "api.Service.PreflightDashboardDeletion",
         "api.Service.ReadDashboardOverview",
+        "api.Service.ReadLaunchPreparation",
         "api.Service.RelaunchInDashboard",
         "api.Service.RemoveDashboardSession",
         "api.Service.RenameDashboardSession",
@@ -4071,7 +4310,7 @@
         "internal/api/service.go",
         "internal/api/session_actions.go"
       ],
-      "digest": "361d8013affe648f50a6e7ff37324e7a9d9761c79a29a898ff11fed292708c27"
+      "digest": "79c09c4d00d2b9f0c9297072cbe5ab5c3c25adbac8a72d94f8d90aac178f8069"
     },
     {
       "kind": "package",
@@ -4464,17 +4703,22 @@
       "kind": "package",
       "id": "mcp",
       "refs": [
-        "mcp"
+        "mcp",
+        "mcp.addDiscoveryTools",
+        "mcp.addLifecycleTools"
       ],
       "directRefs": [
         "mcp"
       ],
       "participants": [],
-      "supportingRefs": [],
+      "supportingRefs": [
+        "mcp.addDiscoveryTools",
+        "mcp.addLifecycleTools"
+      ],
       "files": [
         "internal/mcp/server.go"
       ],
-      "digest": "32c64d7cbbd97d7dbf4d9d068e7aeca83f1ad9068e1de986280b138bc7e03929"
+      "digest": "cd500909efce1ce1aede92ad268fc306d13b5e1f26a7e1fc55b158b212655981"
     },
     {
       "kind": "package",
@@ -4586,6 +4830,7 @@
         "session.Manager.cleanupNewTemporaryWorkspace",
         "session.Manager.listLocked",
         "session.Manager.notifyCardReferencesLocked",
+        "session.Manager.prepareSubWorkspacesSnapshot",
         "session.Manager.publishActivationLocked",
         "session.Manager.reserveCardReference",
         "session.Manager.resolveWorkspacePath",
@@ -4648,6 +4893,7 @@
         "session.Manager.cleanupNewTemporaryWorkspace",
         "session.Manager.listLocked",
         "session.Manager.notifyCardReferencesLocked",
+        "session.Manager.prepareSubWorkspacesSnapshot",
         "session.Manager.publishActivationLocked",
         "session.Manager.reserveCardReference",
         "session.Manager.resolveWorkspacePath",
@@ -4690,7 +4936,7 @@
         "internal/session/workspace.go",
         "internal/session/workspace_launcher.go"
       ],
-      "digest": "feced8472433924fbc17de40f121d4ec2a75b1e2b07a177a9a44e51a8ebefb51"
+      "digest": "c7e5245a7f68eaab142e5b0ea9caf911a6818e5def023a10b51904dc76872ae2"
     },
     {
       "kind": "package",
@@ -4965,6 +5211,7 @@
         "views.DashboardList.updateForm",
         "views.NewDashboard",
         "views.NewDashboardList",
+        "views.SessionLauncher",
         "views.SessionLauncher.Reset",
         "views.SessionLauncher.SetNameResult",
         "views.SessionLauncher.handleNameSubmit",
@@ -4983,6 +5230,7 @@
         "views.dashboardModalInputWidth",
         "views.editorKeyIdentity",
         "views.focusTargetTable",
+        "views.workspaceFields",
         "views.workspaceItem.Title"
       ],
       "directRefs": [
@@ -5046,6 +5294,7 @@
         "views.DashboardList.updateForm",
         "views.NewDashboard",
         "views.NewDashboardList",
+        "views.SessionLauncher",
         "views.SessionLauncher.Reset",
         "views.SessionLauncher.SetNameResult",
         "views.SessionLauncher.handleNameSubmit",
@@ -5064,6 +5313,7 @@
         "views.dashboardModalInputWidth",
         "views.editorKeyIdentity",
         "views.focusTargetTable",
+        "views.workspaceFields",
         "views.workspaceItem.Title"
       ],
       "files": [
@@ -5081,9 +5331,10 @@
         "internal/ui/views/settings.go",
         "internal/ui/views/source_manager.go",
         "internal/ui/views/source_type.go",
+        "internal/ui/views/workspace_fields.go",
         "internal/ui/views/workspace_picker_modal.go"
       ],
-      "digest": "018ae6d25beec634391636e8c2d396dd01526aa9fb9decc1721e30d20361951c"
+      "digest": "6b44d5f21f2c5311e830878aac42f7abc6ed14984693edaf9ff54d8f21aa62fe"
     },
     {
       "kind": "rule",
@@ -5131,22 +5382,23 @@
       "kind": "rule",
       "id": "11",
       "refs": [
-        "session.Manager.prepareSubWorkspaces",
+        "session.Manager.prepareSubWorkspacesSnapshot",
         "session.shouldCopySubWorkspace",
         "session.subWorkspaceTransaction.rollback"
       ],
       "directRefs": [
-        "session.Manager.prepareSubWorkspaces"
+        "session.Manager.prepareSubWorkspacesSnapshot"
       ],
       "participants": [],
       "supportingRefs": [
+        "session.Manager.prepareSubWorkspacesSnapshot",
         "session.shouldCopySubWorkspace",
         "session.subWorkspaceTransaction.rollback"
       ],
       "files": [
         "internal/session/sub_workspaces.go"
       ],
-      "digest": "5dfb165070da0ff098b6c7ba4122f3b5b4583abc7f031398610ba1a6d7d776bb"
+      "digest": "fe2a48bd2d0e27f32b3880f0a0a3e8901826037ae6bfa3912841099feaeca577"
     },
     {
       "kind": "rule",
@@ -5218,7 +5470,7 @@
       "files": [
         "internal/api/operations.go"
       ],
-      "digest": "36381bed9994566ba9be78af643ca67e853569d31bd18ca6e0ab2a1011ee2503"
+      "digest": "9729c9c6c4fc220e3c0af175b26af9118178b85f5edfdd1086921742b1de93b7"
     },
     {
       "kind": "rule",
@@ -6249,11 +6501,13 @@
       "id": "Change sub workspace copying or collision handling",
       "refs": [
         "session.Manager.prepareSubWorkspaces",
+        "session.Manager.prepareSubWorkspacesSnapshot",
         "session.shouldCopySubWorkspace",
         "session.subWorkspaceTransaction.rollback"
       ],
       "directRefs": [
         "session.Manager.prepareSubWorkspaces",
+        "session.Manager.prepareSubWorkspacesSnapshot",
         "session.shouldCopySubWorkspace",
         "session.subWorkspaceTransaction.rollback"
       ],
@@ -6262,7 +6516,7 @@
       "files": [
         "internal/session/sub_workspaces.go"
       ],
-      "digest": "811ff985a960889c4561b35ac65e657a177c4058aef54f4677cbd6142ebf0471"
+      "digest": "3f09ef5dd450a8df2104b9e8421488cc141672eff45ef7c77896b73cd2242827"
     },
     {
       "kind": "task",
@@ -6342,6 +6596,31 @@
         "internal/session/messaging.go"
       ],
       "digest": "7d3ca5abd2cf0233132d9d597912db7168c2ce86419f9bd78ecc3e6118c1ac22"
+    },
+    {
+      "kind": "task",
+      "id": "Change workspace discovery or initial launch choices",
+      "refs": [
+        "api.Service.CreateSessionWithOptions",
+        "api.Service.ListWorkspaces",
+        "api.Service.ReadLaunchPreparation",
+        "views.workspaceFields"
+      ],
+      "directRefs": [
+        "api.Service.CreateSessionWithOptions",
+        "api.Service.ListWorkspaces",
+        "api.Service.ReadLaunchPreparation",
+        "views.workspaceFields"
+      ],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/ui/views/workspace_fields.go"
+      ],
+      "digest": "101f1ed2c988893a5006ec1562a5af145ce6feaac8b9918d326d60528d2cf43c"
     },
     {
       "kind": "task",
@@ -6426,9 +6705,11 @@
       "supportingRefs": [],
       "files": [
         "internal/api/inspection_runtime_test.go",
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/api/session_actions.go",
         "internal/driver/driver.go",
+        "internal/session/activation_result.go",
         "internal/session/attach.go",
         "internal/session/card_references.go",
         "internal/session/lifecycle.go",
@@ -6436,7 +6717,6 @@
         "internal/session/startup_boundary_test.go",
         "internal/session/startup_integration_test.go",
         "internal/session/workspace.go",
-        "internal/ui/callbacks.go",
         "internal/ui/components/session_list.go",
         "internal/ui/components/session_list_test.go",
         "internal/ui/coordinator.go",
@@ -6449,7 +6729,7 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "69c97e5102031218bad81fb2d96abe8494c30a562ddadb7096edfe5ced60eb6f"
+      "digest": "572f5bd1217989283027fa5b083c7b63f2e61bcbd4b6cc7bdc19b28cac3e3d95"
     },
     {
       "kind": "test-feature",
@@ -6491,12 +6771,14 @@
       ],
       "files": [
         "internal/api/conversation_actions.go",
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/api/service_test.go",
         "internal/api/session_actions.go",
         "internal/driver/driver.go",
         "internal/driver/driver_test.go",
         "internal/driver/registry.go",
+        "internal/session/activation_result.go",
         "internal/session/card_references.go",
         "internal/session/claude_resume_test.go",
         "internal/session/lifecycle.go",
@@ -6518,7 +6800,7 @@
         "tests/e2e/launch_focus_test.go",
         "tmp/appediff/runs/codex/attached.png"
       ],
-      "digest": "07ecd3ea9e33682c8d64838c64d70b94c7344bae2de6e7e206577f532702c842"
+      "digest": "448b4220a3cabb0d43f682e74363b2194b320f6e73a9193a37ff9607091242f2"
     },
     {
       "kind": "test-feature",
@@ -6936,6 +7218,7 @@
         "internal/config/types.go",
         "internal/driver/driver.go",
         "internal/mcp/server.go",
+        "internal/session/activation_result.go",
         "internal/session/card_references.go",
         "internal/session/conversation.go",
         "internal/session/lifecycle.go",
@@ -6956,7 +7239,7 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "ddab329eb896f9f6346e8d7d8ab5d24da2bd4bf876f954c5df60a194a4b36558"
+      "digest": "941de4e2b7b3b1bbaa179678a408c105220c5724aca2433e8f38b3aea03cc291"
     },
     {
       "kind": "test-feature",
@@ -7625,9 +7908,11 @@
         "views.Dashboard.handleEdit"
       ],
       "files": [
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/api/session_actions.go",
         "internal/driver/driver.go",
+        "internal/session/activation_result.go",
         "internal/session/card_references.go",
         "internal/session/lifecycle.go",
         "internal/session/lifecycle_test.go",
@@ -7650,7 +7935,7 @@
         "internal/ui/views/session_launcher_test.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "e3b99efe3b523bcfc931403da3d1325f2af8ed30857299dea64d754323ffbf67"
+      "digest": "da429b5092c8e854ad0fba8dad0a729bdc4e37b45288143842e4f9dc11080ada"
     },
     {
       "kind": "test-feature",
@@ -7660,6 +7945,7 @@
       "participants": [],
       "supportingRefs": [],
       "files": [
+        "internal/api/membership.go",
         "internal/api/operations.go",
         "internal/api/service.go",
         "internal/mcp/server.go",
@@ -7671,7 +7957,7 @@
         "internal/ui/coordinator.go",
         "main.go"
       ],
-      "digest": "f6075072656646839af29fde16791c20a2011bbd979285d26516c2774855f0c9"
+      "digest": "b291c8594915b0ea5b0193cf365d398131270a7518b0d7a26425955f1690363b"
     },
     {
       "kind": "test-feature",
@@ -7723,6 +8009,7 @@
         "internal/api/session_actions.go",
         "internal/driver/driver.go",
         "internal/mcp/server.go",
+        "internal/session/activation_result.go",
         "internal/session/attach.go",
         "internal/session/attach_test.go",
         "internal/session/card_references.go",
@@ -7757,7 +8044,7 @@
         "tests/e2e/opencode_test.go",
         "tests/e2e/provenance_test.go"
       ],
-      "digest": "816c96b612fb2ff3c9c05bff03154370539d340fecea0cba3a391b09d8885dfe"
+      "digest": "d15d2906658fbc75122d563dc0e8fc6555161edb0dfc866784040795655bae32"
     },
     {
       "kind": "test-feature",
@@ -7786,6 +8073,105 @@
     },
     {
       "kind": "test-feature",
+      "id": "workspace-feature-dashboard",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/api/session_actions.go",
+        "internal/session/manager.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/handlers.go",
+        "internal/ui/integration_test.go",
+        "internal/ui/launch_focus_internal_test.go",
+        "internal/ui/navigation.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_draft_test.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/session_launcher.go",
+        "internal/ui/views/session_launcher_test.go",
+        "internal/ui/views/source_manager.go",
+        "internal/ui/views/workspace_fields.go",
+        "internal/ui/views/workspace_picker_modal.go",
+        "internal/ui/views/workspace_picker_test.go"
+      ],
+      "digest": "8e8b2b05af4dc51fc99ee589d80bab47c8d018408b3b3b053c48079b437ef71d"
+    },
+    {
+      "kind": "test-feature",
+      "id": "workspace-feature-mcp-create",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/membership.go",
+        "internal/api/membership_internal_test.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/mcp/server.go",
+        "internal/mcp/server_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/sub_workspaces.go",
+        "internal/session/workspace.go"
+      ],
+      "digest": "560676e9422dde5180a2825d6bb68a332ac6f6abf5ad0618420792b69fac464c"
+    },
+    {
+      "kind": "test-feature",
+      "id": "workspace-feature-workspace-discovery",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/service.go",
+        "internal/api/workspace_discovery_test.go",
+        "internal/mcp/dashboard_scope_test.go",
+        "internal/mcp/server.go",
+        "internal/mcp/server_test.go"
+      ],
+      "digest": "cb1ad4267009ea86a0fb5af6b5562b90bdc2d53cfd76cfd9f6d5360d5c44b859"
+    },
+    {
+      "kind": "test-feature",
+      "id": "workspace-feature-workspace-state",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/conversation_actions.go",
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/api/session_actions_internal_test.go",
+        "internal/driver/driver.go",
+        "internal/mcp/server_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/sub_workspaces.go",
+        "internal/session/workspace.go",
+        "internal/session/workspace_test.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go"
+      ],
+      "digest": "7c16413cecc0fc35dfb8b0f2963ebafcd34231d2060d1a75bb70147f6d92043c"
+    },
+    {
+      "kind": "test-feature",
       "id": "workspace-identity",
       "refs": [],
       "directRefs": [],
@@ -7793,6 +8179,7 @@
       "supportingRefs": [],
       "files": [
         "internal/api/conversation_actions.go",
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/driver/driver.go",
         "internal/session/lifecycle.go",
@@ -7806,7 +8193,7 @@
         "internal/ui/views/agent_switch.go",
         "internal/ui/views/conversation_choice.go"
       ],
-      "digest": "11b3c643d16ac61c0aa6abe8d801ac0c5d03836cecee51553ce1bfd7f7121af2"
+      "digest": "0e9925082d28f8b7c995582066e3ed36c4ef6c27e23bd2fac56b5ca9b87cc901"
     },
     {
       "kind": "test-feature",
@@ -7821,12 +8208,13 @@
         "internal/ui/views/card_editor_layout_test.go",
         "internal/ui/views/card_editor_test.go",
         "internal/ui/views/constants.go",
+        "internal/ui/views/workspace_fields.go",
         "internal/ui/views/workspace_picker_modal.go",
         "internal/ui/views/workspace_picker_test.go",
         "kankuro_specs.md",
         "project.md"
       ],
-      "digest": "d226151db818c30ddf92fe94af11db30fa4e73e5ca3f3dd06147c7b3b1ccf632"
+      "digest": "0284784310541df5beabf8aac0c646bddcf0846ccddb7469c7533ab764b77df8"
     },
     {
       "kind": "test-feature",
@@ -7852,14 +8240,15 @@
       "participants": [],
       "supportingRefs": [],
       "files": [
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/api/session_actions.go",
         "internal/driver/driver.go",
+        "internal/session/activation_result.go",
         "internal/session/card_references.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
         "internal/session/workspace.go",
-        "internal/ui/callbacks.go",
         "internal/ui/components/session_list.go",
         "internal/ui/components/session_list_test.go",
         "internal/ui/coordinator.go",
@@ -7872,7 +8261,7 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "b7dff6fcebe2810f14dbacd1e96cc966e2b04640fcf4b53b223516f100d1c8e1"
+      "digest": "4c1ad707d9471574925530206b61e326c90afb0aee292a9fd94d34269599ab3c"
     },
     {
       "kind": "test-scenario",
@@ -8043,11 +8432,13 @@
       ],
       "files": [
         "internal/api/conversation_actions.go",
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/api/session_actions.go",
         "internal/driver/driver.go",
         "internal/driver/driver_test.go",
         "internal/driver/registry.go",
+        "internal/session/activation_result.go",
         "internal/session/card_references.go",
         "internal/session/claude_resume_test.go",
         "internal/session/lifecycle.go",
@@ -8068,7 +8459,7 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "b40ea057f576110092511dac51a79dd418effc0feb2a2f02541d7480aee79ae8"
+      "digest": "220eb0f7c46ac1b8a82cf631490574e5b8e007052fd8299d058cc35ddb3a8e49"
     },
     {
       "kind": "test-scenario",
@@ -8116,12 +8507,14 @@
       ],
       "files": [
         "internal/api/conversation_actions.go",
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/api/service_test.go",
         "internal/api/session_actions.go",
         "internal/driver/driver.go",
         "internal/driver/driver_test.go",
         "internal/driver/registry.go",
+        "internal/session/activation_result.go",
         "internal/session/card_references.go",
         "internal/session/claude_resume_test.go",
         "internal/session/lifecycle.go",
@@ -8142,7 +8535,7 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "29091c99797832d2283e6f25d04ee5e8b876f8f52796e95257c5af13f0625f40"
+      "digest": "408a91fe9ae8acb58cf68e0b3f59409ec690962540c0537d4fbfce1e04d183bf"
     },
     {
       "kind": "test-scenario",
@@ -8932,15 +9325,16 @@
       "participants": [],
       "supportingRefs": [],
       "files": [
+        "internal/api/membership.go",
         "internal/api/membership_internal_test.go",
         "internal/api/service.go",
         "internal/api/session_actions.go",
         "internal/driver/driver.go",
+        "internal/session/activation_result.go",
         "internal/session/card_references.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
         "internal/session/workspace.go",
-        "internal/ui/callbacks.go",
         "internal/ui/components/session_list.go",
         "internal/ui/components/session_list_test.go",
         "internal/ui/coordinator.go",
@@ -8952,7 +9346,7 @@
         "internal/ui/views/session_launcher.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "6876c91024e633fee98999aea4e4f992d9ef7d6cd1e53d0dfafaa091bf5136ea"
+      "digest": "6609a453530ee7931ae6a110cf83bd794920ec620fdd71314d6bfc9fba2de235"
     },
     {
       "kind": "test-scenario",
@@ -11868,9 +12262,11 @@
         "views.Dashboard.handleEdit"
       ],
       "files": [
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/api/session_actions.go",
         "internal/driver/driver.go",
+        "internal/session/activation_result.go",
         "internal/session/card_references.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
@@ -11888,7 +12284,7 @@
         "internal/ui/views/session_launcher_test.go",
         "tests/e2e/launch_focus_test.go"
       ],
-      "digest": "939ea2f8793ad1cae6e4585ddd9207e45392a299d30fe6e459c741d08bffe0f5"
+      "digest": "23c99a1fb92f03d8414d3272f4bdf028ee21d413505ddaf95c4d3646d5170cc7"
     },
     {
       "kind": "test-scenario",
@@ -12023,6 +12419,7 @@
       "participants": [],
       "supportingRefs": [],
       "files": [
+        "internal/api/membership.go",
         "internal/api/operations.go",
         "internal/api/service.go",
         "internal/mcp/server.go",
@@ -12034,7 +12431,7 @@
         "internal/ui/coordinator.go",
         "main.go"
       ],
-      "digest": "4daf83a23c663538c7e5b8f59d03be8f3e1db51b13fd0fdffdd76bf9c5f9a8d9"
+      "digest": "426b749e3c8bc478791fe343080371a4e779b3c2367c1e269de373786ffec8f3"
     },
     {
       "kind": "test-scenario",
@@ -12159,6 +12556,7 @@
         "internal/api/session_actions.go",
         "internal/driver/driver.go",
         "internal/mcp/server.go",
+        "internal/session/activation_result.go",
         "internal/session/attach.go",
         "internal/session/attach_test.go",
         "internal/session/card_references.go",
@@ -12193,7 +12591,7 @@
         "tests/e2e/opencode_test.go",
         "tests/e2e/provenance_test.go"
       ],
-      "digest": "7e5998e7abfc5b8fd08d2fba0e2fa33b1040297278999ddde5ae0b43c2afec2b"
+      "digest": "994d1af28a58609b24d44fb875b4bc7295d7a99dd016d3c24d286b04dcbeec99"
     },
     {
       "kind": "test-scenario",
@@ -12361,12 +12759,239 @@
     },
     {
       "kind": "test-scenario",
+      "id": "workspace-feature-dashboard/confirm",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/api/session_actions.go",
+        "internal/session/manager.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/integration_test.go",
+        "internal/ui/launch_focus_internal_test.go",
+        "internal/ui/views/session_launcher.go",
+        "internal/ui/views/session_launcher_test.go",
+        "internal/ui/views/workspace_fields.go"
+      ],
+      "digest": "4caf073fbb4a01f9c073a48cc09855896f89cf568d1c0f4be18f363717f9679e"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-feature-dashboard/edit",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_draft_test.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/session_launcher_test.go",
+        "internal/ui/views/workspace_fields.go",
+        "internal/ui/views/workspace_picker_modal.go",
+        "internal/ui/views/workspace_picker_test.go"
+      ],
+      "digest": "1d2edf3336e87bc913934f3d25de3d11f59850140d8582d93657411e0792177e"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-feature-dashboard/escape",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/launch_focus_internal_test.go",
+        "internal/ui/navigation.go",
+        "internal/ui/views/session_launcher.go",
+        "internal/ui/views/session_launcher_test.go",
+        "internal/ui/views/source_manager.go"
+      ],
+      "digest": "79ca9813ce10b61a0072b7c6de8a1909b6d78bd9301c037b7cdc625b78ae0e72"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-feature-dashboard/minimum",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/card_editor_layout_test.go",
+        "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/session_launcher_test.go",
+        "internal/ui/views/workspace_fields.go",
+        "internal/ui/views/workspace_picker_modal.go",
+        "internal/ui/views/workspace_picker_test.go"
+      ],
+      "digest": "dac99c1bc3b1d9615470103ddf42b835df22e151019187c6de55aaa01f85f5c8"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-feature-dashboard/refresh",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/handlers.go",
+        "internal/ui/launch_focus_internal_test.go",
+        "internal/ui/views/card_editor.go",
+        "internal/ui/views/session_launcher.go",
+        "internal/ui/views/workspace_fields.go"
+      ],
+      "digest": "61398f5a4e4a74ea19bd36d043a376884af111b9a92435875c370690f50294a6"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-feature-mcp-create/multi",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/membership.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/mcp/server.go",
+        "internal/mcp/server_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/sub_workspaces.go",
+        "internal/session/workspace.go"
+      ],
+      "digest": "b5edb6828069a0e3309c186ab5d7a0ef89728f1473858e9e27c79140f214701f"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-feature-mcp-create/validate",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/membership_internal_test.go",
+        "internal/api/operations.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/mcp/server.go",
+        "internal/mcp/server_test.go",
+        "internal/session/manager.go"
+      ],
+      "digest": "faf434e830423df6617d0cacd88db321bff6ed34a077645038f84bd5f906cb33"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-feature-workspace-discovery/authorization",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/service.go",
+        "internal/api/workspace_discovery_test.go",
+        "internal/mcp/server.go",
+        "internal/mcp/server_test.go"
+      ],
+      "digest": "29aa2ab37e0144addece51f00c21ac69fc814ff561042796781c937802ab1fd2"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-feature-workspace-discovery/global",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/service.go",
+        "internal/mcp/dashboard_scope_test.go",
+        "internal/mcp/server.go",
+        "internal/mcp/server_test.go"
+      ],
+      "digest": "276b3df5fa5e5d2dc179e35653d6b41f33953e04f50b2783c417a7d6c26fdcfc"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-feature-workspace-discovery/registry",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/card_editor.go",
+        "internal/api/service.go",
+        "internal/api/workspace_discovery_test.go",
+        "internal/mcp/server.go",
+        "internal/mcp/server_test.go"
+      ],
+      "digest": "f14867dad9980e41382a301e9f4855c90d41a56e9201350d7d22e7e3937315f0"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-feature-workspace-state/copies",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/membership.go",
+        "internal/api/service.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/session/sub_workspaces.go",
+        "internal/session/workspace.go",
+        "internal/session/workspace_test.go"
+      ],
+      "digest": "ed60f487e670cfa1514952681e5ecb9b466d38375bd25fcc53fb55bc90ebae4f"
+    },
+    {
+      "kind": "test-scenario",
+      "id": "workspace-feature-workspace-state/restart",
+      "refs": [],
+      "directRefs": [],
+      "participants": [],
+      "supportingRefs": [],
+      "files": [
+        "internal/api/conversation_actions.go",
+        "internal/api/service.go",
+        "internal/api/service_test.go",
+        "internal/api/session_actions_internal_test.go",
+        "internal/driver/driver.go",
+        "internal/mcp/server_test.go",
+        "internal/session/lifecycle.go",
+        "internal/session/manager.go",
+        "internal/ui/callbacks.go",
+        "internal/ui/coordinator.go",
+        "internal/ui/views/agent_switch.go",
+        "internal/ui/views/conversation_choice.go"
+      ],
+      "digest": "42447039b9c7ddd0535460166ec45979c1e29929c72145aab0ceb9fd1e2d5aaa"
+    },
+    {
+      "kind": "test-scenario",
       "id": "workspace-identity/inspect-only",
       "refs": [],
       "directRefs": [],
       "participants": [],
       "supportingRefs": [],
       "files": [
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/session/lifecycle.go",
         "internal/session/manager.go",
@@ -12374,7 +12999,7 @@
         "internal/session/sub_workspaces_inspection_test.go",
         "internal/session/workspace.go"
       ],
-      "digest": "5c667666ccbd877cf21b7b7b7d228afc5187d2b4eb4e4d83518c1f3f42ad29f5"
+      "digest": "3ceddc234ebbd23576c0738f2faeab67b680a500e4a5ba45833e70ba12ec50b0"
     },
     {
       "kind": "test-scenario",
@@ -12385,6 +13010,7 @@
       "supportingRefs": [],
       "files": [
         "internal/api/conversation_actions.go",
+        "internal/api/membership.go",
         "internal/api/service.go",
         "internal/driver/driver.go",
         "internal/session/lifecycle.go",
@@ -12397,7 +13023,7 @@
         "internal/ui/views/agent_switch.go",
         "internal/ui/views/conversation_choice.go"
       ],
-      "digest": "609824f76780252a0723fa271b7af796ec7e634e26559fb2dc03e1e1a4a5db36"
+      "digest": "5e6de2831e8a8bfa4c1229ae30c1a0cb8d7f8d08993e86c9c79cb34bda6b0bc4"
     },
     {
       "kind": "test-scenario",
@@ -12467,10 +13093,11 @@
         "internal/ui/views/card_editor.go",
         "internal/ui/views/card_editor_layout_test.go",
         "internal/ui/views/card_editor_test.go",
+        "internal/ui/views/workspace_fields.go",
         "internal/ui/views/workspace_picker_modal.go",
         "internal/ui/views/workspace_picker_test.go"
       ],
-      "digest": "d09881a81aef848873f38ac00471101e3a8546d30f0b02ba4e07325dbd40e4b7"
+      "digest": "be2247d81ddf197aef1e1a3790388b396d5c4fe717555455265ea09306908037"
     },
     {
       "kind": "test-scenario",
@@ -12489,5 +13116,5 @@
       "digest": "9b604ee1f64e13182417327ca84f286cf8e9ea59aabcba4777c111a27287e9ff"
     }
   ],
-  "digest": "4e710a9a8fcb7437396a0c4c3e6b07a464dc4148829569634d37ba557fdb7ecb"
+  "digest": "9e2a7358921029017d303f94a7dab28df9341af2ace1289febb39ab687a580a2"
 }

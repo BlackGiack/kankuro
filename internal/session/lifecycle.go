@@ -741,13 +741,16 @@ func (m *Manager) startSessionCore(
 	var deployedSubWorkspaces []SubWorkspaceDescriptor
 	subWorkspaceMetadataAvailable := false
 	if isNew {
-		var rollback func() error
 		var prepareErr error
-		instructionsManaged, rollback, prepareErr = m.prepareNewSessionFiles(ctx, d, card, skills, personas, mcps, finalWD)
+		deployedSubWorkspaces, subWorkspaceMetadataAvailable, prepareErr = m.prepareSubWorkspacesSnapshot(ctx, card, finalWD)
 		if prepareErr != nil {
 			return m.cleanupNewTemporaryWorkspace(sid, card, true, prepareErr)
 		}
-		deployedSubWorkspaces, subWorkspaceMetadataAvailable = preparedSubWorkspaceDescriptors(finalWD)
+		var rollback func() error
+		instructionsManaged, rollback, prepareErr = m.prepareNewSessionFiles(d, card, skills, personas, mcps, finalWD)
+		if prepareErr != nil {
+			return m.cleanupNewTemporaryWorkspace(sid, card, true, prepareErr)
+		}
 		defer func() {
 			if !committedInstructions && evidence.Effect != ActivationUncertain {
 				returnErr = errors.Join(returnErr, rollback())
@@ -922,13 +925,9 @@ func (m *Manager) startSessionCore(
 }
 
 func (m *Manager) prepareNewSessionFiles(
-	ctx context.Context,
 	d driver.AgentDriver, card config.IDCard, skills []config.Skill,
 	personas []config.Persona, mcps []config.MCPServer, workingDir string,
 ) (bool, func() error, error) {
-	if err := m.prepareSubWorkspaces(ctx, card, workingDir); err != nil {
-		return false, nil, err
-	}
 	instructionPath := filepath.Join(workingDir, d.GetInstructionFileName())
 	previousFile, err := snapshotInstructionFile(instructionPath)
 	if err != nil {

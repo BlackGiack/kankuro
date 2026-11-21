@@ -9,6 +9,7 @@ import (
 type dashboardInventoryReader interface {
 	ReadDashboardInventory() ([]contracts.DashboardSummary, error)
 	ReadDashboardOverview(dashboardID string) (contracts.DashboardInventory, error)
+	ReadLaunchPreparation(dashboardID, cardID string) (contracts.LaunchPreparation, error)
 	ReadDisplayChoices() contracts.DisplayChoicesResult
 	ReadRegistryChangeToken() (contracts.RegistryChangeToken, error)
 }

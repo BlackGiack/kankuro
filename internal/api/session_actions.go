@@ -15,7 +15,15 @@ import (
 // LaunchSession publishes one scoped activation and returns its captured effect.
 func (s *Service) LaunchSession(ctx context.Context, request contracts.LaunchSessionRequest) contracts.LifecycleResult {
 	var evidence session.ActivationResult
-	_, err := s.launchDashboardWithIDEvidence(ctx, request.DashboardID, request.CardID, uuid.NewString(), nil, &evidence)
+	_, err := s.launchDashboardWithIDEvidence(
+		ctx,
+		request.DashboardID,
+		request.CardID,
+		uuid.NewString(),
+		nil,
+		request.WorkspaceIDs,
+		&evidence,
+	)
 	return lifecycleResult(evidence, err)
 }
 

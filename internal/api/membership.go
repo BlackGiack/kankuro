@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/BlackGiack/kankuro/internal/api/contracts"
 	"github.com/BlackGiack/kankuro/internal/config"
@@ -221,13 +222,14 @@ func hasForeignCardReferences(impact session.CardReferenceImpact, ownerID string
 }
 
 func (s *Service) launchDashboardWithID(ctx context.Context, dashboardID, cardID, sessionID string, name *string) (string, error) {
-	return s.launchDashboardWithIDEvidence(ctx, dashboardID, cardID, sessionID, name, nil)
+	return s.launchDashboardWithIDEvidence(ctx, dashboardID, cardID, sessionID, name, nil, nil)
 }
 
 func (s *Service) launchDashboardWithIDEvidence(
 	ctx context.Context,
 	dashboardID, cardID, sessionID string,
 	name *string,
+	workspaceIDs []string,
 	evidence *session.ActivationResult,
 ) (string, error) {
 	launchCtx, cancel := context.WithCancel(ctx)
@@ -250,6 +252,10 @@ func (s *Service) launchDashboardWithIDEvidence(
 	if err != nil {
 		return "", err
 	}
+	effectiveCard, err := s.cardWithWorkspaceOverrides(bundle.Card, workspaceIDs)
+	if err != nil {
+		return "", err
+	}
 	publicationCheck := func(sessions []session.Snapshot) error {
 		current, available, checkErr := s.availableDashboardCard(dashboardID, cardID, sessions)
 		if checkErr != nil {
@@ -260,7 +266,7 @@ func (s *Service) launchDashboardWithIDEvidence(
 		}
 		return nil
 	}
-	result := s.sessions.LaunchInDashboardWithIDResult(launchCtx, sessionID, dashboardID, bundle.Card,
+	result := s.sessions.LaunchInDashboardWithIDResult(launchCtx, sessionID, dashboardID, effectiveCard,
 		bundle.Skills, bundle.Personas, bundle.MCPs, publicationCheck, name)
 	if evidence != nil {
 		*evidence = result
@@ -569,4 +575,60 @@ func (i *membershipInventory) hasTombstone(cardID string) bool {
 func (i *membershipInventory) allowsSession(dashboardID, sessionID string) bool {
 	item, exists := i.sessions[sessionID]
 	return exists && i.activeDashboard(dashboardID) && item.DashboardID == dashboardID
+}
+
+// ReadLaunchPreparation reads a launchable card and its workspace choices.
+func (s *Service) ReadLaunchPreparation(dashboardID, cardID string) (contracts.LaunchPreparation, error) {
+	var card config.IDCard
+	err := s.sessions.WithCardReferencesAndSnapshot(cardID, func(_ session.CardReferenceImpact, sessions []session.Snapshot) error {
+		current, available, err := s.availableDashboardCard(dashboardID, cardID, sessions)
+		if err != nil {
+			return err
+		}
+		if !available {
+			return errors.New("card unavailable")
+		}
+		card = current
+		return nil
+	})
+	if err != nil {
+		return contracts.LaunchPreparation{}, err
+	}
+	return contracts.LaunchPreparation{
+		Card:            contracts.CardSummary{ID: card.ID, Name: card.Name},
+		WorkspaceID:     card.WorkspaceID,
+		SubWorkspaceIDs: append([]string(nil), card.SubWorkspaceIDs...),
+		Workspaces:      s.ReadWorkspaceChoices(),
+	}, nil
+}
+
+func (s *Service) cardWithWorkspaceOverrides(card config.IDCard, ids []string) (config.IDCard, error) {
+	if ids == nil {
+		return card, nil
+	}
+	if len(ids) == 0 {
+		return card, errors.New("workspace_ids must contain a main workspace")
+	}
+	lister, ok := s.repo.(workspaceLister)
+	if !ok {
+		return card, errors.New("workspace registry unavailable")
+	}
+	workspaces, err := lister.ListWorkspaces()
+	if err != nil {
+		return card, err
+	}
+	known := make(map[string]bool, len(workspaces))
+	for _, workspace := range workspaces {
+		known[workspace.ID] = true
+	}
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		if strings.TrimSpace(id) == "" || !known[id] || seen[id] {
+			return card, fmt.Errorf("invalid or duplicate workspace ID: %q", id)
+		}
+		seen[id] = true
+	}
+	card.WorkspaceID = ids[0]
+	card.SubWorkspaceIDs = append([]string(nil), ids[1:]...)
+	return card, nil
 }

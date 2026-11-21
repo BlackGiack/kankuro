@@ -152,13 +152,17 @@ func (c *Coordinator) renameDashboardSession(sessionID, name string) tea.Cmd {
 	}
 }
 
-func (c *Coordinator) launchCard(card contracts.CardSummary, request uint64) tea.Cmd {
+func (c *Coordinator) launchCard(card contracts.CardSummary, request uint64, preparation *contracts.LaunchPreparation) tea.Cmd {
 	launcher, ok := c.views[ViewSessionLauncher].(*views.SessionLauncher)
 	if !ok {
 		return nil
 	}
 	launcher.Reset()
 	launcher.SetCard(card)
+	if preparation != nil {
+		launcher.SetWorkspaceDraft(*preparation)
+		return c.navigateTo(ViewSessionLauncher)
+	}
 
 	// The view reset above is coordinator-goroutine work and has already
 	// happened; the blocking launch is sessionActions' closure.
@@ -368,6 +372,11 @@ func (c *Coordinator) mcpCallbacks() views.MCPFormCallbacks {
 
 func (c *Coordinator) sessionLauncherCallbacks() views.SessionLauncherCallbacks {
 	return views.SessionLauncherCallbacks{
+		OnLaunch: func(ids []string) tea.Cmd {
+			return c.actions.launch(c.activeDashboard, c.viewGeneration, c.launchCardID, c.launchRequest, ids)
+		},
+		OnOpenWorkspaces:  func() tea.Cmd { return c.launchWorkspaceNavigation(false) },
+		OnCancelWorkspace: func() tea.Cmd { return c.launchWorkspaceNavigation(true) },
 		OnSetNameAsync: func(sessionID, name, processID string) tea.Cmd {
 			c.renameRequest++
 			dashboardID, generation, request, service := c.activeDashboard, c.viewGeneration, c.renameRequest, c.actions.port
@@ -478,4 +487,15 @@ func (c *Coordinator) conversationChoiceCallbacks() views.ConversationChoiceCall
 		},
 		OnCancel: func(returnView messages.ViewType) tea.Cmd { return c.navigationCommand(returnView) },
 	}
+}
+
+func (c *Coordinator) launchWorkspaceNavigation(cancel bool) tea.Cmd {
+	msg := messages.LaunchWorkspaceNavigationMsg{
+		DashboardID: c.activeDashboard,
+		Generation:  c.viewGeneration,
+		CardID:      c.launchCardID,
+		Request:     c.launchRequest,
+		Cancel:      cancel,
+	}
+	return func() tea.Msg { return msg }
 }

@@ -225,6 +225,9 @@ func TestOperationRunnerCreatesOnceAndReplaysRequest(t *testing.T) {
 	if _, authErr := manager.ResolveDashboardCaller(registrationToken); authErr == nil {
 		t.Fatal("registration-only activation received dashboard control")
 	}
+	if _, _, authErr := service.ListWorkspaces(registrationToken); authErr == nil {
+		t.Fatal("registration-only caller discovered workspaces")
+	}
 	if _, authErr := service.ListCards(registrationToken); authErr == nil {
 		t.Fatal("registration-only caller discovered cards")
 	}
@@ -263,6 +266,46 @@ func TestOperationRunnerCreatesOnceAndReplaysRequest(t *testing.T) {
 	}
 	if concurrentReplay.ID != first.ID || concurrentReplay.TargetSession != first.TargetSession {
 		t.Fatalf("concurrent duplicate created a second operation: %#v vs %#v", first, concurrentReplay)
+	}
+	overrideRequest := uuid.NewString()
+	overrideOptions := CreateSessionOptions{WorkspaceIDs: []string{workspaceID}}
+	overridden, overrideErr := service.CreateSessionWithOptions(
+		context.Background(),
+		token,
+		overrideRequest,
+		targetCard.ID,
+		overrideOptions,
+	)
+	if overrideErr != nil || overridden.State != OperationSucceeded {
+		t.Fatalf("override creation: %+v, %v", overridden, overrideErr)
+	}
+	replayed, overrideErr := service.CreateSessionWithOptions(context.Background(), token, overrideRequest, targetCard.ID, overrideOptions)
+	if overrideErr != nil || replayed.ID != overridden.ID {
+		t.Fatalf("override replay: %+v, %v", replayed, overrideErr)
+	}
+	if _, overrideErr = service.CreateSessionWithOptions(
+		context.Background(),
+		token,
+		overrideRequest,
+		targetCard.ID,
+		CreateSessionOptions{WorkspaceIDs: []string{workspaceID, "changed"}},
+	); overrideErr == nil {
+		t.Fatal("changed override accepted for retry")
+	}
+	if _, overrideErr = service.CreateSessionWithOptions(
+		context.Background(),
+		token,
+		uuid.NewString(),
+		targetCard.ID,
+		CreateSessionOptions{WorkspaceIDs: []string{}},
+	); overrideErr == nil {
+		t.Fatal("empty override accepted")
+	}
+	if killErr := manager.Kill(overridden.TargetSession); killErr != nil {
+		t.Fatal(killErr)
+	}
+	if removeErr := manager.Remove(overridden.TargetSession); removeErr != nil {
+		t.Fatal(removeErr)
 	}
 	name := "  仕事  "
 	namedRequest := uuid.NewString()
