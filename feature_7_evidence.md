@@ -1,0 +1,31 @@
+# Feature 7 implementation evidence
+
+Implementation is presented for the assigned independent review. This artifact does not claim review PASS or authorize feature 8.
+
+## Changes and acceptance mapping
+
+- Attachment: `internal/api/contracts/attachment.go` defines the resource; `internal/api/attachment.go`, `internal/api/membership.go`, and `internal/session/attach.go` implement scoped subscription, initial copies, context-aware output, input, backend PTY resizing, and close. The session output tracker owns generation-specific subscribers and drains trailing output after replacement or session removal. Tests include `TestAttachmentDrainsOutputAndOwnsInitial`, `TestAttachmentNextCancellation`, `TestOldAttachmentDrainsAfterReplacement`, `TestAttachmentDrainsAfterSessionRemoved`, and `TestAttachmentResizeUpdatesPTYAndRejectsStoppedProcess`.
+- Terminal and stale results: `internal/ui/terminal` owns human I/O, terminal restoration, detach and resize; workers are joined before restoration. `internal/ui/attachment_owner.go` cancels or releases late, superseded and shutdown results. Tests cover EOF, short writes, setup failure, PTY detach and restoration, terminal resize, previous-visit rejection, resource-plus-error disposal and shutdown. Existing session replay/input tests remain in the suite.
+- Deletion: `internal/api/contracts/deletion.go` and `internal/api/deletion_frontend.go` project independent summaries and progress; backend confirmation, admission, durable intent and retry continue to own policy. Known pre-intent failure, durable pending and uncertain persistence are represented separately. UI deletion workers are canceled and joined on shutdown; request and visit identities reject stale results and repeated mutations. Tests include `TestDeletionPreparationFailuresReportNoIntent`, `TestCardDeletionReportsPendingWhenCleanupAdmissionFails`, `TestDeletionWorkersCancelAndJoin`, `TestDeletionPreparationRejectsSupersededAndOldVisit`, dashboard cascade recovery/foreign-session tests, and `TestDashboardDeletionStatusFailureRetainsPreviousProgress`.
+- Frontend and composition: coordinator, commands and their tests moved from `internal/app` to `internal/ui`; no forwarding package remains. Main injects focused capabilities and startup diagnostics and forwards MCP runtime errors via `ui.RuntimeError`. Main retains runner, session, MCP and lock lifetime. `internal/architecture/allowlist.json` retains only the documented test-support exception; the type-exposure allowlist is empty. Current onboarding and frontend-boundary documentation was updated.
+
+## Verification performed
+
+- `go build ./...`, `go test ./...`, `go vet ./...`, `go test ./internal/architecture/...`, and `git diff --check` passed. A final affected-package run was made after the last backend change.
+- `go test -race ./internal/ui/... ./internal/api ./internal/session` passed. Later changes were covered by targeted race tests for deletion outcomes, stale attachment results, and view status retention.
+- `golangci-lint run --new-from-rev=HEAD` passed with zero issues. An earlier unfiltered `golangci-lint run` failed with repository-wide debt, especially architecture checker complexity, shadowing and unused helpers, alongside changed-code findings that were subsequently fixed. The full lint run was not repeated.
+- Isolated model-free PTY fixture runs at 80×24 and 120×40 showed initial/header and live output, Ctrl+K or Kitty detach, reattach, trailing output, EOF and keyboard protocol restoration. Automated PTY tests additionally exercise SIGWINCH size propagation, I/O failure and termios restoration; the session PTY test verifies the actual backend PTY size and stopped-process rejection.
+- A fake-backed view fixture was inspected for deletion confirmation/cancel, foreign-impact acknowledgment, pending progress and retry. Focused tests exercised stale navigation and backend retry after restart and removed session rows.
+
+## Limits
+
+The PTY manual fixture used fake attachment data rather than a native agent process; real backend PTY behavior was exercised separately by tests. The deletion view inspection used fake callbacks, with backend recovery verified separately. Native model-driven E2E was not run because no provider/model and token budget were authorized. Non-Linux behavior was not verified. Independent review, including inspection of callers and acceptance completeness, remains outstanding.
+
+## Independent review fixes — 2026-11-17
+
+The two findings in `review.md` have been addressed and are submitted for independent re-review; this is not a review PASS.
+
+1. Stream completion is recorded for the current output channel and process generation under the same manager lock used to admit attachments. Subscribers arriving after EOF receive an already-closed stream, while existing buffered output drains. Old stream completion cannot mark a replacement or reused session ID complete. Regression coverage includes `TestAttachmentStreamCompletionAdmission`, `TestAttachmentAdmissionRacesStreamCompletion`, `TestOldStreamCompletionDoesNotCloseReusedSessionID`, existing old-generation/removal tests, and subscription cancellation.
+2. Card and dashboard execution results now produce scoped, sanitized progress views with distinct no-intent, pending, completed and uncertain guidance, diagnostics and available checkpoints. Pending dashboard results permit explicit retry; other outcomes do not offer retry from the result view. Cached execution progress survives failed inventory/status reads and is cleared on leaving its view. Tests exercise both coordinator views for every outcome, post-effect failure and checkpoints, failed refresh/status reads, stale requests and retry eligibility.
+
+Verification after these changes: `go build ./...`, `go test ./... -count=1`, `go vet ./...`, `go test ./internal/architecture/... -count=1`, `go test -race ./internal/ui/... ./internal/api ./internal/session -count=1`, targeted race tests after subsequent localized changes, and `git diff --check`. The two independent review probes in `/tmp/kankuro-step7-review-probes/overlay.json` were rerun and passed. `golangci-lint run --new-from-rev=HEAD` passed with zero issues. Existing Appedia and historical workflow files were not modified.

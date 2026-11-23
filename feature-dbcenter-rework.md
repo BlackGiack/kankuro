@@ -1,0 +1,6 @@
+- Right now, in the middle of the dashboard, we show a preview of what's happening in the session. 
+- We want to replace that with other infos from within the session and drop all the code related to the preview.
+- If we have reports coming from the mcp for that session, then we show the reports and the time at which we got them. 
+- If we don't have reports, we show the the changed files, basically the result of git status on the workspace.
+- If not a git repo, we show the result of "ls -la".
+- Pay attention to not leave dead code behind this change.
