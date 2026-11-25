@@ -727,7 +727,7 @@ func TestSessionMCPs(t *testing.T) {
 	if errRead != nil {
 		t.Fatalf("read AGENTS.md: %v", errRead)
 	}
-	expectedLine := `Available mcp: ["mcp1","mcp2"]`
+	expectedLine := `Available mcp through mcp-cli: ["mcp1","mcp2"]`
 	if !strings.Contains(string(content), expectedLine) {
 		t.Fatalf("expected AGENTS.md to contain %q, got %q", expectedLine, string(content))
 	}
