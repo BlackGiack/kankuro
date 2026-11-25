@@ -8,13 +8,13 @@ description: Register this activation and use Kankuro MCP to receive instruction
 ## First: register this activation
 
 1. Discover the CLI's actual native conversation ID and choose a meaningful display name. Never invent an ID.
-2. Return to the actual workspace root. Call `register_conversation` with `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json call kankuro register_conversation`.
+2. Use the MCP interface available in your session to find the `kankuro` server and inspect its tools. Call `register_conversation` with the actual native `conversation_id` and a short display `name`.
 3. If activation is still starting, retry the identical report after one second, up to five retries.
 4. Distinguish registration confirmation from persistence. A pending, unconfirmed, failed, or unsaved result is not success.
 
 ## Receive and report messages
 
-Discover Kankuro tools with `MCP_NO_DAEMON=1 mcp-cli -c .kankuro/mcp-servers.json`. An orchestrator uses `send_message` with the recipient's session ID, activation ID, short text, and a stable UUID `request_id`. Reuse that UUID unchanged to retry; changed arguments conflict. Inspect or cancel a pending send with `get_operation` or `cancel_operation`. Resolving a pending send concerns message delivery only; do not keep checking it until the delegated task finishes. `get_message` shows retained content and delivery evidence. `submitted` means prompt bytes and Enter were written, not that the CLI processed them.
+An orchestrator uses `send_message` with the recipient's session ID, activation ID, short text, and a stable UUID `request_id`. Reuse that UUID unchanged to retry; changed arguments conflict. Inspect or cancel a pending send with `get_operation` or `cancel_operation`. Resolving a pending send concerns message delivery only; do not keep checking it until the delegated task finishes. `get_message` shows retained content and delivery evidence. `submitted` means prompt bytes and Enter were written, not that the CLI processed them.
 
 For orchestrators: after dispatching work and confirming message delivery, end your current turn when no other orchestration action is ready. Kankuro sends a wake-up message when the worker reports `completed`, `question`, or `blocked`; continue in the turn started by that message. Waiting for a report means ending the turn, not keeping it active with sleep calls, repeated `get_replies` checks, or status updates. Leave the delegated Kankuro session running. On wake-up, retrieve the full report with `get_replies`, correlate it with the original message, and handle its kind before continuing. Retrieving reports after a notification is not a report polling loop.
 

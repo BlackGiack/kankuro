@@ -338,7 +338,7 @@ func appendMCPInstruction(content string, mcps []config.MCPServer) string {
 		mcpNames = append(mcpNames, mcp.Name)
 	}
 	mcpJSON, _ := json.Marshal(mcpNames)
-	mcpLine := fmt.Sprintf("Available mcp: %s", string(mcpJSON))
+	mcpLine := fmt.Sprintf("Available mcp through mcp-cli: %s", string(mcpJSON))
 	if content != "" {
 		return content + "\n" + mcpLine
 	}
